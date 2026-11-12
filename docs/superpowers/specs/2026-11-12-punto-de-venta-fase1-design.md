@@ -27,7 +27,7 @@ El objetivo es un punto de venta propio, instalable en PC y teléfono, que funci
 | Proyecto Firebase | **Nuevo y separado** de Pedidos: "Punto de Venta Comic Shop" |
 | Usuarios | Lista propia del POS. Mismo sistema de entrada que Pedidos: usuario + **PIN de 4 dígitos**, creados por el administrador |
 | Moneda principal | **COP**. Segunda: USD. Tercera: Bs |
-| Tasa COP/USD | **Manual**, solo el administrador la cambia. Aviso si pasan 24 h sin cambiarla |
+| Tasa COP/USD | **Manual**, solo el administrador la cambia. Sin avisos para actualizarla |
 | Tasa Bs/USD | Automática desde `tasa.json` de la Calculadora de Tasas (Binance P2P con recargo, o BCV), con opción de fijarla a mano |
 | Inventario | **Un solo inventario total**, sin ubicaciones ni traslados |
 | Productos | Se crean en la **Carga Masiva** y el POS los importa por SKU. Las existencias las lleva el POS |
@@ -64,11 +64,11 @@ El objetivo es un punto de venta propio, instalable en PC y teléfono, que funci
 | Abrir y cerrar **su** caja | ✅ | ✅ | ✅ |
 | Descuento manual hasta el máximo permitido | ✅ | ✅ | ✅ |
 | Descuento mayor al máximo | ✅ | ✅ | Con autorización |
-| Aprobar autorizaciones de descuento | ✅ | ✅ | ❌ |
+| Aprobar autorizaciones de descuento | ✅ | ❌ | ❌ |
 | Ver costos, ganancias, valor del inventario | ✅ | ✅ | ❌ |
 | Ver reportes de todos | ✅ | ✅ | Solo sus ventas del día |
-| Importar productos, fotos masivas | ✅ | ✅ | ❌ |
-| Ajustes de inventario, ofertas | ✅ | ✅ | ❌ |
+| Importar productos, fotos masivas | ✅ | ❌ | ❌ |
+| Ajustes de inventario, ofertas | ✅ | ❌ | ❌ |
 | Anular ventas, cancelar apartados | ✅ | ✅ | ❌ |
 | Marcar comisiones como pagadas | ✅ | ✅ | ❌ |
 | Cambiar tasas | ✅ | ❌ (solo ve) | ❌ (solo ve) |
@@ -126,7 +126,7 @@ Montos en COP guardados como **enteros en pesos**. USD y Bs con 2 decimales.
 |---|---|---|---|
 | `logins/{usuario}` | Usuario → correo interno | `email`, `uid` | Pública / admin |
 | `usuarios/{uid}` | Perfil | `usuario`, `nombre`, `rol` (`admin`·`encargada`·`vendedora`), `activo` | Usuarios activos / admin |
-| `productos/{sku}` | Una variante | `sku`, `nombre`, `producto` (base del Tarifario), `grupo` (producto + color), `color`, `talla`, `categoria`, `marca`, `codigo` (barras), `precios[5]`, `separado` (bool), `comisiones` (por tramo: tipo, valor, reducida), `existencia`, `minimo`, `foto` (ruta), `oferta` (`{pct, activa}`), `activo` | Todos leen. Vendedora solo puede cambiar `existencia` |
+| `productos/{sku}` | Una variante | `sku`, `nombre`, `producto` (base del Tarifario), `grupo` (producto + color), `color`, `talla`, `categoria`, `marca`, `codigo` (barras), `precios[5]`, `separado` (bool), `comisiones` (por tramo: tipo, valor, reducida), `existencia`, `minimo`, `foto` (ruta), `oferta` (`{pct, activa}`), `activo` | Todos leen. Admin escribe todo. Encargada y vendedora solo pueden cambiar `existencia` (por ventas, apartados y anulaciones) |
 | `costos/{sku}` | Costo de la variante | `costo` (actual), `historial[]` (`costo`, `desde`) | Admin y encargada |
 | `costosVenta/{ventaId}` | Costo congelado de una venta | `lineas[]` (`sku`, `costoUnit`), `total` | Admin y encargada; se crea una vez y no se edita |
 | `ventas/{id}` | Venta o anulación | ver 6.1 | Crea el usuario de la venta. Solo admin y encargada anulan |
@@ -134,7 +134,7 @@ Montos en COP guardados como **enteros en pesos**. USD y Bs con 2 decimales.
 | `cajas/{id}` | Turno de caja de un usuario | `usuario`, `abierta`, `fondo` (por moneda), `movimientos[]`, `cierre` (contado y diferencia por forma de pago, nota), `estado` | El dueño de la caja escribe mientras está abierta. Admin reabre |
 | `movimientos/{id}` | Cambio de existencia | `sku`, `cantidad` (±), `motivo` (`venta`·`apartado`·`anulación`·`cancelación`·`ajuste`·`importación`), `ref`, `usuario`, `fecha`, `nota` | Se crea con cada cambio; nunca se edita |
 | `clientes/{telefono}` | Lista básica | `nombre`, `telefono` | Usuarios activos |
-| `autorizaciones/{id}` | Pedido de descuento | `solicita`, `pct` o monto, `motivo`, `estado`, `aprueba` | Vendedora crea; admin y encargada responden |
+| `autorizaciones/{id}` | Pedido de descuento | `solicita`, `pct` o monto, `motivo`, `estado`, `aprueba` | Vendedora crea; solo el admin responde |
 | `comisiones/{id}` | Pago de comisiones | `vendedor`, `desde`, `hasta`, `monto`, `fecha` | Admin y encargada |
 | `ajustes/general` | Configuración | formas de pago, tramos (`[1,6,12,24,49]`), comisiones por defecto, redondeo (100), descuento máximo de la vendedora (5%), nombre y teléfono de la tienda | Todos leen. Admin escribe |
 | `ajustes/tasas` | Tasas vigentes | `copPorUsd`, `copActualizada`, `bsModo` (`binance`·`bcv`·`manual`), `bsRecargo`, `bsManual` | Todos leen. Admin escribe |
@@ -156,7 +156,7 @@ Se sube la versión de la Carga Masiva y se mantiene compatible con la plantilla
 
 ### 7.2 Importar
 
-- Botón **Importar** (admin y encargada, en PC). Lee `https://kdnaskrlos.github.io/App-Inventario/data/inventario.json`.
+- Botón **Importar** (solo admin, en PC). Lee `https://kdnaskrlos.github.io/App-Inventario/data/inventario.json`.
 - **Vista previa** antes de aplicar: nuevos, con cambios (precio, costo, nombre, código, comisiones, separado) y sin cambios.
 - Al aplicar: los nuevos se crean con la existencia del archivo (con un movimiento `importación`). Los existentes actualizan sus datos pero **nunca su existencia**.
 - Los SKU que existen en el POS pero no en el archivo **no se borran**. Se listan para que se marquen como inactivos si hace falta.
@@ -164,14 +164,14 @@ Se sube la versión de la Carga Masiva y se mantiene compatible con la plantilla
 
 ### 7.3 Fotos masivas
 
-- En PC (admin y encargada). Se arrastra una carpeta o varios archivos.
+- En PC (solo admin). Se arrastra una carpeta o varios archivos.
 - **Emparejado por nombre de archivo** con el `grupo` (producto + color), ignorando mayúsculas, acentos, espacios y guiones. Todas las tallas de un grupo comparten foto.
 - Lista de **sin asignar** para colocarlas tocando.
 - Cada foto se comprime en el navegador a WebP de ~100 KB y 800 px de lado mayor.
 - Se suben al repositorio del POS (`fotos/{grupo}.webp`) con un **token de GitHub de permisos limitados** que vive solo en el navegador del administrador, igual que el Tarifario. Nunca se sube el token.
 - El service worker guarda las fotos vistas para mostrarlas sin internet.
 
-### 7.4 Ajustes de inventario y ofertas
+### 7.4 Ajustes de inventario y ofertas (solo admin)
 
 - Ajuste: sumar o restar existencia con **motivo obligatorio** (conteo, daño, regalo, llegó del taller, otro con nota). Crea un movimiento.
 - Oferta: un % de descuento por **grupo**, que se activa y desactiva. Se aplica sobre el precio del tramo y activa la comisión reducida.
@@ -203,7 +203,7 @@ Se sube la versión de la Carga Masiva y se mantiene compatible con la plantilla
 
 - Sobre el total de la venta, en % o en monto.
 - La vendedora puede aplicar hasta el **descuento máximo** (por defecto 5%).
-- Si necesita más: **"Pedir autorización"** crea una solicitud. Al administrador y a la encargada les aparece en Inicio con insignia, con **Aprobar** y **Rechazar**. Al aprobarse, a la vendedora se le habilita el descuento al instante. Requiere internet; sin conexión se le avisa.
+- Si necesita más: **"Pedir autorización"** crea una solicitud. Al administrador le aparece en Inicio con insignia, con **Aprobar** y **Rechazar**. Al aprobarse, a la vendedora se le habilita el descuento al instante. Requiere internet; sin conexión se le avisa.
 - Cualquier descuento manual activa la **comisión reducida** en todas las líneas de esa venta.
 - Para la ganancia, el descuento se reparte entre las líneas en proporción a su monto.
 
@@ -285,7 +285,7 @@ Admin y encargada, con motivo obligatorio. La venta queda `anulada`, se devuelve
 ### 12.1 Tasas
 
 - **Cabecera:** pastilla "$ 3.900 · Bs 1.075", con cada número en el color de su moneda. Al tocarla, el detalle: fuente, hora de actualización y equivalencia COP por Bs.
-- **COP/USD:** el administrador la escribe en Ajustes → Tasas. Si pasan 24 h sin cambiarla, la pastilla se pone en amarillo y aparece un aviso en Inicio.
+- **COP/USD:** el administrador la escribe en Ajustes → Tasas cuando quiera. No hay avisos para actualizarla; el detalle de la pastilla muestra la fecha del último cambio.
 - **Bs/USD:** se lee `https://kdnaskrlos.github.io/Calculadora-de-Tasas/tasa.json` al abrir y cada 10 minutos.
   - Modo **Binance**: `rate` + recargo (por defecto 15 Bs).
   - Modo **BCV**: `bcv.rate`.
@@ -330,9 +330,9 @@ Sistema **comicshop-interfaz** (Plus Jakarta Sans, verde `#15803d`, superficies 
 
 ### 13.4 Pantallas
 
-- **Inicio (admin y encargada):** recuadros KPI teñidos con ventas de hoy, ganancia, caja de la tienda en vivo y existencias bajas. Debajo: autorizaciones pendientes, alertas (existencia negativa, tasa vencida, cierres con diferencia).
+- **Inicio (admin y encargada):** recuadros KPI teñidos con ventas de hoy, ganancia, caja de la tienda en vivo y existencias bajas. Debajo: alertas (existencia negativa, cierres con diferencia). Las autorizaciones de descuento pendientes aparecen solo en el Inicio del administrador.
 - **Inicio (vendedora):** su caja abierta (esperado por forma de pago) y sus ventas del día.
-- **Inventario en el teléfono:** solo consulta (buscar o escanear; ver existencia, precios por tramo y foto). Importar y fotos masivas solo en PC.
+- **Inventario en el teléfono:** solo consulta (buscar o escanear; ver existencia, precios por tramo y foto). Importar y fotos masivas solo en PC y solo para el administrador.
 
 ## 14. Comisiones
 
@@ -367,7 +367,6 @@ Se calculan en el dispositivo a partir de las ventas del rango elegido.
 | Otro vendió la última unidad (con internet) | La transacción rechaza la venta, se avisa qué producto, el carrito queda intacto |
 | Existencia negativa tras sincronizar | Alerta en Inicio para admin y encargada con las ventas involucradas |
 | Sin tasa de Bs | Formas de pago en Bs desactivadas con aviso |
-| Tasa COP con más de 24 h | Pastilla amarilla y aviso al administrador |
 | Error al guardar (permisos, datos inválidos) | Indicador rojo y mensaje claro. La venta no se marca como guardada |
 | Usuario desactivado | Las reglas lo rechazan y la app cierra su sesión |
 | Falla la importación o la lectura de `inventario.json` | Mensaje claro, nada se aplica a medias (los cambios se aplican en lotes atómicos) |
