@@ -57,6 +57,19 @@ test('cantidades 0, negativas o productos inexistentes se descartan (Review Focu
   assert.equal(z.aviso, null);
 });
 
+test('cantidades de texto se convierten; decimales o inválidas se reportan (revisión)', () => {
+  const r = calcularCarrito([{ sku: 'F', cantidad: '2' }, { sku: 'B', cantidad: 1.5 }, { sku: 'NOEXISTE', cantidad: 1 }], P, opts);
+  assert.deepEqual(r.lineas.map(l => [l.sku, l.cantidad]), [['F', 2]]);
+  assert.deepEqual(r.invalidas, [{ sku: 'B', motivo: 'cantidad' }, { sku: 'NOEXISTE', motivo: 'producto' }]);
+  const sinPrecio = calcularCarrito([{ sku: 'F', cantidad: 1 }], { F: { ...P.F, precios: [null, null, null, null, null] } }, opts);
+  assert.deepEqual(sinPrecio.invalidas, [{ sku: 'F', motivo: 'precio' }]);
+});
+
+test('una oferta mayor a 100% no da precios negativos (revisión)', () => {
+  const PO = { F: { ...P.F, oferta: { pct: 150, activa: true } } };
+  assert.equal(calcularCarrito([{ sku: 'F', cantidad: 1 }], PO, opts).lineas[0].precioUnit, 0);
+});
+
 test('precio de tramo vacío o 0 cae al tramo inferior con valor (Review Focus 4)', () => {
   const Q = { F: { ...P.F, precios: [25000, 0, null, null, null] } };
   assert.equal(calcularCarrito([{ sku: 'F', cantidad: 1 }], Q, opts).subtotal, 25000);

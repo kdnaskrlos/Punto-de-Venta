@@ -25,10 +25,15 @@ function precioDeTramo(precios, t) {
 }
 
 export function calcularCarrito(lineas, productosPorSku, { limites = LIMITES_DEFECTO, redondeo = 100 } = {}) {
-  const validas = (lineas || []).filter(l => {
+  const validas = [], invalidas = [];
+  for (const l0 of lineas || []) {
+    const l = { ...l0, cantidad: Number(l0.cantidad) };
     const p = productosPorSku[l.sku];
-    return p && Number.isFinite(l.cantidad) && l.cantidad > 0 && precioDeTramo(p.precios, 0) != null;
-  });
+    if (!p) invalidas.push({ sku: l.sku, motivo: 'producto' });
+    else if (!Number.isInteger(l.cantidad) || l.cantidad < 0) invalidas.push({ sku: l.sku, motivo: 'cantidad' });
+    else if (precioDeTramo(p.precios, 0) == null) invalidas.push({ sku: l.sku, motivo: 'precio' });
+    else if (l.cantidad > 0) validas.push(l);
+  }
   const cantidadMix = validas.reduce((s, l) => s + (productosPorSku[l.sku].separado ? 0 : l.cantidad), 0);
   const porProducto = {};
   for (const l of validas) {
@@ -41,7 +46,7 @@ export function calcularCarrito(lineas, productosPorSku, { limites = LIMITES_DEF
     const tramo = tramoDe(cant, limites);
     let precioUnit = precioDeTramo(p.precios, tramo);
     const oferta = !!(p.oferta && p.oferta.activa && p.oferta.pct > 0);
-    if (oferta) precioUnit = redondear(precioUnit * (1 - p.oferta.pct / 100), redondeo);
+    if (oferta) precioUnit = redondear(precioUnit * (1 - Math.min(p.oferta.pct, 100) / 100), redondeo);
     return { sku: l.sku, cantidad: l.cantidad, tramo, precioUnit, subtotal: precioUnit * l.cantidad, oferta };
   });
   const subtotal = resultado.reduce((s, l) => s + l.subtotal, 0);
@@ -51,5 +56,5 @@ export function calcularCarrito(lineas, productosPorSku, { limites = LIMITES_DEF
     const sig = limites[t + 1];
     if (sig != null && sig - cantidadMix <= 3) aviso = { faltan: sig - cantidadMix, etiqueta: etiquetaTramo(t + 1, limites) };
   }
-  return { lineas: resultado, cantidadMix, subtotal, aviso };
+  return { lineas: resultado, cantidadMix, subtotal, aviso, invalidas };
 }

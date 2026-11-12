@@ -36,11 +36,27 @@ test('con los campos nuevos de la Carga Masiva agrupa por producto y color', () 
   assert.deepEqual(avisos, []);
 });
 
+test('un costo vacío queda como desconocido, no como 0 (revisión)', () => {
+  const head = INV.head, i = head.indexOf('cost');
+  const rows = INV.rows.map(r => r.map((v, k) => k === i ? '' : v));
+  assert.equal(leerInventario({ ...INV, rows }).productos[0].costo, null);
+});
+
+test('el costo se compara contra costos/{sku}, no contra el producto (revisión)', () => {
+  const { productos } = leerInventario(INV);
+  const actuales = Object.fromEntries(productos.map(({ costo, ...p }) => [p.sku, p]));
+  const costos = Object.fromEntries(productos.map(p => [p.sku, { costo: 9000 }]));
+  const plan = planImportacion(productos, actuales, costos);
+  assert.equal(plan.iguales.length, 3);
+  const plan2 = planImportacion([{ ...productos[0], costo: 9500 }], actuales, costos);
+  assert.deepEqual(plan2.cambios, [{ sku: productos[0].sku, campos: { costo: 9500 } }]);
+});
+
 test('el plan nunca toca la existencia de productos que ya existen', () => {
   const { productos } = leerInventario(INV);
   const [a, b, c] = productos;
   const actuales = { [a.sku]: { ...a, existencia: 3 }, [b.sku]: { ...b, existencia: 1 }, viejo: { sku: 'viejo', activo: true } };
-  const plan = planImportacion([{ ...a, existencia: 99, precios: [26000, 24000, 22500, 20000, null] }, b, c], actuales);
+  const plan = planImportacion([{ ...a, existencia: 99, precios: [26000, 24000, 22500, 20000, null] }, b, c], actuales, { [a.sku]: { costo: 9000 }, [b.sku]: { costo: 9000 } });
   assert.deepEqual(plan.nuevos.map(p => p.sku), [c.sku]);
   assert.equal(plan.cambios.length, 1);
   assert.deepEqual(Object.keys(plan.cambios[0].campos), ['precios']);

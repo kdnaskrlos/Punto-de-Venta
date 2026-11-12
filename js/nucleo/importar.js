@@ -1,5 +1,5 @@
 // Convertir el inventario.json de la Carga Masiva en productos del POS y planear la importación (§7.2).
-const n = v => { const x = Number(String(v ?? '').replace(',', '.')); return Number.isFinite(x) ? x : null; };
+const n = v => { const t = String(v ?? '').trim(); if (!t) return null; const x = Number(t.replace(',', '.')); return Number.isFinite(x) ? x : null; };
 const precio = v => { const x = n(v); return x && x > 0 ? x : null; };
 const verdad = v => v === true || /^(true|1|si|sí|x)$/i.test(String(v ?? '').trim());
 const texto = v => String(v ?? '').trim();
@@ -44,9 +44,10 @@ export function leerInventario(json) {
   return { productos, avisos };
 }
 
-const CAMPOS = ['nombre', 'producto', 'grupo', 'color', 'talla', 'categoria', 'marca', 'codigo', 'precios', 'separado', 'comisiones', 'minimo', 'costo'];
+const CAMPOS = ['nombre', 'producto', 'grupo', 'color', 'talla', 'categoria', 'marca', 'codigo', 'precios', 'separado', 'comisiones', 'minimo'];
 
-export function planImportacion(entrantes, actualesPorSku) {
+// El costo vive en costos/{sku} (solo admin y encargada lo leen), por eso se compara aparte.
+export function planImportacion(entrantes, actualesPorSku, costosPorSku = {}) {
   const nuevos = [], cambios = [], iguales = [];
   const vistos = new Set();
   for (const p of entrantes) {
@@ -55,6 +56,7 @@ export function planImportacion(entrantes, actualesPorSku) {
     if (!a) { nuevos.push(p); continue; }
     const campos = {};
     for (const c of CAMPOS) if (JSON.stringify(p[c] ?? null) !== JSON.stringify(a[c] ?? null)) campos[c] = p[c];
+    if (p.costo != null && p.costo !== (costosPorSku[p.sku]?.costo ?? null)) campos.costo = p.costo;
     if (Object.keys(campos).length) cambios.push({ sku: p.sku, campos }); else iguales.push(p.sku);
   }
   const faltantes = Object.values(actualesPorSku).filter(a => !vistos.has(a.sku) && a.activo !== false).map(a => a.sku);

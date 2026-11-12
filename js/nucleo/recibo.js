@@ -5,7 +5,9 @@ import { NOMBRE_MONEDA } from './formas.js';
 
 // Número internacional sin "+". Venezuela 58 (04xx… o 4xx…) y Colombia 57 (3xx…).
 export function telefonoInternacional(texto) {
-  const d = String(texto || '').replace(/\D/g, '');
+  let d = String(texto || '').replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.startsWith('580')) d = '58' + d.slice(3);
   if (d.length === 11 && d.startsWith('0')) return '58' + d.slice(1);
   if (d.length === 10 && d.startsWith('3')) return '57' + d;
   if (d.length === 10 && d.startsWith('4')) return '58' + d;

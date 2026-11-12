@@ -42,6 +42,19 @@ test('parseMonto en USD y Bs: decimales con coma o punto (Review Focus 1)', () =
   assert.equal(parseMonto('40', 'USD'), 40);
 });
 
+test('parseMonto con formato de EE. UU. copiado de Zelle/USDT (revisión: crítico)', () => {
+  assert.equal(parseMonto('1,234.56', 'USD'), 1234.56);
+  assert.equal(parseMonto('1,234', 'USD'), 1234);
+  assert.equal(parseMonto('12,5', 'USD'), 12.5);
+  assert.equal(parseMonto('1.234,56', 'USD'), 1234.56);
+  assert.equal(parseMonto('1,234', 'BS'), 1.234);
+});
+
+test('parseMonto rechaza negativos', () => {
+  assert.equal(parseMonto('-50', 'USD'), null);
+  assert.equal(parseMonto('-5.000', 'COP'), null);
+});
+
 test('parseMonto rechaza vacío y texto', () => {
   assert.equal(parseMonto('', 'COP'), null);
   assert.equal(parseMonto('abc', 'USD'), null);

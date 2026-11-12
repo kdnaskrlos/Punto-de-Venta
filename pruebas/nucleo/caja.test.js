@@ -22,9 +22,15 @@ test('esperado = fondo + cobros − vuelto − salidas + entradas + abonos', () 
   assert.equal(esp['punto'], 0);
 });
 
-test('las ventas anuladas no cuentan', () => {
-  const esp = esperadoCaja({ fondo: { COP: 0, USD: 0, BS: 0 }, movimientos: [] }, [{ estado: 'anulada', pagos: [{ forma: 'efectivo-cop', monto: 30000 }], vuelto: null }], [], FORMAS);
+test('una venta anulada cuenta su cobro; la devolución es una salida de la caja de quien anula', () => {
+  const esp = esperadoCaja({ fondo: { COP: 0, USD: 0, BS: 0 }, movimientos: [{ tipo: 'salida', forma: 'efectivo-cop', monto: 30000, motivo: 'anulación V-0001' }] },
+    [{ estado: 'anulada', pagos: [{ forma: 'efectivo-cop', monto: 30000 }], vuelto: null }], [], FORMAS);
   assert.equal(esp['efectivo-cop'], 0);
+});
+
+test('un pago en una forma que ya no está en la lista igual se cuenta', () => {
+  const esp = esperadoCaja({ fondo: {}, movimientos: [] }, [{ estado: 'ok', pagos: [{ forma: 'nequi-vieja', monto: 7000 }], vuelto: null }], [], FORMAS);
+  assert.equal(esp['nequi-vieja'], 7000);
 });
 
 test('vuelto en Bs sale del efectivo en Bs', () => {
@@ -40,6 +46,13 @@ test('diferencias: ok, leve (≤ 1% o 2.000) y grave', () => {
   assert.equal(diferenciasCierre({ 'efectivo-cop': 156000 }, { 'efectivo-cop': 150000 }, FORMAS, t).filas[0].nivel, 'grave');
   assert.equal(diferenciasCierre({ 'efectivo-cop': 156000 }, { 'efectivo-cop': 156000 }, FORMAS, t).filas[0].nivel, 'ok');
   assert.equal(diferenciasCierre({ 'efectivo-cop': 1000000 }, { 'efectivo-cop': 990000 }, FORMAS, t).filas[0].nivel, 'leve');
+});
+
+test('sin tasa de Bs una diferencia en Bs es grave y el total queda incompleto (revisión)', () => {
+  const d = diferenciasCierre({ 'pago-movil': 1000000 }, { 'pago-movil': 0 }, FORMAS, { copPorUsd: 3900, bsPorUsd: null });
+  assert.equal(d.filas[0].nivel, 'grave');
+  assert.equal(d.totalIncompleto, true);
+  assert.equal(diferenciasCierre({ 'pago-movil': 5 }, { 'pago-movil': 5 }, FORMAS, { copPorUsd: 3900, bsPorUsd: null }).filas[0].nivel, 'ok');
 });
 
 test('diferencias en otra moneda se juzgan en pesos y se totalizan', () => {

@@ -16,8 +16,7 @@ function deTramo(lista, tramo) {
 }
 
 export function comisionLinea({ tramo, cantidad, subtotal }, producto, defectos = COMISIONES_DEFECTO, reducida = false) {
-  const propias = (producto?.comisiones || []).some(valida);
-  const c = deTramo(propias ? producto.comisiones : defectos, tramo);
+  const c = deTramo(producto?.comisiones, tramo) || deTramo(defectos, tramo);
   if (!c) return 0;
   const valor = Number(reducida ? (c.reducida ?? c.valor) : c.valor) || 0;
   return Math.round(c.tipo === 'Porcentaje' ? subtotal * valor / 100 : valor * cantidad);
@@ -31,19 +30,23 @@ export function comisionesVenta(lineasCalculadas, productosPorSku, defectos, hay
 }
 
 export function resumenComisiones(ventas, { vendedor, desde, hasta }, pagosComision = []) {
+  // Una venta está pagada si su día cae dentro de algún pago registrado para esa vendedora.
   const r = { ventas: 0, prendas: 0, normal: 0, reducida: 0, total: 0, pagado: 0, pendiente: 0 };
+  const pagos = pagosComision.filter(p => p.vendedor === vendedor);
   for (const v of ventas) {
     if (v.estado === 'anulada' || v.usuario !== vendedor) continue;
     const d = diaLocal(v.fecha);
     if (d < desde || d > hasta) continue;
     r.ventas++;
+    let suma = 0;
     for (const l of v.lineas || []) {
       r.prendas += l.cantidad;
+      suma += l.comision || 0;
       if (l.reducida) r.reducida += l.comision || 0; else r.normal += l.comision || 0;
     }
+    if (pagos.some(p => d >= p.desde && d <= p.hasta)) r.pagado += suma;
   }
   r.total = r.normal + r.reducida;
-  r.pagado = pagosComision.filter(p => p.vendedor === vendedor && p.desde >= desde && p.hasta <= hasta).reduce((s, p) => s + p.monto, 0);
-  r.pendiente = Math.max(0, r.total - r.pagado);
+  r.pendiente = r.total - r.pagado;
   return r;
 }

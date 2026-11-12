@@ -27,6 +27,10 @@ test('la comisión del producto manda sobre la de ajustes', () => {
   assert.equal(comisionLinea({ tramo: 1, cantidad: 1, subtotal: 24000 }, P.F, [cm(9999, 1), cm(9999, 1)], false), 2000);
 });
 
+test('si el producto no tiene dato en ese tramo ni debajo, usa los de ajustes', () => {
+  assert.equal(comisionLinea({ tramo: 0, cantidad: 1, subtotal: 25000 }, { comisiones: [null, cm(2000, 1000)] }, COMISIONES_DEFECTO, false), 4000);
+});
+
 test('reducida si la línea está en oferta o la venta tiene descuento', () => {
   const lineas = [{ sku: 'F', tramo: 0, cantidad: 1, subtotal: 22500, oferta: true }, { sku: 'B', tramo: 0, cantidad: 1, subtotal: 48000, oferta: false }];
   const cv = comisionesVenta(lineas, P, COMISIONES_DEFECTO, false);
@@ -43,7 +47,11 @@ test('resumen por vendedora y rango, sin anuladas, con lo pagado', () => {
     v('2026-11-11T16:00:00Z', [{ cantidad: 1, comision: 4000, reducida: false }], 'ok', 'otra'),
     v('2026-11-20T15:00:00Z', [{ cantidad: 1, comision: 4000, reducida: false }]),
   ];
-  const pagos = [{ vendedor: 'ana', desde: '2026-11-10', hasta: '2026-11-10', monto: 6000 }];
+  const pagos = [{ vendedor: 'ana', desde: '2026-11-10', hasta: '2026-11-10', monto: 10000 }];
   const r = resumenComisiones(ventas, { vendedor: 'ana', desde: '2026-11-10', hasta: '2026-11-15' }, pagos);
-  assert.deepEqual(r, { ventas: 1, prendas: 3, normal: 8000, reducida: 2000, total: 10000, pagado: 6000, pendiente: 4000 });
+  assert.deepEqual(r, { ventas: 1, prendas: 3, normal: 8000, reducida: 2000, total: 10000, pagado: 10000, pendiente: 0 });
+  // un pago de todo el mes cubre una consulta de una semana (revisión: no pagar dos veces)
+  const mes = [{ vendedor: 'ana', desde: '2026-11-01', hasta: '2026-11-30', monto: 14000 }];
+  assert.equal(resumenComisiones(ventas, { vendedor: 'ana', desde: '2026-11-09', hasta: '2026-11-15' }, mes).pendiente, 0);
+  assert.equal(resumenComisiones(ventas, { vendedor: 'ana', desde: '2026-11-09', hasta: '2026-11-25' }, pagos).pendiente, 4000);
 });
