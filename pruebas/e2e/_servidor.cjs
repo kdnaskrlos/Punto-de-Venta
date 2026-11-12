@@ -2,7 +2,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
-const { chromium } = require('playwright');
+const { chromium, devices } = require('playwright');
 
 const RAIZ = path.resolve(__dirname, '..', '..');
 const PUERTO = 8765;
@@ -22,8 +22,9 @@ async function arrancar() {
   return {
     nav,
     // usuario: con quién entrar (null = quedarse en la pantalla de entrada). caja: abrir caja antes de la prueba.
-    async pagina({ ancho = 1530, alto = 900, ruta = '', query = '?demo', usuario = 'admin', caja = false } = {}) {
-      const ctx = await nav.newContext({ viewport: { width: ancho, height: alto }, serviceWorkers: 'block' });
+    // movil: teléfono real simulado (zoom, toque y ventana de diseño como Chrome en Android).
+    async pagina({ ancho = 1530, alto = 900, ruta = '', query = '?demo', usuario = 'admin', caja = false, movil = false } = {}) {
+      const ctx = await nav.newContext(movil ? { ...devices['Pixel 7'], serviceWorkers: 'block' } : { viewport: { width: ancho, height: alto }, serviceWorkers: 'block' });
       const p = await ctx.newPage();
       p.setDefaultTimeout(6000);
       p.errores = [];

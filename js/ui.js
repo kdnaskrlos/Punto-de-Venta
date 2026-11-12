@@ -53,6 +53,8 @@ export function logo() {
 // h('button', {class:'btn', onclick}, 'texto', icono('x'))
 export function h(tag, attrs = {}, ...hijos) {
   const el = document.createElement(tag);
+  // Sin autocompletado del navegador (en Android saca una barra de llaves, tarjetas y direcciones encima del teclado)
+  if (tag === 'input' && !['checkbox', 'radio', 'file'].includes(attrs?.type) && !(attrs && 'autocomplete' in attrs)) el.setAttribute('autocomplete', 'off');
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v == null || v === false) continue;
     if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
@@ -173,3 +175,8 @@ export function pedirMotivo({ titulo, etiqueta = 'Motivo', boton = 'Confirmar', 
 // Quita los vacíos (null, undefined, false) antes de insertar: append(null) escribiría "null" en pantalla.
 export const sin = (...xs) => xs.flat(Infinity).filter(x => x != null && x !== false);
 export { unaVez } from './nucleo/una-vez.js';
+
+// En el teléfono, mientras se escribe, la barra inferior se esconde para dejar sitio al teclado.
+const ES_CAMPO = el => el && (el.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea'));
+document.addEventListener('focusin', e => { if (ES_CAMPO(e.target)) document.body.classList.add('teclado'); });
+document.addEventListener('focusout', () => setTimeout(() => { if (!ES_CAMPO(document.activeElement)) document.body.classList.remove('teclado'); }, 60));

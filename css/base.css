@@ -1,5 +1,7 @@
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink)}
+html{overflow-x:clip}
+.contenido{overflow-x:clip}
 body{font-family:var(--f);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;overflow-x:clip}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -22,7 +24,8 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .nav .bdg{position:absolute;top:2px;right:12px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--err);color:#fff;font-size:10.5px;font-weight:800;display:grid;place-items:center}
 .main{margin-left:calc(var(--side) + env(safe-area-inset-left,0px));min-height:100vh;display:flex;flex-direction:column}
 .vista{padding:16px;flex:1;min-width:0;animation:entra .22s var(--ease)}
-@keyframes entra{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+/* Entrada de cada sección: solo vertical, para no ensanchar la página (en Android eso hacía brincar la barra inferior) */
+@keyframes entra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* Cabecera */
 .topbar{position:sticky;top:0;z-index:15;display:flex;flex-wrap:nowrap;gap:4px;align-items:center;min-height:56px;padding:4px max(12px,env(safe-area-inset-right,0px)) 4px 16px;border-bottom:1px solid var(--line);background:var(--surface)}

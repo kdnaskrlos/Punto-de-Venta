@@ -59,6 +59,31 @@ casos('esqueleto', [
     a.strictEqual(await p.$('.capa'), null);
     a.strictEqual(await p.evaluate(() => location.hash), '#/vender');
   }],
+  ['Teléfono: la barra inferior no brinca al cambiar de sección (el ancho de la página no cambia)', async (env, a) => {
+    const p = await env.pagina({ movil: true });
+    for (const ruta of ['/apartados', '/inventario', '/mas', '/inicio']) {
+      const anchos = await p.evaluate(r => new Promise(res => {
+        const m = new Set(); const t0 = performance.now();
+        const paso = () => { m.add(innerWidth + '/' + document.documentElement.scrollWidth); if (performance.now() - t0 < 450) requestAnimationFrame(paso); else res([...m]); };
+        location.hash = r; requestAnimationFrame(paso);
+      }), ruta);
+      a.deepStrictEqual(anchos, ['412/412'], `al ir a ${ruta}: ${anchos.join(', ')}`);
+    }
+  }],
+  ['Teléfono: al escribir, la página se ajusta al teclado y se esconde la barra inferior', async (env, a) => {
+    const p = await env.pagina({ movil: true, ruta: '/vender', caja: true });
+    a.match(await p.getAttribute('meta[name="viewport"]', 'content'), /interactive-widget=resizes-content/);
+    a.ok(await p.isVisible('.side'));
+    await p.focus('.buscar-caja .inp');
+    await p.waitForFunction(() => getComputedStyle(document.querySelector('.side')).display === 'none', null, { timeout: 2000 });
+    await p.evaluate(() => document.activeElement.blur());
+    await p.waitForFunction(() => getComputedStyle(document.querySelector('.side')).display !== 'none', null, { timeout: 2000 });
+  }],
+  ['Los campos no ofrecen el autocompletado del navegador', async (env, a) => {
+    const p = await env.pagina({ ruta: '/vender', caja: true });
+    const sin = await p.$$eval('input:not([type=checkbox]):not([type=radio]):not([type=file])', els => els.filter(e => e.getAttribute('autocomplete') !== 'off').map(e => e.outerHTML.slice(0, 80)));
+    a.deepStrictEqual(sin, []);
+  }],
   ['Sin errores en consola', async (env, a) => {
     const p = await env.pagina();
     await p.waitForTimeout(300);
