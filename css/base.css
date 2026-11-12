@@ -54,3 +54,5 @@ button.pill>span{border:1px solid var(--line);background:var(--surface-2);border
   .vista{padding:12px}
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+.logo-svg{width:30px;height:30px}
+.entrar-logo .logo-svg{width:36px;height:36px}

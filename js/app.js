@@ -1,5 +1,5 @@
 // Arranque de la app: navegación, cabecera, enrutador por hash y atajos.
-import { h, icono, abrirHoja, esTelefono } from './ui.js';
+import { h, icono, logo, abrirHoja, esTelefono } from './ui.js';
 import { APP_VERSION } from './version.js';
 import { puede } from './nucleo/permisos.js';
 import { opcionesCuenta } from './vistas/cuenta.js';
@@ -45,7 +45,7 @@ function pintarNav() {
     .sort((x, y) => (tel ? x.movil - y.movil : x.pc - y.pc));
   const actual = rutaActual();
   barra.replaceChildren(
-    h('div', { class: 'logo', 'aria-hidden': 'true' }, icono('carrito')),
+    h('div', { class: 'logo', 'aria-hidden': 'true' }, logo()),
     ...lista.map(a => {
       const enMas = tel && a.ruta === '/mas' && ['/caja', '/reportes', '/ajustes', '/comisiones'].includes(actual);
       const activo = actual === a.ruta || enMas;

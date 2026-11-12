@@ -42,6 +42,14 @@ export function icono(nombre) {
   return t.content.firstChild;
 }
 
+// Logo de la app: carrito con bolsa de tienda (mismo dibujo que icono.svg), en el color del texto.
+const LOGO = '<g fill="none" stroke="currentColor" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"><path d="M138 70 V58 a22 22 0 0 1 44 0 V70"/></g><path d="M112 66 H208 L214 122 H106 Z" fill="currentColor" stroke="currentColor" stroke-width="8" stroke-linejoin="round"/><circle cx="138" cy="84" r="5.5" fill="#7c3aed"/><circle cx="182" cy="84" r="5.5" fill="#7c3aed"/><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M34 84 H62 L76 122" stroke-width="16"/><path d="M74 122 H270 L250 204 H100 Z" stroke-width="15"/><path d="M83 150 H263 M91 177 H257 M116 122 L121 204 M151 122 L153 204 M186 122 L185 204 M221 122 L217 204" stroke-width="11"/><path d="M100 204 L88 222 Q82 236 98 236 H246" stroke-width="15"/></g><g fill="none" stroke="currentColor" stroke-width="12"><circle cx="122" cy="262" r="14"/><circle cx="222" cy="262" r="14"/></g>';
+export function logo() {
+  const t = document.createElement('template');
+  t.innerHTML = `<svg class="logo-svg" viewBox="20 12 270 278" aria-hidden="true">${LOGO}</svg>`;
+  return t.content.firstChild;
+}
+
 // h('button', {class:'btn', onclick}, 'texto', icono('x'))
 export function h(tag, attrs = {}, ...hijos) {
   const el = document.createElement(tag);
