@@ -38,8 +38,8 @@ casos('esqueleto', [
   ['Navegar cambia la ruta y marca el acceso activo', async (env, a) => {
     const p = await env.pagina();
     await p.click('.side .nav[aria-label="Vender"]');
+    await p.waitForSelector('.side .nav[aria-label="Vender"][aria-current="true"]', { timeout: 2000 });
     a.strictEqual(await p.evaluate(() => location.hash), '#/vender');
-    a.strictEqual(await p.getAttribute('.side .nav[aria-label="Vender"]', 'aria-current'), 'true');
   }],
   ['Esc cierra una ventana abierta', async (env, a) => {
     const p = await env.pagina();
