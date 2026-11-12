@@ -10,7 +10,7 @@ registrarVista('/mas', {
       h('div', { class: 'lista-mas' },
         ir('/caja', 'cartera', 'Caja'),
         ir('/reportes', 'grafica', 'Reportes'),
-        ir('/comisiones', 'porcentaje', 'Comisiones'),
+        ctx.puedeVer('pagarComisiones') ? ir('/comisiones', 'porcentaje', 'Comisiones') : null,
         h('button', { class: 'fila-btn', onclick: () => ctx.abrirCalculadora() }, icono('calculadora'), 'Calculadora'),
         ctx.puedeVer('ajustes') ? ir('/ajustes', 'ajustes', 'Ajustes') : null),
       h('h2', { class: 'sec-t' }, icono('usuarios'), 'Mi cuenta'),

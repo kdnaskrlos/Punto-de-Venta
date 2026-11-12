@@ -81,6 +81,7 @@ function montar() {
   pintarNav();
   desmontar && desmontar(); desmontar = null;
   const v = VISTAS[ruta];
+  if (v && v.accion && !ctx.puedeVer(v.accion)) { history.replaceState(null, '', '#/inicio'); montar(); return; }
   const cont = h('section', { class: 'vista', 'data-ruta': ruta });
   contenedor.replaceChildren(cont);
   if (v && (!v.accion || ctx.puedeVer(v.accion))) desmontar = v.montar(cont, ctx) || null;
