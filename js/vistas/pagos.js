@@ -14,6 +14,8 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   const lista = h('div', { class: 'pagos' });
   const barra = h('div', { class: 'barra-falta', role: 'status' });
   const red = ctx.ajustes.redondeo || 100;
+  let listo = false; // no avisar cambios mientras se construye el panel
+  const avisar = () => { if (listo) alCambiar(); };
 
   const estado = () => estadoCobro({ total, pagos: pagos.map(p => ({ forma: p.forma.id, moneda: p.forma.moneda, monto: p.monto || 0 })), tasas: ctx.tasas, redondeo: red });
 
@@ -28,7 +30,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   function pintar(enfocar) {
     lista.replaceChildren(...pagos.map(p => {
       const inp = h('input', { class: 'inp num', inputmode: 'decimal', value: p.monto ? fmtMonto(p.monto, p.forma.moneda) : '', 'aria-label': `Monto en ${p.forma.nombre}` });
-      inp.addEventListener('input', () => { p.monto = parseMonto(inp.value, p.forma.moneda) || 0; pintarBarra(); alCambiar(); });
+      inp.addEventListener('input', () => { p.monto = parseMonto(inp.value, p.forma.moneda) || 0; pintarBarra(); avisar(); });
       inp.addEventListener('blur', () => { inp.value = p.monto ? fmtMonto(p.monto, p.forma.moneda) : ''; });
       inp.addEventListener('focus', () => inp.select());
       const eq = h('span', { class: 'nota num equiv' });
@@ -37,12 +39,12 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       const fila = h('div', { class: 'pago', 'data-forma': p.forma.id },
         h('div', { class: 'pago-nombre' }, h('b', {}, p.forma.nombre), eq),
         h('div', { class: 'pago-monto' }, inp, h('span', { class: `moneda ${GRUPOS.find(g => g[0] === p.forma.moneda)[2]}` }, NOMBRE_MONEDA[p.forma.moneda])),
-        h('button', { class: 'ibtn', 'aria-label': `Quitar ${p.forma.nombre}`, onclick: () => { pagos.splice(pagos.indexOf(p), 1); pintar(); alCambiar(); } }, icono('borrar')));
+        h('button', { class: 'ibtn', 'aria-label': `Quitar ${p.forma.nombre}`, onclick: () => { pagos.splice(pagos.indexOf(p), 1); pintar(); avisar(); } }, icono('borrar')));
       if (enfocar === p.forma.id) setTimeout(() => { inp.focus(); inp.select(); }, 20);
       return fila;
     }));
     pintarBarra();
-    alCambiar();
+    avisar();
   }
 
   function pintarBarra() {
@@ -52,7 +54,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       const v = vueltoEn(e.vueltoCop, monedaVuelto, ctx.tasas, red);
       barra.className = 'barra-falta vuelto';
       barra.replaceChildren(h('span', {}, 'Vuelto'), ' ', h('span', { class: 'monto num' }, v == null ? 'Sin tasa' : `${fmtMonto(v, monedaVuelto)} ${NOMBRE_MONEDA[monedaVuelto]}`),
-        h('div', { class: 'vuelto-moneda segmentado' }, ...GRUPOS.map(([m]) => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === monedaVuelto), disabled: vueltoEn(e.vueltoCop, m, ctx.tasas, red) == null, onclick: () => { monedaVuelto = m; pintarBarra(); alCambiar(); } }, NOMBRE_MONEDA[m]))));
+        h('div', { class: 'vuelto-moneda segmentado' }, ...GRUPOS.map(([m]) => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === monedaVuelto), disabled: vueltoEn(e.vueltoCop, m, ctx.tasas, red) == null, onclick: () => { monedaVuelto = m; pintarBarra(); avisar(); } }, NOMBRE_MONEDA[m]))));
     } else if (e.cuadra || (permitirMenos && e.faltaCop < total)) {
       barra.className = 'barra-falta ok';
       barra.replaceChildren(h('span', {}, permitirMenos && !e.cuadra ? 'Saldo' : 'Falta'), ' ', h('span', { class: 'monto num' }, fmtCop(e.cuadra ? 0 : e.faltaCop)));
@@ -74,6 +76,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
 
   const el = h('div', { class: 'panel-pagos' }, botones, lista);
   pintar();
+  listo = true;
   return {
     el,
     barra, // la ventana la coloca en el pie, siempre visible

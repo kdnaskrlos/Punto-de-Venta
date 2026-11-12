@@ -10,6 +10,8 @@ import { definirCalculadora } from './app.js';
 definirCalculadora(() => abrirCalculadora(ctx));
 ctx.abrirTasas = () => abrirDetalleTasas(ctx);
 import { abrirCobrar } from './vistas/cobrar.js';
+import { abrirApartar } from './vistas/apartados.js';
+ctx.abrirApartar = () => abrirApartar(ctx);
 ctx.abrirCobro = modo => { if (modo === 'venta') abrirCobrar(ctx); else if (ctx.abrirApartar) ctx.abrirApartar(); };
 import { iniciarDatos } from './datos/vivos.js';
 

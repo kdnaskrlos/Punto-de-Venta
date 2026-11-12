@@ -146,3 +146,18 @@ export function toast(texto, { deshacer, malo } = {}) {
 }
 
 export function esTelefono() { return matchMedia('(max-width:760px)').matches; }
+
+// Pide un texto obligatorio (motivo de anulación, cancelación, ajuste). Devuelve el texto o null.
+export function pedirMotivo({ titulo, etiqueta = 'Motivo', boton = 'Confirmar', peligro = false }) {
+  return new Promise(res => {
+    const inp = h('input', { class: 'inp', id: 'motivo', autocomplete: 'off' });
+    const err = h('span', { class: 'error' });
+    const b = h('button', { class: 'btn ' + (peligro ? 'danger' : 'primary'), id: 'motivo-final' }, boton);
+    let valor = null;
+    const v = abrirVentana({ titulo, contenido: h('div', { class: 'campo' }, h('label', { for: 'motivo' }, etiqueta), inp, err), acciones: h('div', { class: 'acciones' }, b) });
+    const ok = () => { if (!inp.value.trim()) { err.textContent = 'Escribe el motivo'; return; } valor = inp.value.trim(); v.cerrar(); };
+    b.onclick = ok;
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); });
+    v.alCerrar = () => res(valor);
+  });
+}
