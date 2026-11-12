@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test pruebas/nucleo pruebas/datos",
+    "test": "node --test 'pruebas/nucleo/*.test.js' 'pruebas/datos/*.test.js'",
     "e2e": "for f in pruebas/e2e/[!_]*.cjs; do NODE_PATH=/opt/npm-tools/node_modules node $f || exit 1; done"
   }
 }
