@@ -127,6 +127,8 @@ test('anular devuelve existencias (solo gestión)', async () => {
   await a.salir(); await a.entrar('encargada', '1234');
   assert.equal((await a.anularVenta(v.id, 'error')).ok, true);
   assert.equal(existencia(a, 'F-N-6'), 12);
+  const caja = a._estado('cajas').get(ventas(a)[0].cajaId);
+  assert.deepEqual(caja.movimientos.map(m => [m.tipo, m.forma, m.monto]), [['salida', 'efectivo-cop', 1000]]);
   assert.equal(ventas(a)[0].estado, 'anulada');
   assert.equal((await a.anularVenta(v.id, 'otra vez')).error, 'ya-anulada');
 });
