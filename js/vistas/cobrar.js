@@ -1,5 +1,5 @@
 // Ventana Cobrar (§9.2): cliente obligatorio, pagos mixtos, vuelto, guardar la venta y recibo por WhatsApp.
-import { h, icono, abrirVentana, toast } from '../ui.js';
+import { h, icono, abrirVentana, toast, esTelefono } from '../ui.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
 import { crearPanelPagos } from './pagos.js';
@@ -12,7 +12,7 @@ import { fmtCop } from '../nucleo/dinero.js';
 export function camposCliente(ctx, alCambiar) {
   let clientes = [];
   const quitar = ctx.almacen.escuchar('clientes', l => { clientes = l; });
-  const tel = h('input', { class: 'inp', id: 'cli-tel', type: 'tel', inputmode: 'tel', autocomplete: 'off', placeholder: '0412 123 4567' });
+  const tel = h('input', { class: 'inp', id: 'cli-tel', type: 'tel', inputmode: 'tel', autocomplete: 'off', placeholder: 'Ej. 0412 123 4567' });
   const nombre = h('input', { class: 'inp', id: 'cli-nombre', autocomplete: 'off', autocapitalize: 'words' });
   const errTel = h('span', { class: 'error' }), errNom = h('span', { class: 'error' });
   tel.addEventListener('input', () => {
@@ -77,14 +77,15 @@ export function abrirCobrar(ctx) {
   const cliente = camposCliente(ctx, () => actualizar());
   const panel = crearPanelPagos(ctx, { total: r0.total, alCambiar: () => actualizar() });
   const cuerpo = h('div', { class: 'cobro' },
-    cliente.el,
     h('div', { class: 'total-cobro' }, h('span', { class: 'total-cop num' }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')),
-    panel.el);
+    panel.el,
+    h('div', { class: 'sec-m' }, 'CLIENTE'),
+    cliente.el);
   const v = abrirVentana({ titulo: 'Cobrar', contenido: cuerpo, acciones: h('div', { class: 'pie-cobro' }, panel.barra, final), pantallaCompleta: true });
   v.alCerrar = () => cliente.quitar();
   marcarCobro(v);
   actualizar();
-  setTimeout(() => cliente.foco(), 40);
+  if (!esTelefono()) setTimeout(() => cliente.foco(), 40);
 
   final.addEventListener('click', async () => {
     if (guardando || hecha) return;

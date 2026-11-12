@@ -22,7 +22,7 @@ export function textoRecibo(venta, tienda) {
   const L = [`*${tienda.nombre}*`, fechaHora(venta.fecha)];
   if (venta.numero) L.push(`Venta ${venta.numero}`);
   L.push(`Cliente: ${venta.cliente?.nombre || ''}`, '');
-  for (const l of venta.lineas) L.push(`${l.cantidad} × ${l.nombre}${l.talla ? ` · T${l.talla}` : ''} — ${fmtCop(l.subtotal ?? l.precioUnit * l.cantidad)}`);
+  for (const l of venta.lineas) L.push(`${l.cantidad} × ${l.nombre}${l.talla ? ` · Talla ${l.talla}` : ''} — ${fmtCop(l.subtotal ?? l.precioUnit * l.cantidad)}`);
   L.push('');
   const desc = venta.descuento?.monto || 0;
   if (desc > 0) L.push(`Subtotal: ${fmtCop(venta.subtotal)}`, `Descuento: -${fmtCop(desc)}`);

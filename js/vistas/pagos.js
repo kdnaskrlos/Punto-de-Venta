@@ -1,8 +1,11 @@
 // Panel de pagos reutilizable (cobrar, apartar, abonar, completar): formas por moneda, montos, falta y vuelto (§9.2).
-import { h, icono } from '../ui.js';
+import { h, icono, esTelefono } from '../ui.js';
 import { estadoCobro, montoSugerido, vueltoEn } from '../nucleo/cobro.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
 import { formaEfectivo, NOMBRE_MONEDA } from '../nucleo/formas.js';
+
+// En los botones el grupo ya dice la moneda: "Efectivo pesos" → "Efectivo", "Transferencia / Nequi / …" → "Transferencia".
+export const nombreCorto = n => (n.split('/')[0].replace(/\(.*?\)/g, '').replace(/\b(pesos|d[oó]lares|bol[ií]vares)\b/gi, '').replace(/\s+/g, ' ').trim()) || n;
 
 const GRUPOS = [['COP', 'PESOS', 'c-cop'], ['USD', 'DÓLARES', 'c-usd'], ['BS', 'BOLÍVARES', 'c-bs']];
 
@@ -40,7 +43,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
         h('div', { class: 'pago-nombre' }, h('b', {}, p.forma.nombre), eq),
         h('div', { class: 'pago-monto' }, inp, h('span', { class: `moneda ${GRUPOS.find(g => g[0] === p.forma.moneda)[2]}` }, NOMBRE_MONEDA[p.forma.moneda])),
         h('button', { class: 'ibtn', 'aria-label': `Quitar ${p.forma.nombre}`, onclick: () => { pagos.splice(pagos.indexOf(p), 1); pintar(); avisar(); } }, icono('borrar')));
-      if (enfocar === p.forma.id) setTimeout(() => { inp.focus(); inp.select(); }, 20);
+      if (enfocar === p.forma.id && !esTelefono()) setTimeout(() => { inp.focus(); inp.select(); }, 20);
       return fila;
     }));
     pintarBarra();
@@ -71,10 +74,11 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     const bloqueada = (moneda === 'BS' && sinBs) || (moneda !== 'COP' && !ctx.tasas.copPorUsd);
     return h('div', { class: 'grupo-formas' },
       h('div', { class: `sec-m ${clase}` }, titulo, bloqueada ? h('span', { class: 'nota' }, moneda === 'BS' ? ' · Sin tasa de Bs' : ' · Sin tasa') : null),
-      h('div', { class: 'formas-rejilla' }, ...fs.map(f => h('button', { type: 'button', class: `forma ${clase}`, 'data-forma': f.id, title: f.nombre, disabled: bloqueada, onclick: () => agregar(f) }, h('span', {}, f.nombre)))));
+      h('div', { class: 'formas-rejilla' }, ...fs.map(f => h('button', { type: 'button', class: `forma ${clase}`, 'data-forma': f.id, title: f.nombre, disabled: bloqueada, onclick: () => agregar(f) }, h('span', {}, nombreCorto(f.nombre))))));
   }));
 
-  const el = h('div', { class: 'panel-pagos' }, botones, lista);
+  // Los pagos agregados van arriba, a la vista; debajo, los botones para agregar otro.
+  const el = h('div', { class: 'panel-pagos' }, lista, botones);
   pintar();
   listo = true;
   return {

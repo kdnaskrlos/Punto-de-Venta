@@ -122,4 +122,34 @@ casos('cobrar', [
     a.ok(await p.$('.lado-carrito .linea[data-sku="B-L"]'));
     a.deepStrictEqual(p.errores, []);
   }],
+  ['Teléfono: Cobrar no abre el teclado solo; el pago agregado queda arriba y el botón Cobrar a la vista', async (env, a) => {
+    const p = await preparar(env, { movil: true });
+    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
+    await p.waitForSelector('#cobrar-final');
+    await p.waitForTimeout(150);
+    a.notStrictEqual(await p.evaluate(() => document.activeElement.tagName), 'INPUT');
+    await p.click('.forma[data-forma="efectivo-cop"]');
+    a.notStrictEqual(await p.evaluate(() => document.activeElement.tagName), 'INPUT');
+    const pos = await p.evaluate(() => {
+      const r = s => document.querySelector(s).getBoundingClientRect();
+      return { pago: r('.pago[data-forma="efectivo-cop"]'), formas: r('.formas'), final: r('#cobrar-final'), alto: innerHeight };
+    });
+    a.ok(pos.pago.top < pos.formas.top, 'los pagos deben ir antes que los botones de formas');
+    a.ok(pos.pago.bottom <= pos.alto, 'el pago agregado debe verse sin desplazarse');
+    a.ok(pos.final.bottom <= pos.alto, 'el botón Cobrar debe verse');
+    a.ok(pos.formas.height < 330, `las formas de pago ocupan ${Math.round(pos.formas.height)} px`);
+  }],
+  ['El ejemplo de teléfono no parece un dato escrito', async (env, a) => {
+    const p = await preparar(env, { ancho: 360, alto: 780 });
+    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
+    a.match(await p.getAttribute('#cli-tel', 'placeholder'), /^Ej\. /);
+  }],
+  ['Carrito: el monto del descuento va alineado a la derecha, como los demás', async (env, a) => {
+    const p = await preparar(env);
+    const d = await p.evaluate(() => {
+      const fila = document.querySelector('.lado-carrito .fila-total.desc'), sub = document.querySelector('.lado-carrito .fila-total:not(.desc) .num');
+      return { desc: fila.querySelector('.num').getBoundingClientRect().right, sub: sub.getBoundingClientRect().right };
+    });
+    a.ok(Math.abs(d.desc - d.sub) < 2, `descuento termina en ${d.desc}, subtotal en ${d.sub}`);
+  }],
 ]);

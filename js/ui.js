@@ -76,7 +76,8 @@ function abrirCapa(el) {
   const capa = { el, cerrada: false, alCerrar: null };
   pila.push(capa);
   history.pushState({ capa: pila.length }, '');
-  const foco = el.querySelector('[autofocus], input, button:not(.cerrar), .cerrar');
+  // En el teléfono no se enfoca un campo al abrir (abriría el teclado y taparía la ventana); solo si lo pide [autofocus].
+  const foco = el.querySelector('[autofocus]') || (esTelefono() ? el.querySelector('.cerrar') : el.querySelector('input, button:not(.cerrar), .cerrar'));
   setTimeout(() => foco && foco.focus(), 30);
   const cerrar = () => {
     if (capa.cerrada) return;

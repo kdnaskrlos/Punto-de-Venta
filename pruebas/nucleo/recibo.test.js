@@ -39,7 +39,7 @@ test('fecha y hora de la tienda en 12 h', () => {
 
 test('texto del recibo con detalle, total y pagos (§9.4)', () => {
   const t = textoRecibo(VENTA, { nombre: 'Comic Shop' });
-  for (const parte of ['*Comic Shop*', 'Jueves 12 nov · 3:05 pm', 'Venta V-0001', 'Ana Pérez', '2 × Franela AS Niño Negro · T6 — 48.000', 'Descuento: -2.000', '*Total: 46.000 COP*', 'Efectivo pesos: 20.000 COP', 'Pago móvil: 7.166,67 Bs', 'Gracias'])
+  for (const parte of ['*Comic Shop*', 'Jueves 12 nov · 3:05 pm', 'Venta V-0001', 'Ana Pérez', '2 × Franela AS Niño Negro · Talla 6 — 48.000', 'Descuento: -2.000', '*Total: 46.000 COP*', 'Efectivo pesos: 20.000 COP', 'Pago móvil: 7.166,67 Bs', 'Gracias'])
     assert.ok(t.includes(parte), `falta «${parte}» en:\n${t}`);
   assert.ok(!t.includes('Vuelto'));
 });
