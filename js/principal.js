@@ -4,20 +4,24 @@ import { h, cerrarCapaSuperior, hayCapas } from './ui.js';
 import { crearAlmacen, MODO_DEMO } from './datos/index.js';
 import { pantallaEntrada, pantallaPrimerAdmin } from './vistas/entrar.js';
 import './vistas/mas.js';
+import './vistas/vender.js';
+import { iniciarDatos } from './datos/vivos.js';
 
 window.__pos = { ctx };
 
 async function iniciar() {
   const raiz = document.getElementById('app');
   ctx.almacen = await crearAlmacen();
-  let anterior;
+  let anterior, pararDatos = null;
   ctx.almacen.alCambiarSesion(async s => {
     const clave = s ? s.uid + s.rol : null;
     if (clave === anterior) { ctx.sesion = s; return; }
     anterior = clave;
     ctx.sesion = s;
     while (hayCapas()) cerrarCapaSuperior();
-    if (s) mostrarApp();
+    pararDatos && pararDatos(); pararDatos = null;
+    ctx.carrito = null;
+    if (s) { pararDatos = iniciarDatos(ctx); mostrarApp(); }
     else if (!MODO_DEMO && !(await ctx.almacen.sistemaIniciado())) pantallaPrimerAdmin(raiz, ctx);
     else pantallaEntrada(raiz, ctx, { demo: MODO_DEMO });
     raiz.dataset.listo = '1';

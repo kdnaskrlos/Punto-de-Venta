@@ -5,17 +5,19 @@ import { LIMITES_DEFECTO } from '../nucleo/tramos.js';
 
 const cm = (valor, reducida) => ({ tipo: 'Fijo', valor, reducida });
 const COMS = [cm(4000, 2000), cm(2000, 1000), cm(1000, 500), cm(1000, 500), null];
+let consecutivo = 0;
 
 function variantes({ producto, color, abrev, tallas, precios, costo, categoria, marca, existencia, minimo = 2, separado = false }) {
   return tallas.map((talla, i) => ({
     sku: `${abrev}-${talla}`, nombre: `${producto} ${talla} ${color}`, producto, color, talla, grupo: `${producto} ${color}`,
-    categoria, marca, codigo: String(770000000000 + abrev.length * 1000 + i * 7 + talla.length), precios, separado,
+    categoria, marca, codigo: String(770000000000 + (++consecutivo) * 37), precios, separado,
     comisiones: COMS, existencia: Array.isArray(existencia) ? existencia[i] : existencia, minimo, foto: null, oferta: null, activo: true,
     _costo: costo,
   }));
 }
 
 export function semilla() {
+  consecutivo = 0;
   const productos = [
     ...variantes({ producto: 'Franela AS Niño', color: 'Blanco', abrev: 'F-B', tallas: ['4', '6', '8', '10'], precios: [25000, 24000, 22500, 20000, null], costo: 9000, categoria: 'Niño', marca: 'AS', existencia: 12, minimo: 5 }),
     ...variantes({ producto: 'Franela AS Niño', color: 'Negro', abrev: 'F-N', tallas: ['4', '6', '8', '10'], precios: [25000, 24000, 22500, 20000, null], costo: 9000, categoria: 'Niño', marca: 'AS', existencia: 12, minimo: 5 }),

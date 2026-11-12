@@ -75,13 +75,15 @@ export function pintarCabecera() {
     h('span', { class: 'pill fecha' }, fechaCorta()));
 }
 
+let desmontar = null;
 function montar() {
   const ruta = rutaActual();
   pintarNav();
+  desmontar && desmontar(); desmontar = null;
   const v = VISTAS[ruta];
   const cont = h('section', { class: 'vista', 'data-ruta': ruta });
   contenedor.replaceChildren(cont);
-  if (v) v.montar(cont, ctx);
+  if (v && (!v.accion || ctx.puedeVer(v.accion))) desmontar = v.montar(cont, ctx) || null;
   else cont.append(h('div', { class: 'vacio' }, 'Próximamente'));
   if (ruta === '/inicio' || ruta === '/mas') cont.append(h('p', { class: 'ver-pie' }, `versión ${APP_VERSION}`));
   window.scrollTo(0, 0);
@@ -102,6 +104,7 @@ export function mostrarApp() {
   if (!escuchando) {
     escuchando = true;
     window.addEventListener('hashchange', () => { if (ctx.sesion) montar(); });
+    window.addEventListener('pos:datos', e => { if (ctx.sesion && ['tasas', 'conexion'].includes(e.detail.que) && cabecera) pintarCabecera(); });
     matchMedia('(max-width:760px)').addEventListener('change', () => { if (ctx.sesion) pintarNav(); });
     addEventListener('online', () => ctx.sesion && pintarCabecera()); addEventListener('offline', () => ctx.sesion && pintarCabecera());
   }
