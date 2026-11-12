@@ -55,7 +55,11 @@ async function entrarComo(p, usuario, pin = '1234') {
 
 // Mini corredor de pruebas: imprime cada caso y sale con código 1 si alguno falla.
 async function casos(nombre, lista) {
-  const assert = require('assert');
+  // Las comparaciones que fallan con un elemento de la página como valor se colgaban al describirlo:
+  // se reemplaza por un texto corto antes de comparar.
+  const base = require('assert');
+  const limpio = x => (x && typeof x === 'object' && /Handle$/.test(x.constructor?.name || '')) ? '<elemento de la página>' : x;
+  const assert = new Proxy(base, { get: (t, k) => typeof t[k] === 'function' ? (...args) => t[k](...args.map(limpio)) : t[k] });
   let fallos = 0;
   const env = await arrancar();
   for (const [titulo, fn] of lista) {

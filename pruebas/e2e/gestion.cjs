@@ -62,7 +62,7 @@ casos('gestion', [
     await p.click('#motivo-final');
     await p.waitForFunction(() => window.__pos.ctx.productos['J-M'].existencia === 5);
     await p.evaluate(() => { location.hash = '/comisiones'; });
-    await p.selectOption('#com-vendedor', 'vendedora');
+    await p.click('#com-vendedor [data-usuario="vendedora"]');
     a.ok((await texto(p, '.resumen-com')).includes('Total 0'));
   }],
   ['Comisiones: total y marcar como pagadas', async (env, a) => {
@@ -70,7 +70,7 @@ casos('gestion', [
     await vender(p);
     await cambiarA(p, 'encargada');
     await p.evaluate(() => { location.hash = '/comisiones'; });
-    await p.selectOption('#com-vendedor', 'vendedora');
+    await p.click('#com-vendedor [data-usuario="vendedora"]');
     a.ok((await texto(p, '.resumen-com')).includes('Pendiente 4.000'));
     await p.click('button:has-text("Marcar como pagadas")');
     await p.waitForFunction(() => document.querySelector('.resumen-com')?.textContent.replace(/\s+/g, ' ').includes('Pendiente 0'));
@@ -112,5 +112,35 @@ casos('gestion', [
     await p.fill('#entrar-usuario', 'maria'); await p.fill('#entrar-pin', '5555'); await p.click('#entrar-btn');
     await p.waitForSelector('text=Usuario desactivado');
     a.deepStrictEqual(p.errores, []);
+  }],
+  ['Fechas con calendario propio: un solo calendario para el rango, sin el selector del teléfono', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/reportes' });
+    a.strictEqual(!!(await p.$('input[type=date]')), false, 'no debe haber selector de fecha del teléfono');
+    a.ok(await p.$('.segmentado button:text-is("Semana")'));
+    await p.click('#rango-btn');
+    await p.waitForSelector('.calendario');
+    a.strictEqual(await p.$$eval('.calendario .dia', d => d.length), 42);
+    const mes = await p.evaluate(() => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0')]; });
+    await p.click(`.calendario .dia[data-fecha="${mes[0]}-${mes[1]}-03"]`);
+    await p.click(`.calendario .dia[data-fecha="${mes[0]}-${mes[1]}-05"]`);
+    a.strictEqual(await p.$$eval('.calendario .dia.en-rango', d => d.length), 3);
+    await p.click('.calendario-aplicar');
+    await p.waitForSelector('.calendario', { state: 'detached' });
+    a.match(await texto(p, '#rango-btn'), /^3 – 5 \w{3}$/);
+  }],
+  ['Comisiones muestra a la vendedora sin tener que elegirla', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/comisiones' });
+    await p.waitForSelector('.resumen-com .datos');
+    a.ok(await p.$('#com-vendedor button[aria-pressed="true"]:has-text("Vendedora")'));
+    a.strictEqual(!!(await p.$('select')), false, 'no debe haber lista del teléfono');
+  }],
+  ['Reportes: "Más vendidos" vacío lo dice', async (env, a) => {
+    const p = await env.pagina({ ruta: '/reportes' });
+    a.match(await texto(p, '.mas-vendidos'), /Sin ventas en este período/);
+  }],
+  ['Teléfono: los textos de los recuadros de Inicio caben en una línea', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780 });
+    const altos = await p.$$eval('.tile .sub', els => els.map(e => [e.textContent, Math.round(e.getBoundingClientRect().height)]));
+    for (const [t, alto] of altos) a.ok(alto <= 20, `«${t}» ocupa ${alto} px`);
   }],
 ]);

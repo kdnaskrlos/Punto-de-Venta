@@ -51,4 +51,10 @@ casos('calculadora', [
     await p.click('[aria-label="Copiar pesos"]');
     a.strictEqual(await p.evaluate(() => navigator.clipboard.readText()), '7.800');
   }],
+  ['Teléfono: la línea de tasas al pie no se corta', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780 });
+    await p.click('.topbar [aria-label="Calculadora"]');
+    const d = await p.$eval('.calc-pie', e => [e.scrollWidth, e.clientWidth, e.textContent]);
+    a.ok(d[0] <= d[1], `ancho ${d[0]} > ${d[1]}: ${d[2]}`);
+  }],
 ]);

@@ -50,7 +50,8 @@ export function abrirCalculadora(ctx) {
       if (c.id !== fuente) inp.value = sinTasa ? '' : valores[c.id];
     }
     const cxb = copPorBs(t);
-    pie.textContent = [t.copPorUsd && `1 USD = ${fmtCop(t.copPorUsd)} COP`, t.bsPorUsd && `1 USD = ${fmtDec(t.bsPorUsd)} Bs`, cxb && `1 Bs = ${fmtDec(cxb)} COP`].filter(Boolean).join(' · ');
+    // Cada equivalencia en su propio bloque: si no caben, bajan enteras a la línea siguiente (nunca se cortan).
+    pie.replaceChildren(...[t.copPorUsd && `1 USD = ${fmtCop(t.copPorUsd)} COP`, t.bsPorUsd && `1 USD = ${fmtDec(t.bsPorUsd)} Bs`, cxb && `1 Bs = ${fmtDec(cxb)} COP`].filter(Boolean).map(x => h('span', {}, x)));
   }
   pintar();
   const alDatos = e => { if (e.detail.que === 'tasas') pintar(); };
