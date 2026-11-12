@@ -1,10 +1,11 @@
-// Ajustes (solo administrador): tasas, formas de pago, tramos, comisiones, tienda y usuarios.
+// Ajustes (solo administrador), en 5 apartados: Tasas, Venta, Pagos, Recibo y Usuarios.
 import { h, icono, abrirVentana, toast, unaVez } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { etiquetaTramo } from '../nucleo/tramos.js';
-import { NOMBRE_MONEDA } from '../nucleo/formas.js';
-import { NOMBRE_ROL, cambiarTema } from './cuenta.js';
+import { NOMBRE_MONEDA, ICONOS_FORMA, iconoForma } from '../nucleo/formas.js';
+import { RECIBO_DEFECTO, textoRecibo } from '../nucleo/recibo.js';
+import { NOMBRE_ROL, cambiarTema, cambiarMiPin } from './cuenta.js';
 
 const campo = (id, etiqueta, attrs = {}) => h('div', { class: 'campo' }, h('label', { for: id }, etiqueta), h('input', { class: 'inp', id, autocomplete: 'off', ...attrs }));
 const seccion = (titulo, ic, ...hijos) => h('section', { class: 'tarjeta pila' }, h('h2', { class: 'sec-t' }, icono(ic), titulo), ...hijos);
@@ -51,18 +52,12 @@ function tasas(ctx) {
   return { el, guardar };
 }
 
-function general(ctx) {
+function venta(ctx) {
   const aj = ctx.ajustes;
-  const formas = aj.formasPago.map(f => ({ ...f }));
   const tramos = [...aj.tramos];
   const coms = aj.comisiones.map(c => (c ? { ...c } : null));
-  const el = seccion('Venta y cobro', 'ajustes',
+  const el = seccion('Venta', 'carrito',
     h('div', { class: 'rejilla-aj' }, campo('aj-tienda', 'Nombre de la tienda', { value: aj.tienda?.nombre || '' }), campo('aj-redondeo', 'Redondeo del vuelto (COP)', { inputmode: 'numeric', value: String(aj.redondeo) }), campo('aj-desc-max', 'Descuento máximo de la vendedora (%)', { inputmode: 'decimal', value: String(aj.descuentoMaxVendedora) })),
-    h('h3', { class: 'sub-t' }, 'Formas de pago'),
-    h('div', { class: 'pila' }, ...formas.map(f => h('div', { class: 'forma-aj' },
-      h('input', { class: 'inp', value: f.nombre, 'aria-label': 'Nombre', oninput: e => { f.nombre = e.target.value; } }),
-      h('span', { class: `nota ${{ COP: 'c-cop', USD: 'c-usd', BS: 'c-bs' }[f.moneda]}` }, NOMBRE_MONEDA[f.moneda]),
-      h('label', { class: 'interruptor' }, h('input', { type: 'checkbox', checked: f.activa !== false, onchange: e => { f.activa = e.target.checked; } }), 'Activa')))),
     h('h3', { class: 'sub-t' }, 'Tramos (desde cuántas prendas)'),
     h('div', { class: 'rejilla-aj' }, ...tramos.map((t, i) => h('div', { class: 'campo' }, h('label', {}, `Tramo ${i + 1}`), h('input', { class: 'inp num', inputmode: 'numeric', value: String(t), disabled: i === 0, oninput: e => { tramos[i] = Number(e.target.value) || tramos[i]; } })))),
     h('h3', { class: 'sub-t' }, 'Comisión por prenda (si el producto no trae la suya)'),
@@ -73,15 +68,102 @@ function general(ctx) {
   const guardar = async () => {
     for (let i = 1; i < tramos.length; i++) if (tramos[i] <= tramos[i - 1]) { toast('Cada tramo debe empezar después del anterior', { malo: true }); return false; }
     const v = id => el.querySelector('#' + id).value;
-    return (await ctx.almacen.guardarAjustes('general', {
+    return {
       tienda: { ...(aj.tienda || {}), nombre: v('aj-tienda').trim() || 'Comic Shop' },
       redondeo: parseMonto(v('aj-redondeo'), 'COP') || 100, descuentoMaxVendedora: Number(String(v('aj-desc-max')).replace(',', '.')) || 0,
-      formasPago: formas, tramos, comisiones: coms,
-    })).ok;
+      tramos, comisiones: coms,
+    };
   };
   return { el, guardar };
 }
 
+// Formas de pago en tarjetas: apagadas se ven opacas; al tocarlas se activan con el color de su moneda.
+function pagos(ctx, alCambiar) {
+  let formas = ctx.ajustes.formasPago.map(f => ({ ...f }));
+  const rejilla = h('div', { class: 'formas-aj' });
+  const pintar = () => rejilla.replaceChildren(...formas.map(f => {
+    const activa = f.activa !== false;
+    return h('div', { class: `forma-tarjeta m-${f.moneda.toLowerCase()}` + (activa ? ' activa' : ''), 'data-forma': f.id },
+      h('button', { type: 'button', class: 'forma-toque', 'aria-pressed': String(activa), 'aria-label': `${f.nombre}: ${activa ? 'activa' : 'apagada'}`,
+        onclick: () => { f.activa = !activa; pintar(); alCambiar(); } },
+        h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
+        h('b', {}, f.nombre),
+        h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), f.efectivo ? ' · efectivo' : '', h('span', { class: 'forma-est' }, activa ? 'Activa' : 'Apagada'))),
+      h('div', { class: 'forma-acc' },
+        h('button', { type: 'button', class: 'ibtn chico', 'aria-label': `Editar ${f.nombre}`, onclick: () => editarForma(f, d => { Object.assign(f, d); pintar(); alCambiar(); }) }, icono('lapiz')),
+        h('button', { type: 'button', class: 'ibtn chico peligro', 'aria-label': `Eliminar ${f.nombre}`, onclick: () => {
+          const antes = formas;
+          formas = formas.filter(x => x !== f); pintar(); alCambiar();
+          toast(`${f.nombre} eliminada`, { deshacer: () => { formas = antes; pintar(); } });
+        } }, icono('borrar'))));
+  }), h('button', { type: 'button', class: 'forma-nueva', id: 'aj-forma-nueva', onclick: () => editarForma(null, d => {
+    let id = d.nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'forma';
+    while (formas.some(x => x.id === id)) id += '-2';
+    formas.push({ id, activa: true, ...d }); pintar(); alCambiar();
+  }) }, icono('mas1'), 'Agregar forma de pago'));
+  pintar();
+  const el = seccion('Formas de pago', 'monedas', h('p', { class: 'nota' }, 'Toca una forma para activarla o apagarla. Las apagadas no salen al cobrar.'), rejilla);
+  const guardar = async () => {
+    if (!formas.some(f => f.activa !== false)) { toast('Deja al menos una forma de pago activa', { malo: true }); return false; }
+    return { formasPago: formas };
+  };
+  return { el, guardar };
+}
+
+function editarForma(f, alGuardar) {
+  let moneda = f?.moneda || 'COP', ic = f ? iconoForma(f) : 'billete';
+  const nombre = h('input', { class: 'inp', id: 'fp-nombre', value: f?.nombre || '', placeholder: 'Ej. Nequi' });
+  const efectivo = h('input', { type: 'checkbox', id: 'fp-efectivo', checked: !!f?.efectivo });
+  const err = h('span', { class: 'error' });
+  const segMon = h('div', { class: 'segmentado', id: 'fp-moneda' });
+  const iconos = h('div', { class: 'iconos-forma' });
+  const pintar = () => {
+    segMon.replaceChildren(...['COP', 'USD', 'BS'].map(m => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === moneda), onclick: () => { moneda = m; pintar(); } }, NOMBRE_MONEDA[m])));
+    iconos.replaceChildren(...ICONOS_FORMA.map(n => h('button', { type: 'button', class: 'ibtn', 'data-icono': n, 'aria-label': n, 'aria-pressed': String(n === ic), onclick: () => { ic = n; pintar(); } }, icono(n))));
+  };
+  pintar();
+  const b = h('button', { class: 'btn primary', id: 'fp-guardar' }, icono('check'), f ? 'Guardar' : 'Agregar');
+  const v = abrirVentana({ titulo: f ? 'Editar forma de pago' : 'Nueva forma de pago', contenido: h('div', { class: 'pila' },
+    h('div', { class: 'campo' }, h('label', { for: 'fp-nombre' }, 'Nombre'), nombre, err),
+    h('div', { class: 'campo' }, h('label', {}, 'Moneda'), segMon),
+    h('div', { class: 'campo' }, h('label', {}, 'Ícono'), iconos),
+    h('label', { class: 'interruptor' }, efectivo, 'Es efectivo (se cuenta en la caja)')), acciones: h('div', { class: 'acciones' }, b) });
+  b.onclick = () => {
+    if (nombre.value.trim().length < 2) { err.textContent = 'Escribe el nombre'; return; }
+    alGuardar({ nombre: nombre.value.trim(), moneda, icono: ic, efectivo: efectivo.checked });
+    v.cerrar();
+  };
+}
+
+// Recibo por WhatsApp: qué dice y qué apartados lleva, con vista previa.
+const EJEMPLO = { fecha: new Date().toISOString(), numero: 'V-0001', cliente: { nombre: 'Ana Pérez', telefono: '584121234567' },
+  lineas: [{ cantidad: 2, nombre: 'Franela Negra', talla: 'M', subtotal: 48000 }], subtotal: 48000, descuento: null, total: 48000,
+  pagos: [{ nombre: 'Efectivo pesos', monto: 50000, moneda: 'COP' }], vuelto: { monto: 2000, moneda: 'COP' } };
+const APARTADOS = [['fecha', 'Fecha y hora'], ['numero', 'Número de venta'], ['cliente', 'Cliente'], ['prendas', 'Prendas'], ['pagos', 'Pagos'], ['vuelto', 'Vuelto']];
+
+function recibo(ctx) {
+  const r = { ...RECIBO_DEFECTO, ...(ctx.ajustes.recibo || {}) };
+  const mostrar = { ...RECIBO_DEFECTO.mostrar, ...(r.mostrar || {}) };
+  const area = (id, etiqueta, valor, ayuda) => h('div', { class: 'campo' }, h('label', { for: id }, etiqueta), h('textarea', { class: 'inp', id, rows: 2 }, valor || ''), ayuda ? h('span', { class: 'nota chica' }, ayuda) : null);
+  const vista = h('pre', { class: 'vista-recibo', id: 'aj-recibo-vista' });
+  const chips = h('div', { class: 'chips-recibo' });
+  const datos = () => ({ saludo: el.querySelector('#aj-saludo').value, despedida: el.querySelector('#aj-despedida').value, pie: el.querySelector('#aj-pie').value, mostrar });
+  const pintar = () => {
+    chips.replaceChildren(...APARTADOS.map(([k, t]) => h('button', { type: 'button', class: 'chip' + (mostrar[k] ? ' activo' : ''), 'data-apartado': k, 'aria-pressed': String(!!mostrar[k]), onclick: () => { mostrar[k] = !mostrar[k]; pintar(); el.dispatchEvent(new Event('input')); } }, mostrar[k] ? icono('check') : null, t)));
+    const txt = textoRecibo(EJEMPLO, { nombre: el.querySelector('#aj-tienda')?.value || ctx.ajustes.tienda?.nombre || 'Comic Shop' }, datos());
+    // Como en WhatsApp: *texto* se ve en negrita.
+    vista.replaceChildren(...txt.split(/(\*[^*\n]+\*)/).map(t => (/^\*[^*]+\*$/.test(t) ? h('b', {}, t.slice(1, -1)) : t)));
+  };
+  const el = seccion('Recibo por WhatsApp', 'recibo',
+    area('aj-saludo', 'Saludo (opcional)', r.saludo, 'Escribe {cliente} para poner el nombre del cliente.'),
+    h('div', { class: 'campo' }, h('label', {}, 'Qué lleva el recibo'), chips),
+    area('aj-despedida', 'Mensaje final', r.despedida),
+    area('aj-pie', 'Pie (redes, dirección, horario…)', r.pie),
+    h('div', { class: 'campo' }, h('label', {}, 'Así lo recibe el cliente'), vista));
+  el.addEventListener('input', () => pintar());
+  pintar();
+  return { el, guardar: async () => ({ recibo: datos() }), pintar };
+}
 function pedirPin(titulo) {
   return new Promise(res => {
     const inp = h('input', { class: 'inp', id: 'pin-otro', type: 'password', inputmode: 'numeric', maxlength: '4' });
@@ -115,29 +197,52 @@ function usuarios(ctx) {
       h('span', { class: 'avatar' }, (u.nombre || u.usuario).slice(0, 1).toUpperCase()),
       h('div', { class: 'u-info' }, h('b', {}, u.nombre), h('div', { class: 'nota' }, `@${u.usuario} · ${NOMBRE_ROL[u.rol] || u.rol}`)),
       h('span', { class: 'est ' + (u.activo ? 'g' : 'n') }, u.activo ? 'Activo' : 'Inactivo'),
-      u.uid !== ctx.sesion.uid ? h('div', { class: 'acciones' },
+      u.uid === ctx.sesion.uid ? h('div', { class: 'acciones' }, h('button', { class: 'btn', id: 'mi-pin', onclick: () => cambiarMiPin(ctx) }, icono('llave'), 'Cambiar mi PIN')) : h('div', { class: 'acciones' },
         h('button', { class: 'btn', onclick: async () => { const pin = await pedirPin(`Nuevo PIN para ${u.nombre}`); if (pin) guardado(await ctx.almacen.cambiarPin(u.uid, pin)); } }, icono('llave'), 'Nuevo PIN'),
-        h('button', { class: 'btn ' + (u.activo ? 'danger' : ''), onclick: async () => guardado(await ctx.almacen.activarUsuario(u.uid, !u.activo)) }, u.activo ? 'Desactivar' : 'Activar')) : null)));
+        h('button', { class: 'btn ' + (u.activo ? 'danger' : ''), onclick: async () => guardado(await ctx.almacen.activarUsuario(u.uid, !u.activo)) }, u.activo ? 'Desactivar' : 'Activar')))));
   });
   return { el, quitar };
+}
+
+const PESTANAS = [['tasas', 'Tasas'], ['venta', 'Venta'], ['pagos', 'Pagos'], ['recibo', 'Recibo'], ['usuarios', 'Usuarios']];
+let pestanaActual = 'tasas';
+
+function filaTema() {
+  const oscuro = () => document.documentElement.dataset.theme === 'dark';
+  const b = h('button', { class: 'fila-btn tema', id: 'aj-tema', role: 'switch' });
+  const pintar = () => { b.setAttribute('aria-checked', String(oscuro())); b.replaceChildren(icono(oscuro() ? 'luna' : 'sol'), oscuro() ? 'Modo oscuro' : 'Modo claro', h('span', { class: 'sp' }), h('span', { class: 'switch' + (oscuro() ? ' on' : '') })); };
+  b.onclick = () => { cambiarTema(); pintar(); };
+  pintar();
+  return b;
 }
 
 registrarVista('/ajustes', {
   accion: 'ajustes',
   montar(cont, ctx) {
-    const u = usuarios(ctx), t = tasas(ctx), g = general(ctx);
-    // Un solo botón para guardar tasas y venta/cobro; aparece cuando se cambia algo.
     const boton = h('button', { class: 'btn primary', id: 'aj-guardar' }, icono('check'), 'Guardar cambios');
     const barra = h('div', { class: 'guardar-ajustes', hidden: true }, boton);
     const cambio = () => { barra.hidden = false; };
-    for (const sec of [t.el, g.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button')) cambio(); }); }
+    const u = usuarios(ctx), t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
+    const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el, usuarios: u.el };
+    // Un solo botón para guardar; aparece cuando se cambia algo.
+    for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button')) cambio(); }); }
     boton.addEventListener('click', e => unaVez(e.currentTarget, async () => {
       if (!(await t.guardar())) return;
-      if (!(await g.guardar())) return;
+      const partes = [await ve.guardar(), await pa.guardar(), await re.guardar()];
+      if (partes.some(x => !x)) return;
+      const r = await ctx.almacen.guardarAjustes('general', Object.assign({}, ...partes));
+      if (!r.ok) { toast('No se pudo guardar', { malo: true }); return; }
       barra.hidden = true; document.activeElement?.blur(); toast('Cambios guardados');
     })());
-    cont.append(h('h1', { class: 'sec-t' }, icono('ajustes'), 'Ajustes'), h('div', { class: 'ajustes' }, t.el, g.el, u.el,
-      seccion('Apariencia', 'luna', h('button', { class: 'btn', onclick: cambiarTema }, icono('luna'), 'Tema claro u oscuro'))), barra);
+    const pest = h('div', { class: 'segmentado pestanas-aj', role: 'tablist' });
+    const mostrar = id => {
+      pestanaActual = id;
+      pest.replaceChildren(...PESTANAS.map(([k, txt]) => h('button', { type: 'button', role: 'tab', id: 'aj-tab-' + k, 'aria-selected': String(k === id), 'aria-pressed': String(k === id), onclick: () => mostrar(k) }, txt)));
+      for (const [k, el] of Object.entries(secciones)) el.hidden = k !== id;
+      if (id === 'recibo') re.pintar();
+    };
+    mostrar(pestanaActual);
+    cont.append(h('h1', { class: 'sec-t' }, icono('ajustes'), 'Ajustes'), pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), filaTema(), barra);
     return u.quitar;
   },
 });

@@ -2,33 +2,38 @@
 const { casos } = require('./_servidor.cjs');
 const texto = (p, s) => p.$eval(s, e => e.textContent.replace(/\s+/g, ' ').trim());
 
-async function preparar(env, opciones = {}) {
+async function preparar(env, { sinCliente, ...opciones } = {}) {
   const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender', ...opciones });
   // Buzo S 48.000 + Jogger M 42.000 + 2 bodies (separados, 18.000) = 126.000 − 10.000 de descuento = 116.000
-  await p.evaluate(() => {
+  await p.evaluate(sin => {
     const c = window.__pos.ctx;
-    c.carrito = { lineas: [{ sku: 'B-S', cantidad: 1 }, { sku: 'J-M', cantidad: 1 }, { sku: 'Y-6m', cantidad: 1 }, { sku: 'Y-3m', cantidad: 1 }], descuento: { tipo: 'monto', valor: 10000 }, autorizacion: { id: 'a1', por: 'admin', subtotal: 126000 } }; // 7,9%: autorizado por el admin
+    c.carrito = { lineas: [{ sku: 'B-S', cantidad: 1 }, { sku: 'J-M', cantidad: 1 }, { sku: 'Y-6m', cantidad: 1 }, { sku: 'Y-3m', cantidad: 1 }], descuento: { tipo: 'monto', valor: 10000 }, autorizacion: { id: 'a1', por: 'admin', subtotal: 126000 }, cliente: { nombre: 'Ana Pérez', telefono: '584121234567' } }; // 7,9%: autorizado por el admin
+    if (sin) delete c.carrito.cliente;
     window.dispatchEvent(new CustomEvent('pos:carrito'));
-  });
+  }, !!sinCliente);
   return p;
 }
 const existencia = (p, sku) => p.evaluate(s => window.__pos.ctx.productos[s].existencia, sku);
 const ventas = p => p.evaluate(() => [...window.__pos.ctx.almacen._estado('ventas').values()]);
 
 casos('cobrar', [
-  ['Cobrar exige cliente; teléfono conocido completa el nombre', async (env, a) => {
-    const p = await preparar(env, { ancho: 360, alto: 780 });
+  ['Cobrar sin cliente pide registrarlo primero; teléfono conocido completa el nombre', async (env, a) => {
+    const p = await preparar(env, { ancho: 360, alto: 780, sinCliente: true });
     await p.click('.barra-carrito'); await p.click('.capa .cobrar');
+    await p.waitForSelector('.capa #cli-tel');
+    a.strictEqual(await p.$('#cobrar-final'), null, 'todavía no abre el cobro');
+    await p.fill('#cli-tel', '0412-123.45.67');
+    a.strictEqual(await p.inputValue('#cli-nombre'), 'Ana Pérez');
+    await p.click('#cli-guardar');
+    await p.waitForSelector('#cobrar-final');
     a.ok(await p.$('.capa.ventana.completa'));
     a.strictEqual(await texto(p, '#cobrar-final'), 'Cobrar 116.000');
     a.strictEqual(await p.$eval('#cobrar-final', b => b.disabled), true);
-    await p.fill('#cli-tel', '0412-123.45.67');
-    a.strictEqual(await p.inputValue('#cli-nombre'), 'Ana Pérez');
+    a.match(await texto(p, '.cliente-resumen'), /Ana Pérez.*0412 123 4567/);
   }],
   ['Pago mixto: efectivo pesos 50.000 + pago móvil sugerido = Falta 0', async (env, a) => {
     const p = await preparar(env);
     await p.click('.lado-carrito .cobrar');
-    await p.fill('#cli-tel', '0412-123.45.67');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.fill('.pago[data-forma="efectivo-cop"] input', '50.000');
     await p.click('.forma[data-forma="pago-movil"]');
@@ -53,7 +58,6 @@ casos('cobrar', [
   ['Doble clic rápido en Cobrar: una sola venta', async (env, a) => {
     const p = await preparar(env);
     await p.click('.lado-carrito .cobrar');
-    await p.fill('#cli-tel', '0412-123.45.67');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.dblclick('#cobrar-final');
     await p.waitForSelector('text=Venta guardada');
@@ -78,9 +82,8 @@ casos('cobrar', [
   }],
   ['Sin conexión y quedan pocas: aviso antes de cobrar', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
-    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'B-L', cantidad: 1 }], descuento: null }; c.almacen.simularSinConexion(true); window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'B-L', cantidad: 1 }], descuento: null, cliente: { nombre: 'Ana Pérez', telefono: '584121234567' } }; c.almacen.simularSinConexion(true); window.dispatchEvent(new CustomEvent('pos:carrito')); });
     await p.click('.lado-carrito .cobrar');
-    await p.fill('#cli-tel', '0412-123.45.67');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.click('#cobrar-final');
     await p.waitForSelector('text=Estás sin conexión y quedan pocas. Confirma con la tienda antes de cobrar.');
@@ -101,9 +104,8 @@ casos('cobrar', [
   }],
   ['Si cambian los precios mientras se cobra, no guarda una venta distinta (revisión final)', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', caja: true, ruta: '/vender' });
-    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }], descuento: null, cliente: { nombre: 'Ana Pérez', telefono: '584121234567' } }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
     await p.click('.lado-carrito .cobrar');
-    await p.fill('#cli-tel', '0412-123.45.67');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.evaluate(() => window.__pos.ctx.almacen.aplicarImportacion({ nuevos: [], cambios: [{ sku: 'J-M', campos: { precios: [50000, 40000, 38000, 36000, 34000] } }], iguales: [], faltantes: [] }));
     await p.click('#cobrar-final');
@@ -112,9 +114,8 @@ casos('cobrar', [
   }],
   ['Si otro vendió primero, avisa el producto y el carrito queda igual', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
-    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'B-L', cantidad: 1 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); c.almacen._estado('productos').get('B-L').existencia = 0; });
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'B-L', cantidad: 1 }], descuento: null, cliente: { nombre: 'Ana Pérez', telefono: '584121234567' } }; window.dispatchEvent(new CustomEvent('pos:carrito')); c.almacen._estado('productos').get('B-L').existencia = 0; });
     await p.click('.lado-carrito .cobrar');
-    await p.fill('#cli-tel', '0412-123.45.67');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.click('#cobrar-final');
     await p.waitForSelector('text=Ya no hay existencia de Buzo Etanol Gris · Talla L');
@@ -140,8 +141,8 @@ casos('cobrar', [
     a.ok(pos.formas.height < 330, `las formas de pago ocupan ${Math.round(pos.formas.height)} px`);
   }],
   ['El ejemplo de teléfono no parece un dato escrito', async (env, a) => {
-    const p = await preparar(env, { ancho: 360, alto: 780 });
-    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
+    const p = await preparar(env, { ancho: 360, alto: 780, sinCliente: true });
+    await p.click('.barra-carrito'); await p.click('.capa #cli-registrar');
     a.match(await p.getAttribute('#cli-tel', 'placeholder'), /^Ej\. /);
   }],
   ['Carrito: el monto del descuento va alineado a la derecha, como los demás', async (env, a) => {
@@ -152,19 +153,29 @@ casos('cobrar', [
     });
     a.ok(Math.abs(d.desc - d.sub) < 2, `descuento termina en ${d.desc}, subtotal en ${d.sub}`);
   }],
-  ['Cobrar dice qué falta: con el pago completo pide el cliente y lleva al campo', async (env, a) => {
-    const p = await preparar(env, { movil: true });
-    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
-    await p.click('.forma[data-forma="efectivo-cop"]');
-    a.strictEqual(await texto(p, '#cobrar-final'), 'Falta el teléfono del cliente');
-    a.strictEqual(await p.$eval('#cobrar-final', b => b.disabled), false);
-    await p.click('#cobrar-final');
-    a.strictEqual(await p.evaluate(() => document.activeElement.id), 'cli-tel');
+  ['Carrito: Registrar cliente, Editar y "Enviar recibo" opcional', async (env, a) => {
+    const p = await preparar(env, { sinCliente: true });
+    await p.click('.lado-carrito #cli-registrar');
+    await p.click('#cli-guardar');
     a.ok(await p.isVisible('.campo .error:text("Escribe el teléfono del cliente")'));
-    await p.fill('#cli-tel', '0414-555.12.12');
-    a.strictEqual(await texto(p, '#cobrar-final'), 'Falta el nombre del cliente');
-    await p.fill('#cli-nombre', 'Luis');
-    a.strictEqual(await texto(p, '#cobrar-final'), 'Cobrar 116.000');
+    await p.fill('#cli-tel', '0414-555.12.12'); await p.fill('#cli-nombre', 'Luis');
+    await p.click('#cli-guardar');
+    await p.waitForSelector('.lado-carrito .cliente-carrito');
+    a.match(await texto(p, '.lado-carrito .cliente-carrito'), /Luis.*0414 555 1212/);
+    a.strictEqual(await p.getAttribute('.lado-carrito #cli-recibo', 'aria-checked'), 'true');
+    await p.click('.lado-carrito #cli-editar');
+    a.strictEqual(await p.inputValue('#cli-nombre'), 'Luis');
+    await p.fill('#cli-nombre', 'Luis Mora'); await p.click('#cli-guardar');
+    await p.waitForSelector('.lado-carrito .cliente-carrito:has-text("Luis Mora")');
+    await p.click('.lado-carrito #cli-recibo');
+    a.strictEqual(await p.getAttribute('.lado-carrito #cli-recibo', 'aria-checked'), 'false');
+    await p.click('.lado-carrito .cobrar');
+    await p.click('.forma[data-forma="efectivo-cop"]');
+    await p.click('#cobrar-final');
+    await p.waitForSelector('text=Venta guardada');
+    a.strictEqual(await p.$('a.recibo'), null, 'sin recibo no ofrece enviarlo');
+    const [v] = await ventas(p);
+    a.deepStrictEqual(v.cliente, { nombre: 'Luis Mora', telefono: '584145551212' });
   }],
   ['Las formas ya agregadas se marcan con ✓ y ningún botón queda marcado por el foco', async (env, a) => {
     const p = await preparar(env, { movil: true });
@@ -181,5 +192,15 @@ casos('cobrar', [
     const p = await preparar(env);
     const tam = await p.$eval('.lado-carrito .linea .tramo', e => parseFloat(getComputedStyle(e).fontSize));
     a.ok(tam >= 12, `${tam}px`);
+  }],
+  ['Registrar cliente y pasar al cobro: al cerrar sigue en la app', async (env, a) => {
+    const p = await preparar(env, { sinCliente: true });
+    await p.click('.lado-carrito .cobrar');
+    await p.fill('#cli-tel', '0412-123.45.67'); await p.click('#cli-guardar');
+    await p.waitForSelector('#cobrar-final');
+    await p.click('.capa .cerrar');
+    await p.waitForTimeout(300);
+    a.strictEqual(await p.evaluate(() => typeof window.__pos), 'object');
+    a.strictEqual(await p.evaluate(() => history.state), null, 'vuelve a la entrada base del historial');
   }],
 ]);

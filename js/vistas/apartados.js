@@ -5,7 +5,7 @@ import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { registrarVista } from '../app.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
 import { crearPanelPagos } from './pagos.js';
-import { camposCliente, lineasParaGuardar, firmaCarrito } from './cobrar.js';
+import { resumenCliente, lineasParaGuardar, firmaCarrito } from './cobrar.js';
 import { fmtCop } from '../nucleo/dinero.js';
 import { fechaHora } from '../nucleo/fechas.js';
 
@@ -25,9 +25,9 @@ export function abrirApartar(ctx) {
     const e = panel.estado();
     const abono = Math.min(e.pagadoCop, r0.total);
     final.textContent = abono ? `Apartar · abono ${fmtCop(abono)}` : 'Apartar sin abono';
-    final.disabled = guardando || !cliente.valido() || e.vueltoCop > 0 || e.pagos.some(p => p.equivalenteCop == null);
+    final.disabled = guardando || e.vueltoCop > 0 || e.pagos.some(p => p.equivalenteCop == null);
   };
-  const cliente = camposCliente(ctx, () => actualizar());
+  const cliente = resumenCliente(ctx);
   const panel = crearPanelPagos(ctx, { total: r0.total, permitirMenos: true, alCambiar: () => actualizar() });
   const v = abrirVentana({ titulo: 'Apartar', pantallaCompleta: true,
     contenido: h('div', { class: 'cobro' }, cliente.el, h('div', { class: 'total-cobro' }, h('span', { class: 'total-cop num' }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')), h('p', { class: 'nota' }, 'El abono es opcional. Las prendas quedan reservadas.'), panel.el),
@@ -35,7 +35,6 @@ export function abrirApartar(ctx) {
   v.alCerrar = () => cliente.quitar();
   marcarCobro(v);
   actualizar();
-  setTimeout(() => cliente.foco(), 40);
   final.addEventListener('click', async () => {
     if (guardando) return;
     guardando = true; actualizar();
@@ -44,7 +43,7 @@ export function abrirApartar(ctx) {
     const c = carrito(ctx);
     const { pagos } = panel.resultado();
     const ap = {
-      id, fecha: new Date().toISOString(), cliente: cliente.datos(), lineas: lineasParaGuardar(ctx, r),
+      id, fecha: new Date().toISOString(), cliente: { ...carrito(ctx).cliente }, lineas: lineasParaGuardar(ctx, r),
       subtotal: r.subtotal, descuento: r.descuento ? { tipo: c.descuento.tipo, valor: c.descuento.valor, monto: r.descuento, autorizadoPor: c.autorizacion?.por || null } : null,
       total: r.total, abonos: pagos, tasas: tasasDe(ctx),
     };

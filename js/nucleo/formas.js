@@ -15,3 +15,10 @@ export const NOMBRE_MONEDA = { COP: 'COP', USD: 'USD', BS: 'Bs' };
 export function formaEfectivo(formas, moneda) {
   return formas.find(f => f.efectivo && f.moneda === moneda)?.id || null;
 }
+
+// Ícono de cada forma de pago (se puede elegir otro al crearla o editarla).
+export const ICONOS_FORMA = ['billete', 'banco', 'movil', 'tarjeta', 'cripto', 'envio'];
+const ICONO_POR_ID = { 'transferencia-cop': 'banco', zelle: 'envio', usdt: 'cripto', 'pago-movil': 'movil', punto: 'tarjeta' };
+export function iconoForma(f) {
+  return f.icono || ICONO_POR_ID[f.id] || (f.efectivo ? 'billete' : 'banco');
+}

@@ -118,6 +118,15 @@
 .tallas{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
 .talla{position:relative;min-height:60px;border:1px solid var(--field-line);background:var(--surface);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:16px;color:var(--ink)}
 .talla .nota{font-size:11.5px}
+.talla-caja{position:relative;display:grid}
+.talla.con{border-color:var(--accent);background:var(--g-bg);box-shadow:0 0 0 1px var(--accent)}
+.talla-menos{position:absolute;top:-9px;left:-9px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:20px;font-weight:800;line-height:1;display:grid;place-items:center;box-shadow:0 1px 4px rgba(16,24,40,.15);padding:0}
+.talla-menos::before{content:"";position:absolute;inset:-8px}
+.tarjeta-prenda{position:relative}
+.tarjeta-prenda.elegida{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent)}
+.tarjeta-prenda .foto{position:relative}
+.tarjeta-prenda .en-carrito{position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;gap:3px;height:24px;padding:0 8px 0 6px;border-radius:99px;background:var(--accent);color:var(--accent-ink);font-size:12.5px;font-weight:800}
+.tarjeta-prenda .en-carrito svg.i{width:14px;height:14px}
 .talla.pocas .nota{color:var(--y-tx)}
 .talla:disabled{background:var(--surface-2);color:var(--muted);border-color:var(--line);cursor:default}
 .talla .en-carrito{position:absolute;top:-7px;right:-7px;min-width:22px;height:22px;border-radius:11px;background:var(--accent);color:var(--accent-ink);font-size:12px;font-weight:800;display:grid;place-items:center;padding:0 5px}
@@ -387,3 +396,57 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .guardar-ajustes{position:sticky;bottom:12px;z-index:5;display:flex;justify-content:flex-end;margin-top:12px}
 .guardar-ajustes .btn{box-shadow:0 8px 20px rgba(21,128,61,.3)}
 @media (max-width:760px){.guardar-ajustes{bottom:calc(80px + env(safe-area-inset-bottom,0px))}.guardar-ajustes .btn{width:100%;min-height:52px}}
+
+/* Ajustes en 5 apartados (v1.21) */
+.pestanas-aj{margin:4px 0 12px;overflow-x:auto}
+.pestanas-aj button{min-width:64px;padding:0 8px;white-space:nowrap;font-size:13px}
+.formas-aj{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.forma-tarjeta{--c:var(--muted);position:relative;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);transition:opacity .15s,background .15s,border-color .15s}
+.forma-tarjeta.m-cop{--c:var(--cop)} .forma-tarjeta.m-usd{--c:var(--usd)} .forma-tarjeta.m-bs{--c:var(--bs)}
+.forma-tarjeta:not(.activa){opacity:.5;filter:grayscale(1)}
+.forma-tarjeta.activa{background:color-mix(in srgb,var(--c) 10%,var(--surface));border-color:color-mix(in srgb,var(--c) 55%,var(--line));box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 14px color-mix(in srgb,var(--c) 14%,transparent)}
+.forma-toque{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;min-height:118px;border:0;background:none;padding:12px 12px 10px;text-align:left;color:var(--ink)}
+.forma-toque b{font-size:13.5px;font-weight:800;line-height:1.25}
+.forma-ic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--surface);color:var(--c);border:1px solid var(--line)}
+.forma-tarjeta.activa .forma-ic{background:var(--c);color:#fff;border-color:var(--c)}
+.forma-pie{margin-top:auto;display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:12px;font-weight:600;color:var(--muted);width:100%}
+.forma-pie .moneda{font-weight:800;color:var(--c)}
+.forma-est{margin-left:auto;font-weight:800;font-size:11.5px}
+.forma-tarjeta.activa .forma-est{color:var(--c)}
+.forma-acc{position:absolute;top:6px;right:4px;display:flex;gap:0}
+.forma-acc .ibtn{color:var(--muted)}
+.forma-acc .ibtn svg.i{width:17px;height:17px}
+.forma-acc .ibtn.peligro:hover{color:var(--err)}
+.forma-tarjeta:not(.activa) .forma-acc{opacity:1}
+.ibtn.peligro{color:var(--err)}
+.forma-nueva{min-height:118px;border:1.5px dashed var(--g-bd);border-radius:12px;background:none;color:var(--g-tx);font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.iconos-forma{display:flex;gap:6px;flex-wrap:wrap}
+.iconos-forma .ibtn{border:1px solid var(--line)}
+.iconos-forma .ibtn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chips-recibo{display:flex;gap:6px;flex-wrap:wrap}
+.chips-recibo .chip{display:inline-flex;align-items:center;gap:4px}
+.chips-recibo .chip svg.i{width:14px;height:14px}
+textarea.inp{resize:vertical;min-height:44px;font:inherit}
+.vista-recibo{margin:0;white-space:pre-wrap;font:600 13px/1.45 var(--f);background:#e7fbe9;color:#111827;border:1px solid var(--g-bd);border-radius:12px 12px 12px 2px;padding:10px 12px;max-width:340px}
+.fila-btn.tema{margin-top:12px;border:1px solid var(--line);background:var(--surface)}
+.switch{width:40px;height:24px;border-radius:12px;background:var(--line);position:relative;flex:none;transition:background .15s}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s}
+.switch.on{background:var(--accent)} .switch.on::after{transform:translateX(16px)}
+
+/* Cliente en el carrito, antes del pago (v1.21) */
+.cliente-registrar{display:flex;align-items:center;gap:8px;width:100%;min-height:52px;border:1.5px dashed var(--g-bd);border-radius:12px;background:none;color:var(--g-tx);font-weight:800;padding:8px 12px;text-align:left}
+.cliente-registrar .nota{margin-left:auto;font-size:11.5px;color:var(--muted)}
+.cliente-carrito{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.cli-fila,.cliente-resumen{display:flex;align-items:center;gap:10px;padding:8px 10px}
+.cli-ic{width:34px;height:34px;border-radius:50%;background:var(--g-bg);color:var(--g-tx);display:grid;place-items:center;flex:none}
+.cli-ic svg.i{width:18px;height:18px}
+.cli-datos{display:flex;flex-direction:column;min-width:0;flex:1}
+.cli-datos b{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli-datos .nota{font-size:12px}
+.btn.chico{min-height:36px;padding:0 10px;font-size:12.5px;gap:4px}
+.btn.chico svg.i{width:14px;height:14px}
+.cli-recibo{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;border:0;border-top:1px solid var(--line);background:var(--surface-2);padding:6px 10px;font-weight:700;font-size:13px;color:var(--ink);text-align:left}
+.cli-recibo svg.i{width:16px;height:16px;color:var(--t-wa)}
+.cli-recibo .sp{flex:1}
+.cliente-resumen{border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.cliente-resumen > svg.i{color:var(--g-tx)}

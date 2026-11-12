@@ -134,3 +134,12 @@ Suite final: npm test 99/99 · e2e 59/59
 - Arqueo con un solo conteo: al abrir la caja del día siguiente, lo contado cierra la de ayer (contado vs esperado) y el efectivo contado es el fondo de hoy. La nota no es obligatoria aquí; la diferencia queda registrada.
 - Admin y encargada ven en Inicio el aviso mientras haya una caja por arquear.
 - Dueños (admin, encargada): sin caja visible. Al cobrar, apartar, abonar o anular se crea sola una caja personal sin fondo, que se cierra a medianoche sin arqueo. Inicio y Caja muestran "Cobrado por mí hoy" solo como información; "En cajas abiertas" ya no cuenta las cajas personales.
+
+## Venta y Ajustes (v1.21)
+- Tallas: tocar suma una prenda; el botón "−" de cada talla con prendas resta una. Al dar Listo, la tarjeta del producto queda marcada (borde verde y ✓ con la cantidad).
+- Cliente antes del pago: se registra en el carrito (Registrar / Editar). Si se toca Cobrar o Apartar sin cliente, primero pide registrarlo. "Enviar recibo por WhatsApp" es un interruptor en el carrito, encendido por defecto; apagado, la venta no ofrece el recibo.
+- Ajustes en 5 apartados: Tasas, Venta, Pagos, Recibo y Usuarios. El administrador cambia su PIN en Usuarios (ya no en Mi cuenta); los demás roles lo siguen cambiando en Mi cuenta porque no entran a Ajustes. "Probar como" sigue en Mi cuenta (solo demostración).
+- Formas de pago en tarjetas: apagadas opacas, activas con el color de su moneda e ícono propio; editar, eliminar (con Deshacer) y agregar. Debe quedar al menos una activa.
+- Recibo editable: saludo con {cliente}, apartados que se muestran, mensaje final y pie, con vista previa.
+- Tema: un interruptor "Modo claro / Modo oscuro" sin el título "Apariencia".
+- Arreglo: al cerrar una ventana y abrir otra seguida (cliente → cobro), el historial se comía una entrada y al cerrar la segunda la app salía de la página.

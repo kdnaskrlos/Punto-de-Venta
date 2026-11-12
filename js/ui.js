@@ -30,6 +30,16 @@ const ICONOS = {
   porcentaje: '<path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
   monedas: '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18M7 6h1v4M16.71 13.88l.7.71-2.82 2.82"/>',
   luna: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  billete: '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  banco: '<path d="M3 22h18M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 2l8 5H4z"/>',
+  tarjeta: '<rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/>',
+  movil: '<rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/>',
+  cripto: '<path d="M11.77 19.09c4.92.87 6.14-6.03 1.21-6.9m-1.21 6.9-5.91-1.04m5.91 1.04-.35 1.97m1.56-8.86c4.93.87 6.14-6.03 1.22-6.9m-1.22 6.9-3.94-.7m5.16-6.2L8.29 4.26m5.91 1.04.35-1.97M7.48 20.36l3.13-17.72"/>',
+  envio: '<path d="m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/>',
+  lapiz: '<path d="M21.17 6.81a1 1 0 0 0-3.98-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/>',
+  recibo: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  usuario: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
   izq: '<path d="m15 18-6-6 6-6"/>', der: '<path d="m9 18 6-6-6-6"/>', abajo: '<path d="m6 9 6 6 6-6"/>',
   llave: '<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4M21 2l-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>',
   prohibido: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
@@ -70,20 +80,31 @@ export function h(tag, attrs = {}, ...hijos) {
 // ---- Capas (ventanas y hojas): Esc y el botón atrás cierran la de arriba primero ----
 const pila = [];
 let ignorarPop = 0;
+// Si se abre una capa mientras el "atrás" de la que se cerró aún no termina, su entrada de historial
+// se agrega al terminar ese "atrás" (si no, el atrás se comería la nueva y luego se saldría de la app).
+let entradasPendientes = 0;
+function entrarHistorial() {
+  if (ignorarPop > 0) entradasPendientes++;
+  else history.pushState({ capa: pila.length }, '');
+}
+function salirHistorial() {
+  if (entradasPendientes > 0) { entradasPendientes--; return; }
+  ignorarPop++;
+  history.back();
+}
 
 function abrirCapa(el) {
   document.body.append(el);
   const capa = { el, cerrada: false, alCerrar: null };
   pila.push(capa);
-  history.pushState({ capa: pila.length }, '');
+  entrarHistorial();
   // En el teléfono no se enfoca un campo al abrir (abriría el teclado y taparía la ventana); solo si lo pide [autofocus].
   const foco = el.querySelector('[autofocus]') || (esTelefono() ? el.querySelector('.cerrar') : el.querySelector('input, button:not(.cerrar), .cerrar'));
   setTimeout(() => foco && foco.focus(), 30);
   const cerrar = () => {
     if (capa.cerrada) return;
     quitar(capa);
-    ignorarPop++;
-    history.back();
+    salirHistorial();
   };
   el.querySelector('.fondo')?.addEventListener('click', cerrar);
   el.querySelectorAll('.cerrar').forEach(b => b.addEventListener('click', cerrar));
@@ -112,12 +133,16 @@ export function hayCapas() { return pila.length > 0; }
 export function cerrarCapaSuperior() {
   const c = pila[pila.length - 1];
   if (!c) return false;
-  quitar(c); ignorarPop++; history.back();
+  quitar(c); salirHistorial();
   return true;
 }
 
 window.addEventListener('popstate', e => {
-  if (ignorarPop > 0) { ignorarPop--; e.stopImmediatePropagation(); return; }
+  if (ignorarPop > 0) {
+    ignorarPop--; e.stopImmediatePropagation();
+    if (!ignorarPop) for (; entradasPendientes > 0; entradasPendientes--) history.pushState({ capa: pila.length }, '');
+    return;
+  }
   const c = pila[pila.length - 1];
   if (c) { quitar(c); e.stopImmediatePropagation(); }
 }, true);

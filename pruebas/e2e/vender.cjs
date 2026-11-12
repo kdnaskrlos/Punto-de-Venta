@@ -102,4 +102,20 @@ casos('vender', [
     await p.waitForSelector('.capa', { state: 'detached' });
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.length), 2);
   }],
+  ['Tallas: tocar suma, "−" resta; al dar Listo la tarjeta queda marcada con la cantidad', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', caja: true, ruta: '/vender' });
+    const g = '.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]';
+    await p.click(g);
+    await p.click('.capa .talla[data-talla="S"]'); await p.click('.capa .talla[data-talla="S"]'); await p.click('.capa .talla[data-talla="M"]');
+    a.strictEqual(await p.innerText('.capa .talla[data-talla="S"] .en-carrito'), '2');
+    await p.click('.capa .talla-menos[data-sku="B-S"]');
+    a.strictEqual(await p.innerText('.capa .talla[data-talla="S"] .en-carrito'), '1');
+    await p.click('.capa .talla-menos[data-sku="B-S"]');
+    a.strictEqual(await p.$('.capa .talla[data-talla="S"] .en-carrito'), null);
+    a.strictEqual(await p.$('.capa .talla-menos[data-sku="B-S"]'), null, 'sin prendas no hay −');
+    await p.click('.capa button:has-text("Listo")');
+    a.ok(await p.$(g + '.elegida'));
+    a.strictEqual(await p.innerText(g + ' .en-carrito'), '1');
+    a.strictEqual(await p.$('.tarjeta-prenda.elegida:not([data-grupo="Buzo Etanol Gris"])'), null);
+  }],
 ]);

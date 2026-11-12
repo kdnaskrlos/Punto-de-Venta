@@ -48,3 +48,20 @@ test('enlace de WhatsApp con el número internacional', () => {
   assert.match(enlaceWhatsApp(VENTA, { nombre: 'Comic Shop' }), /^https:\/\/wa\.me\/584121234567\?text=%2AComic%20Shop%2A/);
   assert.equal(enlaceWhatsApp({ ...VENTA, cliente: { nombre: 'x', telefono: '12' } }, { nombre: 'Comic Shop' }), null);
 });
+
+test('recibo editable: saludo, mensaje final, pie y apartados ocultos', () => {
+  const t = textoRecibo(VENTA, { nombre: 'Comic Shop' }, {
+    saludo: 'Hola {cliente}, este es tu recibo', despedida: 'Vuelve pronto', pie: 'Instagram: @comicshop',
+    mostrar: { fecha: false, numero: false, pagos: false },
+  });
+  for (const parte of ['*Comic Shop*', 'Hola Ana Pérez, este es tu recibo', '*Total: 46.000 COP*', 'Vuelve pronto', 'Instagram: @comicshop', '2 × Franela'])
+    assert.ok(t.includes(parte), `falta «${parte}» en:\n${t}`);
+  for (const no of ['Jueves 12 nov', 'V-0001', 'Pagos:', 'Gracias por tu compra', 'Cliente:'])
+    assert.ok(!t.includes(no), `sobra «${no}» en:\n${t}`);
+});
+
+test('recibo editable: sin prendas no muestra el detalle', () => {
+  const t = textoRecibo(VENTA, { nombre: 'Comic Shop' }, { mostrar: { prendas: false } });
+  assert.ok(!t.includes('Franela'));
+  assert.ok(t.includes('*Total: 46.000 COP*'));
+});

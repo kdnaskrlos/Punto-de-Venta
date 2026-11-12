@@ -99,6 +99,7 @@ casos('gestion', [
     await p.fill('#aj-cop', '4.000');
     await p.click('#aj-guardar');
     await p.waitForFunction(() => document.querySelector('.topbar .tasas').textContent.includes('4.000'));
+    await p.click('#aj-tab-usuarios');
     await p.fill('#nu-usuario', 'maria'); await p.fill('#nu-nombre', 'María'); await p.selectOption('#nu-rol', 'vendedora'); await p.fill('#nu-pin', '5555');
     await p.click('#nu-crear');
     await p.waitForSelector('.usuario[data-usuario="maria"]');
@@ -155,6 +156,7 @@ casos('gestion', [
   }],
   ['Ajustes: comisiones con punto de miles y nombres de formas de pago completos', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
+    await p.click('#aj-tab-venta');
     a.strictEqual(await p.inputValue('#aj-com-0-normal'), '4.000');
     a.match(await p.getAttribute('#aj-com-4-normal', 'placeholder'), /Igual que 24–48/);
     const cortados = await p.$$eval('.forma-aj input.inp', els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.value));
@@ -172,6 +174,7 @@ casos('gestion', [
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
     a.strictEqual(await p.$$eval('button', b => b.filter(x => /^Guardar( tasas)?$/.test(x.textContent.trim())).length), 0);
     a.strictEqual(await p.isVisible('#aj-guardar'), false);
+    await p.click('#aj-tab-venta');
     await p.fill('#aj-redondeo', '50');
     a.strictEqual(await p.isVisible('#aj-guardar'), true);
     await p.click('#aj-guardar');
@@ -183,5 +186,46 @@ casos('gestion', [
     await p.click('#rango-btn');
     const c = await p.$eval('.calendario .dia.hoy', e => getComputedStyle(e, '::after').content);
     a.notStrictEqual(c, 'none');
+  }],
+  ['Ajustes: 5 apartados; formas de pago en tarjetas que se activan, agregan y eliminan', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
+    a.deepStrictEqual(await p.$$eval('.pestanas-aj button', b => b.map(x => x.textContent)), ['Tasas', 'Venta', 'Pagos', 'Recibo', 'Usuarios']);
+    a.strictEqual(await p.$('text=Apariencia'), null);
+    a.strictEqual(await p.$$eval('.vista svg.i', s => s.filter(x => x.innerHTML.includes('M12 3a6')).length) <= 1, true, 'una sola luna');
+    await p.click('#aj-tab-pagos');
+    const zelle = '.forma-tarjeta[data-forma="zelle"]';
+    a.ok(await p.$(zelle + '.activa'));
+    await p.click(zelle + ' .forma-toque');
+    a.strictEqual(await p.$(zelle + '.activa'), null);
+    a.strictEqual(await p.$eval(zelle, e => getComputedStyle(e).opacity), '0.5');
+    await p.click('.forma-tarjeta[data-forma="punto"] [aria-label^="Eliminar"]');
+    a.strictEqual(await p.$('.forma-tarjeta[data-forma="punto"]'), null);
+    await p.click('#aj-forma-nueva');
+    await p.fill('#fp-nombre', 'Nequi'); await p.click('#fp-moneda [data-moneda="COP"]'); await p.click('.iconos-forma [data-icono="movil"]');
+    await p.click('#fp-guardar');
+    a.ok(await p.$('.forma-tarjeta[data-forma="nequi"].activa'));
+    await p.click('#aj-guardar');
+    await p.waitForFunction(() => window.__pos.ctx.ajustes.formasPago.some(f => f.id === 'nequi'));
+    const f = await p.evaluate(() => window.__pos.ctx.ajustes.formasPago.map(x => [x.id, x.activa !== false]));
+    a.ok(!f.some(x => x[0] === 'punto'));
+    a.deepStrictEqual(f.find(x => x[0] === 'zelle'), ['zelle', false]);
+    a.deepStrictEqual(f.find(x => x[0] === 'nequi'), ['nequi', true]);
+  }],
+  ['Ajustes: el recibo se edita con vista previa y se usa al vender', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
+    await p.click('#aj-tab-recibo');
+    await p.fill('#aj-saludo', 'Hola {cliente}');
+    await p.fill('#aj-pie', 'Instagram @comicshop');
+    await p.click('.chips-recibo [data-apartado="pagos"]');
+    const vista = await p.innerText('#aj-recibo-vista');
+    a.match(vista, /Hola Ana Pérez/); a.match(vista, /Instagram @comicshop/); a.doesNotMatch(vista, /Pagos:/);
+    await p.click('#aj-guardar');
+    await p.waitForFunction(() => window.__pos.ctx.ajustes.recibo?.pie === 'Instagram @comicshop');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.ajustes.recibo.mostrar.pagos), false);
+  }],
+  ['Ajustes > Usuarios: el administrador cambia su PIN ahí y ya no en Mi cuenta', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
+    await p.click('#aj-tab-usuarios');
+    a.ok(await p.$('.usuario[data-usuario="admin"] #mi-pin'));
   }],
 ]);

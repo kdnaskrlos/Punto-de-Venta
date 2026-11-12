@@ -1,6 +1,7 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
 import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas } from '../ui.js';
 import { abrirCajaVentana } from './caja.js';
+import { bloqueCliente } from './cliente.js';
 import { registrarVista, navegar } from '../app.js';
 import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
 import { aplicarDescuento, requiereAutorizacion } from '../nucleo/descuento.js';
@@ -109,6 +110,7 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
       h('div', { class: 'et-total' }, 'TOTAL'),
       h('div', { class: 'total' }, h('span', { class: 'total-cop num' }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
       equivalentes(ctx, r.total)),
+    bloqueCliente(ctx),
     h('div', { class: 'acciones-carrito' },
       h('button', { class: 'btn', onclick: () => abrirDescuento(ctx) }, icono('porcentaje'), 'Descuento'),
       h('button', { class: 'btn', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'),
@@ -156,15 +158,17 @@ function abrirDescuento(ctx) {
 function abrirTallas(ctx, g) {
   const cont = h('div', { class: 'tallas' });
   const pintar = () => cont.replaceChildren(...g.variantes.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0)).map(p => {
-    const disp = p.existencia - enCarrito(ctx, p.sku);
     const en = enCarrito(ctx, p.sku);
-    return h('button', { class: 'talla' + (p.existencia <= p.minimo && p.existencia > 0 ? ' pocas' : ''), 'data-talla': p.talla || p.sku, 'data-sku': p.sku, disabled: p.existencia <= 0,
+    const disp = p.existencia - en;
+    const talla = h('button', { class: 'talla' + (en ? ' con' : '') + (p.existencia <= p.minimo && p.existencia > 0 ? ' pocas' : ''), 'data-talla': p.talla || p.sku, 'data-sku': p.sku, disabled: p.existencia <= 0 && !en,
       onclick: () => { if (disp <= 0) { toast('No hay más existencia'); return; } agregarAlCarrito(ctx, p.sku, 1); pintar(); } },
     h('b', {}, p.talla || p.nombre), h('span', { class: 'nota' }, p.existencia <= 0 ? 'Agotada' : `${p.existencia} disp.`), en ? h('span', { class: 'en-carrito' }, String(en)) : null);
+    return h('div', { class: 'talla-caja' }, talla,
+      en ? h('button', { class: 'talla-menos', 'aria-label': `Quitar una talla ${p.talla || p.nombre}`, 'data-sku': p.sku, onclick: () => { agregarAlCarrito(ctx, p.sku, -1); pintar(); } }, '−') : null);
   }));
   pintar();
   const listo = h('button', { class: 'btn primary grande' }, icono('check'), 'Listo');
-  const v = abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: h('div', { class: 'pila' }, h('p', { class: 'nota' }, 'Toca cada talla las veces que la lleve el cliente.'), cont), acciones: listo });
+  const v = abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: h('div', { class: 'pila' }, h('p', { class: 'nota' }, 'Toca la talla para sumar una prenda y − para quitarla.'), cont), acciones: listo });
   listo.onclick = () => v.cerrar();
 }
 
@@ -174,8 +178,10 @@ function tarjeta(ctx, g) {
   const pocas = !agotada && g.variantes.some(p => p.existencia > 0 && p.existencia <= p.minimo);
   const precio = Math.min(...g.variantes.map(p => p.precios?.[0] || Infinity));
   const oferta = g.variantes.some(p => p.oferta?.activa);
-  return h('button', { class: 'tarjeta-prenda' + (agotada ? ' agotada' : ''), 'data-grupo': g.grupo, onclick: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) },
-    h('div', { class: 'foto' }, g.foto ? h('img', { src: g.foto, alt: '', loading: 'lazy' }) : icono('franela')),
+  const elegidas = g.variantes.reduce((s, p) => s + enCarrito(ctx, p.sku), 0);
+  return h('button', { class: 'tarjeta-prenda' + (agotada ? ' agotada' : '') + (elegidas ? ' elegida' : ''), 'data-grupo': g.grupo, onclick: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) },
+    h('div', { class: 'foto' }, g.foto ? h('img', { src: g.foto, alt: '', loading: 'lazy' }) : icono('franela'),
+      elegidas ? h('span', { class: 'en-carrito', 'aria-label': `${elegidas} en el carrito` }, icono('check'), String(elegidas)) : null),
     h('div', { class: 'info' },
       h('b', {}, g.producto),
       h('div', { class: 'nota' }, [g.color, `${g.variantes.length} ${g.variantes.length === 1 ? 'talla' : 'tallas'}`].filter(Boolean).join(' · '), pocas ? h('span', { class: 'pocas' }, ' · pocas') : null),
@@ -220,6 +226,8 @@ registrarVista('/vender', {
       pintarCarrito();
     }
     function pintarCarrito() {
+      const porGrupo = new Map(grupos(ctx).map(g => [g.grupo, g]));
+      rejilla.querySelectorAll('.tarjeta-prenda').forEach(el => { const g = porGrupo.get(el.dataset.grupo); if (g) el.replaceWith(tarjeta(ctx, g)); });
       lado.replaceChildren(panelCarrito(ctx));
       const r = resumenCarrito(ctx);
       barra.hidden = !r.unidades;

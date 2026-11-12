@@ -10,7 +10,7 @@ export function cambiarTema() {
   try { localStorage.setItem('pos-tema', r.dataset.theme); } catch { /* sin almacenamiento */ }
 }
 
-function cambiarMiPin(ctx) {
+export function cambiarMiPin(ctx) {
   const inp = (id, label) => h('div', { class: 'campo' }, h('label', { for: id }, label), h('input', { class: 'inp', id, type: 'password', inputmode: 'numeric', maxlength: '4' }), h('span', { class: 'error' }));
   const cont = h('div', { class: 'pila' }, inp('pin-actual', 'PIN actual'), inp('pin-nuevo', 'PIN nuevo (4 números)'), inp('pin-repite', 'Repite el PIN nuevo'));
   const guardar = h('button', { class: 'btn primary' }, icono('check'), 'Guardar');
@@ -31,7 +31,7 @@ export function opcionesCuenta(ctx, alSalir) {
   return h('div', { class: 'cuenta' },
     h('div', { class: 'cuenta-quien' }, h('span', { class: 'avatar' }, (s.nombre || s.usuario).slice(0, 1).toUpperCase()),
       h('div', {}, h('b', {}, s.nombre), h('div', { class: 'nota' }, `@${s.usuario} · ${NOMBRE_ROL[s.rol] || s.rol}`))),
-    DEMO_DIRECTO ? probarComo(ctx, alSalir) : h('button', { class: 'fila-btn', onclick: () => cambiarMiPin(ctx) }, icono('llave'), 'Cambiar mi PIN'),
+    DEMO_DIRECTO ? probarComo(ctx, alSalir) : ctx.puedeVer('ajustes') ? null : h('button', { class: 'fila-btn', onclick: () => cambiarMiPin(ctx) }, icono('llave'), 'Cambiar mi PIN'),
     h('button', { class: 'fila-btn', onclick: cambiarTema }, icono('luna'), 'Tema claro u oscuro'),
     DEMO_DIRECTO ? null : h('button', { class: 'fila-btn peligro', onclick: async () => { alSalir && alSalir(); await ctx.almacen.salir(); } }, icono('salir'), 'Cerrar sesión'));
 }

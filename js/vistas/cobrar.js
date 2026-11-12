@@ -1,46 +1,14 @@
-// Ventana Cobrar (§9.2): cliente obligatorio, pagos mixtos, vuelto, guardar la venta y recibo por WhatsApp.
-import { h, icono, abrirVentana, toast, esTelefono } from '../ui.js';
+// Ventana Cobrar (§9.2): el cliente ya viene del carrito; pagos mixtos, vuelto, guardar la venta y recibo por WhatsApp.
+import { h, icono, abrirVentana, toast } from '../ui.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
 import { crearPanelPagos } from './pagos.js';
 import { comisionesVenta } from '../nucleo/comisiones.js';
 import { repartirDescuento } from '../nucleo/descuento.js';
-import { telefonoInternacional, enlaceWhatsApp } from '../nucleo/recibo.js';
+import { enlaceWhatsApp } from '../nucleo/recibo.js';
+import { ventanaCliente, telefonoLegible } from './cliente.js';
 import { fmtCop } from '../nucleo/dinero.js';
-
-// Campos de cliente (teléfono primero; si ya existe, completa el nombre).
-export function camposCliente(ctx, alCambiar) {
-  let clientes = [];
-  const quitar = ctx.almacen.escuchar('clientes', l => { clientes = l; });
-  const tel = h('input', { class: 'inp', id: 'cli-tel', type: 'tel', inputmode: 'tel', autocomplete: 'off', placeholder: 'Ej. 0412 123 4567' });
-  const nombre = h('input', { class: 'inp', id: 'cli-nombre', autocomplete: 'off', autocapitalize: 'words' });
-  const errTel = h('span', { class: 'error' }), errNom = h('span', { class: 'error' });
-  tel.addEventListener('input', () => {
-    const t = telefonoInternacional(tel.value);
-    const c = t && clientes.find(x => x.telefono === t);
-    if (c && !nombre.value.trim()) nombre.value = c.nombre;
-    errTel.textContent = '';
-    alCambiar();
-  });
-  tel.addEventListener('blur', () => { if (tel.value.trim() && !telefonoInternacional(tel.value)) errTel.textContent = 'Teléfono no válido'; });
-  nombre.addEventListener('input', () => { errNom.textContent = ''; alCambiar(); });
-  const el = h('div', { class: 'cliente' },
-    h('div', { class: 'campo' }, h('label', { for: 'cli-tel' }, 'Teléfono del cliente'), tel, errTel),
-    h('div', { class: 'campo' }, h('label', { for: 'cli-nombre' }, 'Nombre'), nombre, errNom));
-  // Qué le falta al cliente ('tel', 'nombre' o null) y marcarlo: error bajo el campo y foco en él.
-  const falta = () => (!telefonoInternacional(tel.value) ? 'tel' : nombre.value.trim().length < 2 ? 'nombre' : null);
-  const marcar = cual => {
-    if (cual === 'tel') { errTel.textContent = tel.value.trim() ? 'Teléfono no válido' : 'Escribe el teléfono del cliente'; tel.focus(); }
-    if (cual === 'nombre') { errNom.textContent = 'Escribe el nombre del cliente'; nombre.focus(); }
-  };
-  return {
-    el, quitar, falta, marcar,
-    valido: () => !falta(),
-    datos: () => ({ nombre: nombre.value.trim(), telefono: telefonoInternacional(tel.value) }),
-    foco: () => tel.focus(),
-  };
-}
 
 function nombreLinea(ctx, sku) {
   const p = ctx.productos[sku] || {};
@@ -71,6 +39,19 @@ function confirmar(texto, si, no) {
 // Firma del carrito para detectar cambios (precios, tramos, ofertas, productos) mientras se cobra.
 export const firmaCarrito = r => JSON.stringify([r.total, r.lineas.map(l => [l.sku, l.cantidad, l.precioUnit])]);
 
+// Línea con el cliente del carrito y su botón Editar (dentro de Cobrar y Apartar).
+export function resumenCliente(ctx) {
+  const el = h('div', { class: 'cliente-resumen' });
+  const pintar = () => {
+    const c = ctx.carrito?.cliente || {};
+    el.replaceChildren(icono('usuario'), h('div', { class: 'cli-datos' }, h('b', {}, c.nombre || '—'), h('span', { class: 'nota num' }, telefonoLegible(c.telefono))),
+      h('button', { class: 'btn chico', id: 'cobro-cli-editar', onclick: () => ventanaCliente(ctx) }, icono('lapiz'), 'Editar'));
+  };
+  pintar();
+  window.addEventListener('pos:carrito', pintar);
+  return { el, quitar: () => window.removeEventListener('pos:carrito', pintar) };
+}
+
 export function abrirCobrar(ctx) {
   if (cobroAbierto()) return;
   revisarDescuento(ctx);
@@ -80,30 +61,20 @@ export function abrirCobrar(ctx) {
   const idVenta = ctx.almacen.nuevoId();
   let guardando = false, hecha = false;
   const final = h('button', { class: 'btn primary grande', id: 'cobrar-final' }, `Cobrar ${fmtCop(r0.total)}`);
-  // El botón dice qué falta: con el pago completo pero sin cliente, se puede tocar y lleva al campo que falta.
-  const TEXTO_FALTA = { tel: 'Falta el teléfono del cliente', nombre: 'Falta el nombre del cliente' };
-  const actualizar = () => {
-    const cuadra = panel.estado().cuadra, falta = cliente.falta();
-    final.disabled = guardando || !cuadra;
-    final.classList.toggle('incompleto', cuadra && !!falta);
-    final.textContent = cuadra && falta ? TEXTO_FALTA[falta] : `Cobrar ${fmtCop(r0.total)}`;
-  };
-  const cliente = camposCliente(ctx, () => actualizar());
+  const actualizar = () => { final.disabled = guardando || !panel.estado().cuadra; };
   const panel = crearPanelPagos(ctx, { total: r0.total, alCambiar: () => actualizar() });
+  const cliente = resumenCliente(ctx);
   const cuerpo = h('div', { class: 'cobro' },
+    cliente.el,
     h('div', { class: 'total-cobro' }, h('span', { class: 'total-cop num' }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')),
-    panel.el,
-    h('div', { class: 'sec-m' }, 'CLIENTE'),
-    cliente.el);
+    panel.el);
   const v = abrirVentana({ titulo: 'Cobrar', contenido: cuerpo, acciones: h('div', { class: 'pie-cobro' }, panel.barra, final), pantallaCompleta: true });
   v.alCerrar = () => cliente.quitar();
   marcarCobro(v);
   actualizar();
-  if (!esTelefono()) setTimeout(() => cliente.foco(), 40);
 
   final.addEventListener('click', async () => {
     if (guardando || hecha) return;
-    if (cliente.falta()) { cliente.marcar(cliente.falta()); return; }
     guardando = true; actualizar();
     try {
       const r = resumenCarrito(ctx);
@@ -117,7 +88,7 @@ export function abrirCobrar(ctx) {
       const c = carrito(ctx);
       const venta = {
         id: idVenta, fecha: new Date().toISOString(),
-        cliente: cliente.datos(),
+        cliente: { ...carrito(ctx).cliente },
         lineas: lineasParaGuardar(ctx, r),
         subtotal: r.subtotal,
         descuento: r.descuento ? { tipo: c.descuento.tipo, valor: c.descuento.valor, monto: r.descuento, autorizadoPor: c.autorizacion?.por || null } : null,
@@ -134,7 +105,8 @@ export function abrirCobrar(ctx) {
       hecha = true;
       ctx.almacen.guardarCliente(venta.cliente);
       const guardada = await ctx.almacen.obtener('ventas', idVenta) || venta;
-      const enlace = enlaceWhatsApp(guardada, ctx.ajustes.tienda || { nombre: 'Comic Shop' });
+      const enviar = carrito(ctx).enviarRecibo !== false;
+      const enlace = enviar ? enlaceWhatsApp(guardada, ctx.ajustes.tienda || { nombre: 'Comic Shop' }, ctx.ajustes.recibo) : null;
       vaciarCarrito(ctx);
       window.dispatchEvent(new CustomEvent('pos:carrito'));
       toast('Venta guardada');

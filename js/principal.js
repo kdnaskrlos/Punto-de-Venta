@@ -7,6 +7,8 @@ import { pantallaEntrada, pantallaPrimerAdmin } from './vistas/entrar.js';
 import { abrirCalculadora, abrirDetalleTasas } from './vistas/calculadora.js';
 import { abrirCobrar } from './vistas/cobrar.js';
 import { abrirApartar } from './vistas/apartados.js';
+import { conCliente } from './vistas/cliente.js';
+import { carrito } from './vistas/vender.js';
 import './vistas/inicio.js';
 import './vistas/vender.js';
 import './vistas/caja.js';
@@ -19,7 +21,7 @@ window.__pos = { ctx };
 definirCalculadora(() => abrirCalculadora(ctx));
 ctx.abrirTasas = () => abrirDetalleTasas(ctx);
 ctx.abrirApartar = () => abrirApartar(ctx);
-ctx.abrirCobro = modo => (modo === 'venta' ? abrirCobrar(ctx) : abrirApartar(ctx));
+ctx.abrirCobro = modo => { if (!carrito(ctx).lineas.length) return; conCliente(ctx, () => (modo === 'venta' ? abrirCobrar(ctx) : abrirApartar(ctx))); };
 
 async function iniciar() {
   const raiz = document.getElementById('app');

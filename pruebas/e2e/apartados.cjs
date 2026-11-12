@@ -8,6 +8,7 @@ async function apartar(p, abono) {
   await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-L', cantidad: 2 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
   await p.click('.lado-carrito button:has-text("Apartar")');
   await p.fill('#cli-tel', '0412-123.45.67');
+  await p.click('#cli-guardar');
   if (abono != null) {
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.fill('.pago[data-forma="efectivo-cop"] input', abono);

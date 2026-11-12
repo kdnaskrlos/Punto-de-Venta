@@ -18,23 +18,43 @@ export function telefonoInternacional(texto) {
   return null;
 }
 
-export function textoRecibo(venta, tienda) {
-  const L = [`*${tienda.nombre}*`, fechaHora(venta.fecha)];
-  if (venta.numero) L.push(`Venta ${venta.numero}`);
-  L.push(`Cliente: ${venta.cliente?.nombre || ''}`, '');
-  for (const l of venta.lineas) L.push(`${l.cantidad} × ${l.nombre}${l.talla ? ` · Talla ${l.talla}` : ''} — ${fmtCop(l.subtotal ?? l.precioUnit * l.cantidad)}`);
+// Plantilla del recibo editable en Ajustes. Lo que no se indique usa estos valores.
+export const RECIBO_DEFECTO = {
+  saludo: '',
+  despedida: '¡Gracias por tu compra!',
+  pie: '',
+  mostrar: { fecha: true, numero: true, cliente: true, prendas: true, pagos: true, vuelto: true },
+};
+
+export function textoRecibo(venta, tienda, recibo = {}) {
+  const m = { ...RECIBO_DEFECTO.mostrar, ...(recibo.mostrar || {}) };
+  const despedida = recibo.despedida ?? RECIBO_DEFECTO.despedida;
+  const nombreCli = venta.cliente?.nombre || '';
+  const L = [`*${tienda.nombre}*`];
+  if (recibo.saludo?.trim()) L.push(recibo.saludo.trim().replace(/\{cliente\}/g, nombreCli));
+  if (m.fecha) L.push(fechaHora(venta.fecha));
+  if (m.numero && venta.numero) L.push(`Venta ${venta.numero}`);
+  if (m.cliente && !recibo.saludo?.includes('{cliente}')) L.push(`Cliente: ${nombreCli}`);
   L.push('');
+  if (m.prendas) {
+    for (const l of venta.lineas) L.push(`${l.cantidad} × ${l.nombre}${l.talla ? ` · Talla ${l.talla}` : ''} — ${fmtCop(l.subtotal ?? l.precioUnit * l.cantidad)}`);
+    L.push('');
+  }
   const desc = venta.descuento?.monto || 0;
   if (desc > 0) L.push(`Subtotal: ${fmtCop(venta.subtotal)}`, `Descuento: -${fmtCop(desc)}`);
-  L.push(`*Total: ${fmtCop(venta.total)} COP*`, '', 'Pagos:');
-  for (const p of venta.pagos || []) L.push(`${p.nombre || p.forma}: ${fmtMonto(p.monto, p.moneda)} ${NOMBRE_MONEDA[p.moneda]}`);
-  if (venta.vuelto && venta.vuelto.monto > 0) L.push(`Vuelto: ${fmtMonto(venta.vuelto.monto, venta.vuelto.moneda)} ${NOMBRE_MONEDA[venta.vuelto.moneda]}`);
-  L.push('', '¡Gracias por tu compra!');
+  L.push(`*Total: ${fmtCop(venta.total)} COP*`);
+  if (m.pagos) {
+    L.push('', 'Pagos:');
+    for (const p of venta.pagos || []) L.push(`${p.nombre || p.forma}: ${fmtMonto(p.monto, p.moneda)} ${NOMBRE_MONEDA[p.moneda]}`);
+  }
+  if (m.vuelto && venta.vuelto && venta.vuelto.monto > 0) L.push(`Vuelto: ${fmtMonto(venta.vuelto.monto, venta.vuelto.moneda)} ${NOMBRE_MONEDA[venta.vuelto.moneda]}`);
+  if (despedida.trim()) L.push('', despedida.trim());
+  if (recibo.pie?.trim()) L.push('', recibo.pie.trim());
   return L.join('\n');
 }
 
-export function enlaceWhatsApp(venta, tienda) {
+export function enlaceWhatsApp(venta, tienda, recibo) {
   const tel = telefonoInternacional(venta.cliente?.telefono);
   if (!tel) return null;
-  return `https://wa.me/${tel}?text=${encodeURIComponent(textoRecibo(venta, tienda)).replace(/\*/g, '%2A')}`;
+  return `https://wa.me/${tel}?text=${encodeURIComponent(textoRecibo(venta, tienda, recibo)).replace(/\*/g, '%2A')}`;
 }
