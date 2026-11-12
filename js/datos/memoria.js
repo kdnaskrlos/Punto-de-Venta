@@ -32,15 +32,24 @@ export function crearMemoria(datos) {
     if (!sesion) return false;
     const r = rol();
     if (['costos', 'costosVenta', 'comisiones', 'movimientos'].includes(nombre)) return puede(r, 'verCostos');
-    if (['ventas', 'cajas'].includes(nombre)) return puede(r, 'verReportesTodos') || doc.uid === sesion.uid;
-    if (nombre === 'autorizaciones') return r === 'admin' || doc.uid === sesion.uid;
+    if (['ventas', 'cajas'].includes(nombre)) return puede(r, 'verReportesTodos') || doc.usuario === sesion.usuario;
+    if (nombre === 'autorizaciones') return r === 'admin' || doc.usuario === sesion.usuario;
     return true;
   };
-  const leer = (nombre, filtro) => [...col[nombre].values()].filter(d => visible(nombre, d) && (!filtro || filtro(d))).map(copia);
+  const cumple = (d, f) => {
+    if (!f) return true;
+    if (typeof f === 'function') return f(d);
+    const fecha = d.fecha || d.abierta || '';
+    if (f.desde && fecha < f.desde) return false;
+    if (f.hasta && fecha > f.hasta) return false;
+    for (const k of ['usuario', 'cajaId', 'sku', 'estado']) if (f[k] != null && d[k] !== f[k]) return false;
+    return true;
+  };
+  const leer = (nombre, filtro) => [...col[nombre].values()].filter(d => visible(nombre, d) && cumple(d, filtro)).map(copia);
   const avisar = (...nombres) => { for (const o of [...oyentes]) if (nombres.includes(o.nombre)) o.cb(leer(o.nombre, o.filtro)); };
   const avisarSync = () => { for (const cb of oyentesSync) cb({ enLinea: !offline, pendientes, error: null }); };
   const escribio = () => { if (offline) { pendientes++; avisarSync(); } };
-  const cajaAbierta = uid => [...col.cajas.values()].find(c => c.uid === uid && c.estado === 'abierta');
+  const cajaAbierta = uid => [...col.cajas.values()].find(c => c.usuario === col.usuarios.get(uid)?.usuario && c.estado === 'abierta');
   const mover = (sku, cantidad, motivo, ref, nota) => {
     const p = col.productos.get(sku);
     if (p) p.existencia += cantidad;
@@ -79,11 +88,20 @@ export function crearMemoria(datos) {
       pins.set(uid, String(pin));
       avisar('usuarios'); return SI({ uid });
     },
-    async cambiarPin(uid, pin) {
+    async sistemaIniciado() { return col.usuarios.size > 0; },
+    async crearAdministrador({ nombre, usuario, pin }) {
+      if (col.usuarios.size) return NO('permiso');
+      const uid = 'u-' + String(usuario).toLowerCase();
+      col.usuarios.set(uid, { uid, usuario: String(usuario).toLowerCase(), nombre, rol: 'admin', activo: true });
+      pins.set(uid, String(pin));
+      return SI();
+    },
+    async cambiarPin(uid, pinNuevo, pinActual) {
       if (!sesion) return NO('sesion');
-      if (sesion.uid !== uid && rol() !== 'admin') return NO('permiso');
-      if (!/^\d{4}$/.test(String(pin))) return NO('datos');
-      pins.set(uid, String(pin)); return SI();
+      if (!/^\d{4}$/.test(String(pinNuevo))) return NO('datos');
+      if (sesion.uid === uid) { if (pins.get(uid) !== String(pinActual)) return NO('pin'); }
+      else if (rol() !== 'admin') return NO('permiso');
+      pins.set(uid, String(pinNuevo)); return SI({ uid });
     },
     async activarUsuario(uid, activo) {
       const e = exigir('ajustes'); if (e) return NO(e);

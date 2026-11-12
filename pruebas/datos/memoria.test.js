@@ -184,3 +184,33 @@ test('autorización de descuento: la pide la vendedora, solo el admin responde',
   assert.equal(a._estado('autorizaciones').get(id).estado, 'aprobada');
   assert.equal(a._estado('autorizaciones').get(id).aprueba, 'admin');
 });
+
+test('cambiar el PIN propio exige el actual; el admin cambia el de otros', async () => {
+  const a = crearMemoria(semilla());
+  await a.entrar('vendedora', '1234');
+  const yo = [...a._estado('usuarios').values()].find(u => u.usuario === 'vendedora').uid;
+  assert.equal((await a.cambiarPin(yo, '5678', '0000')).error, 'pin');
+  assert.equal((await a.cambiarPin(yo, '5678', '1234')).ok, true);
+  await a.salir();
+  assert.equal((await a.entrar('vendedora', '5678')).ok, true);
+  await a.salir(); await a.entrar('admin', '1234');
+  assert.equal((await a.cambiarPin(yo, '4321')).ok, true);
+  await a.salir();
+  assert.equal((await a.entrar('vendedora', '4321')).ok, true);
+});
+
+test('el sistema de demostración ya viene iniciado', async () => {
+  assert.equal(await crearMemoria(semilla()).sistemaIniciado(), true);
+});
+
+test('escuchar con filtro por fecha y por usuario', async () => {
+  const a = await comoVendedoraConCaja();
+  const v1 = { ...ventaDemo(a.nuevoId(), [{ sku: 'F-N-6', cantidad: 1 }]), fecha: '2026-11-10T15:00:00.000Z' };
+  const v2 = { ...ventaDemo(a.nuevoId(), [{ sku: 'F-N-6', cantidad: 1 }]), fecha: '2026-11-12T15:00:00.000Z' };
+  await a.guardarVenta(v1); await a.guardarVenta(v2);
+  let vs;
+  a.escuchar('ventas', d => { vs = d; }, { desde: '2026-11-11T00:00:00.000Z' });
+  assert.deepEqual(vs.map(v => v.id), [v2.id]);
+  a.escuchar('ventas', d => { vs = d; }, { usuario: 'otra' });
+  assert.equal(vs.length, 0);
+});
