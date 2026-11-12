@@ -1,5 +1,5 @@
 // Ventas de un rango con su costo congelado (§15) y lista de ventas con "Anular" para gestión.
-import { h, toast, pedirMotivo } from '../ui.js';
+import { h, toast, pedirMotivo, unaVez } from '../ui.js';
 import { costoVenta } from '../nucleo/costos.js';
 import { fmtCop } from '../nucleo/dinero.js';
 import { fechaHora, inicioDia, sumarDias } from '../nucleo/fechas.js';
@@ -36,10 +36,10 @@ export function listaVentas(ctx, ventas) {
     h('div', { class: 'vh-info' }, h('b', {}, `${v.numero || 'Sin número'} · ${v.cliente?.nombre || '—'}`),
       h('div', { class: 'nota' }, `${fechaHora(v.fecha)} · @${v.usuario}${v.offline ? ' · sin conexión' : ''}${v.estado === 'anulada' ? ` · anulada: ${v.anulacion?.motivo || ''}` : ''}`)),
     h('b', { class: 'num' }, fmtCop(v.total)),
-    ctx.puedeVer('anularVenta') && v.estado !== 'anulada' ? h('button', { class: 'btn danger', onclick: async () => {
+    ctx.puedeVer('anularVenta') && v.estado !== 'anulada' ? h('button', { class: 'btn danger', onclick: e => unaVez(e.currentTarget, async () => {
       const motivo = await pedirMotivo({ titulo: `Anular ${v.numero || 'venta'}`, boton: 'Anular venta', peligro: true });
       if (!motivo) return;
       const r = await ctx.almacen.anularVenta(v.id, motivo);
       toast(r.ok ? 'Venta anulada' : r.error === 'sin-caja' ? 'Abre tu caja para registrar la devolución' : 'No se pudo anular', { malo: !r.ok });
-    } }, 'Anular') : null)));
+    })() }, 'Anular') : null)));
 }

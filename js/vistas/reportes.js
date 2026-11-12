@@ -1,5 +1,5 @@
 // Reportes (§15) y comisiones (§14).
-import { h, icono, toast, sin } from '../ui.js';
+import { h, icono, toast, sin, unaVez } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { resumenDia, masVendidos, inventarioBajo, valorInventario } from '../nucleo/reportes.js';
 import { resumenComisiones } from '../nucleo/comisiones.js';
@@ -78,10 +78,10 @@ registrarVista('/comisiones', {
       res.replaceChildren(h('div', { class: 'datos' },
         dato('Ventas', String(r.ventas)), dato('Prendas', String(r.prendas)), dato('Normal', fmtCop(r.normal)), dato('Reducida', fmtCop(r.reducida)),
         dato('Total', fmtCop(r.total), 'fuerte'), dato('Pagado', fmtCop(r.pagado)), dato('Pendiente', fmtCop(r.pendiente), r.pendiente ? 'pend' : '')),
-        r.pendiente > 0 ? h('div', { class: 'acciones' }, h('button', { class: 'btn primary', onclick: async () => {
-          const x = await ctx.almacen.pagarComisiones({ vendedor, desde, hasta, monto: r.pendiente });
+        r.pendiente > 0 ? h('div', { class: 'acciones' }, h('button', { class: 'btn primary', onclick: e => unaVez(e.currentTarget, async () => {
+          const x = await ctx.almacen.pagarComisiones({ vendedor, desde, hasta, monto: r.pendiente, ventas: r.idsPendientes });
           toast(x.ok ? 'Comisiones pagadas' : 'No se pudo guardar', { malo: !x.ok });
-        } }, icono('check'), 'Marcar como pagadas')) : null);
+        })() }, icono('check'), 'Marcar como pagadas')) : null);
     };
     sel.addEventListener('change', () => { vendedor = sel.value; pintar(); });
     const cargar = (d, hh) => { desde = d; hasta = hh; quitarVentas && quitarVentas(); quitarVentas = escucharVentasConCosto(ctx, { desde, hasta }, x => { ventas = x.ventas; pintar(); }); };

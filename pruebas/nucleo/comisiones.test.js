@@ -39,6 +39,15 @@ test('reducida si la línea está en oferta o la venta tiene descuento', () => {
   assert.deepEqual(comisionesVenta(lineas, P, COMISIONES_DEFECTO, true).map(c => c.reducida), [true, true]);
 });
 
+test('lo pagado se cuenta por las ventas incluidas en el pago, no por el día (revisión final)', () => {
+  const v = (id, fecha, comision) => ({ id, usuario: 'ana', fecha, estado: 'ok', lineas: [{ cantidad: 1, comision, reducida: false }] });
+  const ventas = [v('a', '2026-11-12T15:00:00Z', 4000), v('b', '2026-11-12T22:00:00Z', 2000)]; // b se vendió después de pagar
+  const pagos = [{ vendedor: 'ana', desde: '2026-11-12', hasta: '2026-11-12', monto: 4000, ventas: ['a'] }];
+  const r = resumenComisiones(ventas, { vendedor: 'ana', desde: '2026-11-12', hasta: '2026-11-12' }, pagos);
+  assert.equal(r.pagado, 4000); assert.equal(r.pendiente, 2000);
+  assert.deepEqual(r.idsPendientes, ['b']);
+});
+
 test('resumen por vendedora y rango, sin anuladas, con lo pagado', () => {
   const v = (fecha, lineas, estado = 'ok', usuario = 'ana') => ({ usuario, fecha, estado, lineas });
   const ventas = [
@@ -49,7 +58,7 @@ test('resumen por vendedora y rango, sin anuladas, con lo pagado', () => {
   ];
   const pagos = [{ vendedor: 'ana', desde: '2026-11-10', hasta: '2026-11-10', monto: 10000 }];
   const r = resumenComisiones(ventas, { vendedor: 'ana', desde: '2026-11-10', hasta: '2026-11-15' }, pagos);
-  assert.deepEqual(r, { ventas: 1, prendas: 3, normal: 8000, reducida: 2000, total: 10000, pagado: 10000, pendiente: 0 });
+  assert.deepEqual({ ...r, idsPendientes: undefined }, { ventas: 1, prendas: 3, normal: 8000, reducida: 2000, total: 10000, pagado: 10000, pendiente: 0, idsPendientes: undefined });
   // un pago de todo el mes cubre una consulta de una semana (revisión: no pagar dos veces)
   const mes = [{ vendedor: 'ana', desde: '2026-11-01', hasta: '2026-11-30', monto: 14000 }];
   assert.equal(resumenComisiones(ventas, { vendedor: 'ana', desde: '2026-11-09', hasta: '2026-11-15' }, mes).pendiente, 0);

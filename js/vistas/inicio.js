@@ -1,5 +1,5 @@
 // Inicio por rol (§13.4): recuadros del día, autorizaciones (admin), alertas y ventas de hoy.
-import { h, icono, toast, sin } from '../ui.js';
+import { h, icono, toast, sin, unaVez } from '../ui.js';
 import { registrarVista, navegar } from '../app.js';
 import { resumenDia, inventarioBajo } from '../nucleo/reportes.js';
 import { esperadoCaja } from '../nucleo/caja.js';
@@ -11,6 +11,25 @@ import { escucharVentasConCosto, listaVentas } from './ventas-rango.js';
 const tile = (k, color, etiqueta, valor, sub, ic) => h('div', { class: 'tile', 'data-k': k, style: `--c:${color}` },
   h('div', { class: 'et' }, etiqueta), h('div', { class: 'val num' }, valor), sub ? h('div', { class: 'sub' }, sub) : null,
   ic ? h('span', { class: 'tile-ic', 'aria-hidden': 'true' }, icono(ic)) : null);
+
+// Ventas de cada caja abierta, por cajaId (no por fecha): una caja abierta varios días suma todo.
+function escucharVentasDeCajas(ctx, alCambiar) {
+  const subs = {}, porCaja = {};
+  return {
+    actualizar(cajasAbiertas) {
+      const ids = new Set(cajasAbiertas.map(c => c.id));
+      for (const id of Object.keys(subs)) if (!ids.has(id)) { subs[id](); delete subs[id]; delete porCaja[id]; }
+      for (const id of ids) {
+        if (subs[id]) continue;
+        subs[id] = () => {}; // marcar antes: la escucha puede avisar en el mismo instante
+        const quitar = ctx.almacen.escuchar('ventas', l => { porCaja[id] = l; queueMicrotask(alCambiar); }, { cajaId: id });
+        if (subs[id]) subs[id] = quitar; else quitar();
+      }
+    },
+    ventas: id => porCaja[id] || [],
+    parar: () => Object.values(subs).forEach(q => q()),
+  };
+}
 
 function totalCajaCop(ctx, caja, ventas, apartados) {
   const formas = ctx.ajustes.formasPago;
@@ -24,16 +43,19 @@ registrarVista('/inicio', {
     const dia = hoy();
     let datos = { ventas: [], costosVenta: null }, cajas = [], apartados = [], autorizaciones = [];
     const tiles = h('div', { class: 'tiles' });
+    let pintar = () => {};
+    const porCaja = escucharVentasDeCajas(ctx, () => pintar());
     const auts = h('div', { class: 'autorizaciones' });
     const alertas = h('div', { class: 'alertas' });
     const ventasEl = h('div', { class: 'tarjeta' });
-    const pintar = () => {
+    pintar = () => {
       const r = resumenDia(datos.ventas, datos.costosVenta, ctx.ajustes.formasPago);
       const bajas = inventarioBajo(Object.values(ctx.productos));
       const negativos = Object.values(ctx.productos).filter(p => p.existencia < 0);
       if (gestion) {
         const abiertas = cajas.filter(c => c.estado === 'abierta');
-        const enCaja = abiertas.reduce((s, c) => s + totalCajaCop(ctx, c, datos.ventas, apartados), 0);
+        porCaja.actualizar(abiertas);
+        const enCaja = abiertas.reduce((s, c) => s + totalCajaCop(ctx, c, porCaja.ventas(c.id), apartados), 0);
         tiles.replaceChildren(
           tile('ventas', 'var(--accent)', 'Ventas de hoy', fmtCop(r.total), `${r.ventas} ${r.ventas === 1 ? 'venta' : 'ventas'} · ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, 'carrito'),
           tile('ganancia', 'var(--cop)', 'Ganancia', r.ganancia == null ? '—' : fmtCop(r.ganancia), r.gananciaParcial ? 'Calculando costos…' : 'Total menos costo', 'grafica'),
@@ -41,10 +63,11 @@ registrarVista('/inicio', {
           tile('bajas', bajas.length ? 'var(--warn)' : 'var(--muted)', 'Existencias bajas', String(bajas.length), 'en el mínimo o menos', 'caja'));
       } else {
         const mia = ctx.miCaja;
+        porCaja.actualizar(mia ? [mia] : []);
         const comision = datos.ventas.filter(v => v.estado !== 'anulada').flatMap(v => v.lineas).reduce((s, l) => s + (l.comision || 0), 0);
         tiles.replaceChildren(
           tile('mis-ventas', 'var(--accent)', 'Mis ventas de hoy', fmtCop(r.total), `${r.ventas} ${r.ventas === 1 ? 'venta' : 'ventas'} · ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, 'carrito'),
-          tile('mi-caja', 'var(--usd)', 'Mi caja', mia ? fmtCop(totalCajaCop(ctx, mia, datos.ventas, apartados)) : 'Cerrada', mia ? 'debería haber, en COP' : 'Ábrela para vender', 'cartera'),
+          tile('mi-caja', 'var(--usd)', 'Mi caja', mia ? fmtCop(totalCajaCop(ctx, mia, porCaja.ventas(mia.id), apartados)) : 'Cerrada', mia ? 'debería haber, en COP' : 'Ábrela para vender', 'cartera'),
           tile('comision', 'var(--cop)', 'Mi comisión de hoy', fmtCop(comision), null, 'porcentaje'));
       }
       const pendientes = autorizaciones.filter(a => a.estado === 'pendiente');
@@ -52,8 +75,8 @@ registrarVista('/inicio', {
         ...pendientes.map(a => h('div', { class: 'autorizacion tarjeta' },
           h('div', {}, h('b', {}, `@${a.solicita} pide ${a.tipo === 'monto' ? fmtCop(a.valor) + ' COP' : a.pct + '%'} de descuento`), h('div', { class: 'nota' }, `Sobre ${fmtCop(a.subtotal || 0)} · ${a.motivo || ''}`)),
           h('div', { class: 'acciones' },
-            h('button', { class: 'btn', onclick: async () => { await ctx.almacen.responderAutorizacion(a.id, false); toast('Rechazado'); } }, 'Rechazar'),
-            h('button', { class: 'btn primary', onclick: async () => { const r = await ctx.almacen.responderAutorizacion(a.id, true); toast(r.ok ? 'Aprobado' : 'No se pudo', { malo: !r.ok }); } }, 'Aprobar'))))] : []));
+            h('button', { class: 'btn', onclick: e => unaVez(e.currentTarget, async () => { await ctx.almacen.responderAutorizacion(a.id, false); toast('Rechazado'); })() }, 'Rechazar'),
+            h('button', { class: 'btn primary', onclick: e => unaVez(e.currentTarget, async () => { const r = await ctx.almacen.responderAutorizacion(a.id, true); toast(r.ok ? 'Aprobado' : 'No se pudo', { malo: !r.ok }); })() }, 'Aprobar'))))] : []));
       const alerta = (txt, detalle) => h('div', { class: 'aviso grave' }, icono('alerta'), h('div', {}, h('b', {}, txt), detalle ? h('div', { class: 'nota' }, detalle) : null));
       const cierres = cajas.filter(c => c.estado === 'cerrada' && c.cierre?.fecha >= inicioDia(dia) && (c.cierre.filas || []).some(f => f.nivel !== 'ok'));
       alertas.replaceChildren(...(gestion ? [
@@ -66,7 +89,12 @@ registrarVista('/inicio', {
       escucharVentasConCosto(ctx, { desde: dia, hasta: dia }, d => { datos = d; pintar(); }),
       ctx.almacen.escuchar('apartados', l => { apartados = l; pintar(); }),
     ];
-    if (gestion) q.push(ctx.almacen.escuchar('cajas', l => { cajas = l; pintar(); }, { desde: inicioDia(sumarDias(dia, -3)) }));
+    if (gestion) {
+      let abiertas = [], recientes = [];
+      const unir = () => { const m = new Map([...recientes, ...abiertas].map(c => [c.id, c])); cajas = [...m.values()]; pintar(); };
+      q.push(ctx.almacen.escuchar('cajas', l => { abiertas = l; unir(); }, { estado: 'abierta' }));
+      q.push(ctx.almacen.escuchar('cajas', l => { recientes = l; unir(); }, { desde: inicioDia(sumarDias(dia, -3)) }));
+    }
     if (ctx.puedeVer('aprobarDescuento')) q.push(ctx.almacen.escuchar('autorizaciones', l => { autorizaciones = l; pintar(); }, { estado: 'pendiente' }));
     const alDatos = e => { if (['productos', 'caja', 'tasas', 'ajustes'].includes(e.detail.que)) pintar(); };
     window.addEventListener('pos:datos', alDatos);
@@ -74,6 +102,6 @@ registrarVista('/inicio', {
     cont.append(...sin(h('h1', { class: 'saludo' }, 'Hola, ', h('span', {}, (s.nombre || s.usuario).split(' ')[0])), tiles, auts, alertas, ventasEl,
       !gestion && !ctx.miCaja ? h('button', { class: 'btn primary grande', onclick: () => navegar('/caja') }, icono('cartera'), 'Abrir caja') : null));
     pintar();
-    return () => { q.forEach(x => x()); window.removeEventListener('pos:datos', alDatos); };
+    return () => { q.forEach(x => x()); porCaja.parar(); window.removeEventListener('pos:datos', alDatos); };
   },
 });

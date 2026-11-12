@@ -223,3 +223,14 @@ test('la vendedora ve sus propias solicitudes de autorización (revisión 2)', a
   assert.deepEqual(lista.map(x => x.id), [id]);
   assert.ok(await a.obtener('autorizaciones', id));
 });
+
+test('un abono reintentado con el mismo id no se cuenta dos veces; no se abona más que el saldo (revisión final)', async () => {
+  const a = await comoVendedoraConCaja();
+  const ap = { id: a.nuevoId(), fecha: new Date().toISOString(), cliente: { nombre: 'Ana', telefono: '04121234567' }, lineas: [{ sku: 'F-N-6', cantidad: 1, precioUnit: 25000, subtotal: 25000 }], total: 25000, abonos: [] };
+  await a.guardarApartado(ap);
+  const pago = { id: 'ab1', forma: 'efectivo-cop', moneda: 'COP', monto: 5000, equivalenteCop: 5000 };
+  await a.abonarApartado(ap.id, pago); await a.abonarApartado(ap.id, pago);
+  assert.equal(a._estado('apartados').get(ap.id).abonos.length, 1);
+  assert.equal(a._estado('apartados').get(ap.id).saldo, 20000);
+  assert.equal((await a.abonarApartado(ap.id, { id: 'ab2', forma: 'efectivo-cop', moneda: 'COP', monto: 30000, equivalenteCop: 30000 })).error, 'excede');
+});

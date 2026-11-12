@@ -12,7 +12,12 @@ test('teléfonos venezolanos y colombianos reales (Review Focus 5)', () => {
   assert.equal(telefonoInternacional('+57 (300) 123-4567'), '573001234567');
   assert.equal(telefonoInternacional('+58 0414-1234567'), '584141234567');
   assert.equal(telefonoInternacional('0058 414 1234567'), '584141234567');
-  assert.equal(telefonoInternacional('+57 0300 1234567'), null);
+  assert.equal(telefonoInternacional('+57 0300 1234567'), '573001234567');
+  assert.equal(telefonoInternacional('607 5712345'), '576075712345');          // fijo colombiano (revisión final)
+  assert.equal(telefonoInternacional('+1 305 555 1234'), '13055551234');        // turista
+  assert.equal(telefonoInternacional('+51 987 654 321'), '51987654321');
+  assert.equal(telefonoInternacional('0300 123 4567'), '573001234567');         // celular colombiano con 0
+  assert.equal(telefonoInternacional('0276-3561234'), '582763561234');          // fijo venezolano
   assert.equal(telefonoInternacional('123'), null);
   assert.equal(telefonoInternacional(''), null);
   assert.equal(telefonoInternacional('1234567890123'), null);

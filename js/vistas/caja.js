@@ -1,5 +1,5 @@
 // Caja (§11): abrir con fondo, entradas y salidas, esperado por forma de pago, cierre con diferencias y reabrir (admin).
-import { h, icono, abrirVentana, toast } from '../ui.js';
+import { h, icono, abrirVentana, toast, unaVez } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { esperadoCaja, diferenciasCierre } from '../nucleo/caja.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
@@ -49,7 +49,7 @@ function abrirMovimiento(ctx, caja) {
     h('div', { class: 'campo' }, h('label', { for: 'mov-forma' }, 'Forma de pago'), forma),
     h('div', { class: 'campo' }, h('label', { for: 'mov-monto' }, 'Monto'), monto),
     h('div', { class: 'campo' }, h('label', { for: 'mov-motivo' }, 'Motivo'), motivo, err)), acciones: h('div', { class: 'acciones' }, b) });
-  b.addEventListener('click', async () => {
+  b.addEventListener('click', unaVez(b, async () => {
     const f = formas.find(x => x.id === forma.value);
     const n = parseMonto(monto.value, f.moneda);
     if (!n || n <= 0) { err.textContent = 'Escribe el monto'; return; }
@@ -57,7 +57,7 @@ function abrirMovimiento(ctx, caja) {
     const r = await ctx.almacen.movimientoCaja(caja.id, { tipo, forma: f.id, monto: n, motivo: motivo.value.trim() });
     if (!r.ok) { err.textContent = 'No se pudo guardar'; return; }
     v.cerrar(); toast(tipo === 'salida' ? 'Salida guardada' : 'Entrada guardada');
-  });
+  }));
 }
 
 function abrirCierre(ctx, caja, esperado) {
@@ -151,16 +151,23 @@ registrarVista('/caja', {
       }
       abajo.replaceChildren(historial(ctx, cajas) || '');
     };
-    const desde = new Date(Date.now() - 3 * 864e5).toISOString();
+    // Ventas de MI caja abierta, por cajaId (aunque lleve varios días abierta).
+    let cajaVentas = null, quitarVentas = null;
+    const seguirCaja = () => {
+      const id = ctx.miCaja?.id || null;
+      if (id === cajaVentas) return;
+      cajaVentas = id; quitarVentas && quitarVentas(); ventas = [];
+      quitarVentas = id ? ctx.almacen.escuchar('ventas', l => { ventas = l; pintar(); }, { cajaId: id }) : null;
+    };
+    seguirCaja();
     const q = [
-      ctx.almacen.escuchar('ventas', l => { ventas = l; pintar(); }, { desde }),
       ctx.almacen.escuchar('apartados', l => { apartados = l; pintar(); }),
       ctx.almacen.escuchar('cajas', l => { cajas = l; pintar(); }),
     ];
-    const alDatos = e => { if (['caja', 'ajustes', 'tasas'].includes(e.detail.que)) pintar(); };
+    const alDatos = e => { if (e.detail.que === 'caja') seguirCaja(); if (['caja', 'ajustes', 'tasas'].includes(e.detail.que)) pintar(); };
     window.addEventListener('pos:datos', alDatos);
     cont.append(principal, abajo);
     pintar();
-    return () => { q.forEach(x => x()); window.removeEventListener('pos:datos', alDatos); };
+    return () => { q.forEach(x => x()); quitarVentas && quitarVentas(); window.removeEventListener('pos:datos', alDatos); };
   },
 });

@@ -1,5 +1,5 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
-import { h, icono, abrirVentana, abrirHoja, toast, esTelefono } from '../ui.js';
+import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas } from '../ui.js';
 import { registrarVista, navegar } from '../app.js';
 import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
 import { aplicarDescuento, requiereAutorizacion } from '../nucleo/descuento.js';
@@ -22,6 +22,21 @@ export function resumenCarrito(ctx) {
   return { ...calc, descuento, total, unidades: calc.lineas.reduce((s, l) => s + l.cantidad, 0) };
 }
 
+// Un descuento deja de valer si el carrito cambió: el aprobado era para otro subtotal, y la vendedora
+// no puede quedar por encima del máximo al quitar prendas. Devuelve false si lo quitó.
+export function revisarDescuento(ctx) {
+  const c = carrito(ctx);
+  if (!c.descuento) return true;
+  const sub = calcularCarrito(c.lineas, ctx.productos, { limites: ctx.ajustes.tramos, redondeo: ctx.ajustes.redondeo }).subtotal;
+  const pct = c.descuento.tipo === 'pct' ? c.descuento.valor : (sub ? c.descuento.valor * 100 / sub : 100);
+  const invalido = c.autorizacion ? c.autorizacion.subtotal !== sub
+    : (requiereAutorizacion(ctx.sesion?.rol, pct, ctx.ajustes.descuentoMaxVendedora) || pct >= 100);
+  if (!invalido) return true;
+  c.descuento = null; c.autorizacion = null;
+  if (c.lineas.length) toast('Se quitó el descuento: el carrito cambió');
+  return false;
+}
+
 export function vaciarCarrito(ctx) { ctx.carrito = { lineas: [], descuento: null, autorizacion: null }; }
 
 function enCarrito(ctx, sku) { return carrito(ctx).lineas.find(l => l.sku === sku)?.cantidad || 0; }
@@ -36,6 +51,7 @@ export function agregarAlCarrito(ctx, sku, delta = 1) {
   if (nueva <= 0) c.lineas = c.lineas.filter(l => l.sku !== sku);
   else if (actual) c.lineas.find(l => l.sku === sku).cantidad = nueva;
   else c.lineas.push({ sku, cantidad: nueva });
+  revisarDescuento(ctx);
   window.dispatchEvent(new CustomEvent('pos:carrito'));
   return true;
 }
@@ -112,7 +128,7 @@ function abrirDescuento(ctx) {
     const n = parseMonto(valor.value, tipo === 'pct' ? 'USD' : 'COP');
     if (!n || n <= 0) { err.textContent = 'Escribe un valor'; return; }
     const pct = tipo === 'pct' ? n : (r.subtotal ? n * 100 / r.subtotal : 0);
-    if (pct > 100) { err.textContent = 'No puede ser mayor que el total'; return; }
+    if (pct >= 100) { err.textContent = 'Debe ser menor que el total'; return; }
     if (requiereAutorizacion(ctx.sesion.rol, pct, max)) {
       aplicar.disabled = true;
       const s = await ctx.almacen.solicitarAutorizacion({ pct: Math.round(pct * 100) / 100, tipo, valor: n, subtotal: r.subtotal });
@@ -123,7 +139,7 @@ function abrirDescuento(ctx) {
         const a = lista.find(x => x.id === s.id);
         if (!a || a.estado === 'pendiente') return;
         setTimeout(() => quitar && quitar());
-        if (a.estado === 'aprobada') { c.descuento = { tipo, valor: n }; c.autorizacion = { id: a.id, por: a.aprueba }; v.cerrar(); toast('Descuento autorizado'); window.dispatchEvent(new CustomEvent('pos:carrito')); }
+        if (a.estado === 'aprobada') { c.descuento = { tipo, valor: n }; c.autorizacion = { id: a.id, por: a.aprueba, subtotal: r.subtotal }; v.cerrar(); toast('Descuento autorizado'); window.dispatchEvent(new CustomEvent('pos:carrito')); }
         else { aplicar.disabled = false; aplicar.textContent = 'Aplicar'; err.textContent = 'Descuento rechazado'; }
       });
       v.alCerrar = () => quitar && quitar();
@@ -214,7 +230,7 @@ registrarVista('/vender', {
     });
     const teclas = e => {
       if (e.key === 'F2') { e.preventDefault(); buscar.focus(); buscar.select(); }
-      if (e.key === 'F9' && carrito(ctx).lineas.length) { e.preventDefault(); ctx.abrirCobro && ctx.abrirCobro('venta'); }
+      if (e.key === 'F9' && carrito(ctx).lineas.length && !hayCapas()) { e.preventDefault(); ctx.abrirCobro && ctx.abrirCobro('venta'); }
     };
     const alDatos = e => { if (['productos', 'ajustes', 'tasas', 'caja'].includes(e.detail.que)) pintar(); };
     document.addEventListener('keydown', teclas);

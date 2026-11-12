@@ -1,6 +1,7 @@
 // Ventana Cobrar (§9.2): cliente obligatorio, pagos mixtos, vuelto, guardar la venta y recibo por WhatsApp.
 import { h, icono, abrirVentana, toast } from '../ui.js';
-import { resumenCarrito, carrito, vaciarCarrito } from './vender.js';
+import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
+import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
 import { crearPanelPagos } from './pagos.js';
 import { comisionesVenta } from '../nucleo/comisiones.js';
 import { repartirDescuento } from '../nucleo/descuento.js';
@@ -60,9 +61,15 @@ function confirmar(texto, si, no) {
   });
 }
 
+// Firma del carrito para detectar cambios (precios, tramos, ofertas, productos) mientras se cobra.
+export const firmaCarrito = r => JSON.stringify([r.total, r.lineas.map(l => [l.sku, l.cantidad, l.precioUnit])]);
+
 export function abrirCobrar(ctx) {
+  if (cobroAbierto()) return;
+  revisarDescuento(ctx);
   const r0 = resumenCarrito(ctx);
   if (!r0.lineas.length) return;
+  if (r0.total <= 0) { toast('El total debe ser mayor que 0', { malo: true }); return; }
   const idVenta = ctx.almacen.nuevoId();
   let guardando = false, hecha = false;
   const final = h('button', { class: 'btn primary grande', id: 'cobrar-final' }, `Cobrar ${fmtCop(r0.total)}`);
@@ -75,6 +82,7 @@ export function abrirCobrar(ctx) {
     panel.el);
   const v = abrirVentana({ titulo: 'Cobrar', contenido: cuerpo, acciones: h('div', { class: 'pie-cobro' }, panel.barra, final), pantallaCompleta: true });
   v.alCerrar = () => cliente.quitar();
+  marcarCobro(v);
   actualizar();
   setTimeout(() => cliente.foco(), 40);
 
@@ -83,6 +91,7 @@ export function abrirCobrar(ctx) {
     guardando = true; actualizar();
     try {
       const r = resumenCarrito(ctx);
+      if (firmaCarrito(r) !== firmaCarrito(r0)) { v.cerrar(); toast('Los precios cambiaron, revisa el cobro', { malo: true }); window.dispatchEvent(new CustomEvent('pos:carrito')); return; }
       const sinConexion = ctx.conexion && ctx.conexion.enLinea === false;
       if (sinConexion && r.lineas.some(l => (ctx.productos[l.sku]?.existencia ?? 0) - l.cantidad <= 2)) {
         const ok = await confirmar('Estás sin conexión y quedan pocas. Confirma con la tienda antes de cobrar.', 'Cobrar igual', 'Volver');

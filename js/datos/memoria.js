@@ -172,6 +172,8 @@ export function crearMemoria(datos) {
       const ap = col.apartados.get(id); if (!ap) return NO('no-existe');
       if (ap.estado !== 'pendiente') return NO('estado');
       const caja = cajaAbierta(sesion.uid); if (!caja) return NO('sin-caja');
+      if (pago.id && ap.abonos.some(x => x.id === pago.id)) return SI();
+      if ((pago.equivalenteCop || 0) > ap.saldo + 50) return NO('excede');
       ap.abonos.push({ ...pago, cajaId: caja.id, usuario: sesion.usuario, fecha: ahora() });
       ap.saldo = Math.max(0, ap.total - ap.abonos.reduce((s, a) => s + (a.equivalenteCop || 0), 0));
       escribio(); avisar('apartados');

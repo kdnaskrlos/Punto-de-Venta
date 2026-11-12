@@ -6,12 +6,15 @@ import { NOMBRE_MONEDA } from './formas.js';
 // Número internacional sin "+". Venezuela 58 (04xx… o 4xx…) y Colombia 57 (3xx…).
 export function telefonoInternacional(texto) {
   let d = String(texto || '').replace(/\D/g, '');
+  const internacional = /^\s*(\+|00)/.test(String(texto || ''));
   if (d.startsWith('00')) d = d.slice(2);
-  if (d.startsWith('580')) d = '58' + d.slice(3);
-  if (d.length === 11 && d.startsWith('0')) return '58' + d.slice(1);
-  if (d.length === 10 && d.startsWith('3')) return '57' + d;
-  if (d.length === 10 && d.startsWith('4')) return '58' + d;
+  if (d.startsWith('580') || d.startsWith('570')) d = d.slice(0, 2) + d.slice(3);
+  if (d.length === 11 && d.startsWith('03')) return '57' + d.slice(1);               // celular colombiano escrito con 0
+  if (d.length === 11 && d.startsWith('0')) return '58' + d.slice(1);                // Venezuela 04xx / 02xx
+  if (d.length === 10 && (d.startsWith('3') || d.startsWith('60'))) return '57' + d; // Colombia celular o fijo
+  if (d.length === 10 && (d.startsWith('4') || d.startsWith('2'))) return '58' + d;
   if (d.length === 12 && (d.startsWith('58') || d.startsWith('57'))) return d;
+  if (internacional && d.length >= 8 && d.length <= 15) return d;                    // otros países con +
   return null;
 }
 

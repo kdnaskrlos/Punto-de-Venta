@@ -7,7 +7,7 @@ async function preparar(env, opciones = {}) {
   // Buzo S 48.000 + Jogger M 42.000 + 2 bodies (separados, 18.000) = 126.000 − 10.000 de descuento = 116.000
   await p.evaluate(() => {
     const c = window.__pos.ctx;
-    c.carrito = { lineas: [{ sku: 'B-S', cantidad: 1 }, { sku: 'J-M', cantidad: 1 }, { sku: 'Y-6m', cantidad: 1 }, { sku: 'Y-3m', cantidad: 1 }], descuento: { tipo: 'monto', valor: 10000 }, autorizacion: null };
+    c.carrito = { lineas: [{ sku: 'B-S', cantidad: 1 }, { sku: 'J-M', cantidad: 1 }, { sku: 'Y-6m', cantidad: 1 }, { sku: 'Y-3m', cantidad: 1 }], descuento: { tipo: 'monto', valor: 10000 }, autorizacion: { id: 'a1', por: 'admin', subtotal: 126000 } }; // 7,9%: autorizado por el admin
     window.dispatchEvent(new CustomEvent('pos:carrito'));
   });
   return p;
@@ -86,6 +86,29 @@ casos('cobrar', [
     await p.waitForSelector('text=Estás sin conexión y quedan pocas. Confirma con la tienda antes de cobrar.');
     await p.click('text=Cobrar igual');
     await p.waitForSelector('text=Venta guardada');
+  }],
+  ['Descuento: al quitar prendas no puede pasar el máximo sin autorización (revisión final)', async (env, a) => {
+    const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'B-S', cantidad: 2 }, { sku: 'F-B-6', cantidad: 2 }], descuento: { tipo: 'monto', valor: 7000 }, autorizacion: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.click('.linea[data-sku="B-S"] [aria-label="Quitar"]');
+    await p.waitForSelector('text=Se quitó el descuento');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.descuento), null);
+  }],
+  ['F9 dos veces abre una sola ventana de cobro (revisión final)', async (env, a) => {
+    const p = await preparar(env);
+    await p.click('.vista'); await p.keyboard.press('F9'); await p.keyboard.press('F9');
+    a.strictEqual(await p.$$eval('#cobrar-final', x => x.length), 1);
+  }],
+  ['Si cambian los precios mientras se cobra, no guarda una venta distinta (revisión final)', async (env, a) => {
+    const p = await env.pagina({ usuario: 'admin', caja: true, ruta: '/vender' });
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.click('.lado-carrito .cobrar');
+    await p.fill('#cli-tel', '0412-123.45.67');
+    await p.click('.forma[data-forma="efectivo-cop"]');
+    await p.evaluate(() => window.__pos.ctx.almacen.aplicarImportacion({ nuevos: [], cambios: [{ sku: 'J-M', campos: { precios: [50000, 40000, 38000, 36000, 34000] } }], iguales: [], faltantes: [] }));
+    await p.click('#cobrar-final');
+    await p.waitForSelector('text=Los precios cambiaron');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.almacen._estado('ventas').size), 0);
   }],
   ['Si otro vendió primero, avisa el producto y el carrito queda igual', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });

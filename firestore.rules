@@ -78,7 +78,9 @@ service cloud.firestore {
 
     // Contador para numerar ventas (V-0001…).
     match /contadores/{id} {
-      allow read, write: if activo();
+      allow read: if activo();
+      allow create: if activo() && request.resource.data.n == 1;
+      allow update: if activo() && request.resource.data.n == resource.data.n + 1;
     }
 
     // Apartados: cualquiera del equipo crea, abona y completa; solo gestión cancela. Solo se modifican mientras están pendientes.
@@ -86,8 +88,10 @@ service cloud.firestore {
       allow read: if activo();
       allow create: if activo() && request.resource.data.usuario == yo() && request.resource.data.estado == 'pendiente';
       allow update: if activo() && resource.data.estado == 'pendiente' && (
-          soloCambian(['abonos', 'saldo'])
-          || (soloCambian(['estado', 'ventaId', 'saldo']) && request.resource.data.estado == 'completado')
+          (soloCambian(['abonos', 'saldo']) && request.resource.data.abonos.hasAll(resource.data.abonos)
+            && request.resource.data.saldo <= resource.data.saldo && request.resource.data.saldo >= 0)
+          || (soloCambian(['estado', 'ventaId', 'saldo']) && request.resource.data.estado == 'completado'
+            && existsAfter(/databases/$(database)/documents/ventas/$(request.resource.data.ventaId)))
           || (esGestion() && soloCambian(['estado', 'cancelacion']) && request.resource.data.estado == 'cancelado'));
       allow delete: if false;
     }
@@ -99,7 +103,7 @@ service cloud.firestore {
         && getAfter(cajaAbiertaPath(yo())).data.cajaId == id;
       allow update: if
           (activo() && resource.data.usuario == yo() && resource.data.estado == 'abierta'
-            && (soloCambian(['movimientos']) || (soloCambian(['estado', 'cierre']) && request.resource.data.estado == 'cerrada' && !existsAfter(cajaAbiertaPath(yo())))))
+            && ((soloCambian(['movimientos']) && request.resource.data.movimientos.hasAll(resource.data.movimientos)) || (soloCambian(['estado', 'cierre']) && request.resource.data.estado == 'cerrada' && !existsAfter(cajaAbiertaPath(yo())))))
           || (esGestion() && resource.data.estado == 'abierta' && soloCambian(['movimientos']) && request.resource.data.movimientos.hasAll(resource.data.movimientos))
           || (esAdmin() && resource.data.estado == 'cerrada' && request.resource.data.estado == 'abierta' && soloCambian(['estado', 'reaperturas']));
       allow delete: if false;

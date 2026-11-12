@@ -1,5 +1,5 @@
 // Ajustes (solo administrador): tasas, formas de pago, tramos, comisiones, tienda y usuarios.
-import { h, icono, abrirVentana, toast } from '../ui.js';
+import { h, icono, abrirVentana, toast, unaVez } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { etiquetaTramo } from '../nucleo/tramos.js';
@@ -54,7 +54,7 @@ function general(ctx) {
       const v = id => el.querySelector('#' + id).value;
       guardado(await ctx.almacen.guardarAjustes('general', {
         tienda: { ...(aj.tienda || {}), nombre: v('aj-tienda').trim() || 'Comic Shop' },
-        redondeo: Number(v('aj-redondeo')) || 100, descuentoMaxVendedora: Number(String(v('aj-desc-max')).replace(',', '.')) || 0,
+        redondeo: parseMonto(v('aj-redondeo'), 'COP') || 100, descuentoMaxVendedora: Number(String(v('aj-desc-max')).replace(',', '.')) || 0,
         formasPago: formas, tramos, comisiones: coms,
       }));
     } }, 'Guardar')));
@@ -81,14 +81,14 @@ function usuarios(ctx) {
     h('h3', { class: 'sub-t' }, 'Nuevo usuario'),
     h('div', { class: 'rejilla-aj' }, campo('nu-nombre', 'Nombre'), campo('nu-usuario', 'Usuario', { autocapitalize: 'none', spellcheck: 'false' }), h('div', { class: 'campo' }, h('label', { for: 'nu-rol' }, 'Rol'), rol), campo('nu-pin', 'PIN (4 números)', { type: 'password', inputmode: 'numeric', maxlength: '4' })),
     err,
-    h('div', { class: 'acciones' }, h('button', { class: 'btn primary', id: 'nu-crear', onclick: async () => {
+    h('div', { class: 'acciones' }, h('button', { class: 'btn primary', id: 'nu-crear', onclick: e => unaVez(e.currentTarget, async () => {
       const v = id => el.querySelector('#' + id).value.trim();
       if (!/^\d{4}$/.test(v('nu-pin'))) { err.textContent = 'El PIN debe tener 4 números'; return; }
       const r = await ctx.almacen.crearUsuario({ usuario: v('nu-usuario'), nombre: v('nu-nombre'), rol: rol.value, pin: v('nu-pin') });
       if (!r.ok) { err.textContent = r.error === 'existe' ? 'Ese usuario ya existe' : r.error === 'datos' ? 'Revisa el usuario (minúsculas, sin espacios)' : 'No se pudo crear'; return; }
       err.textContent = ''; ['nu-nombre', 'nu-usuario', 'nu-pin'].forEach(id => { el.querySelector('#' + id).value = ''; });
       toast('Usuario creado');
-    } }, icono('mas1'), 'Crear usuario')));
+    })() }, icono('mas1'), 'Crear usuario')));
   const quitar = ctx.almacen.escuchar('usuarios', l => {
     lista.replaceChildren(...l.filter(u => !u.reemplazadoPor).sort((a, b) => a.usuario.localeCompare(b.usuario)).map(u => h('div', { class: 'usuario', 'data-usuario': u.usuario },
       h('span', { class: 'avatar' }, (u.nombre || u.usuario).slice(0, 1).toUpperCase()),

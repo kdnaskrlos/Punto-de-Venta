@@ -1,9 +1,10 @@
 // Apartados (§10): apartar desde el carrito, abonar, completar y cancelar.
-import { h, icono, abrirVentana, toast, pedirMotivo } from '../ui.js';
+import { h, icono, abrirVentana, toast, pedirMotivo, unaVez } from '../ui.js';
+import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { registrarVista } from '../app.js';
-import { resumenCarrito, carrito, vaciarCarrito } from './vender.js';
+import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
 import { crearPanelPagos } from './pagos.js';
-import { camposCliente, lineasParaGuardar } from './cobrar.js';
+import { camposCliente, lineasParaGuardar, firmaCarrito } from './cobrar.js';
 import { fmtCop } from '../nucleo/dinero.js';
 import { fechaHora } from '../nucleo/fechas.js';
 
@@ -11,8 +12,11 @@ const ESTADO = { pendiente: ['y', 'Pendiente'], completado: ['g', 'Completado'],
 const tasasDe = ctx => ({ copPorUsd: ctx.tasas.copPorUsd, bsPorUsd: ctx.tasas.bsPorUsd, fuenteBs: ctx.tasas.fuenteBs });
 
 export function abrirApartar(ctx) {
+  if (cobroAbierto()) return;
+  revisarDescuento(ctx);
   const r0 = resumenCarrito(ctx);
   if (!r0.lineas.length) return;
+  if (r0.total <= 0) { toast('El total debe ser mayor que 0', { malo: true }); return; }
   const id = ctx.almacen.nuevoId();
   let guardando = false;
   const final = h('button', { class: 'btn primary grande', id: 'apartar-final' }, 'Apartar');
@@ -28,12 +32,14 @@ export function abrirApartar(ctx) {
     contenido: h('div', { class: 'cobro' }, cliente.el, h('div', { class: 'total-cobro' }, h('span', { class: 'total-cop num' }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')), h('p', { class: 'nota' }, 'El abono es opcional. Las prendas quedan reservadas.'), panel.el),
     acciones: h('div', { class: 'pie-cobro' }, panel.barra, final) });
   v.alCerrar = () => cliente.quitar();
+  marcarCobro(v);
   actualizar();
   setTimeout(() => cliente.foco(), 40);
   final.addEventListener('click', async () => {
     if (guardando) return;
     guardando = true; actualizar();
     const r = resumenCarrito(ctx);
+    if (firmaCarrito(r) !== firmaCarrito(r0)) { guardando = false; v.cerrar(); toast('Los precios cambiaron, revisa el apartado', { malo: true }); return; }
     const c = carrito(ctx);
     const { pagos } = panel.resultado();
     const ap = {
@@ -75,11 +81,17 @@ function abrirPago(ctx, ap, modo) {
         total: ap.total, abonosPrevios: ap.total - ap.saldo, pagos, vuelto, tasas: tasasDe(ctx),
       });
     } else {
-      res = { ok: true };
-      for (const p of pagos) { const r = await ctx.almacen.abonarApartado(ap.id, p); if (!r.ok) { res = r; break; } }
+      // Cada abono lleva un id fijo: si algo falla y se reintenta, los ya guardados no se repiten.
+      const actual = await ctx.almacen.obtener('apartados', ap.id) || ap;
+      const suma = pagos.reduce((s, p) => s + (p.equivalenteCop || 0), 0);
+      if (suma > actual.saldo + 50) res = { ok: false, error: 'excede' };
+      else {
+        res = { ok: true };
+        for (const [i, p] of pagos.entries()) { const r = await ctx.almacen.abonarApartado(ap.id, { ...p, id: `${idVenta}-${i}` }); if (!r.ok) { res = r; break; } }
+      }
     }
     guardando = false;
-    if (!res.ok) { toast(res.error === 'sin-caja' ? 'Abre tu caja primero' : 'No se pudo guardar', { malo: true }); actualizar(); return; }
+    if (!res.ok) { toast(res.error === 'sin-caja' ? 'Abre tu caja primero' : res.error === 'excede' ? 'El abono es mayor que el saldo actual' : 'No se pudo guardar', { malo: true }); actualizar(); return; }
     v.cerrar(); toast(completar ? 'Venta guardada' : 'Abono guardado');
   });
 }
@@ -94,12 +106,12 @@ function tarjeta(ctx, ap) {
     h('div', { class: 'ap-lineas' }, ap.lineas.map(l => h('div', { class: 'nota' }, `${l.cantidad} × ${l.nombre}${l.talla ? ' · Talla ' + l.talla : ''}`))),
     h('div', { class: 'ap-montos num' }, h('span', {}, `Total ${fmtCop(ap.total)}`), h('span', {}, `Abonado ${fmtCop(ap.total - ap.saldo)}`), pendiente ? h('b', {}, `Saldo ${fmtCop(ap.saldo)}`) : null),
     pendiente ? h('div', { class: 'acciones' },
-      ctx.puedeVer('cancelarApartado') ? h('button', { class: 'btn danger', onclick: async () => {
+      ctx.puedeVer('cancelarApartado') ? h('button', { class: 'btn danger', onclick: e => unaVez(e.currentTarget, async () => {
         const motivo = await pedirMotivo({ titulo: 'Cancelar apartado', boton: 'Cancelar apartado', peligro: true });
         if (!motivo) return;
         const r = await ctx.almacen.cancelarApartado(ap.id, motivo);
         toast(r.ok ? 'Apartado cancelado' : 'No se pudo cancelar', { malo: !r.ok });
-      } }, 'Cancelar') : null,
+      })() }, 'Cancelar') : null,
       h('button', { class: 'btn', onclick: () => abrirPago(ctx, ap, 'abonar') }, 'Abonar'),
       h('button', { class: 'btn primary', onclick: () => abrirPago(ctx, ap, 'completar') }, 'Completar')) : null);
 }

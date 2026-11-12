@@ -30,9 +30,10 @@ export function comisionesVenta(lineasCalculadas, productosPorSku, defectos, hay
 }
 
 export function resumenComisiones(ventas, { vendedor, desde, hasta }, pagosComision = []) {
-  // Una venta está pagada si su día cae dentro de algún pago registrado para esa vendedora.
-  const r = { ventas: 0, prendas: 0, normal: 0, reducida: 0, total: 0, pagado: 0, pendiente: 0 };
-  const pagos = pagosComision.filter(p => p.vendedor === vendedor);
+  // Una venta está pagada si su id está en algún pago registrado (los pagos antiguos sin lista usan su rango de días).
+  const r = { ventas: 0, prendas: 0, normal: 0, reducida: 0, total: 0, pagado: 0, pendiente: 0, idsPendientes: [] };
+  const pagadas = new Set(pagosComision.filter(p => p.vendedor === vendedor && Array.isArray(p.ventas)).flatMap(p => p.ventas));
+  const pagosViejos = pagosComision.filter(p => p.vendedor === vendedor && !Array.isArray(p.ventas));
   for (const v of ventas) {
     if (v.estado === 'anulada' || v.usuario !== vendedor) continue;
     const d = diaLocal(v.fecha);
@@ -44,7 +45,8 @@ export function resumenComisiones(ventas, { vendedor, desde, hasta }, pagosComis
       suma += l.comision || 0;
       if (l.reducida) r.reducida += l.comision || 0; else r.normal += l.comision || 0;
     }
-    if (pagos.some(p => d >= p.desde && d <= p.hasta)) r.pagado += suma;
+    if (pagadas.has(v.id) || pagosViejos.some(p => d >= p.desde && d <= p.hasta)) r.pagado += suma;
+    else if (suma) r.idsPendientes.push(v.id);
   }
   r.total = r.normal + r.reducida;
   r.pendiente = r.total - r.pagado;

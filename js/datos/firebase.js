@@ -258,8 +258,13 @@ export function crearFirebase(config) {
       if (RESTRINGIDAS.includes(nombre) && !puede(sesion.rol, 'verCostos')) { cb([]); return () => {}; }
       let q = collection(db, nombre);
       const todos = puede(sesion.rol, 'verReportesTodos') || (nombre === 'autorizaciones' && sesion.rol === 'admin');
-      if (PROPIAS.includes(nombre) && !todos) q = query(q, where('usuario', '==', sesion.usuario));
-      else if (['ventas', 'movimientos', 'autorizaciones'].includes(nombre) && filtro && typeof filtro === 'object' && filtro.desde) q = query(q, where('fecha', '>=', filtro.desde));
+      const conds = [];
+      const obj = filtro && typeof filtro === 'object' ? filtro : null;
+      if (PROPIAS.includes(nombre) && !todos) conds.push(where('usuario', '==', sesion.usuario));
+      if (nombre === 'ventas' && obj?.cajaId) conds.push(where('cajaId', '==', obj.cajaId));
+      else if (nombre === 'movimientos' && obj?.sku) conds.push(where('sku', '==', obj.sku));
+      else if (!conds.length && ['ventas', 'movimientos', 'autorizaciones'].includes(nombre) && obj?.desde) conds.push(where('fecha', '>=', obj.desde));
+      if (conds.length) q = query(q, ...conds);
       if (nombre === 'usuarios' && sesion.rol !== 'admin') q = query(q, where('activo', '==', true));
       return onSnapshot(q, s => cb(s.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => cumpleFiltro(d, filtro))),
         e => { console.warn('escuchar', nombre, e); cb([]); });
@@ -279,13 +284,15 @@ export function crearFirebase(config) {
     async anularVenta(id, motivo) {
       const e = exigir('anularVenta'); if (e) return NO(e);
       if (!String(motivo || '').trim()) return NO('datos');
-      if (enCurso.has('anular:' + id)) return NO('ya-anulada');
-      enCurso.add('anular:' + id);
-      const v = await api.obtener('ventas', id); if (!v) return NO('no-existe');
-      if (v.estado === 'anulada') return NO('ya-anulada');
+      const clave = 'anular:' + id;
+      if (enCurso.has(clave)) return NO('ya-anulada');
+      enCurso.add(clave);
+      const fallo = err => { enCurso.delete(clave); return NO(err); };
+      const v = await api.obtener('ventas', id); if (!v) return fallo('no-existe');
+      if (v.estado === 'anulada') return fallo('ya-anulada');
       const original = v.cajaId ? await api.obtener('cajas', v.cajaId) : null;
       const caja = original?.estado === 'abierta' ? original : miCaja;
-      if (!caja) return NO('sin-caja');
+      if (!caja) return fallo('sin-caja');
       const neto = {};
       for (const p of v.pagos || []) neto[p.forma] = (neto[p.forma] || 0) + p.monto;
       if (v.vuelto?.monto) neto[v.vuelto.forma] = (neto[v.vuelto.forma] || 0) - v.vuelto.monto;
@@ -298,7 +305,9 @@ export function crearFirebase(config) {
       }
       if (movs.length) b.update(ref('cajas', caja.id), { movimientos: arrayUnion(...movs) });
       b.update(ref('ventas', id), { estado: 'anulada', anulacion: { por: sesion.usuario, motivo, fecha: ahora() } });
-      return sinEsperar(b.commit());
+      const r = await sinEsperar(b.commit());
+      if (!r.ok) enCurso.delete(clave);
+      return r;
     },
 
     // ---- apartados ----
@@ -313,15 +322,19 @@ export function crearFirebase(config) {
     },
     async abonarApartado(id, pago) {
       const e = exigir('vender'); if (e) return NO(e);
+      await esperarCaja();
       if (!miCaja) return NO('sin-caja');
       const ap = await api.obtener('apartados', id); if (!ap) return NO('no-existe');
       if (ap.estado !== 'pendiente') return NO('estado');
+      if (pago.id && (ap.abonos || []).some(x => x.id === pago.id)) return SI();
+      if ((pago.equivalenteCop || 0) > ap.saldo + 50) return NO('excede');
       const abono = { ...pago, cajaId: miCaja.id, usuario: sesion.usuario, fecha: ahora() };
       // increment: dos abonos a la vez (dos teléfonos, o uno sin conexión) restan los dos.
       return sinEsperar(updateDoc(ref('apartados', id), { abonos: arrayUnion(abono), saldo: increment(-(pago.equivalenteCop || 0)) }));
     },
     async completarApartado(id, venta) {
       const e = exigir('vender'); if (e) return NO(e);
+      await esperarCaja();
       if (!miCaja) return NO('sin-caja');
       const ap = await api.obtener('apartados', id); if (!ap) return NO('no-existe');
       if (ap.estado === 'completado' && ap.ventaId === venta.id) return SI({ offline: false });
