@@ -43,12 +43,12 @@ casos('inventario', [
   ['Admin: ajuste +3 "Llegó del taller" y queda en el historial', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
     await p.click('.grupo-inv[data-grupo="Jogger Texcol Negro"]');
-    await p.click('.variante[data-sku="J-M"] button:has-text("Ajustar")');
+    await p.click('.talla-fila[data-sku="J-M"] button:has-text("Ajustar")');
     await p.fill('#ajuste-cantidad', '3');
     await p.selectOption('#ajuste-motivo', 'Llegó del taller');
     await p.click('#ajuste-final');
     await p.waitForFunction(() => window.__pos.ctx.productos['J-M'].existencia === 8);
-    await p.click('.variante[data-sku="J-M"] button:has-text("Historial")');
+    await p.click('.talla-fila[data-sku="J-M"] button:has-text("Historial")');
     a.ok((await texto(p, '.capa:last-of-type')).includes('Llegó del taller'));
   }],
   ['Admin: oferta del 10% cambia el precio en Vender', async (env, a) => {
@@ -80,5 +80,29 @@ casos('inventario', [
     await p.click('.grupo-inv[data-grupo="Jogger Texcol Negro"]');
     a.ok((await texto(p, '.capa')).includes('Costo'));
     for (const b of ['Importar', 'Fotos', 'Ajustar', 'Oferta']) a.strictEqual(await p.$(`button:has-text("${b}")`), null, b);
+  }],
+  ['Detalle de una prenda: los precios salen una sola vez si son iguales en todas las tallas', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inventario' });
+    await p.click('.grupo-inv[data-grupo="Franela AS Niño Blanco"]');
+    await p.waitForSelector('.detalle-grupo');
+    a.strictEqual(await p.$$eval('.detalle-grupo .precio-tramo:not(.costo)', e => e.length), 5);
+    a.strictEqual(await p.$$eval('.detalle-grupo .talla-fila', e => e.length), 4);
+  }],
+  ['Las tallas de la lista se leen claras: «T4 · 12»', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inventario' });
+    const t = await p.$$eval('.grupo-inv[data-grupo="Franela AS Niño Blanco"] .mini-tallas .est', e => e.map(x => x.textContent));
+    a.deepStrictEqual(t, ['T4 · 12', 'T6 · 12', 'T8 · 12', 'T10 · 12']);
+  }],
+  ['El historial muestra la existencia inicial', async (env, a) => {
+    const p = await env.pagina({ ruta: '/inventario' });
+    await p.click('.grupo-inv[data-grupo="Franela AS Niño Blanco"]');
+    await p.click('.talla-fila[data-sku="F-B-4"] button:has-text("Historial")');
+    await p.waitForSelector('.mov');
+    a.match(await p.innerText('.capa:last-of-type'), /Existencia inicial/);
+  }],
+  ['Teléfono: los valores del inventario van en una fila compacta', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inventario' });
+    const alto = await p.$eval('.valor-inv', e => e.getBoundingClientRect().height);
+    a.ok(alto <= 90, `ocupan ${alto} px`);
   }],
 ]);

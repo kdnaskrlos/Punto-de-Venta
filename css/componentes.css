@@ -353,3 +353,22 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .cal-resumen{text-align:center}
 /* Personas en comisiones */
 .segmentado.personas{max-width:420px}
+
+/* Detalle de prenda: una fila por talla */
+.talla-fila{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}
+.tf-info{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+/* Inventario en el teléfono: valores en una fila compacta */
+@media (max-width:760px){
+  .valor-inv{grid-template-columns:1fr 1fr;gap:8px}
+  .valor-inv .tile{padding:10px 12px}
+  .valor-inv .tile .val{font-size:18px;margin-top:2px}
+  .filtros{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -12px;padding:0 12px}
+  .filtros::-webkit-scrollbar{display:none}
+  .filtros .chip{flex:none}
+}
+
+/* Ajustes: formas de pago con el nombre completo a lo ancho */
+@media (max-width:760px){
+  .forma-aj{grid-template-columns:minmax(0,1fr) auto;row-gap:2px}
+  .forma-aj .inp{grid-column:1/-1}
+}

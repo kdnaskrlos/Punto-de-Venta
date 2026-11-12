@@ -143,4 +143,21 @@ casos('gestion', [
     const altos = await p.$$eval('.tile .sub', els => els.map(e => [e.textContent, Math.round(e.getBoundingClientRect().height)]));
     for (const [t, alto] of altos) a.ok(alto <= 20, `«${t}» ocupa ${alto} px`);
   }],
+  ['Ajustes de tasas: botones Binance/BCV/Manual y solo el campo que aplica', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
+    a.strictEqual(!!(await p.$('#aj-bs-modo select, select#aj-bs-modo')), false, 'no debe usar la lista del teléfono');
+    await p.click('#aj-bs-modo button[data-modo="binance"]');
+    a.strictEqual(await p.isVisible('#aj-recargo'), true); a.strictEqual(await p.isVisible('#aj-bs-manual'), false);
+    await p.click('#aj-bs-modo button[data-modo="manual"]');
+    a.strictEqual(await p.isVisible('#aj-recargo'), false); a.strictEqual(await p.isVisible('#aj-bs-manual'), true);
+    await p.click('#aj-bs-modo button[data-modo="bcv"]');
+    a.strictEqual(await p.isVisible('#aj-recargo'), false); a.strictEqual(await p.isVisible('#aj-bs-manual'), false);
+  }],
+  ['Ajustes: comisiones con punto de miles y nombres de formas de pago completos', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
+    a.strictEqual(await p.inputValue('#aj-com-0-normal'), '4.000');
+    a.match(await p.getAttribute('#aj-com-4-normal', 'placeholder'), /Igual que 24–48/);
+    const cortados = await p.$$eval('.forma-aj input.inp', els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.value));
+    a.deepStrictEqual(cortados, []);
+  }],
 ]);

@@ -21,7 +21,10 @@ export function crearMemoria(datos) {
     col.usuarios.set(uid, { uid, usuario: u.usuario, nombre: u.nombre, rol: u.rol, activo: true });
     pins.set(uid, u.pin);
   }
-  for (const p of datos.productos || []) col.productos.set(p.sku, copia(p));
+  for (const p of datos.productos || []) {
+    col.productos.set(p.sku, copia(p));
+    if (p.existencia) col.movimientos.set('ini-' + p.sku, { id: 'ini-' + p.sku, sku: p.sku, cantidad: p.existencia, motivo: 'inicial', ref: null, nota: '', usuario: 'admin', fecha: new Date(Date.now() - 864e5).toISOString() });
+  }
   for (const c of datos.costos || []) col.costos.set(c.sku, copia(c));
   for (const c of datos.clientes || []) col.clientes.set(c.telefono, copia(c));
   for (const [k, v] of Object.entries(datos.ajustes || {})) col.ajustes.set(k, copia({ id: k, ...v }));

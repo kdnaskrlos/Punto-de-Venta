@@ -8,16 +8,35 @@ import { NOMBRE_ROL, cambiarTema } from './cuenta.js';
 
 const campo = (id, etiqueta, attrs = {}) => h('div', { class: 'campo' }, h('label', { for: id }, etiqueta), h('input', { class: 'inp', id, autocomplete: 'off', ...attrs }));
 const seccion = (titulo, ic, ...hijos) => h('section', { class: 'tarjeta pila' }, h('h2', { class: 'sec-t' }, icono(ic), titulo), ...hijos);
+// Monto de comisión: se muestra con punto de miles (4.000); vacío = usa el tramo anterior.
+const montoCom = (id, valor, ejemplo, alCambiar) => {
+  const inp = h('input', { class: 'inp num', id, inputmode: 'numeric', value: valor != null ? fmtCop(valor) : '', placeholder: ejemplo, 'aria-label': id.endsWith('normal') ? 'Comisión normal' : 'Comisión reducida' });
+  inp.addEventListener('input', () => alCambiar(parseMonto(inp.value, 'COP')));
+  inp.addEventListener('blur', () => { const n = parseMonto(inp.value, 'COP'); inp.value = n != null ? fmtCop(n) : ''; });
+  return inp;
+};
 const guardado = r => toast(r.ok ? 'Guardado' : 'No se pudo guardar', { malo: !r.ok });
 
 function tasas(ctx) {
   const aj = ctx.ajustesTasas || {};
-  const modo = h('select', { class: 'inp', id: 'aj-bs-modo' }, ...[['binance', 'Binance P2P (automático)'], ['bcv', 'BCV oficial (automático)'], ['manual', 'Manual']].map(([v, t]) => h('option', { value: v, selected: (aj.bsModo || 'binance') === v }, t)));
+  // Modo de la tasa de Bs con botones (no la lista del teléfono) y solo el campo que aplica a cada modo.
+  const modo = { value: aj.bsModo || 'binance' };
+  const MODOS = [['binance', 'Binance', 'Automático desde Binance P2P, más el recargo.'], ['bcv', 'BCV', 'Automático, dólar oficial del BCV.'], ['manual', 'Manual', 'La escribes tú.']];
+  const segModo = h('div', { class: 'segmentado', id: 'aj-bs-modo', role: 'group', 'aria-label': 'Bolívares por dólar' });
+  const ayuda = h('p', { class: 'nota chica' });
+  const recargo = campo('aj-recargo', 'Recargo sobre Binance (Bs)', { inputmode: 'decimal', value: aj.bsRecargo != null ? fmtDec(aj.bsRecargo) : '' });
+  const manualC = campo('aj-bs-manual', 'Tasa manual de Bs', { inputmode: 'decimal', value: aj.bsManual ? fmtDec(aj.bsManual) : '' });
+  const pintarModo = () => {
+    segModo.replaceChildren(...MODOS.map(([v, t]) => h('button', { type: 'button', 'data-modo': v, 'aria-pressed': String(v === modo.value), onclick: () => { modo.value = v; pintarModo(); } }, t)));
+    ayuda.textContent = MODOS.find(m => m[0] === modo.value)[2];
+    recargo.hidden = modo.value !== 'binance';
+    manualC.hidden = modo.value !== 'manual';
+  };
+  pintarModo();
   const el = seccion('Tasas', 'monedas',
     campo('aj-cop', 'Pesos por dólar (COP)', { inputmode: 'decimal', value: aj.copPorUsd ? fmtCop(aj.copPorUsd) : '' }),
-    h('div', { class: 'campo' }, h('label', { for: 'aj-bs-modo' }, 'Bolívares por dólar'), modo),
-    campo('aj-recargo', 'Recargo sobre Binance (Bs)', { inputmode: 'decimal', value: aj.bsRecargo != null ? fmtDec(aj.bsRecargo) : '' }),
-    campo('aj-bs-manual', 'Tasa manual de Bs', { inputmode: 'decimal', value: aj.bsManual ? fmtDec(aj.bsManual) : '' }),
+    h('div', { class: 'campo' }, h('label', {}, 'Bolívares por dólar'), segModo, ayuda),
+    recargo, manualC,
     h('div', { class: 'acciones' }, h('button', { class: 'btn primary', id: 'aj-tasas-guardar', onclick: async () => {
       const v = (id, m) => parseMonto(el.querySelector('#' + id).value, m);
       const ahora = new Date().toISOString();
@@ -41,14 +60,14 @@ function general(ctx) {
     h('h3', { class: 'sub-t' }, 'Formas de pago'),
     h('div', { class: 'pila' }, ...formas.map(f => h('div', { class: 'forma-aj' },
       h('input', { class: 'inp', value: f.nombre, 'aria-label': 'Nombre', oninput: e => { f.nombre = e.target.value; } }),
-      h('span', { class: 'nota' }, NOMBRE_MONEDA[f.moneda]),
+      h('span', { class: `nota ${{ COP: 'c-cop', USD: 'c-usd', BS: 'c-bs' }[f.moneda]}` }, NOMBRE_MONEDA[f.moneda]),
       h('label', { class: 'interruptor' }, h('input', { type: 'checkbox', checked: f.activa !== false, onchange: e => { f.activa = e.target.checked; } }), 'Activa')))),
     h('h3', { class: 'sub-t' }, 'Tramos (desde cuántas prendas)'),
     h('div', { class: 'rejilla-aj' }, ...tramos.map((t, i) => h('div', { class: 'campo' }, h('label', {}, `Tramo ${i + 1}`), h('input', { class: 'inp num', inputmode: 'numeric', value: String(t), disabled: i === 0, oninput: e => { tramos[i] = Number(e.target.value) || tramos[i]; } })))),
     h('h3', { class: 'sub-t' }, 'Comisión por prenda (si el producto no trae la suya)'),
     h('div', { class: 'rejilla-aj' }, ...coms.map((c, i) => h('div', { class: 'campo' }, h('label', {}, `${etiquetaTramo(i, tramos)}: normal / reducida`),
-      h('div', { class: 'dos' }, h('input', { class: 'inp num', inputmode: 'numeric', value: c ? String(c.valor) : '', placeholder: '—', oninput: e => { const n = parseMonto(e.target.value, 'COP'); coms[i] = n == null ? null : { tipo: 'Fijo', valor: n, reducida: coms[i]?.reducida ?? n }; } }),
-        h('input', { class: 'inp num', inputmode: 'numeric', value: c ? String(c.reducida) : '', placeholder: '—', oninput: e => { const n = parseMonto(e.target.value, 'COP'); if (coms[i]) coms[i].reducida = n ?? coms[i].valor; } }))))),
+      h('div', { class: 'dos' }, montoCom(`aj-com-${i}-normal`, c ? c.valor : null, i ? `Igual que ${etiquetaTramo(i - 1, tramos)}` : '', n => { coms[i] = n == null ? null : { ...(coms[i] || { tipo: 'Fijo' }), valor: n, reducida: coms[i]?.reducida ?? n }; }),
+        montoCom(`aj-com-${i}-reducida`, c ? c.reducida : null, i ? `Igual que ${etiquetaTramo(i - 1, tramos)}` : '', n => { if (coms[i]) coms[i].reducida = n ?? coms[i].valor; }))))),
     h('div', { class: 'acciones' }, h('button', { class: 'btn primary', onclick: async () => {
       for (let i = 1; i < tramos.length; i++) if (tramos[i] <= tramos[i - 1]) { toast('Cada tramo debe empezar después del anterior', { malo: true }); return; }
       const v = id => el.querySelector('#' + id).value;

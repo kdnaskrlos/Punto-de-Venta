@@ -88,4 +88,9 @@ casos('vender', [
     const fondo = await p.evaluate(() => window.__pos.ctx.miCaja.fondo);
     a.deepStrictEqual(fondo, { COP: 10000, USD: 0, BS: 0 });
   }],
+  ['Teléfono: las categorías van en una sola fila deslizable', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/vender', caja: true });
+    const tops = await p.$$eval('.filtros .chip', e => [...new Set(e.map(x => Math.round(x.getBoundingClientRect().top)))]);
+    a.strictEqual(tops.length, 1, `en ${tops.length} filas`);
+  }],
 ]);

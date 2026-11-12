@@ -11,6 +11,7 @@ import { comprimirFoto, CLAVE_TOKEN } from '../datos/github-fotos.js';
 
 export const URL_INVENTARIO = 'https://kdnaskrlos.github.io/App-Inventario/data/inventario.json';
 const MOTIVOS = ['Conteo', 'Daño', 'Regalo', 'Llegó del taller', 'Otro'];
+const MOTIVO_TEXTO = { inicial: 'Existencia inicial', importación: 'Importación', venta: 'Venta', apartado: 'Apartado', anulación: 'Anulación', cancelación: 'Cancelación' };
 const norm = s => String(s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 
@@ -53,8 +54,8 @@ function abrirHistorial(ctx, p) {
   const quitar = ctx.almacen.escuchar('movimientos', l => {
     const lista = l.sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 60);
     caja.replaceChildren(...(lista.length ? lista.map(m => h('div', { class: 'mov' },
-      h('span', {}, `${m.motivo}${m.nota ? ' · ' + m.nota : ''}`, h('span', { class: 'nota' }, ` · ${fechaHora(m.fecha)} · @${m.usuario || '—'}`)),
-      h('b', { class: 'num ' + (m.cantidad < 0 ? 'neg' : 'pos') }, `${m.cantidad > 0 ? '+' : ''}${m.cantidad}`))) : [h('p', { class: 'nota' }, 'Sin movimientos.')]));
+      h('span', {}, `${MOTIVO_TEXTO[m.motivo] || m.motivo}${m.nota ? ' · ' + m.nota : ''}`, h('span', { class: 'nota' }, ` · ${fechaHora(m.fecha)} · @${m.usuario || '—'}`)),
+      h('b', { class: 'num ' + (m.cantidad < 0 ? 'neg' : 'pos') }, `${m.cantidad > 0 ? '+' : ''}${m.cantidad}`))) : [h('p', { class: 'nota' }, `Sin movimientos registrados. Existencia actual: ${p.existencia}.`)]));
   }, { sku: p.sku });
   v.alCerrar = quitar;
 }
@@ -77,19 +78,30 @@ function abrirOferta(ctx, g) {
   });
 }
 
+const mismos = (xs, f) => xs.every(x => JSON.stringify(f(x)) === JSON.stringify(f(xs[0])));
+
+function bloquePrecios(ctx, p, costo, verCostos) {
+  return h('div', { class: 'precios' }, ...p.precios.map((pr, i) => h('div', { class: 'precio-tramo' }, h('span', { class: 'nota' }, etiquetaTramo(i, ctx.ajustes.tramos)), h('b', { class: 'num' }, pr ? fmtCop(pr) : '—'))),
+    verCostos ? h('div', { class: 'precio-tramo costo' }, h('span', { class: 'nota' }, 'Costo'), h('b', { class: 'num' }, costo != null ? fmtCop(costo) : '—')) : null);
+}
+
+// Detalle de una prenda: precios una sola vez (si son iguales en todas las tallas) y una fila por talla.
 function abrirGrupo(ctx, g, costos) {
-  const aj = ctx.ajustes;
   const verCostos = ctx.puedeVer('verCostos');
+  const vs = g.variantes.sort((a, b) => a.sku.localeCompare(b.sku, 'es', { numeric: true }));
+  const iguales = mismos(vs, p => [p.precios, costos[p.sku]?.costo ?? null]);
+  const oferta = vs.find(p => p.oferta?.activa)?.oferta;
   const cont = h('div', { class: 'pila detalle-grupo' },
-    g.variantes.sort((a, b) => a.sku.localeCompare(b.sku, 'es', { numeric: true })).map(p => h('div', { class: 'variante', 'data-sku': p.sku },
-      h('div', { class: 'var-cab' },
-        h('b', {}, `Talla ${p.talla || '—'}`), h('span', { class: `est ${colorExistencia(p)}` }, `${p.existencia} disp.`),
-        p.oferta?.activa ? h('span', { class: 'est y' }, `Oferta ${p.oferta.pct}%`) : null,
-        h('span', { class: 'nota' }, p.codigo ? `Código ${p.codigo}` : p.sku)),
-      h('div', { class: 'precios' }, ...p.precios.map((pr, i) => h('div', { class: 'precio-tramo' }, h('span', { class: 'nota' }, etiquetaTramo(i, aj.tramos)), h('b', { class: 'num' }, pr ? fmtCop(pr) : '—'))),
-        verCostos ? h('div', { class: 'precio-tramo costo' }, h('span', { class: 'nota' }, 'Costo'), h('b', { class: 'num' }, costos[p.sku]?.costo != null ? fmtCop(costos[p.sku].costo) : '—')) : null),
-      ctx.puedeVer('verCostos') || puedeAdmin(ctx, 'ajustarInventario') ? h('div', { class: 'acciones' },
-        ctx.puedeVer('verCostos') ? h('button', { class: 'btn', onclick: () => abrirHistorial(ctx, p) }, icono('historial'), 'Historial') : null,
+    oferta ? h('span', { class: 'est y' }, `Oferta ${oferta.pct}%`) : null,
+    iguales ? h('div', { class: 'pila' }, h('div', { class: 'sec-m' }, 'PRECIO POR CANTIDAD'), bloquePrecios(ctx, vs[0], costos[vs[0].sku]?.costo, verCostos)) : null,
+    h('div', { class: 'sec-m' }, 'TALLAS'),
+    vs.map(p => h('div', { class: 'talla-fila', 'data-sku': p.sku },
+      h('div', { class: 'tf-info' },
+        h('div', { class: 'var-cab' }, h('b', {}, `Talla ${p.talla || '—'}`), h('span', { class: `est ${colorExistencia(p)}` }, `${p.existencia} disp.`)),
+        h('span', { class: 'nota' }, p.codigo ? `Código ${p.codigo}` : p.sku),
+        iguales ? null : bloquePrecios(ctx, p, costos[p.sku]?.costo, verCostos)),
+      verCostos || puedeAdmin(ctx, 'ajustarInventario') ? h('div', { class: 'acciones' },
+        verCostos ? h('button', { class: 'btn', 'aria-label': `Historial talla ${p.talla}`, onclick: () => abrirHistorial(ctx, p) }, icono('historial'), 'Historial') : null,
         puedeAdmin(ctx, 'ajustarInventario') ? h('button', { class: 'btn', onclick: () => abrirAjuste(ctx, p) }, icono('caja'), 'Ajustar') : null) : null)));
   const acciones = puedeAdmin(ctx, 'ofertas') ? h('div', { class: 'acciones' }, h('button', { class: 'btn', onclick: () => abrirOferta(ctx, g) }, icono('etiqueta'), 'Oferta')) : null;
   abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: cont, acciones });
@@ -191,7 +203,7 @@ registrarVista('/inventario', {
         return h('button', { class: 'grupo-inv', 'data-grupo': g.grupo, onclick: () => abrirGrupo(ctx, g, costos) },
           h('div', { class: 'mini-foto' }, g.foto ? h('img', { src: g.foto, alt: '' }) : icono('franela')),
           h('div', { class: 'gi-info' }, h('b', {}, g.producto), h('div', { class: 'nota' }, [g.color, plural(total, 'unidad', 'unidades')].filter(Boolean).join(' · ')),
-            h('div', { class: 'mini-tallas' }, ...g.variantes.map(p => h('span', { class: `est ${colorExistencia(p)}` }, `${p.talla || p.sku} ${p.existencia}`)))));
+            h('div', { class: 'mini-tallas' }, ...g.variantes.map(p => h('span', { class: `est ${colorExistencia(p)}` }, `T${p.talla || p.sku} · ${p.existencia}`)))));
       }) : [h('div', { class: 'vacio' }, busqueda ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos')]));
       if (ctx.puedeVer('verCostos')) {
         const v = valorInventario(Object.values(ctx.productos), costos);
