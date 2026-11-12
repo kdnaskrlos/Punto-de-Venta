@@ -16,7 +16,7 @@ export function etiquetaTramo(i, limites = LIMITES_DEFECTO) {
 }
 
 // Precio del tramo; si no tiene valor válido, el del tramo inferior más cercano con valor.
-function precioDeTramo(precios, t) {
+export function precioDeTramo(precios, t) {
   for (let i = t; i >= 0; i--) {
     const p = precios?.[i];
     if (typeof p === 'number' && Number.isFinite(p) && p > 0) return p;

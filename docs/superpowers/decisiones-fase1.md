@@ -118,3 +118,12 @@ Final: minor (deferred): la vendedora descarga todo su historial de ventas en In
 Final: minor (deferred): editar una comisión porcentual en Ajustes la convierte en fija
 Suite final: npm test 99/99 · e2e 59/59
 - Prueba intermitente: entrar.cjs 'PC: Mi cuenta → Cerrar sesión' falló 2 veces en ~70 corridas (timeout 5 s esperando la barra tras volver a entrar), solo con el equipo ocupado; sin causa encontrada en 40 repeticiones aisladas con diagnóstico. Pendiente de revisar.
+
+## Correcciones tras el video de Carlos (v1.18)
+- 25 correcciones aplicadas (teclado, brinco de la barra, demo sin entrada, caja desde Vender, cobro compacto, calendario propio, comisiones, inventario, ajustes, ícono).
+- Ruling: las formas de pago mantienen 48 px de alto (§13.3) en 3 columnas; los botones muestran un nombre corto ("Efectivo", "Transferencia", "USDT") porque el grupo ya indica la moneda; el pago agregado y el recibo usan el nombre completo — costo: ninguno.
+- Ruling: en el teléfono ninguna ventana abre el teclado sola (solo con [autofocus]); en PC se sigue enfocando el primer campo — costo: un toque más para escribir en el teléfono.
+- Ruling: la demostración entra directo con el último rol elegido ("Probar como" en Mi cuenta); ?demo&entrar muestra la pantalla de entrada para pruebas; los datos de la demostración se reinician al recargar — costo: ninguno.
+- Ruling: el cliente (teléfono y nombre) va al final de Cobrar, después de los pagos — costo: ninguno.
+- Prueba: el corredor de pruebas en navegador reemplaza los elementos de la página por un texto antes de comparar; antes, una comparación fallida con un elemento colgaba la prueba.
+- Pendiente: el fallo intermitente de "cerrar sesión y volver a entrar" apareció una vez más con el equipo cargado; no se reproduce aislado (25 + 40 intentos).

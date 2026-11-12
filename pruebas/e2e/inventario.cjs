@@ -87,6 +87,8 @@ casos('inventario', [
     await p.waitForSelector('.detalle-grupo');
     a.strictEqual(await p.$$eval('.detalle-grupo .precio-tramo:not(.costo)', e => e.length), 5);
     a.strictEqual(await p.$$eval('.detalle-grupo .talla-fila', e => e.length), 4);
+    // Sin precio propio, el tramo 49+ muestra el que se cobra (el de 24–48), nunca «—»
+    a.deepStrictEqual(await p.$$eval('.detalle-grupo .precio-tramo:not(.costo) b', e => e.map(x => x.textContent)), ['25.000', '24.000', '22.500', '20.000', '20.000']);
   }],
   ['Las tallas de la lista se leen claras: «T4 · 12»', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inventario' });

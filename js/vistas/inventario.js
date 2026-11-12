@@ -1,7 +1,7 @@
 // Inventario (§7): consulta, ajustes con motivo, ofertas, importar desde la Carga Masiva y fotos masivas.
 import { h, icono, abrirVentana, toast, esTelefono, pedirMotivo, sin } from '../ui.js';
 import { registrarVista } from '../app.js';
-import { etiquetaTramo } from '../nucleo/tramos.js';
+import { etiquetaTramo, precioDeTramo } from '../nucleo/tramos.js';
 import { leerInventario, planImportacion } from '../nucleo/importar.js';
 import { emparejarFotos } from '../nucleo/fotos.js';
 import { valorInventario } from '../nucleo/reportes.js';
@@ -81,7 +81,8 @@ function abrirOferta(ctx, g) {
 const mismos = (xs, f) => xs.every(x => JSON.stringify(f(x)) === JSON.stringify(f(xs[0])));
 
 function bloquePrecios(ctx, p, costo, verCostos) {
-  return h('div', { class: 'precios' }, ...p.precios.map((pr, i) => h('div', { class: 'precio-tramo' }, h('span', { class: 'nota' }, etiquetaTramo(i, ctx.ajustes.tramos)), h('b', { class: 'num' }, pr ? fmtCop(pr) : '—'))),
+  // El precio que realmente se cobra en cada tramo (si falta, el del tramo anterior con valor)
+  return h('div', { class: 'precios' }, ...p.precios.map((_, i) => { const pr = precioDeTramo(p.precios, i); return h('div', { class: 'precio-tramo' }, h('span', { class: 'nota' }, etiquetaTramo(i, ctx.ajustes.tramos)), h('b', { class: 'num' }, pr ? fmtCop(pr) : '—')); }),
     verCostos ? h('div', { class: 'precio-tramo costo' }, h('span', { class: 'nota' }, 'Costo'), h('b', { class: 'num' }, costo != null ? fmtCop(costo) : '—')) : null);
 }
 

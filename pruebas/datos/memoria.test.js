@@ -29,7 +29,8 @@ test('vender descuenta existencia y registra el movimiento', async () => {
   assert.equal(g.usuario, 'vendedora');
   assert.ok(g.cajaId);
   const mov = [...a._estado('movimientos').values()];
-  assert.deepEqual(mov.map(m => [m.sku, m.cantidad, m.motivo]), [['F-N-6', -2, 'venta']]);
+  assert.deepEqual(mov.filter(m => m.motivo !== 'inicial').map(m => [m.sku, m.cantidad, m.motivo]), [['F-N-6', -2, 'venta']]);
+  assert.deepEqual(mov.filter(m => m.sku === 'F-N-6' && m.motivo === 'inicial').map(m => m.cantidad), [12]);
 });
 
 test('doble toque o reintento: una sola venta y un solo descuento (Review Focus 3)', async () => {
