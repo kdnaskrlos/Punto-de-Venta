@@ -9,6 +9,8 @@
   --cop:#0f766e; --usd:#2563eb; --bs:#7c3aed;
   /* Borde de campos más oscuro que en Pedidos para contraste ≥ 3:1 */
   --field-line:#9ca3af;
+  /* Recuadros que no son de una moneda */
+  --kpi-ganancia:#4d7c0f; --kpi-neutro:#475569; --kpi-alerta:#c2410c;
   /* Paleta crema: fondo / borde / texto */
   --g-bg:#dcfce7; --g-bd:#bbf7d0; --g-tx:#15803d;
   --y-bg:#fff7d1; --y-bd:#f3dc7c; --y-tx:#a16207;
@@ -28,6 +30,7 @@
   --ok:#34d27a; --warn:#fbbf24; --err:#f87171; --soon:#fbbf24;
   --cop:#2dd4bf; --usd:#60a5fa; --bs:#a78bfa;
   --field-line:#4b5563;
+  --kpi-ganancia:#a3e635; --kpi-neutro:#94a3b8; --kpi-alerta:#fb923c;
   --g-bg:#12311f; --g-bd:#1f4d31; --g-tx:#86efac;
   --y-bg:#2e2610; --y-bd:#5b4a17; --y-tx:#fcd34d;
   --r-bg:#331a1a; --r-bd:#5c2727; --r-tx:#fca5a5;

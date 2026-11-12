@@ -208,7 +208,7 @@ registrarVista('/inventario', {
       }) : [h('div', { class: 'vacio' }, busqueda ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos')]));
       if (ctx.puedeVer('verCostos')) {
         const v = valorInventario(Object.values(ctx.productos), costos);
-        valor.replaceChildren(h('div', { class: 'tile', style: '--c:var(--cop)' }, h('div', { class: 'et' }, 'Valor a costo'), h('div', { class: 'val num' }, fmtCop(v.aCosto))),
+        valor.replaceChildren(h('div', { class: 'tile', style: '--c:var(--kpi-neutro)' }, h('div', { class: 'et' }, 'Valor a costo'), h('div', { class: 'val num' }, fmtCop(v.aCosto))),
           h('div', { class: 'tile', style: '--c:var(--accent)' }, h('div', { class: 'et' }, 'Valor a precio detal'), h('div', { class: 'val num' }, fmtCop(v.aPrecio))));
       }
     };

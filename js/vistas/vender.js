@@ -84,7 +84,8 @@ function lineaCarrito(ctx, l, aj) {
 }
 
 function equivalentes(ctx, cop) {
-  const usd = desdeCop(cop, 'USD', ctx.tasas), bs = desdeCop(cop, 'BS', ctx.tasas);
+  // Redondeado hacia arriba, igual que lo que sugerirá Cobrar
+  const usd = desdeCop(cop, 'USD', ctx.tasas, { haciaArriba: true }), bs = desdeCop(cop, 'BS', ctx.tasas, { haciaArriba: true });
   return h('div', { class: 'equivalentes num' },
     usd != null ? h('span', { class: 'c-usd' }, `${fmtDec(usd)} USD`) : null,
     usd != null && bs != null ? ' · ' : null,
@@ -162,7 +163,9 @@ function abrirTallas(ctx, g) {
     h('b', {}, p.talla || p.nombre), h('span', { class: 'nota' }, p.existencia <= 0 ? 'Agotada' : `${p.existencia} disp.`), en ? h('span', { class: 'en-carrito' }, String(en)) : null);
   }));
   pintar();
-  abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: cont });
+  const listo = h('button', { class: 'btn primary grande' }, icono('check'), 'Listo');
+  const v = abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: h('div', { class: 'pila' }, h('p', { class: 'nota' }, 'Toca cada talla las veces que la lleve el cliente.'), cont), acciones: listo });
+  listo.onclick = () => v.cerrar();
 }
 
 function tarjeta(ctx, g) {

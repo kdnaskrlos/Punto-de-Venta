@@ -152,4 +152,34 @@ casos('cobrar', [
     });
     a.ok(Math.abs(d.desc - d.sub) < 2, `descuento termina en ${d.desc}, subtotal en ${d.sub}`);
   }],
+  ['Cobrar dice qué falta: con el pago completo pide el cliente y lleva al campo', async (env, a) => {
+    const p = await preparar(env, { movil: true });
+    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
+    await p.click('.forma[data-forma="efectivo-cop"]');
+    a.strictEqual(await texto(p, '#cobrar-final'), 'Falta el teléfono del cliente');
+    a.strictEqual(await p.$eval('#cobrar-final', b => b.disabled), false);
+    await p.click('#cobrar-final');
+    a.strictEqual(await p.evaluate(() => document.activeElement.id), 'cli-tel');
+    a.ok(await p.isVisible('.campo .error:text("Escribe el teléfono del cliente")'));
+    await p.fill('#cli-tel', '0414-555.12.12');
+    a.strictEqual(await texto(p, '#cobrar-final'), 'Falta el nombre del cliente');
+    await p.fill('#cli-nombre', 'Luis');
+    a.strictEqual(await texto(p, '#cobrar-final'), 'Cobrar 116.000');
+  }],
+  ['Las formas ya agregadas se marcan con ✓ y ningún botón queda marcado por el foco', async (env, a) => {
+    const p = await preparar(env, { movil: true });
+    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
+    await p.click('.forma[data-forma="efectivo-usd"]');
+    a.deepStrictEqual(await p.$$eval('.forma.agregada', e => e.map(x => x.dataset.forma)), ['efectivo-usd']);
+    a.strictEqual(await p.evaluate(() => document.activeElement.classList.contains('forma')), false);
+  }],
+  ['El carrito muestra en dólares y bolívares lo mismo que se cobrará (redondeado hacia arriba)', async (env, a) => {
+    const p = await preparar(env);
+    a.strictEqual(await texto(p, '.lado-carrito .equivalentes'), '29,75 USD · 31.974,36 Bs'); // 116.000 COP
+  }],
+  ['El texto del tramo en el carrito se lee (12 px o más)', async (env, a) => {
+    const p = await preparar(env);
+    const tam = await p.$eval('.lado-carrito .linea .tramo', e => parseFloat(getComputedStyle(e).fontSize));
+    a.ok(tam >= 12, `${tam}px`);
+  }],
 ]);

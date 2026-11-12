@@ -124,7 +124,7 @@ registrarVista('/apartados', {
     const pintar = () => {
       seg.replaceChildren(...[['pendiente', 'Pendientes'], ['todos', 'Todos']].map(([k, t]) => h('button', { 'aria-pressed': String(k === filtro), onclick: () => { filtro = k; pintar(); } }, t)));
       const vis = lista.filter(a => filtro === 'todos' || a.estado === 'pendiente').sort((a, b) => b.fecha.localeCompare(a.fecha));
-      caja.replaceChildren(...(vis.length ? vis.map(a => tarjeta(ctx, a)) : [h('div', { class: 'vacio' }, filtro === 'pendiente' ? 'No hay apartados pendientes' : 'Todavía no hay apartados')]));
+      caja.replaceChildren(...(vis.length ? vis.map(a => tarjeta(ctx, a)) : [h('div', { class: 'vacio' }, h('p', {}, filtro === 'pendiente' ? 'No hay apartados pendientes' : 'Todavía no hay apartados'), h('p', { class: 'nota' }, 'Se crean desde el carrito con «Apartar»: las prendas quedan reservadas para el cliente.'))]));
     };
     const quitar = ctx.almacen.escuchar('apartados', l => { lista = l; pintar(); });
     cont.append(h('div', { class: 'cab-vista' }, h('h1', { class: 'sec-t' }, icono('apartado'), 'Apartados'), seg), caja);

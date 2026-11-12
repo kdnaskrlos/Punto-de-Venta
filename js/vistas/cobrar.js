@@ -27,9 +27,15 @@ export function camposCliente(ctx, alCambiar) {
   const el = h('div', { class: 'cliente' },
     h('div', { class: 'campo' }, h('label', { for: 'cli-tel' }, 'Teléfono del cliente'), tel, errTel),
     h('div', { class: 'campo' }, h('label', { for: 'cli-nombre' }, 'Nombre'), nombre, errNom));
+  // Qué le falta al cliente ('tel', 'nombre' o null) y marcarlo: error bajo el campo y foco en él.
+  const falta = () => (!telefonoInternacional(tel.value) ? 'tel' : nombre.value.trim().length < 2 ? 'nombre' : null);
+  const marcar = cual => {
+    if (cual === 'tel') { errTel.textContent = tel.value.trim() ? 'Teléfono no válido' : 'Escribe el teléfono del cliente'; tel.focus(); }
+    if (cual === 'nombre') { errNom.textContent = 'Escribe el nombre del cliente'; nombre.focus(); }
+  };
   return {
-    el, quitar,
-    valido: () => !!telefonoInternacional(tel.value) && nombre.value.trim().length >= 2,
+    el, quitar, falta, marcar,
+    valido: () => !falta(),
     datos: () => ({ nombre: nombre.value.trim(), telefono: telefonoInternacional(tel.value) }),
     foco: () => tel.focus(),
   };
@@ -73,7 +79,14 @@ export function abrirCobrar(ctx) {
   const idVenta = ctx.almacen.nuevoId();
   let guardando = false, hecha = false;
   const final = h('button', { class: 'btn primary grande', id: 'cobrar-final' }, `Cobrar ${fmtCop(r0.total)}`);
-  const actualizar = () => { final.disabled = guardando || !cliente.valido() || !panel.estado().cuadra; };
+  // El botón dice qué falta: con el pago completo pero sin cliente, se puede tocar y lleva al campo que falta.
+  const TEXTO_FALTA = { tel: 'Falta el teléfono del cliente', nombre: 'Falta el nombre del cliente' };
+  const actualizar = () => {
+    const cuadra = panel.estado().cuadra, falta = cliente.falta();
+    final.disabled = guardando || !cuadra;
+    final.classList.toggle('incompleto', cuadra && !!falta);
+    final.textContent = cuadra && falta ? TEXTO_FALTA[falta] : `Cobrar ${fmtCop(r0.total)}`;
+  };
   const cliente = camposCliente(ctx, () => actualizar());
   const panel = crearPanelPagos(ctx, { total: r0.total, alCambiar: () => actualizar() });
   const cuerpo = h('div', { class: 'cobro' },
@@ -89,6 +102,7 @@ export function abrirCobrar(ctx) {
 
   final.addEventListener('click', async () => {
     if (guardando || hecha) return;
+    if (cliente.falta()) { cliente.marcar(cliente.falta()); return; }
     guardando = true; actualizar();
     try {
       const r = resumenCarrito(ctx);

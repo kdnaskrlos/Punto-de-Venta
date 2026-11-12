@@ -64,4 +64,8 @@ casos('apartados', [
     a.strictEqual(await existencia(p, 'J-L'), 5);
     a.deepStrictEqual(p.errores, []);
   }],
+  ['Sin apartados explica cómo se crean', async (env, a) => {
+    const p = await env.pagina({ ruta: '/apartados' });
+    a.match(await p.innerText('.vista'), /desde el carrito con «Apartar»/);
+  }],
 ]);

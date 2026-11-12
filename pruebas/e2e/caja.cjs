@@ -66,4 +66,9 @@ casos('caja', [
     a.strictEqual(abierta, 'abierta');
     a.deepStrictEqual(p.errores, []);
   }],
+  ['"Cerrar caja" es un botón secundario (no el verde principal)', async (env, a) => {
+    const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/caja' });
+    const clases = await p.$eval('.vista button:has-text("Cerrar caja")', b => b.className);
+    a.ok(!/\bprimary\b/.test(clases), clases);
+  }],
 ]);

@@ -35,7 +35,7 @@ casos('vender', [
     await agregar(p, 'Franela AS Niño Blanco', '8', 2);
     for (const sku of ['B-M', 'F-B-6', 'F-B-8']) a.ok((await texto(p, `.linea[data-sku="${sku}"] .tramo`)).includes('6–11'), sku);
     a.strictEqual(await texto(p, '.carrito .total-cop'), '186.000');
-    a.ok((await texto(p, '.carrito .equivalentes')).includes('47,69'));
+    a.ok((await texto(p, '.carrito .equivalentes')).includes('47,70'));
   }],
   ['Agotada: pastilla roja y tallas sin elegir', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
@@ -92,5 +92,14 @@ casos('vender', [
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/vender', caja: true });
     const tops = await p.$$eval('.filtros .chip', e => [...new Set(e.map(x => Math.round(x.getBoundingClientRect().top)))]);
     a.strictEqual(tops.length, 1, `en ${tops.length} filas`);
+  }],
+  ['Tallas: se pueden sumar varias y "Listo" cierra', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/vender', caja: true });
+    await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
+    await p.click('.capa .talla[data-talla="S"]'); await p.click('.capa .talla[data-talla="M"]');
+    a.ok(await p.isVisible('.capa'));
+    await p.click('.capa button:has-text("Listo")');
+    await p.waitForSelector('.capa', { state: 'detached' });
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.length), 2);
   }],
 ]);

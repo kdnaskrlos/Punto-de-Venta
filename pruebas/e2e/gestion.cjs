@@ -97,7 +97,7 @@ casos('gestion', [
   ['Ajustes: tasa COP, usuario nuevo con PIN y desactivarlo', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/ajustes' });
     await p.fill('#aj-cop', '4.000');
-    await p.click('#aj-tasas-guardar');
+    await p.click('#aj-guardar');
     await p.waitForFunction(() => document.querySelector('.topbar .tasas').textContent.includes('4.000'));
     await p.fill('#nu-usuario', 'maria'); await p.fill('#nu-nombre', 'María'); await p.selectOption('#nu-rol', 'vendedora'); await p.fill('#nu-pin', '5555');
     await p.click('#nu-crear');
@@ -159,5 +159,29 @@ casos('gestion', [
     a.match(await p.getAttribute('#aj-com-4-normal', 'placeholder'), /Igual que 24–48/);
     const cortados = await p.$$eval('.forma-aj input.inp', els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.value));
     a.deepStrictEqual(cortados, []);
+  }],
+  ['Los recuadros usan los colores de moneda solo para monedas', async (env, a) => {
+    for (const ruta of ['/inicio', '/reportes', '/inventario']) {
+      const p = await env.pagina({ ruta });
+      const malos = await p.$$eval('.tile', e => e.filter(x => /--(cop|usd|bs)\)/.test(x.getAttribute('style') || '')).map(x => x.textContent.slice(0, 30)));
+      a.deepStrictEqual(malos, [], ruta);
+      await p.context().close();
+    }
+  }],
+  ['Ajustes: un solo "Guardar cambios" que aparece al cambiar algo', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
+    a.strictEqual(await p.$$eval('button', b => b.filter(x => /^Guardar( tasas)?$/.test(x.textContent.trim())).length), 0);
+    a.strictEqual(await p.isVisible('#aj-guardar'), false);
+    await p.fill('#aj-redondeo', '50');
+    a.strictEqual(await p.isVisible('#aj-guardar'), true);
+    await p.click('#aj-guardar');
+    await p.waitForFunction(() => window.__pos.ctx.ajustes.redondeo === 50);
+    await p.waitForSelector('#aj-guardar', { state: 'hidden' });
+  }],
+  ['Calendario: "hoy" se distingue aunque esté elegido', async (env, a) => {
+    const p = await env.pagina({ ruta: '/reportes' });
+    await p.click('#rango-btn');
+    const c = await p.$eval('.calendario .dia.hoy', e => getComputedStyle(e, '::after').content);
+    a.notStrictEqual(c, 'none');
   }],
 ]);

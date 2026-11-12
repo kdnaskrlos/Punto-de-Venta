@@ -139,7 +139,7 @@ function vistaAbierta(ctx, cont, caja, ventas, apartados) {
       })) : h('p', { class: 'nota' }, 'Sin movimientos.')),
     h('div', { class: 'acciones' },
       h('button', { class: 'btn', onclick: () => abrirMovimiento(ctx, caja) }, icono('monedas'), 'Entrada o salida'),
-      h('button', { class: 'btn primary', onclick: () => abrirCierre(ctx, caja, esp) }, icono('check'), 'Cerrar caja')));
+      h('button', { class: 'btn', onclick: () => abrirCierre(ctx, caja, esp) }, icono('check'), 'Cerrar caja')));
 }
 
 function historial(ctx, cajas) {

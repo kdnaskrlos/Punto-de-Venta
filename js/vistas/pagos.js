@@ -13,6 +13,7 @@ const GRUPOS = [['COP', 'PESOS', 'c-cop'], ['USD', 'DÓLARES', 'c-usd'], ['BS', 
 export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar = () => {} }) {
   const formas = (ctx.ajustes.formasPago || []).filter(f => f.activa !== false);
   const pagos = [];
+  let botones = null;
   let monedaVuelto = 'COP';
   const lista = h('div', { class: 'pagos' });
   const barra = h('div', { class: 'barra-falta', role: 'status' });
@@ -23,6 +24,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   const estado = () => estadoCobro({ total, pagos: pagos.map(p => ({ forma: p.forma.id, moneda: p.forma.moneda, monto: p.monto || 0 })), tasas: ctx.tasas, redondeo: red });
 
   function agregar(forma) {
+    if (esTelefono()) document.activeElement?.blur(); // sin borde de foco que parezca una selección
     const e = estado();
     let p = pagos.find(x => x.forma.id === forma.id);
     if (!p) { p = { forma, monto: 0 }; pagos.push(p); }
@@ -46,6 +48,8 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       if (enfocar === p.forma.id && !esTelefono()) setTimeout(() => { inp.focus(); inp.select(); }, 20);
       return fila;
     }));
+    // ✓ en los botones de las formas que ya están en la lista
+    botones?.querySelectorAll('.forma').forEach(b => b.classList.toggle('agregada', pagos.some(p => p.forma.id === b.dataset.forma)));
     pintarBarra();
     avisar();
   }
@@ -68,7 +72,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   }
 
   const sinBs = !ctx.tasas.bsPorUsd;
-  const botones = h('div', { class: 'formas' }, ...GRUPOS.map(([moneda, titulo, clase]) => {
+  botones = h('div', { class: 'formas' }, ...GRUPOS.map(([moneda, titulo, clase]) => {
     const fs = formas.filter(f => f.moneda === moneda);
     if (!fs.length) return null;
     const bloqueada = (moneda === 'BS' && sinBs) || (moneda !== 'COP' && !ctx.tasas.copPorUsd);

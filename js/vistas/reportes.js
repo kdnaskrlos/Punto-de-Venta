@@ -43,9 +43,9 @@ registrarVista('/reportes', {
       cuerpo.replaceChildren(...sin(
         h('div', { class: 'tiles' },
           tile('total', 'var(--accent)', 'Ventas', fmtCop(r.total), `${r.ventas} ventas`),
-          gestion ? tile('ganancia', 'var(--cop)', 'Ganancia', r.ganancia == null ? '—' : fmtCop(r.ganancia), r.gananciaParcial ? 'Calculando costos…' : null) : null,
-          tile('unidades', 'var(--usd)', 'Prendas', String(r.unidades)),
-          tile('ticket', 'var(--bs)', 'Ticket promedio', fmtCop(r.ticketPromedio))),
+          gestion ? tile('ganancia', 'var(--kpi-ganancia)', 'Ganancia', r.ganancia == null ? '—' : fmtCop(r.ganancia), r.gananciaParcial ? 'Calculando costos…' : null) : null,
+          tile('unidades', 'var(--kpi-neutro)', 'Prendas', String(r.unidades)),
+          tile('ticket', 'var(--kpi-neutro)', 'Ticket promedio', fmtCop(r.ticketPromedio))),
         h('div', { class: 'tarjeta' }, h('h2', { class: 'sec-t' }, icono('monedas'), 'Cobros por forma de pago'),
           ...Object.entries(r.porForma).map(([id, m]) => { const f = formas.find(x => x.id === id) || { nombre: id, moneda: 'COP' }; return h('div', { class: 'fila-rep' }, h('span', {}, f.nombre), h('b', { class: 'num' }, `${fmtMonto(m, f.moneda)} ${NOMBRE_MONEDA[f.moneda]}`)); }),
           Object.keys(r.porForma).length ? null : h('p', { class: 'nota' }, 'Sin cobros.')),
@@ -54,7 +54,7 @@ registrarVista('/reportes', {
           masVendidos(datos.ventas, ctx.productos, 1).length ? null : h('p', { class: 'nota' }, 'Sin ventas en este período.')),
         gestion ? h('div', { class: 'tarjeta bajas' }, h('h2', { class: 'sec-t' }, icono('alerta'), 'Existencias bajas'),
           ...inventarioBajo(productos).slice(0, 30).map(p => h('div', { class: 'fila-rep' }, h('span', {}, `${p.grupo} · Talla ${p.talla || p.sku}`), h('b', { class: 'num ' + (p.existencia <= 0 ? 'neg' : '') }, `${p.existencia} / mín. ${p.minimo || 0}`)))) : null,
-        gestion ? (() => { const v = valorInventario(productos, datos.costos); return h('div', { class: 'tiles' }, tile('valor-costo', 'var(--cop)', 'Inventario a costo', fmtCop(v.aCosto)), tile('valor-precio', 'var(--accent)', 'Inventario a precio detal', fmtCop(v.aPrecio))); })() : null,
+        gestion ? (() => { const v = valorInventario(productos, datos.costos); return h('div', { class: 'tiles' }, tile('valor-costo', 'var(--kpi-neutro)', 'Inventario a costo', fmtCop(v.aCosto)), tile('valor-precio', 'var(--accent)', 'Inventario a precio detal', fmtCop(v.aPrecio))); })() : null,
         h('div', { class: 'tarjeta' }, h('h2', { class: 'sec-t' }, icono('historial'), 'Ventas'), listaVentas(ctx, datos.ventas))));
     };
     const cargar = (desde, hasta) => { quitar && quitar(); quitar = escucharVentasConCosto(ctx, { desde, hasta }, d => { datos = d; pintar(); }); };

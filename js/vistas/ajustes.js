@@ -36,18 +36,19 @@ function tasas(ctx) {
   const el = seccion('Tasas', 'monedas',
     campo('aj-cop', 'Pesos por dólar (COP)', { inputmode: 'decimal', value: aj.copPorUsd ? fmtCop(aj.copPorUsd) : '' }),
     h('div', { class: 'campo' }, h('label', {}, 'Bolívares por dólar'), segModo, ayuda),
-    recargo, manualC,
-    h('div', { class: 'acciones' }, h('button', { class: 'btn primary', id: 'aj-tasas-guardar', onclick: async () => {
-      const v = (id, m) => parseMonto(el.querySelector('#' + id).value, m);
-      const ahora = new Date().toISOString();
-      const cop = v('aj-cop', 'COP'), manual = v('aj-bs-manual', 'BS');
-      const datos = { bsModo: modo.value, bsRecargo: v('aj-recargo', 'BS') || 0 };
-      if (cop && cop !== aj.copPorUsd) Object.assign(datos, { copPorUsd: cop, copActualizada: ahora });
-      if (manual && manual !== aj.bsManual) Object.assign(datos, { bsManual: manual, bsManualActualizada: ahora });
-      if (modo.value === 'manual' && !manual) { toast('Escribe la tasa manual de Bs', { malo: true }); return; }
-      guardado(await ctx.almacen.guardarAjustes('tasas', datos));
-    } }, 'Guardar tasas')));
-  return el;
+    recargo, manualC);
+  // Devuelve true si se guardó (o no había nada que guardar).
+  const guardar = async () => {
+    const v = (id, m) => parseMonto(el.querySelector('#' + id).value, m);
+    const ahora = new Date().toISOString();
+    const cop = v('aj-cop', 'COP'), manual = v('aj-bs-manual', 'BS');
+    const datos = { bsModo: modo.value, bsRecargo: v('aj-recargo', 'BS') || 0 };
+    if (cop && cop !== aj.copPorUsd) Object.assign(datos, { copPorUsd: cop, copActualizada: ahora });
+    if (manual && manual !== aj.bsManual) Object.assign(datos, { bsManual: manual, bsManualActualizada: ahora });
+    if (modo.value === 'manual' && !manual) { toast('Escribe la tasa manual de Bs', { malo: true }); return false; }
+    return (await ctx.almacen.guardarAjustes('tasas', datos)).ok;
+  };
+  return { el, guardar };
 }
 
 function general(ctx) {
@@ -68,16 +69,17 @@ function general(ctx) {
     h('div', { class: 'rejilla-aj' }, ...coms.map((c, i) => h('div', { class: 'campo' }, h('label', {}, `${etiquetaTramo(i, tramos)}: normal / reducida`),
       h('div', { class: 'dos' }, montoCom(`aj-com-${i}-normal`, c ? c.valor : null, i ? `Igual que ${etiquetaTramo(i - 1, tramos)}` : '', n => { coms[i] = n == null ? null : { ...(coms[i] || { tipo: 'Fijo' }), valor: n, reducida: coms[i]?.reducida ?? n }; }),
         montoCom(`aj-com-${i}-reducida`, c ? c.reducida : null, i ? `Igual que ${etiquetaTramo(i - 1, tramos)}` : '', n => { if (coms[i]) coms[i].reducida = n ?? coms[i].valor; }))))),
-    h('div', { class: 'acciones' }, h('button', { class: 'btn primary', onclick: async () => {
-      for (let i = 1; i < tramos.length; i++) if (tramos[i] <= tramos[i - 1]) { toast('Cada tramo debe empezar después del anterior', { malo: true }); return; }
-      const v = id => el.querySelector('#' + id).value;
-      guardado(await ctx.almacen.guardarAjustes('general', {
-        tienda: { ...(aj.tienda || {}), nombre: v('aj-tienda').trim() || 'Comic Shop' },
-        redondeo: parseMonto(v('aj-redondeo'), 'COP') || 100, descuentoMaxVendedora: Number(String(v('aj-desc-max')).replace(',', '.')) || 0,
-        formasPago: formas, tramos, comisiones: coms,
-      }));
-    } }, 'Guardar')));
-  return el;
+  );
+  const guardar = async () => {
+    for (let i = 1; i < tramos.length; i++) if (tramos[i] <= tramos[i - 1]) { toast('Cada tramo debe empezar después del anterior', { malo: true }); return false; }
+    const v = id => el.querySelector('#' + id).value;
+    return (await ctx.almacen.guardarAjustes('general', {
+      tienda: { ...(aj.tienda || {}), nombre: v('aj-tienda').trim() || 'Comic Shop' },
+      redondeo: parseMonto(v('aj-redondeo'), 'COP') || 100, descuentoMaxVendedora: Number(String(v('aj-desc-max')).replace(',', '.')) || 0,
+      formasPago: formas, tramos, comisiones: coms,
+    })).ok;
+  };
+  return { el, guardar };
 }
 
 function pedirPin(titulo) {
@@ -123,9 +125,19 @@ function usuarios(ctx) {
 registrarVista('/ajustes', {
   accion: 'ajustes',
   montar(cont, ctx) {
-    const u = usuarios(ctx);
-    cont.append(h('h1', { class: 'sec-t' }, icono('ajustes'), 'Ajustes'), h('div', { class: 'ajustes' }, tasas(ctx), general(ctx), u.el,
-      seccion('Apariencia', 'luna', h('button', { class: 'btn', onclick: cambiarTema }, icono('luna'), 'Tema claro u oscuro'))));
+    const u = usuarios(ctx), t = tasas(ctx), g = general(ctx);
+    // Un solo botón para guardar tasas y venta/cobro; aparece cuando se cambia algo.
+    const boton = h('button', { class: 'btn primary', id: 'aj-guardar' }, icono('check'), 'Guardar cambios');
+    const barra = h('div', { class: 'guardar-ajustes', hidden: true }, boton);
+    const cambio = () => { barra.hidden = false; };
+    for (const sec of [t.el, g.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button')) cambio(); }); }
+    boton.addEventListener('click', e => unaVez(e.currentTarget, async () => {
+      if (!(await t.guardar())) return;
+      if (!(await g.guardar())) return;
+      barra.hidden = true; document.activeElement?.blur(); toast('Cambios guardados');
+    })());
+    cont.append(h('h1', { class: 'sec-t' }, icono('ajustes'), 'Ajustes'), h('div', { class: 'ajustes' }, t.el, g.el, u.el,
+      seccion('Apariencia', 'luna', h('button', { class: 'btn', onclick: cambiarTema }, icono('luna'), 'Tema claro u oscuro'))), barra);
     return u.quitar;
   },
 });
