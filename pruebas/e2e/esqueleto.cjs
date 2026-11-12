@@ -1,5 +1,6 @@
 // Tarea 1: esqueleto instalable con navegación, cabecera, versión, ventanas y botón atrás.
 const { casos } = require('./_servidor.cjs');
+const VERSION = require('fs').readFileSync(require('path').join(__dirname, '../../js/version.js'), 'utf8').match(/'(v[\d.]+)'/)[1];
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -23,9 +24,9 @@ casos('esqueleto', [
     a.strictEqual((await p.textContent('.topbar .fecha')).trim(), FECHA);
     for (const x of await medidas(p, '.topbar button')) a.ok(x.w >= 44 && x.h >= 44, `${x.t} mide ${x.w}x${x.h}`);
   }],
-  ['Versión v1.0 visible', async (env, a) => {
+  ['Versión visible', async (env, a) => {
     const p = await env.pagina();
-    a.ok((await p.innerText('body')).includes('v1.0'));
+    a.ok((await p.innerText('body')).includes(VERSION), VERSION);
   }],
   ['Teléfono: barra inferior de 5 con Vender al centro', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780 });

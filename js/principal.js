@@ -1,8 +1,29 @@
-// Punto de entrada: registra el service worker y arranca la app.
-import { arrancar } from './app.js';
-import { h, toast } from './ui.js';
+// Punto de entrada: crea el almacén, muestra la entrada o la app según la sesión y registra el service worker.
+import { ctx, mostrarApp } from './app.js';
+import { h, cerrarCapaSuperior, hayCapas } from './ui.js';
+import { crearAlmacen, MODO_DEMO } from './datos/index.js';
+import { pantallaEntrada, pantallaPrimerAdmin } from './vistas/entrar.js';
+import './vistas/mas.js';
 
-arrancar();
+window.__pos = { ctx };
+
+async function iniciar() {
+  const raiz = document.getElementById('app');
+  ctx.almacen = await crearAlmacen();
+  let anterior;
+  ctx.almacen.alCambiarSesion(async s => {
+    const clave = s ? s.uid + s.rol : null;
+    if (clave === anterior) { ctx.sesion = s; return; }
+    anterior = clave;
+    ctx.sesion = s;
+    while (hayCapas()) cerrarCapaSuperior();
+    if (s) mostrarApp();
+    else if (!MODO_DEMO && !(await ctx.almacen.sistemaIniciado())) pantallaPrimerAdmin(raiz, ctx);
+    else pantallaEntrada(raiz, ctx, { demo: MODO_DEMO });
+    raiz.dataset.listo = '1';
+  });
+}
+iniciar();
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').then(reg => {
@@ -16,8 +37,6 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 }
 
 function avisarVersionNueva(sw) {
-  const barra = h('div', { class: 'toast', role: 'status' }, 'Hay una versión nueva',
-    h('button', { onclick: () => { sw.postMessage('activar'); location.reload(); } }, 'Actualizar'));
-  document.body.append(barra);
+  document.body.append(h('div', { class: 'toast', role: 'status' }, 'Hay una versión nueva',
+    h('button', { onclick: () => { sw.postMessage('activar'); location.reload(); } }, 'Actualizar')));
 }
-export { toast };

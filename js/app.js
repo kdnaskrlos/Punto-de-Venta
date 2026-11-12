@@ -1,6 +1,8 @@
 // Arranque de la app: navegación, cabecera, enrutador por hash y atajos.
 import { h, icono, abrirHoja, esTelefono } from './ui.js';
 import { APP_VERSION } from './version.js';
+import { puede } from './nucleo/permisos.js';
+import { opcionesCuenta } from './vistas/cuenta.js';
 
 const VISTAS = {};
 export function registrarVista(ruta, def) { VISTAS[ruta] = def; }
@@ -21,9 +23,10 @@ const ACCESOS = [
 export const ctx = {
   almacen: null,
   sesion: null,
-  tasas: { copPorUsd: 3900, bsPorUsd: 1075 },
+  tasas: { copPorUsd: null, bsPorUsd: null },
   ajustes: {},
-  puedeVer: () => true,
+  puedeVer: accion => !!ctx.sesion && puede(ctx.sesion.rol, accion),
+  abrirCalculadora: () => alAbrirCalculadora(),
 };
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -52,6 +55,8 @@ function pintarNav() {
         centro ? null : h('span', {}, a.titulo));
     }),
     h('div', { class: 'grow' }),
+    ctx.sesion ? h('button', { class: 'ibtn cuenta-btn', 'aria-label': 'Mi cuenta', onclick: () => { const c = abrirHoja({ titulo: 'Mi cuenta', contenido: opcionesCuenta(ctx, () => c.cerrar()) }); } },
+      h('span', { class: 'avatar' }, (ctx.sesion.nombre || ctx.sesion.usuario).slice(0, 1).toUpperCase())) : null,
     h('div', { class: 'ver' }, APP_VERSION));
 }
 
@@ -83,17 +88,22 @@ function montar() {
 }
 export function refrescar() { montar(); }
 
-export function arrancar() {
+let escuchando = false;
+// Muestra la app (con sesión). La pantalla de entrada la pinta principal.js.
+export function mostrarApp() {
   raiz = document.getElementById('app');
   barra = h('nav', { class: 'side', 'aria-label': 'Navegación' });
   cabecera = h('header', { class: 'topbar' });
   contenedor = h('main', { class: 'contenido' });
   raiz.replaceChildren(barra, h('div', { class: 'main' }, cabecera, contenedor));
-  if (!location.hash) history.replaceState(null, '', '#/inicio');
+  if (!location.hash || location.hash === '#') history.replaceState(null, '', '#/inicio');
   pintarCabecera();
   montar();
-  window.addEventListener('hashchange', montar);
-  matchMedia('(max-width:760px)').addEventListener('change', pintarNav);
-  addEventListener('online', pintarCabecera); addEventListener('offline', pintarCabecera);
+  if (!escuchando) {
+    escuchando = true;
+    window.addEventListener('hashchange', () => { if (ctx.sesion) montar(); });
+    matchMedia('(max-width:760px)').addEventListener('change', () => { if (ctx.sesion) pintarNav(); });
+    addEventListener('online', () => ctx.sesion && pintarCabecera()); addEventListener('offline', () => ctx.sesion && pintarCabecera());
+  }
   raiz.dataset.listo = '1';
 }
