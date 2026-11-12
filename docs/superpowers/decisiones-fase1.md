@@ -117,3 +117,4 @@ Final: minor (deferred): 'Cobros por forma de pago' en Reportes no incluye abono
 Final: minor (deferred): la vendedora descarga todo su historial de ventas en Inicio (filtro de fecha en el teléfono)
 Final: minor (deferred): editar una comisión porcentual en Ajustes la convierte en fija
 Suite final: npm test 99/99 · e2e 59/59
+- Prueba intermitente: entrar.cjs 'PC: Mi cuenta → Cerrar sesión' falló 2 veces en ~70 corridas (timeout 5 s esperando la barra tras volver a entrar), solo con el equipo ocupado; sin causa encontrada en 40 repeticiones aisladas con diagnóstico. Pendiente de revisar.
