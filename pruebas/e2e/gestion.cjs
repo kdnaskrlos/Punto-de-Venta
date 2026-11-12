@@ -83,6 +83,17 @@ casos('gestion', [
     a.ok((await texto(p, '.mas-vendidos')).includes('Jogger Texcol Negro'));
     a.ok((await texto(p, '.bajas')).includes('Buzo Etanol Gris'));
   }],
+  ['Ninguna pantalla muestra "null" ni "undefined"', async (env, a) => {
+    for (const usuario of ['vendedora', 'encargada', 'admin']) {
+      const p = await env.pagina({ usuario, caja: true });
+      for (const ruta of ['/inicio', '/vender', '/apartados', '/inventario', '/caja', '/reportes', '/comisiones', '/ajustes']) {
+        await p.evaluate(r => { location.hash = r; }, ruta); await p.waitForTimeout(150);
+        const t = await p.innerText('.vista');
+        a.ok(!/\bnull\b|\bundefined\b/.test(t), `${usuario} ${ruta}: ${t.slice(0, 120)}`);
+      }
+      await p.context().close();
+    }
+  }],
   ['Ajustes: tasa COP, usuario nuevo con PIN y desactivarlo', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/ajustes' });
     await p.fill('#aj-cop', '4.000');

@@ -1,5 +1,5 @@
 // Inventario (§7): consulta, ajustes con motivo, ofertas, importar desde la Carga Masiva y fotos masivas.
-import { h, icono, abrirVentana, toast, esTelefono, pedirMotivo } from '../ui.js';
+import { h, icono, abrirVentana, toast, esTelefono, pedirMotivo, sin } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { etiquetaTramo } from '../nucleo/tramos.js';
 import { leerInventario, planImportacion } from '../nucleo/importar.js';
@@ -106,7 +106,7 @@ async function abrirImportar(ctx, costos) {
     const { productos, avisos } = leerInventario(json);
     plan = planImportacion(productos, ctx.productos, costos);
     const fila = (n, txt, cls) => h('div', { class: `resumen-imp ${cls}` }, h('b', { class: 'num' }, String(n)), txt);
-    cuerpo.replaceChildren(
+    cuerpo.replaceChildren(...sin(
       h('div', { class: 'resumenes' },
         fila(plan.nuevos.length, plural(plan.nuevos.length, 'nuevo', 'nuevos').replace(/^\d+ /, ''), 'g'),
         fila(plan.cambios.length, 'con cambios', 'b'),
@@ -115,7 +115,7 @@ async function abrirImportar(ctx, costos) {
       h('p', { class: 'nota' }, `${plural(plan.nuevos.length, 'nuevo', 'nuevos')} · ${plan.cambios.length} con cambios · ${plan.iguales.length} sin cambios`),
       h('p', { class: 'nota' }, 'Las existencias de los productos que ya están en el punto de venta no se modifican.'),
       ...avisos.map(a => h('div', { class: 'aviso' }, icono('alerta'), a)),
-      plan.cambios.length ? h('details', {}, h('summary', {}, 'Ver cambios'), h('div', { class: 'nota' }, plan.cambios.slice(0, 50).map(c => h('div', {}, `${c.sku}: ${Object.keys(c.campos).join(', ')}`)))) : null);
+      plan.cambios.length ? h('details', {}, h('summary', {}, 'Ver cambios'), h('div', { class: 'nota' }, plan.cambios.slice(0, 50).map(c => h('div', {}, `${c.sku}: ${Object.keys(c.campos).join(', ')}`)))) : null));
     b.disabled = !plan.nuevos.length && !plan.cambios.length;
   };
   archivo.addEventListener('change', async () => { try { mostrar(JSON.parse(await archivo.files[0].text())); } catch { cuerpo.replaceChildren(h('div', { class: 'aviso' }, icono('alerta'), 'Ese archivo no es un inventario válido')); } });
@@ -203,14 +203,14 @@ registrarVista('/inventario', {
     const quitar = ctx.almacen.escuchar('costos', l => { costos = Object.fromEntries(l.map(c => [c.sku, c])); pintar(); });
     const alDatos = e => { if (e.detail.que === 'productos') pintar(); };
     window.addEventListener('pos:datos', alDatos);
-    cont.append(
+    cont.append(...sin(
       h('div', { class: 'cab-vista' }, h('h1', { class: 'sec-t' }, icono('caja'), 'Inventario'),
         h('div', { class: 'acciones' },
           puedeAdmin(ctx, 'fotosMasivas') ? h('button', { class: 'btn', onclick: () => abrirFotos(ctx) }, icono('imagen'), 'Fotos') : null,
           puedeAdmin(ctx, 'importar') ? h('button', { class: 'btn primary', onclick: () => abrirImportar(ctx, costos) }, icono('subir'), 'Importar') : null)),
       ctx.puedeVer('verCostos') ? valor : null,
       h('div', { class: 'buscar-caja' }, icono('buscar'), buscar),
-      lista);
+      lista));
     pintar();
     return () => { quitar(); window.removeEventListener('pos:datos', alDatos); };
   },

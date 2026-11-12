@@ -1,5 +1,5 @@
 // Inicio por rol (§13.4): recuadros del día, autorizaciones (admin), alertas y ventas de hoy.
-import { h, icono, toast } from '../ui.js';
+import { h, icono, toast, sin } from '../ui.js';
 import { registrarVista, navegar } from '../app.js';
 import { resumenDia, inventarioBajo } from '../nucleo/reportes.js';
 import { esperadoCaja } from '../nucleo/caja.js';
@@ -35,7 +35,7 @@ registrarVista('/inicio', {
         const abiertas = cajas.filter(c => c.estado === 'abierta');
         const enCaja = abiertas.reduce((s, c) => s + totalCajaCop(ctx, c, datos.ventas, apartados), 0);
         tiles.replaceChildren(
-          tile('ventas', 'var(--accent)', 'Ventas de hoy', fmtCop(r.total), `${r.ventas} ${r.ventas === 1 ? 'venta' : 'ventas'} · ${r.unidades} prendas`, 'carrito'),
+          tile('ventas', 'var(--accent)', 'Ventas de hoy', fmtCop(r.total), `${r.ventas} ${r.ventas === 1 ? 'venta' : 'ventas'} · ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, 'carrito'),
           tile('ganancia', 'var(--cop)', 'Ganancia', r.ganancia == null ? '—' : fmtCop(r.ganancia), r.gananciaParcial ? 'Calculando costos…' : 'Total menos costo', 'grafica'),
           tile('caja', 'var(--usd)', 'En cajas abiertas', fmtCop(enCaja), `${abiertas.length} ${abiertas.length === 1 ? 'caja abierta' : 'cajas abiertas'} · en COP`, 'cartera'),
           tile('bajas', bajas.length ? 'var(--warn)' : 'var(--muted)', 'Existencias bajas', String(bajas.length), 'en el mínimo o menos', 'caja'));
@@ -43,7 +43,7 @@ registrarVista('/inicio', {
         const mia = ctx.miCaja;
         const comision = datos.ventas.filter(v => v.estado !== 'anulada').flatMap(v => v.lineas).reduce((s, l) => s + (l.comision || 0), 0);
         tiles.replaceChildren(
-          tile('mis-ventas', 'var(--accent)', 'Mis ventas de hoy', fmtCop(r.total), `${r.ventas} ${r.ventas === 1 ? 'venta' : 'ventas'} · ${r.unidades} prendas`, 'carrito'),
+          tile('mis-ventas', 'var(--accent)', 'Mis ventas de hoy', fmtCop(r.total), `${r.ventas} ${r.ventas === 1 ? 'venta' : 'ventas'} · ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, 'carrito'),
           tile('mi-caja', 'var(--usd)', 'Mi caja', mia ? fmtCop(totalCajaCop(ctx, mia, datos.ventas, apartados)) : 'Cerrada', mia ? 'debería haber, en COP' : 'Ábrela para vender', 'cartera'),
           tile('comision', 'var(--cop)', 'Mi comisión de hoy', fmtCop(comision), null, 'porcentaje'));
       }
@@ -71,8 +71,8 @@ registrarVista('/inicio', {
     const alDatos = e => { if (['productos', 'caja', 'tasas', 'ajustes'].includes(e.detail.que)) pintar(); };
     window.addEventListener('pos:datos', alDatos);
     const s = ctx.sesion;
-    cont.append(h('h1', { class: 'saludo' }, 'Hola, ', h('span', {}, (s.nombre || s.usuario).split(' ')[0])), tiles, auts, alertas, ventasEl,
-      !gestion && !ctx.miCaja ? h('button', { class: 'btn primary grande', onclick: () => navegar('/caja') }, icono('cartera'), 'Abrir caja') : null);
+    cont.append(...sin(h('h1', { class: 'saludo' }, 'Hola, ', h('span', {}, (s.nombre || s.usuario).split(' ')[0])), tiles, auts, alertas, ventasEl,
+      !gestion && !ctx.miCaja ? h('button', { class: 'btn primary grande', onclick: () => navegar('/caja') }, icono('cartera'), 'Abrir caja') : null));
     pintar();
     return () => { q.forEach(x => x()); window.removeEventListener('pos:datos', alDatos); };
   },

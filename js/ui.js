@@ -161,3 +161,6 @@ export function pedirMotivo({ titulo, etiqueta = 'Motivo', boton = 'Confirmar', 
     v.alCerrar = () => res(valor);
   });
 }
+
+// Quita los vacíos (null, undefined, false) antes de insertar: append(null) escribiría "null" en pantalla.
+export const sin = (...xs) => xs.flat(Infinity).filter(x => x != null && x !== false);
