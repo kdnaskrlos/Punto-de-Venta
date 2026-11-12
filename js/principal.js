@@ -6,6 +6,7 @@ import { pantallaEntrada, pantallaPrimerAdmin } from './vistas/entrar.js';
 import './vistas/mas.js';
 import './vistas/vender.js';
 import './vistas/caja.js';
+import './vistas/inventario.js';
 import { abrirCalculadora, abrirDetalleTasas } from './vistas/calculadora.js';
 import { definirCalculadora } from './app.js';
 definirCalculadora(() => abrirCalculadora(ctx));

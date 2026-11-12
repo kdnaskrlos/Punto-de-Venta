@@ -6,6 +6,8 @@ import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager
 import { puede } from '../nucleo/permisos.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
 import { nuevoId } from './contrato.js';
+import { subirFotoGitHub, CLAVE_TOKEN } from './github-fotos.js';
+import { claveFoto } from '../nucleo/fotos.js';
 
 const ahora = () => new Date().toISOString();
 const NO = error => ({ ok: false, error });
@@ -428,8 +430,12 @@ export function crearFirebase(config) {
       q.docs.forEach(d => b.update(d.ref, { oferta: { pct, activa: !!oferta?.activa && pct > 0 } }));
       return sinEsperar(b.commit());
     },
-    async guardarFoto(grupo, ruta) {
+    async guardarFoto(grupo, blob) {
       const e = exigir('fotosMasivas'); if (e) return NO(e);
+      let token = null; try { token = localStorage.getItem(CLAVE_TOKEN); } catch { /* sin almacenamiento */ }
+      const subida = await subirFotoGitHub({ token, ruta: `fotos/${claveFoto(grupo)}.webp`, blob });
+      if (!subida.ok) return NO(subida.error);
+      const ruta = `${subida.ruta}?v=${Date.now()}`;
       const q = await getDocs(query(collection(db, 'productos'), where('grupo', '==', grupo)));
       const b = writeBatch(db);
       q.docs.forEach(d => b.update(d.ref, { foto: ruta }));

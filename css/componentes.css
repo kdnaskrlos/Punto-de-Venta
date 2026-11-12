@@ -250,3 +250,29 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .caja-cerrada>div{flex:1;min-width:0}
 .ok-aviso{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
 @media (max-width:760px){.fondos{grid-template-columns:1fr}.fila-cierre{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}.fila-cierre.cab{display:none}}
+
+/* Inventario */
+.vista[data-ruta="/inventario"]{display:flex;flex-direction:column;gap:12px}
+.valor-inv{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.lista-inv{display:flex;flex-direction:column;gap:6px}
+.grupo-inv{display:flex;gap:12px;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 12px;text-align:left;color:var(--ink);min-height:64px}
+.grupo-inv:hover{box-shadow:0 0 0 1.5px var(--g-bd)}
+.mini-foto{width:48px;height:48px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;color:var(--muted);flex:none;overflow:hidden}
+.mini-foto img{width:100%;height:100%;object-fit:cover}
+.gi-info{min-width:0;display:flex;flex-direction:column;gap:3px}
+.gi-info b{font-weight:800}
+.mini-tallas{display:flex;gap:4px;flex-wrap:wrap}
+.variante{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.var-cab{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.precios{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
+.precio-tramo{display:flex;flex-direction:column;background:var(--surface-2);border-radius:9px;padding:6px 8px}
+.precio-tramo.costo{background:var(--v-bg)}
+.resumenes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.resumen-imp{display:flex;flex-direction:column;border-radius:10px;padding:10px 12px;font-weight:700;border:1px solid}
+.resumen-imp b{font-size:24px;font-weight:800}
+.resumen-imp.g{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
+.resumen-imp.b{background:var(--b-bg);border-color:var(--b-bd);color:var(--b-tx)}
+.resumen-imp.n{background:var(--n-bg);border-color:var(--n-bd);color:var(--n-tx)}
+.resumen-imp.y{background:var(--y-bg);border-color:var(--y-bd);color:var(--y-tx)}
+.zona-fotos{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;border:2px dashed var(--g-bd);border-radius:14px;padding:24px 14px;cursor:pointer;color:var(--g-tx)}
+.zona-fotos.encima{background:var(--g-bg)}
