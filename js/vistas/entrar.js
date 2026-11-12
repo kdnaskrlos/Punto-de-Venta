@@ -18,7 +18,7 @@ function campo(id, etiqueta, attrs) {
 
 export function pantallaEntrada(raiz, ctx, { demo }) {
   const form = h('form', { class: 'tarjeta entrar', novalidate: true },
-    h('div', { class: 'entrar-logo' }, icono('franela')),
+    h('div', { class: 'entrar-logo' }, icono('carrito')),
     h('div', {}, h('h1', {}, 'Comic Shop · Punto de Venta'), h('p', { class: 'nota' }, 'Entra con el usuario y el PIN que te dio el administrador.')),
     campo('entrar-usuario', 'Usuario', { autocapitalize: 'none', autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'next' }),
     campo('entrar-pin', 'PIN', { type: 'password', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', enterkeyhint: 'go' }),

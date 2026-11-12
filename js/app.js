@@ -45,7 +45,7 @@ function pintarNav() {
     .sort((x, y) => (tel ? x.movil - y.movil : x.pc - y.pc));
   const actual = rutaActual();
   barra.replaceChildren(
-    h('div', { class: 'logo', 'aria-hidden': 'true' }, icono('franela')),
+    h('div', { class: 'logo', 'aria-hidden': 'true' }, icono('carrito')),
     ...lista.map(a => {
       const enMas = tel && a.ruta === '/mas' && ['/caja', '/reportes', '/ajustes', '/comisiones'].includes(actual);
       const activo = actual === a.ruta || enMas;
