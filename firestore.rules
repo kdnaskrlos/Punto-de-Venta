@@ -1,0 +1,147 @@
+rules_version = '2';
+// Reglas de seguridad de Comic Shop · Punto de Venta.
+// Copia TODO este archivo en Firebase → Firestore Database → Reglas → Publicar (ver GUIA.md).
+// Repiten en el servidor los permisos de la app (especificación §4 y §6): aunque alguien
+// modifique la app, la vendedora no puede leer costos ni cambiar precios, y nadie puede
+// borrar o reescribir una venta.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signed() { return request.auth != null; }
+    function uPath() { return /databases/$(database)/documents/usuarios/$(request.auth.uid); }
+    function me() { return get(uPath()).data; }
+    function activo() { return signed() && exists(uPath()) && me().activo == true; }
+    function esAdmin() { return activo() && me().rol == 'admin'; }
+    function esGestion() { return activo() && (me().rol == 'admin' || me().rol == 'encargada'); }
+    function yo() { return me().usuario; }
+    function estadoPath() { return /databases/$(database)/documents/sistema/estado; }
+    function sinIniciar() { return !exists(estadoPath()); }
+    function seIniciaAhora() { return sinIniciar() && existsAfter(estadoPath()); }
+    function soloCambian(campos) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos); }
+    function cajaAbiertaPath(u) { return /databases/$(database)/documents/cajaAbierta/$(u); }
+
+    // Estado del sistema: público (la pantalla de entrada necesita saber si ya hay administrador).
+    match /sistema/estado {
+      allow read: if true;
+      allow create: if signed() && sinIniciar() && getAfter(uPath()).data.rol == 'admin';
+      allow update, delete: if esAdmin();
+    }
+
+    // Usuario → correo interno para entrar (no contiene datos del negocio).
+    match /logins/{usuario} {
+      allow read: if true;
+      allow create: if esAdmin() || (seIniciaAhora() && request.resource.data.uid == request.auth.uid);
+      allow update, delete: if esAdmin();
+    }
+
+    // Perfiles: cada quien lee el suyo (también si está desactivado, para que la app lo sepa).
+    match /usuarios/{uid} {
+      allow read: if signed() && (request.auth.uid == uid || activo());
+      allow create: if esAdmin() || (request.auth.uid == uid && seIniciaAhora() && request.resource.data.rol == 'admin');
+      allow update, delete: if esAdmin();
+    }
+
+    // Productos: todos los leen. Solo el admin los crea o cambia; los demás solo la existencia (ventas, apartados, anulaciones).
+    match /productos/{sku} {
+      allow read: if activo();
+      allow create, delete: if esAdmin();
+      allow update: if esAdmin() || (activo() && soloCambian(['existencia']));
+    }
+
+    // Costos: solo administrador y encargada los ven; solo el administrador los cambia (importación).
+    match /costos/{sku} {
+      allow read: if esGestion();
+      allow write: if esAdmin();
+    }
+
+    // Costo congelado de cada venta: se crea una vez y no se edita.
+    match /costosVenta/{id} {
+      allow read: if esGestion();
+      allow create: if esGestion();
+      allow update, delete: if false;
+    }
+
+    // Ventas: solo se crean (nunca se reescriben ni se borran). Gestión puede anular o poner el número.
+    match /ventas/{id} {
+      allow get: if esGestion() || (activo() && (resource == null || resource.data.usuario == yo()));
+      allow list: if esGestion() || (activo() && resource.data.usuario == yo());
+      allow create: if activo()
+        && request.resource.data.usuario == yo()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.estado == 'ok'
+        && get(/databases/$(database)/documents/cajas/$(request.resource.data.cajaId)).data.usuario == yo();
+      allow update: if esGestion() && (
+          (resource.data.estado == 'ok' && request.resource.data.estado == 'anulada' && soloCambian(['estado', 'anulacion']))
+          || (resource.data.numero == null && soloCambian(['numero'])));
+      allow delete: if false;
+    }
+
+    // Contador para numerar ventas (V-0001…).
+    match /contadores/{id} {
+      allow read, write: if activo();
+    }
+
+    // Apartados: cualquiera del equipo crea, abona y completa; solo gestión cancela. Solo se modifican mientras están pendientes.
+    match /apartados/{id} {
+      allow read: if activo();
+      allow create: if activo() && request.resource.data.usuario == yo() && request.resource.data.estado == 'pendiente';
+      allow update: if activo() && resource.data.estado == 'pendiente' && (
+          soloCambian(['abonos', 'saldo'])
+          || (soloCambian(['estado', 'ventaId', 'saldo']) && request.resource.data.estado == 'completado')
+          || (esGestion() && soloCambian(['estado', 'cancelacion']) && request.resource.data.estado == 'cancelado'));
+      allow delete: if false;
+    }
+
+    // Cajas: cada quien la suya. Gestión puede agregar movimientos (devoluciones) a una caja abierta ajena; el admin reabre.
+    match /cajas/{id} {
+      allow read: if esGestion() || (activo() && resource.data.usuario == yo());
+      allow create: if activo() && request.resource.data.usuario == yo() && request.resource.data.estado == 'abierta'
+        && getAfter(cajaAbiertaPath(yo())).data.cajaId == id;
+      allow update: if
+          (activo() && resource.data.usuario == yo() && resource.data.estado == 'abierta'
+            && (soloCambian(['movimientos']) || (soloCambian(['estado', 'cierre']) && request.resource.data.estado == 'cerrada' && !existsAfter(cajaAbiertaPath(yo())))))
+          || (esGestion() && resource.data.estado == 'abierta' && soloCambian(['movimientos']) && request.resource.data.movimientos.hasAll(resource.data.movimientos))
+          || (esAdmin() && resource.data.estado == 'cerrada' && request.resource.data.estado == 'abierta' && soloCambian(['estado', 'reaperturas']));
+      allow delete: if false;
+    }
+
+    // Marca de "caja abierta" por usuario: solo se puede crear si no existe, así nadie tiene dos cajas abiertas.
+    match /cajaAbierta/{usuario} {
+      allow read: if activo();
+      allow create: if (activo() && usuario == yo()) || esAdmin();
+      allow delete: if (activo() && usuario == yo()) || esAdmin();
+      allow update: if false;
+    }
+
+    // Historial de cambios de existencia: se crea con cada venta o ajuste; nadie lo edita.
+    match /movimientos/{id} {
+      allow read: if esGestion();
+      allow create: if activo() && request.resource.data.usuario == yo();
+      allow update, delete: if false;
+    }
+
+    match /clientes/{telefono} {
+      allow read, write: if activo();
+    }
+
+    // Autorizaciones de descuento: las pide cualquiera (a su nombre); solo el admin responde.
+    match /autorizaciones/{id} {
+      allow read: if esAdmin() || (activo() && resource.data.usuario == yo());
+      allow create: if activo() && request.resource.data.usuario == yo() && request.resource.data.estado == 'pendiente';
+      allow update: if esAdmin() && resource.data.estado == 'pendiente' && soloCambian(['estado', 'aprueba', 'respondida']);
+      allow delete: if false;
+    }
+
+    // Pagos de comisiones: solo gestión.
+    match /comisiones/{id} {
+      allow read, create: if esGestion();
+      allow update, delete: if false;
+    }
+
+    // Ajustes (tasas, formas de pago, tramos, comisiones por defecto): todos leen, solo el admin cambia.
+    match /ajustes/{doc} {
+      allow read: if activo();
+      allow write: if esAdmin();
+    }
+  }
+}
