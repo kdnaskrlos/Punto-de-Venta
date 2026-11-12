@@ -127,7 +127,8 @@ Montos en COP guardados como **enteros en pesos**. USD y Bs con 2 decimales.
 | `logins/{usuario}` | Usuario → correo interno | `email`, `uid` | Pública / admin |
 | `usuarios/{uid}` | Perfil | `usuario`, `nombre`, `rol` (`admin`·`encargada`·`vendedora`), `activo` | Usuarios activos / admin |
 | `productos/{sku}` | Una variante | `sku`, `nombre`, `producto` (base del Tarifario), `grupo` (producto + color), `color`, `talla`, `categoria`, `marca`, `codigo` (barras), `precios[5]`, `separado` (bool), `comisiones` (por tramo: tipo, valor, reducida), `existencia`, `minimo`, `foto` (ruta), `oferta` (`{pct, activa}`), `activo` | Todos leen. Vendedora solo puede cambiar `existencia` |
-| `costos/{sku}` | Costo de la variante | `costo` | Admin y encargada |
+| `costos/{sku}` | Costo de la variante | `costo` (actual), `historial[]` (`costo`, `desde`) | Admin y encargada |
+| `costosVenta/{ventaId}` | Costo congelado de una venta | `lineas[]` (`sku`, `costoUnit`), `total` | Admin y encargada; se crea una vez y no se edita |
 | `ventas/{id}` | Venta o anulación | ver 6.1 | Crea el usuario de la venta. Solo admin y encargada anulan |
 | `apartados/{id}` | Apartado | líneas, cliente, `abonos[]`, `saldo`, `estado` (`pendiente`·`completado`·`cancelado`), `ventaId` | Todos crean y abonan. Admin y encargada cancelan |
 | `cajas/{id}` | Turno de caja de un usuario | `usuario`, `abierta`, `fondo` (por moneda), `movimientos[]`, `cierre` (contado y diferencia por forma de pago, nota), `estado` | El dueño de la caja escribe mientras está abierta. Admin reabre |
@@ -351,7 +352,11 @@ Admin y encargada (la vendedora solo ve sus ventas del día):
 
 Se calculan en el dispositivo a partir de las ventas del rango elegido.
 
-**Ganancia y costos:** la venta no guarda el costo, porque la vendedora no puede leer costos. La ganancia se calcula con el **costo vigente** de cada SKU al momento de ver el reporte. Si un costo cambia, las ganancias de ventas pasadas se recalculan con el costo nuevo. Para la fase 1 se acepta; si hace falta exactitud histórica, en la fase 2 se guarda un registro de costos por fecha.
+**Ganancia y costos:** cada venta queda con el costo que tenía cada prenda **en el momento de la venta**, y solo el administrador y la encargada pueden verlo:
+- `costos/{sku}` guarda el costo actual y un **historial** `[{costo, desde}]`. Cada cambio de costo (por importación o a mano) agrega una entrada con su fecha y nunca borra las anteriores.
+- La venta no copia el costo, porque la vendedora no tiene permiso para leer costos. El costo de cada línea es el del historial vigente en la `fecha` de la venta.
+- La primera vez que el administrador o la encargada ven una venta (en reportes o Inicio), su app guarda el resultado en `costosVenta/{ventaId}` (costo por línea y total), solo legible por ellos. Desde ahí ese costo queda congelado, aunque después se corrija el historial.
+- Así las ganancias de ventas pasadas no cambian cuando sube o baja un costo, sin servidores de pago ni funciones en la nube.
 
 ## 16. Sincronización y errores
 
