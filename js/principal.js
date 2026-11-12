@@ -5,6 +5,7 @@ import { crearAlmacen, MODO_DEMO } from './datos/index.js';
 import { pantallaEntrada, pantallaPrimerAdmin } from './vistas/entrar.js';
 import './vistas/mas.js';
 import './vistas/vender.js';
+import './vistas/caja.js';
 import { abrirCalculadora, abrirDetalleTasas } from './vistas/calculadora.js';
 import { definirCalculadora } from './app.js';
 definirCalculadora(() => abrirCalculadora(ctx));

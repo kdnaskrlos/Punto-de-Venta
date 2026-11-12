@@ -228,3 +228,25 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .ap-cab b{font-size:16px;font-weight:800}
 .ap-montos{display:flex;gap:12px;flex-wrap:wrap;font-weight:700;font-size:13px}
 .apartado .acciones{margin-top:6px}
+
+/* Caja */
+.vista[data-ruta="/caja"]{max-width:860px;display:flex;flex-direction:column;gap:14px}
+.abrir-caja{max-width:520px}
+.fondos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.esperados{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.esperado{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:700}
+.esperado .monto{font-size:16px}
+.lista-mov{display:flex;flex-direction:column;gap:6px}
+.mov{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding-bottom:6px;font-weight:600}
+.neg{color:var(--err)} .pos{color:var(--g-tx)}
+.filas-cierre{display:flex;flex-direction:column;gap:6px}
+.fila-cierre{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(0,.8fr);gap:8px;align-items:center;padding:6px 8px;border-radius:10px;border:1px solid transparent;font-weight:700}
+.fila-cierre.cab{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.fila-cierre.ok .dif{color:var(--g-tx)}
+.fila-cierre.leve{background:var(--y-bg);border-color:var(--y-bd)} .fila-cierre.leve .dif{color:var(--y-tx)}
+.fila-cierre.grave{background:var(--r-bg);border-color:var(--r-bd)} .fila-cierre.grave .dif{color:var(--r-tx)}
+.total-cierre{font-weight:800}
+.caja-cerrada{display:flex;align-items:center;gap:10px;justify-content:space-between;border-top:1px solid var(--line);padding:8px 0}
+.caja-cerrada>div{flex:1;min-width:0}
+.ok-aviso{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
+@media (max-width:760px){.fondos{grid-template-columns:1fr}.fila-cierre{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}.fila-cierre.cab{display:none}}
