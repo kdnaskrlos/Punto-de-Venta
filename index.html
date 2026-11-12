@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Comic Shop · Punto de Venta</title>
+<meta name="theme-color" content="#15803d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icono-192.png">
+<link rel="apple-touch-icon" href="icono-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>html,body{background:#fff;margin:0}html[data-theme="dark"],html[data-theme="dark"] body{background:#0e1319}html.fx #app{visibility:hidden}</style>
+<script>try{const t=localStorage.getItem("pos-tema");if(t)document.documentElement.dataset.theme=t;}catch(e){}
+document.documentElement.classList.add("fx");
+window.__ver=()=>document.documentElement.classList.remove("fx");
+window.__fuente=()=>{const f=document.fonts;(f?Promise.race([f.load('700 16px "Plus Jakarta Sans"'),new Promise(r=>setTimeout(r,1200))]):Promise.resolve()).then(()=>requestAnimationFrame(window.__ver));};
+setTimeout(window.__ver,1500);</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=block" media="print" onload="this.media='all';window.__fuente()" onerror="window.__ver()">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/componentes.css">
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="js/principal.js"></script>
+</body>
+</html>
