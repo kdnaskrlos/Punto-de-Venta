@@ -2,7 +2,7 @@
 // Cumple el contrato de contrato.js. Las reglas de firestore.rules repiten estos permisos en el servidor.
 import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocs, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocs, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { puede } from '../nucleo/permisos.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
 import { nuevoId } from './contrato.js';
@@ -29,13 +29,18 @@ export function crearFirebase(config) {
   const app = initializeApp(config);
   const auth = getAuth(app);
   const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
-  let sesion = null, miCaja = null, pendientes = 0, errorSync = null;
+  let sesion = null, miCaja = null, pendientes = 0, pendientesVentas = 0, errorSync = null;
   const enCurso = new Set();
+  // La caja abierta se conoce con el primer dato de su escucha; vender espera ese momento (máx. 4 s).
+  let cajaConocida = Promise.resolve(), avisarCajaConocida = () => {};
+  const esperarCaja = () => Promise.race([cajaConocida, new Promise(r => setTimeout(r, 4000))]);
+  let quitarPendientes = null;
   const oyentesSesion = new Set(), oyentesSync = new Set();
   let quitarPerfil = null, quitarCaja = null;
 
-  const avisarSync = () => { for (const cb of oyentesSync) cb({ enLinea: navigator.onLine, pendientes, error: errorSync }); };
-  addEventListener('online', avisarSync); addEventListener('offline', avisarSync);
+  const avisarSync = () => { for (const cb of oyentesSync) cb({ enLinea: navigator.onLine, pendientes: pendientes + pendientesVentas, error: errorSync }); };
+  addEventListener('offline', avisarSync);
+  addEventListener('online', () => { avisarSync(); if (sesion && puede(sesion.rol, 'verReportesTodos')) completarNumeros().catch(() => {}); });
 
   // Escritura sin esperar al servidor: queda en el teléfono al instante y sube cuando hay internet.
   function sinEsperar(p) {
@@ -57,7 +62,7 @@ export function crearFirebase(config) {
   // ---- sesión ----
   function publicarSesion(s) { sesion = s; for (const cb of oyentesSesion) cb(s ? { ...s } : null); }
   onAuthStateChanged(auth, user => {
-    quitarPerfil && quitarPerfil(); quitarCaja && quitarCaja(); miCaja = null;
+    quitarPerfil && quitarPerfil(); quitarCaja && quitarCaja(); quitarPendientes && quitarPendientes(); miCaja = null; pendientesVentas = 0;
     if (!user) { publicarSesion(null); return; }
     quitarPerfil = onSnapshot(ref('usuarios', user.uid), snap => {
       const u = snap.data();
@@ -66,9 +71,17 @@ export function crearFirebase(config) {
       const cambio = !sesion || sesion.rol !== nueva.rol || sesion.uid !== nueva.uid;
       if (cambio) {
         quitarCaja && quitarCaja();
+        cajaConocida = new Promise(r => { avisarCajaConocida = r; });
         quitarCaja = onSnapshot(query(collection(db, 'cajas'), where('usuario', '==', u.usuario), where('estado', '==', 'abierta')), s => {
           miCaja = s.docs[0] ? s.docs[0].data() : null;
+          avisarCajaConocida();
         });
+        // Ventas propias aún sin número: las que tienen escrituras pendientes cuentan como "por subir", también tras recargar.
+        quitarPendientes && quitarPendientes();
+        quitarPendientes = onSnapshot(query(collection(db, 'ventas'), where('usuario', '==', u.usuario), where('numero', '==', null)), { includeMetadataChanges: true }, s => {
+          pendientesVentas = s.docs.filter(d => d.metadata.hasPendingWrites).length;
+          avisarSync();
+        }, () => {});
         if (puede(u.rol, 'verReportesTodos') && navigator.onLine) completarNumeros().catch(() => {});
       }
       publicarSesion(nueva);
@@ -80,6 +93,8 @@ export function crearFirebase(config) {
     const lista = q.docs.map(d => d.data()).sort((a, b) => a.creada.localeCompare(b.creada));
     for (const v of lista) {
       await runTransaction(db, async tx => {
+        const actual = await tx.get(ref('ventas', v.id));
+        if (!actual.exists() || actual.data().numero) return;
         const c = await tx.get(ref('contadores', 'ventas'));
         const n = (c.data()?.n || 0) + 1;
         tx.set(ref('contadores', 'ventas'), { n });
@@ -106,7 +121,8 @@ export function crearFirebase(config) {
       const cant = porSku(lineas);
       if (navigator.onLine) {
         try {
-          const r = await runTransaction(db, async tx => {
+          const tope = new Promise((_, mal) => setTimeout(() => mal({ code: 'unavailable', tope: true }), 4000));
+          const r = await Promise.race([tope, runTransaction(db, async tx => {
             const previa = await tx.get(ref(col, docu.id));
             if (previa.exists()) return SI({ offline: false });
             const prods = await Promise.all(Object.keys(cant).map(sku => tx.get(ref('productos', sku))));
@@ -125,12 +141,14 @@ export function crearFirebase(config) {
             }
             tx.set(ref(col, docu.id), { ...docu, ...(numerar ? { numero } : {}), offline: false });
             return SI({ offline: false });
-          });
+          })]);
           return r;
         } catch (e) {
-          if (e.code !== 'unavailable') return NO(e.code === 'permission-denied' ? 'permiso' : 'error');
+          if (e.code !== 'unavailable') { enCurso.delete(docu.id); return NO(e.code === 'permission-denied' ? 'permiso' : 'error'); }
         }
       }
+      // Si ya quedó guardada (otro intento, o la transacción terminó tarde), no se repite.
+      try { if ((await getDocFromCache(ref(col, docu.id))).exists()) return SI({ offline: true }); } catch { /* no está en caché */ }
       // Sin conexión: se guarda en el teléfono y sube después; la existencia puede quedar negativa.
       const b = writeBatch(db);
       for (const [sku, n] of Object.entries(cant)) {
@@ -139,8 +157,9 @@ export function crearFirebase(config) {
       }
       b.set(ref(col, docu.id), { ...docu, ...(numerar ? { numero: null } : {}), offline: true });
       const r = await sinEsperar(b.commit());
+      if (!r.ok) enCurso.delete(docu.id);
       return r.ok ? SI({ offline: true }) : r;
-    } finally { setTimeout(() => enCurso.delete(docu.id), 5000); }
+    } catch (e) { enCurso.delete(docu.id); throw e; }
   }
 
   const api = {
@@ -170,10 +189,13 @@ export function crearFirebase(config) {
         const l = await getDoc(ref('logins', u));
         if (!l.exists()) return NO('no-existe');
         const cred = await signInWithEmailAndPassword(auth, l.data().email, pinPass(pin));
-        const perfil = await getDoc(ref('usuarios', cred.user.uid));
-        if (!perfil.exists() || !perfil.data().activo) { await signOut(auth); return NO('inactivo'); }
+        let perfil;
+        try { perfil = await getDoc(ref('usuarios', cred.user.uid)); } catch { perfil = null; }
+        if (!perfil || !perfil.exists() || !perfil.data().activo) { await signOut(auth); return NO('inactivo'); }
+        await new Promise(r => { const fin = () => { quitar(); r(); }; const quitar = api.alCambiarSesion(s => { if (s && s.uid === cred.user.uid) setTimeout(fin); }); setTimeout(fin, 4000); });
         return SI();
       } catch (e) {
+        if (auth.currentUser && !sesion) signOut(auth).catch(() => {});
         const c = e.code || '';
         if (c === 'auth/wrong-password' || c === 'auth/invalid-credential') return NO('pin');
         if (c === 'auth/too-many-requests') return NO('intentos');
@@ -247,6 +269,7 @@ export function crearFirebase(config) {
     // ---- ventas ----
     async guardarVenta(venta) {
       const e = exigir('vender'); if (e) return NO(e);
+      await esperarCaja();
       if (!miCaja) return NO('sin-caja');
       const docu = { ...venta, uid: sesion.uid, usuario: sesion.usuario, cajaId: miCaja.id, estado: 'ok', creada: ahora() };
       return guardarConExistencia({ col: 'ventas', docu, lineas: venta.lineas, motivo: 'venta', numerar: true });
@@ -254,6 +277,8 @@ export function crearFirebase(config) {
     async anularVenta(id, motivo) {
       const e = exigir('anularVenta'); if (e) return NO(e);
       if (!String(motivo || '').trim()) return NO('datos');
+      if (enCurso.has('anular:' + id)) return NO('ya-anulada');
+      enCurso.add('anular:' + id);
       const v = await api.obtener('ventas', id); if (!v) return NO('no-existe');
       if (v.estado === 'anulada') return NO('ya-anulada');
       const original = v.cajaId ? await api.obtener('cajas', v.cajaId) : null;
@@ -277,6 +302,7 @@ export function crearFirebase(config) {
     // ---- apartados ----
     async guardarApartado(ap) {
       const e = exigir('vender'); if (e) return NO(e);
+      await esperarCaja();
       if (!miCaja) return NO('sin-caja');
       const abonos = (ap.abonos || []).map(a => ({ ...a, cajaId: miCaja.id, usuario: sesion.usuario, fecha: ahora() }));
       const abonado = abonos.reduce((s, a) => s + (a.equivalenteCop || 0), 0);
@@ -289,8 +315,8 @@ export function crearFirebase(config) {
       const ap = await api.obtener('apartados', id); if (!ap) return NO('no-existe');
       if (ap.estado !== 'pendiente') return NO('estado');
       const abono = { ...pago, cajaId: miCaja.id, usuario: sesion.usuario, fecha: ahora() };
-      const saldo = Math.max(0, ap.saldo - (pago.equivalenteCop || 0));
-      return sinEsperar(updateDoc(ref('apartados', id), { abonos: arrayUnion(abono), saldo }));
+      // increment: dos abonos a la vez (dos teléfonos, o uno sin conexión) restan los dos.
+      return sinEsperar(updateDoc(ref('apartados', id), { abonos: arrayUnion(abono), saldo: increment(-(pago.equivalenteCop || 0)) }));
     },
     async completarApartado(id, venta) {
       const e = exigir('vender'); if (e) return NO(e);
@@ -321,10 +347,16 @@ export function crearFirebase(config) {
     // ---- caja ----
     async abrirCaja(fondo) {
       const e = exigir('abrirCaja'); if (e) return NO(e);
+      await esperarCaja();
       if (miCaja) return NO('ya-abierta');
       const id = nuevoId();
       miCaja = { id, uid: sesion.uid, usuario: sesion.usuario, abierta: ahora(), fondo: { COP: 0, USD: 0, BS: 0, ...fondo }, movimientos: [], estado: 'abierta' };
-      const r = await sinEsperar(setDoc(ref('cajas', id), miCaja));
+      // El puntero cajaAbierta/{usuario} solo se puede crear si no existe: las reglas impiden dos cajas abiertas.
+      const b = writeBatch(db);
+      b.set(ref('cajas', id), miCaja);
+      b.set(ref('cajaAbierta', sesion.usuario), { cajaId: id, desde: miCaja.abierta });
+      const r = await sinEsperar(b.commit());
+      if (!r.ok) miCaja = null;
       return r.ok ? SI({ id, offline: r.offline }) : r;
     },
     async movimientoCaja(cajaId, mov) {
@@ -336,16 +368,22 @@ export function crearFirebase(config) {
     async cerrarCaja(cajaId, cierre) {
       if (!sesion) return NO('sesion');
       if (!miCaja || miCaja.id !== cajaId) return NO('cerrada');
-      const r = await sinEsperar(updateDoc(ref('cajas', cajaId), { estado: 'cerrada', cierre: { ...cierre, fecha: ahora() } }));
+      const b = writeBatch(db);
+      b.update(ref('cajas', cajaId), { estado: 'cerrada', cierre: { ...cierre, fecha: ahora() } });
+      b.delete(ref('cajaAbierta', sesion.usuario));
+      const r = await sinEsperar(b.commit());
       if (r.ok) miCaja = null;
       return r;
     },
     async reabrirCaja(cajaId) {
       const e = exigir('reabrirCaja'); if (e) return NO(e);
       const c = await api.obtener('cajas', cajaId); if (!c) return NO('no-existe');
-      const abiertas = await getDocs(query(collection(db, 'cajas'), where('usuario', '==', c.usuario), where('estado', '==', 'abierta')));
-      if (!abiertas.empty) return NO('ya-abierta');
-      return sinEsperar(updateDoc(ref('cajas', cajaId), { estado: 'abierta', reaperturas: arrayUnion({ por: sesion.usuario, fecha: ahora() }) }));
+      if (c.estado === 'abierta') return SI();
+      if (await api.obtener('cajaAbierta', c.usuario)) return NO('ya-abierta');
+      const b = writeBatch(db);
+      b.update(ref('cajas', cajaId), { estado: 'abierta', reaperturas: arrayUnion({ por: sesion.usuario, fecha: ahora() }) });
+      b.set(ref('cajaAbierta', c.usuario), { cajaId, desde: ahora() });
+      return sinEsperar(b.commit());
     },
 
     // ---- inventario ----

@@ -214,3 +214,12 @@ test('escuchar con filtro por fecha y por usuario', async () => {
   a.escuchar('ventas', d => { vs = d; }, { usuario: 'otra' });
   assert.equal(vs.length, 0);
 });
+
+test('la vendedora ve sus propias solicitudes de autorización (revisión 2)', async () => {
+  const a = await comoVendedoraConCaja();
+  const { id } = await a.solicitarAutorizacion({ pct: 10, motivo: 'x' });
+  let lista;
+  a.escuchar('autorizaciones', d => { lista = d; });
+  assert.deepEqual(lista.map(x => x.id), [id]);
+  assert.ok(await a.obtener('autorizaciones', id));
+});

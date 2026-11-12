@@ -304,7 +304,7 @@ export function crearMemoria(datos) {
       if (!sesion) return NO('sesion');
       if (offline) return NO('red');
       const id = nuevoId();
-      col.autorizaciones.set(id, { ...copia(a), id, uid: sesion.uid, solicita: sesion.usuario, estado: 'pendiente', fecha: ahora() });
+      col.autorizaciones.set(id, { ...copia(a), id, uid: sesion.uid, usuario: sesion.usuario, solicita: sesion.usuario, estado: 'pendiente', fecha: ahora() });
       avisar('autorizaciones');
       return SI({ id });
     },

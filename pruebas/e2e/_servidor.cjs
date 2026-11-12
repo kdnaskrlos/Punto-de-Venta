@@ -21,18 +21,31 @@ async function arrancar() {
   const nav = await chromium.launch();
   return {
     nav,
-    async pagina({ ancho = 1530, alto = 900, ruta = '', query = '?demo' } = {}) {
+    // usuario: con quién entrar (null = quedarse en la pantalla de entrada). caja: abrir caja antes de la prueba.
+    async pagina({ ancho = 1530, alto = 900, ruta = '', query = '?demo', usuario = 'admin', caja = false } = {}) {
       const ctx = await nav.newContext({ viewport: { width: ancho, height: alto }, serviceWorkers: 'block' });
       const p = await ctx.newPage();
+      p.setDefaultTimeout(6000);
       p.errores = [];
       p.on('pageerror', e => p.errores.push(String(e)));
       p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|net::ERR|Failed to load resource/.test(m.text())) p.errores.push(m.text()); });
+      await p.route(/kdnaskrlos\.github\.io/, r => r.abort());
       await p.goto(URL_BASE + query + (ruta ? '#' + ruta : ''));
       await p.waitForSelector('#app[data-listo="1"]', { timeout: 8000 });
+      if (usuario) await entrarComo(p, usuario);
+      if (caja) await p.evaluate(() => window.__pos.ctx.almacen.abrirCaja({ COP: 50000, USD: 20, BS: 500 }));
+      if (usuario && ruta) { await p.evaluate(r => { location.hash = r; }, ruta); await p.waitForSelector(`.vista[data-ruta="${ruta}"]`); }
       return p;
     },
     async cerrar() { await nav.close(); srv.kill(); },
   };
+}
+
+async function entrarComo(p, usuario, pin = '1234') {
+  await p.fill('#entrar-usuario', usuario);
+  await p.fill('#entrar-pin', pin);
+  await p.click('#entrar-btn');
+  await p.waitForSelector('.side .nav', { timeout: 5000 });
 }
 
 // Mini corredor de pruebas: imprime cada caso y sale con código 1 si alguno falla.
@@ -49,4 +62,4 @@ async function casos(nombre, lista) {
   process.exit(fallos ? 1 : 0);
 }
 
-module.exports = { arrancar, casos, URL_BASE };
+module.exports = { arrancar, casos, entrarComo, URL_BASE };
