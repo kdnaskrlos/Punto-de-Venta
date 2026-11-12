@@ -76,4 +76,16 @@ casos('vender', [
     a.strictEqual(await texto(p, '.linea[data-sku="B-L"] .cant'), '1');
     a.deepStrictEqual(p.errores, []);
   }],
+  ['Sin caja: "Abrir caja" se abre aquí mismo, los campos vacíos cuentan como 0 y sigues en Vender', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', ruta: '/vender' });
+    await p.click('.sin-caja button:text("Abrir caja")');
+    await p.waitForSelector('.capa #fondo-cop');
+    await p.fill('#fondo-cop', '10.000');
+    await p.click('.capa #abrir-caja');
+    await p.waitForSelector('.capa', { state: 'detached' });
+    a.strictEqual(await p.evaluate(() => location.hash), '#/vender');
+    a.strictEqual(await p.isVisible('.sin-caja'), false);
+    const fondo = await p.evaluate(() => window.__pos.ctx.miCaja.fondo);
+    a.deepStrictEqual(fondo, { COP: 10000, USD: 0, BS: 0 });
+  }],
 ]);

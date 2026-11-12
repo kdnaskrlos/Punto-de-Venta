@@ -1,5 +1,6 @@
 // Mi cuenta: cambiar PIN, tema y cerrar sesión. Se usa en "Más" (teléfono) y en la barra lateral (PC).
 import { h, icono, abrirVentana, toast } from '../ui.js';
+import { DEMO_DIRECTO, recordarUsuarioDemo } from '../datos/index.js';
 
 export const NOMBRE_ROL = { admin: 'Administrador', encargada: 'Encargada', vendedora: 'Vendedora' };
 
@@ -30,7 +31,20 @@ export function opcionesCuenta(ctx, alSalir) {
   return h('div', { class: 'cuenta' },
     h('div', { class: 'cuenta-quien' }, h('span', { class: 'avatar' }, (s.nombre || s.usuario).slice(0, 1).toUpperCase()),
       h('div', {}, h('b', {}, s.nombre), h('div', { class: 'nota' }, `@${s.usuario} · ${NOMBRE_ROL[s.rol] || s.rol}`))),
-    h('button', { class: 'fila-btn', onclick: () => cambiarMiPin(ctx) }, icono('llave'), 'Cambiar mi PIN'),
+    DEMO_DIRECTO ? probarComo(ctx, alSalir) : h('button', { class: 'fila-btn', onclick: () => cambiarMiPin(ctx) }, icono('llave'), 'Cambiar mi PIN'),
     h('button', { class: 'fila-btn', onclick: cambiarTema }, icono('luna'), 'Tema claro u oscuro'),
-    h('button', { class: 'fila-btn peligro', onclick: async () => { alSalir && alSalir(); await ctx.almacen.salir(); } }, icono('salir'), 'Cerrar sesión'));
+    DEMO_DIRECTO ? null : h('button', { class: 'fila-btn peligro', onclick: async () => { alSalir && alSalir(); await ctx.almacen.salir(); } }, icono('salir'), 'Cerrar sesión'));
+}
+
+// Demostración: ver la app como cada rol, sin PIN. La elección se recuerda al recargar.
+function probarComo(ctx, alCambiar) {
+  const actual = ctx.sesion.usuario;
+  return h('div', { class: 'probar' },
+    h('div', { class: 'nota' }, 'Probar como (demostración)'),
+    h('div', { class: 'segmentado' }, ...['admin', 'encargada', 'vendedora'].map(u =>
+      h('button', { type: 'button', id: 'probar-' + u, 'aria-pressed': String(u === actual), onclick: async () => {
+        if (u === ctx.sesion.usuario) return;
+        recordarUsuarioDemo(u); alCambiar && alCambiar();
+        await ctx.almacen.entrar(u, '1234');
+      } }, NOMBRE_ROL[u]))));
 }

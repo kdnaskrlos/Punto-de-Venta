@@ -33,7 +33,11 @@ async function arrancar() {
       await p.route(/kdnaskrlos\.github\.io/, r => r.abort());
       await p.goto(URL_BASE + query + (ruta ? '#' + ruta : ''));
       await p.waitForSelector('#app[data-listo="1"]', { timeout: 8000 });
-      if (usuario) await entrarComo(p, usuario);
+      if (usuario) {
+        // Demostración directa: ya entró como el último rol usado; se cambia sin PIN.
+        if (await p.$('#entrar-usuario')) await entrarComo(p, usuario);
+        else { await p.evaluate(u => window.__pos.ctx.almacen.entrar(u, '1234'), usuario); await p.waitForFunction(u => window.__pos.ctx.sesion?.usuario === u, usuario); await p.waitForSelector('.side .nav'); }
+      }
       if (caja) await p.evaluate(() => window.__pos.ctx.almacen.abrirCaja({ COP: 50000, USD: 20, BS: 500 }));
       if (usuario && ruta) { await p.evaluate(r => { location.hash = r; }, ruta); await p.waitForSelector(`.vista[data-ruta="${ruta}"]`); }
       return p;
@@ -63,4 +67,12 @@ async function casos(nombre, lista) {
   process.exit(fallos ? 1 : 0);
 }
 
-module.exports = { arrancar, casos, entrarComo, URL_BASE };
+// Demostración: cambia de rol desde Mi cuenta → "Probar como", sin PIN (como lo haría Carlos).
+async function cambiarA(p, usuario) {
+  await p.click('.side [aria-label="Mi cuenta"]');
+  await p.click('#probar-' + usuario);
+  await p.waitForFunction(u => window.__pos.ctx.sesion?.usuario === u, usuario);
+  await p.waitForSelector('.side .nav');
+}
+
+module.exports = { arrancar, casos, entrarComo, cambiarA, URL_BASE };

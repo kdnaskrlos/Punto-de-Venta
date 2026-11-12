@@ -1,5 +1,6 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
 import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas } from '../ui.js';
+import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
 import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
 import { aplicarDescuento, requiereAutorizacion } from '../nucleo/descuento.js';
@@ -192,7 +193,7 @@ registrarVista('/vender', {
       window.addEventListener('pos:carrito', repintar);
       hj.alCerrar = () => window.removeEventListener('pos:carrito', repintar);
     } });
-    const sinCaja = h('div', { class: 'aviso sin-caja' }, icono('cartera'), h('span', {}, 'Abre tu caja para vender'), h('span', { class: 'sp' }), h('button', { class: 'btn primary', onclick: () => navegar('/caja') }, 'Abrir caja'));
+    const sinCaja = h('div', { class: 'aviso sin-caja' }, icono('cartera'), h('span', {}, 'Abre tu caja para vender'), h('span', { class: 'sp' }), h('button', { class: 'btn primary', onclick: () => abrirCajaVentana(ctx) }, 'Abrir caja'));
 
     const escanear = ('BarcodeDetector' in window)
       ? h('button', { class: 'btn', 'aria-label': 'Escanear', onclick: () => ctx.escanear && ctx.escanear(cod => agregarPorCodigo(cod)) }, icono('escanear'), h('span', { class: 'solo-pc' }, 'Escanear'))

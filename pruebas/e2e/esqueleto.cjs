@@ -84,6 +84,10 @@ casos('esqueleto', [
     const sin = await p.$$eval('input:not([type=checkbox]):not([type=radio]):not([type=file])', els => els.filter(e => e.getAttribute('autocomplete') !== 'off').map(e => e.outerHTML.slice(0, 80)));
     a.deepStrictEqual(sin, []);
   }],
+  ['Teléfono: "Más" no repite la calculadora (ya está en la cabecera)', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/mas' });
+    a.strictEqual(await p.$('.lista-mas >> text=Calculadora'), null);
+  }],
   ['Sin errores en consola', async (env, a) => {
     const p = await env.pagina();
     await p.waitForTimeout(300);

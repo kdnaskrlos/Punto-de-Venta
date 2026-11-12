@@ -1,5 +1,6 @@
 // Tarea 14: abrir con fondo, movimientos, esperado por forma de pago, cierre con diferencias, reabrir solo admin.
 const { casos, entrarComo } = require('./_servidor.cjs');
+const { cambiarA } = require('./_servidor.cjs');
 const texto = (p, s) => p.$eval(s, e => e.textContent.replace(/\s+/g, ' ').trim());
 
 async function abrirConFondo(p) {
@@ -57,8 +58,7 @@ casos('caja', [
     await p.fill('#contado-efectivo-cop', '50.000'); await p.fill('#contado-efectivo-usd', '20'); await p.fill('#contado-efectivo-bs', '500');
     await p.click('#cierre-final');
     await p.waitForSelector('text=Caja cerrada');
-    await p.click('.side [aria-label="Mi cuenta"]'); await p.click('text=Cerrar sesión');
-    await entrarComo(p, 'admin');
+    await cambiarA(p, 'admin');
     await p.evaluate(() => { location.hash = '/caja'; });
     await p.click('button:has-text("Reabrir")');
     await p.waitForFunction(() => !document.querySelector('.caja-cerrada button'));

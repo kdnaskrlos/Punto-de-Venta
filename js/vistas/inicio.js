@@ -1,5 +1,6 @@
 // Inicio por rol (§13.4): recuadros del día, autorizaciones (admin), alertas y ventas de hoy.
 import { h, icono, toast, sin, unaVez } from '../ui.js';
+import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
 import { resumenDia, inventarioBajo } from '../nucleo/reportes.js';
 import { esperadoCaja } from '../nucleo/caja.js';
@@ -100,7 +101,7 @@ registrarVista('/inicio', {
     window.addEventListener('pos:datos', alDatos);
     const s = ctx.sesion;
     cont.append(...sin(h('h1', { class: 'saludo' }, 'Hola, ', h('span', {}, (s.nombre || s.usuario).split(' ')[0])), tiles, auts, alertas, ventasEl,
-      !gestion && !ctx.miCaja ? h('button', { class: 'btn primary grande', onclick: () => navegar('/caja') }, icono('cartera'), 'Abrir caja') : null));
+      !gestion && !ctx.miCaja ? h('button', { class: 'btn primary grande', onclick: () => abrirCajaVentana(ctx, () => navegar('/vender')) }, icono('cartera'), 'Abrir caja') : null));
     pintar();
     return () => { q.forEach(x => x()); porCaja.parar(); window.removeEventListener('pos:datos', alDatos); };
   },

@@ -1,7 +1,7 @@
 // Punto de entrada: crea el almacén, muestra la entrada o la app según la sesión y registra el service worker.
 import { ctx, mostrarApp, definirCalculadora } from './app.js';
 import { h, cerrarCapaSuperior, hayCapas } from './ui.js';
-import { crearAlmacen, MODO_DEMO } from './datos/index.js';
+import { crearAlmacen, MODO_DEMO, DEMO_DIRECTO, usuarioDemo } from './datos/index.js';
 import { iniciarDatos } from './datos/vivos.js';
 import { pantallaEntrada, pantallaPrimerAdmin } from './vistas/entrar.js';
 import { abrirCalculadora, abrirDetalleTasas } from './vistas/calculadora.js';
@@ -24,6 +24,7 @@ ctx.abrirCobro = modo => (modo === 'venta' ? abrirCobrar(ctx) : abrirApartar(ctx
 async function iniciar() {
   const raiz = document.getElementById('app');
   ctx.almacen = await crearAlmacen();
+  if (DEMO_DIRECTO) await ctx.almacen.entrar(usuarioDemo(), '1234');
   let anterior, pararDatos = null;
   ctx.almacen.alCambiarSesion(async s => {
     const clave = s ? s.uid + s.rol : null;

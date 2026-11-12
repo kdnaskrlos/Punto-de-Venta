@@ -17,22 +17,40 @@ function campoMonto(id, etiqueta, moneda) {
 
 function formasCaja(ctx) { return ctx.ajustes.formasPago || []; }
 
+// Campos del fondo inicial. Los que quedan vacíos cuentan como 0.
+function camposFondo() {
+  const fondos = h('div', { class: 'fondos' }, campoMonto('fondo-cop', 'Pesos (COP)', 'COP'), campoMonto('fondo-usd', 'Dólares (USD)', 'USD'), campoMonto('fondo-bs', 'Bolívares (Bs)', 'BS'));
+  fondos.querySelectorAll('input').forEach(i => { i.placeholder = '0'; });
+  return fondos;
+}
+
+async function confirmarApertura(ctx, raiz, boton) {
+  const v = (id, m) => parseMonto(raiz.querySelector('#' + id).value, m) || 0;
+  boton.disabled = true;
+  const r = await ctx.almacen.abrirCaja({ COP: v('fondo-cop', 'COP'), USD: v('fondo-usd', 'USD'), BS: v('fondo-bs', 'BS') });
+  boton.disabled = false;
+  if (!r.ok) { toast(r.error === 'ya-abierta' ? 'Ya tienes una caja abierta' : 'No se pudo abrir', { malo: true }); return false; }
+  document.activeElement?.blur();
+  toast('Caja abierta');
+  return true;
+}
+
 function abrirFormulario(ctx, cont) {
   const b = h('button', { class: 'btn primary grande', id: 'abrir-caja' }, icono('cartera'), 'Abrir caja');
   const form = h('div', { class: 'tarjeta abrir-caja pila' },
     h('h2', { class: 'sec-t' }, icono('cartera'), 'Abrir caja'),
-    h('p', { class: 'nota' }, 'Cuenta el efectivo con el que empiezas en cada moneda.'),
-    h('div', { class: 'fondos' }, campoMonto('fondo-cop', 'Pesos (COP)', 'COP'), campoMonto('fondo-usd', 'Dólares (USD)', 'USD'), campoMonto('fondo-bs', 'Bolívares (Bs)', 'BS')),
-    b);
-  b.addEventListener('click', async () => {
-    const v = (id, m) => parseMonto(form.querySelector('#' + id).value, m) || 0;
-    b.disabled = true;
-    const r = await ctx.almacen.abrirCaja({ COP: v('fondo-cop', 'COP'), USD: v('fondo-usd', 'USD'), BS: v('fondo-bs', 'BS') });
-    b.disabled = false;
-    if (!r.ok) toast(r.error === 'ya-abierta' ? 'Ya tienes una caja abierta' : 'No se pudo abrir', { malo: true });
-    else toast('Caja abierta');
-  });
+    h('p', { class: 'nota' }, 'Cuenta el efectivo con el que empiezas. Deja en blanco lo que no tengas.'),
+    camposFondo(), b);
+  b.addEventListener('click', () => confirmarApertura(ctx, form, b));
   cont.replaceChildren(form);
+}
+
+// Abrir la caja sin salir de la pantalla en la que se está (Vender, Inicio).
+export function abrirCajaVentana(ctx, alAbrir) {
+  const b = h('button', { class: 'btn primary grande', id: 'abrir-caja' }, icono('cartera'), 'Abrir caja');
+  const cuerpo = h('div', { class: 'pila' }, h('p', { class: 'nota' }, 'Cuenta el efectivo con el que empiezas. Deja en blanco lo que no tengas.'), camposFondo());
+  const v = abrirVentana({ titulo: 'Abrir caja', contenido: cuerpo, acciones: b });
+  b.addEventListener('click', async () => { if (await confirmarApertura(ctx, cuerpo, b)) { v.cerrar(); alAbrir && alAbrir(); } });
 }
 
 function abrirMovimiento(ctx, caja) {

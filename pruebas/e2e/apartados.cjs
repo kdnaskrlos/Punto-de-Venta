@@ -1,5 +1,6 @@
 // Tarea 13: apartar con abono, abonar, completar (sin volver a descontar) y cancelar (solo gestión).
 const { casos, entrarComo } = require('./_servidor.cjs');
+const { cambiarA } = require('./_servidor.cjs');
 const texto = (p, s) => p.$eval(s, e => e.textContent.replace(/\s+/g, ' ').trim());
 const existencia = (p, sku) => p.evaluate(s => window.__pos.ctx.productos[s].existencia, sku);
 
@@ -52,8 +53,7 @@ casos('apartados', [
     await apartar(p, null);
     await p.click('.side .nav[aria-label="Apartados"]'); await p.waitForSelector('.apartado');
     a.strictEqual(await p.$('.apartado button:has-text("Cancelar")'), null);
-    await p.click('.side [aria-label="Mi cuenta"]'); await p.click('text=Cerrar sesión');
-    await entrarComo(p, 'encargada');
+    await cambiarA(p, 'encargada');
     await p.click('.side .nav[aria-label="Apartados"]'); await p.waitForSelector('.apartado');
     await p.click('.apartado button:has-text("Cancelar")');
     await p.fill('#motivo', 'El cliente no volvió');
