@@ -45,3 +45,6 @@ export function rangoCorto(desde, hasta) {
   if (a1 === a2 && m1 === m2) return `${d1} – ${d2} ${MESES_CORTOS[m2 - 1]}`;
   return `${d1} ${MESES_CORTOS[m1 - 1]}${a1 !== a2 ? ' ' + a1 : ''} – ${d2} ${MESES_CORTOS[m2 - 1]}`;
 }
+
+// Último segundo del día en la tienda (cierre automático de cajas).
+export function finDia(dia) { return new Date(`${dia}T23:59:59-04:00`).toISOString(); }

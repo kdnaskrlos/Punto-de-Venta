@@ -48,3 +48,11 @@ const prueba = async (nombre, fn, esperado) => { try { await fn(); console.log(e
 2. **Sin internet** (modo avión): vender otra. Arriba aparece "Sin conexión · 1 por subir". Al volver la conexión, sube sola y recibe su número cuando la encargada o tú abran la app.
 3. **Doble toque:** tocar dos veces muy rápido "Cobrar". Debe quedar **una** venta.
 4. **Faltante:** con la última unidad, vender desde dos teléfonos con internet al mismo tiempo. Uno cobra y el otro ve "Ya no hay existencia de …".
+
+## Caja: cierre automático y caja personal (v1.20)
+- [ ] Vendedora: `abrirCaja({}, { tipo: 'personal' })` → rechazado.
+- [ ] Encargada/admin: `abrirCaja({}, { tipo: 'personal' })` → permitido.
+- [ ] Encargada: `cerrarCajasVencidas(hoy)` con una caja de la vendedora abierta ayer → la cierra (estado cerrada, cierre.automatico, porArquear) y borra su `cajaAbierta`.
+- [ ] Encargada: intentar cerrar SIN `cierre.automatico` la caja de la vendedora → rechazado.
+- [ ] Vendedora: `arquearCaja(id, …)` sobre su caja por arquear → permitido; repetirlo → rechazado (ya no está por arquear).
+- [ ] Vendedora: `arquearCaja` sobre la caja de otra persona → rechazado.

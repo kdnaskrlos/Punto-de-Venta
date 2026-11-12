@@ -38,6 +38,8 @@ function totalCajaCop(ctx, caja, ventas, apartados) {
   return Object.entries(esp).reduce((s, [id, m]) => s + (aCop(m, formas.find(f => f.id === id)?.moneda || 'COP', ctx.tasas) || 0), 0);
 }
 
+const diaCorto = iso => new Date(iso).toLocaleDateString('es-VE', { timeZone: 'America/Caracas', weekday: 'long', day: 'numeric', month: 'short' });
+
 registrarVista('/inicio', {
   montar(cont, ctx) {
     const gestion = ctx.puedeVer('verReportesTodos');
@@ -54,13 +56,16 @@ registrarVista('/inicio', {
       const bajas = inventarioBajo(Object.values(ctx.productos));
       const negativos = Object.values(ctx.productos).filter(p => p.existencia < 0);
       if (gestion) {
-        const abiertas = cajas.filter(c => c.estado === 'abierta');
-        porCaja.actualizar(abiertas);
+        const abiertas = cajas.filter(c => c.estado === 'abierta' && c.tipo !== 'personal');
+        const mia = ctx.miCaja;
+        porCaja.actualizar(mia ? [...abiertas, mia] : abiertas);
         const enCaja = abiertas.reduce((s, c) => s + totalCajaCop(ctx, c, porCaja.ventas(c.id), apartados), 0);
+        const cobrado = mia ? totalCajaCop(ctx, mia, porCaja.ventas(mia.id), apartados) : 0;
         tiles.replaceChildren(
           tile('ventas', 'var(--accent)', 'Ventas de hoy', fmtCop(r.total), `${r.ventas} ${r.ventas === 1 ? 'venta' : 'ventas'} · ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, 'carrito'),
           tile('ganancia', 'var(--kpi-ganancia)', 'Ganancia', r.ganancia == null ? '—' : fmtCop(r.ganancia), r.gananciaParcial ? 'Calculando costos…' : 'Total menos costo', 'grafica'),
           tile('caja', 'var(--kpi-neutro)', 'En cajas abiertas', fmtCop(enCaja), abiertas.length === 1 ? '1 abierta, en pesos' : `${abiertas.length} abiertas, en pesos`, 'cartera'),
+          tile('cobrado', 'var(--t-info)', 'Cobrado por mí hoy', fmtCop(cobrado), 'en pesos · solo informativo', 'monedas'),
           tile('bajas', bajas.length ? 'var(--warn)' : 'var(--muted)', 'Existencias bajas', String(bajas.length), 'en el mínimo o menos', 'caja'));
       } else {
         const mia = ctx.miCaja;
@@ -82,6 +87,7 @@ registrarVista('/inicio', {
       const cierres = cajas.filter(c => c.estado === 'cerrada' && c.cierre?.fecha >= inicioDia(dia) && (c.cierre.filas || []).some(f => f.nivel !== 'ok'));
       alertas.replaceChildren(...(gestion ? [
         negativos.length ? alerta('Existencia negativa', negativos.map(p => `${p.grupo} · Talla ${p.talla || p.sku} (${p.existencia})`).join(', ') + '. Se vendió sin conexión más de lo que había: revisa las ventas y ajusta.') : null,
+        ...(ctx.porArquear || []).filter(c => c.tipo !== 'personal').map(c => h('div', { class: 'aviso' }, icono('alerta'), h('div', {}, h('b', {}, `La caja de @${c.usuario} del ${diaCorto(c.cierre?.fecha || c.abierta)} se cerró sola y falta arquearla`), h('div', { class: 'nota' }, 'Se arquea cuando cuente el dinero al abrir la caja de hoy.')))),
         ...cierres.map(c => alerta(`Cierre con diferencia · @${c.usuario}`, `${c.cierre.totalCop > 0 ? '+' : ''}${fmtCop(c.cierre.totalCop)} COP · ${c.cierre.nota || ''}`)),
       ].filter(Boolean) : []));
       ventasEl.replaceChildren(h('h2', { class: 'sec-t' }, icono('historial'), gestion ? 'Ventas de hoy' : 'Mis ventas de hoy'), listaVentas(ctx, datos.ventas));

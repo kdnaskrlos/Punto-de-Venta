@@ -4,6 +4,7 @@ import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocs, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { puede } from '../nucleo/permisos.js';
+import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
 import { nuevoId } from './contrato.js';
 import { subirFotoGitHub, CLAVE_TOKEN } from './github-fotos.js';
@@ -360,12 +361,12 @@ export function crearFirebase(config) {
     },
 
     // ---- caja ----
-    async abrirCaja(fondo) {
-      const e = exigir('abrirCaja'); if (e) return NO(e);
+    async abrirCaja(fondo, { tipo = 'tienda' } = {}) {
+      const e = exigir(tipo === 'personal' ? 'cajaPersonal' : 'abrirCaja'); if (e) return NO(e);
       await esperarCaja();
       if (miCaja) return NO('ya-abierta');
       const id = nuevoId();
-      miCaja = { id, uid: sesion.uid, usuario: sesion.usuario, abierta: ahora(), fondo: { COP: 0, USD: 0, BS: 0, ...fondo }, movimientos: [], estado: 'abierta' };
+      miCaja = { id, uid: sesion.uid, usuario: sesion.usuario, tipo, abierta: ahora(), fondo: { COP: 0, USD: 0, BS: 0, ...(tipo === 'personal' ? {} : fondo) }, movimientos: [], estado: 'abierta' };
       // El puntero cajaAbierta/{usuario} solo se puede crear si no existe: las reglas impiden dos cajas abiertas.
       const b = writeBatch(db);
       b.set(ref('cajas', id), miCaja);
@@ -389,6 +390,33 @@ export function crearFirebase(config) {
       const r = await sinEsperar(b.commit());
       if (r.ok) miCaja = null;
       return r;
+    },
+    // Cierra las cajas abiertas en un día anterior, a las 11:59 pm de su día (la primera app que se abra lo hace).
+    async cerrarCajasVencidas(hoy) {
+      if (!sesion) return NO('sesion');
+      const todas = puede(sesion.rol, 'verReportesTodos');
+      const conds = [where('estado', '==', 'abierta')];
+      if (!todas) conds.push(where('usuario', '==', sesion.usuario));
+      let docs;
+      try { docs = (await getDocs(query(collection(db, 'cajas'), ...conds))).docs.map(d => ({ id: d.id, ...d.data() })); }
+      catch { return NO('red'); }
+      const vencidas = docs.filter(c => diaLocal(c.abierta) < hoy);
+      if (!vencidas.length) return SI({ cerradas: 0 });
+      const b = writeBatch(db);
+      for (const c of vencidas) {
+        b.update(ref('cajas', c.id), { estado: 'cerrada', cierre: { automatico: true, fecha: finDia(diaLocal(c.abierta)), porArquear: c.tipo !== 'personal', por: sesion.usuario } });
+        b.delete(ref('cajaAbierta', c.usuario));
+      }
+      const r = await sinEsperar(b.commit());
+      if (r.ok && vencidas.some(c => c.id === miCaja?.id)) miCaja = null;
+      return r.ok ? SI({ cerradas: vencidas.length }) : r;
+    },
+    async arquearCaja(cajaId, arqueo) {
+      if (!sesion) return NO('sesion');
+      const c = await api.obtener('cajas', cajaId); if (!c) return NO('no-existe');
+      if (c.usuario !== sesion.usuario && !puede(sesion.rol, 'verReportesTodos')) return NO('permiso');
+      if (c.estado !== 'cerrada' || !c.cierre?.porArquear) return NO('arqueada');
+      return sinEsperar(updateDoc(ref('cajas', cajaId), { cierre: { ...c.cierre, ...arqueo, porArquear: false, arqueo: { por: sesion.usuario, fecha: ahora() } } }));
     },
     async reabrirCaja(cajaId) {
       const e = exigir('reabrirCaja'); if (e) return NO(e);

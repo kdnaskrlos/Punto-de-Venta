@@ -1,5 +1,6 @@
 // Ventas de un rango con su costo congelado (§15) y lista de ventas con "Anular" para gestión.
 import { h, toast, pedirMotivo, unaVez } from '../ui.js';
+import { conCaja } from './caja.js';
 import { costoVenta } from '../nucleo/costos.js';
 import { fmtCop } from '../nucleo/dinero.js';
 import { fechaHora, inicioDia, sumarDias } from '../nucleo/fechas.js';
@@ -39,7 +40,7 @@ export function listaVentas(ctx, ventas) {
     ctx.puedeVer('anularVenta') && v.estado !== 'anulada' ? h('button', { class: 'btn danger', onclick: e => unaVez(e.currentTarget, async () => {
       const motivo = await pedirMotivo({ titulo: `Anular ${v.numero || 'venta'}`, boton: 'Anular venta', peligro: true });
       if (!motivo) return;
-      const r = await ctx.almacen.anularVenta(v.id, motivo);
+      const r = await conCaja(ctx, () => ctx.almacen.anularVenta(v.id, motivo));
       toast(r.ok ? 'Venta anulada' : r.error === 'sin-caja' ? 'Abre tu caja para registrar la devolución' : 'No se pudo anular', { malo: !r.ok });
     })() }, 'Anular') : null)));
 }

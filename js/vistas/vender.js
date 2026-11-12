@@ -174,7 +174,7 @@ function tarjeta(ctx, g) {
   const pocas = !agotada && g.variantes.some(p => p.existencia > 0 && p.existencia <= p.minimo);
   const precio = Math.min(...g.variantes.map(p => p.precios?.[0] || Infinity));
   const oferta = g.variantes.some(p => p.oferta?.activa);
-  return h('button', { class: 'tarjeta-prenda' + (agotada ? ' agotada' : ''), 'data-grupo': g.grupo, onclick: () => abrirTallas(ctx, g) },
+  return h('button', { class: 'tarjeta-prenda' + (agotada ? ' agotada' : ''), 'data-grupo': g.grupo, onclick: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) },
     h('div', { class: 'foto' }, g.foto ? h('img', { src: g.foto, alt: '', loading: 'lazy' }) : icono('franela')),
     h('div', { class: 'info' },
       h('b', {}, g.producto),
@@ -224,7 +224,7 @@ registrarVista('/vender', {
       const r = resumenCarrito(ctx);
       barra.hidden = !r.unidades;
       barra.replaceChildren(h('span', {}, `${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`), h('span', { class: 'num' }, `${fmtCop(r.total)} · Ver`));
-      sinCaja.hidden = !!ctx.miCaja;
+      sinCaja.hidden = !!ctx.miCaja || !ctx.puedeVer('cajaFisica');
     }
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
     buscar.addEventListener('keydown', e => {

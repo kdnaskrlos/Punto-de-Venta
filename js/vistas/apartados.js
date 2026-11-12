@@ -1,5 +1,6 @@
 // Apartados (§10): apartar desde el carrito, abonar, completar y cancelar.
 import { h, icono, abrirVentana, toast, pedirMotivo, unaVez } from '../ui.js';
+import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { registrarVista } from '../app.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
@@ -47,7 +48,7 @@ export function abrirApartar(ctx) {
       subtotal: r.subtotal, descuento: r.descuento ? { tipo: c.descuento.tipo, valor: c.descuento.valor, monto: r.descuento, autorizadoPor: c.autorizacion?.por || null } : null,
       total: r.total, abonos: pagos, tasas: tasasDe(ctx),
     };
-    const res = await ctx.almacen.guardarApartado(ap);
+    const res = await conCaja(ctx, () => ctx.almacen.guardarApartado(ap));
     guardando = false;
     if (!res.ok) { toast(res.faltantes ? 'Ya no hay existencia de alguna prenda' : res.error === 'sin-caja' ? 'Abre tu caja para apartar' : 'No se pudo apartar', { malo: true }); actualizar(); return; }
     ctx.almacen.guardarCliente(ap.cliente);
@@ -76,10 +77,10 @@ function abrirPago(ctx, ap, modo) {
     const { pagos, vuelto } = panel.resultado();
     let res;
     if (completar) {
-      res = await ctx.almacen.completarApartado(ap.id, {
+      res = await conCaja(ctx, () => ctx.almacen.completarApartado(ap.id, {
         id: idVenta, fecha: new Date().toISOString(), cliente: ap.cliente, lineas: ap.lineas, subtotal: ap.subtotal, descuento: ap.descuento,
         total: ap.total, abonosPrevios: ap.total - ap.saldo, pagos, vuelto, tasas: tasasDe(ctx),
-      });
+      }));
     } else {
       // Cada abono lleva un id fijo: si algo falla y se reintenta, los ya guardados no se repiten.
       const actual = await ctx.almacen.obtener('apartados', ap.id) || ap;
@@ -87,7 +88,7 @@ function abrirPago(ctx, ap, modo) {
       if (suma > actual.saldo + 50) res = { ok: false, error: 'excede' };
       else {
         res = { ok: true };
-        for (const [i, p] of pagos.entries()) { const r = await ctx.almacen.abonarApartado(ap.id, { ...p, id: `${idVenta}-${i}` }); if (!r.ok) { res = r; break; } }
+        for (const [i, p] of pagos.entries()) { const r = await conCaja(ctx, () => ctx.almacen.abonarApartado(ap.id, { ...p, id: `${idVenta}-${i}` })); if (!r.ok) { res = r; break; } }
       }
     }
     guardando = false;

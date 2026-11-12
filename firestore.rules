@@ -100,12 +100,20 @@ service cloud.firestore {
     match /cajas/{id} {
       allow read: if esGestion() || (activo() && resource.data.usuario == yo());
       allow create: if activo() && request.resource.data.usuario == yo() && request.resource.data.estado == 'abierta'
-        && getAfter(cajaAbiertaPath(yo())).data.cajaId == id;
+        && getAfter(cajaAbiertaPath(yo())).data.cajaId == id
+        && (request.resource.data.get('tipo', 'tienda') != 'personal' || esGestion());
       allow update: if
           (activo() && resource.data.usuario == yo() && resource.data.estado == 'abierta'
             && ((soloCambian(['movimientos']) && request.resource.data.movimientos.hasAll(resource.data.movimientos)) || (soloCambian(['estado', 'cierre']) && request.resource.data.estado == 'cerrada' && !existsAfter(cajaAbiertaPath(yo())))))
           || (esGestion() && resource.data.estado == 'abierta' && soloCambian(['movimientos']) && request.resource.data.movimientos.hasAll(resource.data.movimientos))
-          || (esAdmin() && resource.data.estado == 'cerrada' && request.resource.data.estado == 'abierta' && soloCambian(['estado', 'reaperturas']));
+          || (esAdmin() && resource.data.estado == 'cerrada' && request.resource.data.estado == 'abierta' && soloCambian(['estado', 'reaperturas']))
+          // Cierre automático de medianoche hecho por la app de la encargada o del administrador
+          || (esGestion() && resource.data.estado == 'abierta' && soloCambian(['estado', 'cierre']) && request.resource.data.estado == 'cerrada'
+              && request.resource.data.cierre.automatico == true && !existsAfter(cajaAbiertaPath(resource.data.usuario)))
+          // Arqueo de una caja que se cerró sola: la dueña de la caja o gestión, una sola vez
+          || (((activo() && resource.data.usuario == yo()) || esGestion()) && resource.data.estado == 'cerrada'
+              && resource.data.cierre.porArquear == true && soloCambian(['cierre'])
+              && request.resource.data.cierre.porArquear == false && request.resource.data.cierre.automatico == true);
       allow delete: if false;
     }
 
@@ -113,7 +121,7 @@ service cloud.firestore {
     match /cajaAbierta/{usuario} {
       allow read: if activo();
       allow create: if (activo() && usuario == yo()) || esAdmin();
-      allow delete: if (activo() && usuario == yo()) || esAdmin();
+      allow delete: if (activo() && usuario == yo()) || esGestion();
       allow update: if false;
     }
 

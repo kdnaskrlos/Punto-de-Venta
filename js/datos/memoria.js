@@ -1,6 +1,7 @@
 // Almacén en memoria: modo demostración y pruebas. Cumple el mismo contrato que firebase.js
 // y aplica los mismos permisos, para que las pantallas se comporten igual en ambos.
 import { puede } from '../nucleo/permisos.js';
+import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { claveFoto } from '../nucleo/fotos.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
 import { NOMBRES, nuevoId } from './contrato.js';
@@ -204,11 +205,11 @@ export function crearMemoria(datos) {
     },
 
     // ---- caja ----
-    async abrirCaja(fondo) {
-      const e = exigir('abrirCaja'); if (e) return NO(e);
+    async abrirCaja(fondo, { tipo = 'tienda' } = {}) {
+      const e = exigir(tipo === 'personal' ? 'cajaPersonal' : 'abrirCaja'); if (e) return NO(e);
       if (cajaAbierta(sesion.uid)) return NO('ya-abierta');
       const id = nuevoId();
-      col.cajas.set(id, { id, uid: sesion.uid, usuario: sesion.usuario, abierta: ahora(), fondo: { COP: 0, USD: 0, BS: 0, ...fondo }, movimientos: [], estado: 'abierta' });
+      col.cajas.set(id, { id, uid: sesion.uid, usuario: sesion.usuario, tipo, abierta: ahora(), fondo: { COP: 0, USD: 0, BS: 0, ...(tipo === 'personal' ? {} : fondo) }, movimientos: [], estado: 'abierta' });
       escribio(); avisar('cajas');
       return SI({ id });
     },
@@ -228,6 +229,32 @@ export function crearMemoria(datos) {
       if (c.uid !== sesion.uid) return NO('permiso');
       if (c.estado !== 'abierta') return NO('cerrada');
       c.estado = 'cerrada'; c.cierre = { ...copia(cierre), fecha: ahora() };
+      escribio(); avisar('cajas');
+      return SI();
+    },
+    // Cierra las cajas abiertas en un día anterior: a las 11:59 pm de su día. Las de tienda quedan por arquear.
+    async cerrarCajasVencidas(hoy) {
+      if (!sesion) return NO('sesion');
+      const todas = puede(rol(), 'verReportesTodos');
+      let cerradas = 0;
+      for (const c of col.cajas.values()) {
+        if (c.estado !== 'abierta' || (!todas && c.usuario !== sesion.usuario)) continue;
+        const dia = diaLocal(c.abierta);
+        if (dia >= hoy) continue;
+        c.estado = 'cerrada';
+        c.cierre = { automatico: true, fecha: finDia(dia), porArquear: c.tipo !== 'personal', por: sesion.usuario };
+        cerradas++;
+      }
+      if (cerradas) { escribio(); avisar('cajas'); }
+      return SI({ cerradas });
+    },
+    // Arqueo de una caja que se cerró sola: lo contado, las diferencias y quién lo hizo.
+    async arquearCaja(cajaId, arqueo) {
+      if (!sesion) return NO('sesion');
+      const c = col.cajas.get(cajaId); if (!c) return NO('no-existe');
+      if (c.usuario !== sesion.usuario && !puede(rol(), 'verReportesTodos')) return NO('permiso');
+      if (c.estado !== 'cerrada' || !c.cierre?.porArquear) return NO('arqueada');
+      c.cierre = { ...c.cierre, ...copia(arqueo), porArquear: false, arqueo: { por: sesion.usuario, fecha: ahora() } };
       escribio(); avisar('cajas');
       return SI();
     },

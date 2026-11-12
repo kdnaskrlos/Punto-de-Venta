@@ -31,3 +31,10 @@ test('rol desconocido o acción desconocida: no', () => {
   assert.ok(!puede('admin', 'accionInventada'));
   assert.ok(!puede(undefined, 'vender'));
 });
+
+test('caja física solo la vendedora; caja personal automática los dueños', () => {
+  assert.ok(puede('vendedora', 'cajaFisica'));
+  assert.ok(!puede('admin', 'cajaFisica') && !puede('encargada', 'cajaFisica'));
+  assert.ok(puede('admin', 'cajaPersonal') && puede('encargada', 'cajaPersonal'));
+  assert.ok(!puede('vendedora', 'cajaPersonal'));
+});

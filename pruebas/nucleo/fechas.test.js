@@ -34,3 +34,8 @@ test('textos cortos de mes y rango', () => {
   assert.equal(rangoCorto('2026-10-28', '2026-11-03'), '28 oct – 3 nov');
   assert.equal(rangoCorto('2025-12-28', '2026-01-03'), '28 dic 2025 – 3 ene');
 });
+
+import { finDia } from '../../js/nucleo/fechas.js';
+test('fin del día de la tienda: 11:59:59 pm en Caracas', () => {
+  assert.equal(finDia('2026-11-12'), '2026-11-13T03:59:59.000Z');
+});

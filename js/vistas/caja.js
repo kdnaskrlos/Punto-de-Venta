@@ -45,12 +45,68 @@ function abrirFormulario(ctx, cont) {
   cont.replaceChildren(form);
 }
 
+// Una lectura única de una colección (para calcular el esperado de una caja ya cerrada).
+function leerUnaVez(ctx, coleccion, filtro) {
+  return new Promise(res => {
+    let listo = false, q = null;
+    q = ctx.almacen.escuchar(coleccion, l => { if (listo) return; listo = true; res(l); setTimeout(() => q && q()); }, filtro);
+    if (listo) setTimeout(() => q && q());
+  });
+}
+
+async function esperadoDe(ctx, caja) {
+  const [ventas, apartados] = await Promise.all([leerUnaVez(ctx, 'ventas', { cajaId: caja.id }), leerUnaVez(ctx, 'apartados')]);
+  const abonos = apartados.flatMap(a => (a.abonos || []).filter(x => x.cajaId === caja.id));
+  return esperadoCaja(caja, ventas, abonos, formasCaja(ctx));
+}
+
 // Abrir la caja sin salir de la pantalla en la que se está (Vender, Inicio).
+// Si la caja de ayer se cerró sola a medianoche, el conteo de hoy la arquea y sirve de fondo.
 export function abrirCajaVentana(ctx, alAbrir) {
+  const pendiente = (ctx.porArquear || []).find(c => c.usuario === ctx.sesion.usuario);
+  if (pendiente) { arquearYAbrir(ctx, pendiente, alAbrir); return; }
   const b = h('button', { class: 'btn primary grande', id: 'abrir-caja' }, icono('cartera'), 'Abrir caja');
   const cuerpo = h('div', { class: 'pila' }, h('p', { class: 'nota' }, 'Cuenta el efectivo con el que empiezas. Deja en blanco lo que no tengas.'), camposFondo());
   const v = abrirVentana({ titulo: 'Abrir caja', contenido: cuerpo, acciones: b });
   b.addEventListener('click', async () => { if (await confirmarApertura(ctx, cuerpo, b)) { v.cerrar(); alAbrir && alAbrir(); } });
+}
+
+// Para quien vende sin caja: los dueños usan su caja personal (se crea sola); la vendedora debe abrir la suya.
+export async function asegurarCaja(ctx) {
+  if (ctx.miCaja) return true;
+  if (ctx.puedeVer('cajaPersonal')) {
+    const r = await ctx.almacen.abrirCaja({}, { tipo: 'personal' });
+    return r.ok || r.error === 'ya-abierta';
+  }
+  abrirCajaVentana(ctx);
+  return false;
+}
+
+// Ejecuta una operación que necesita caja; si falta y es de un dueño, crea su caja personal y reintenta.
+export async function conCaja(ctx, operacion) {
+  let r = await operacion();
+  if (!r.ok && r.error === 'sin-caja' && await asegurarCaja(ctx)) r = await operacion();
+  return r;
+}
+
+async function arquearYAbrir(ctx, caja, alAbrir) {
+  const esperado = await esperadoDe(ctx, caja);
+  const dia = new Date(caja.cierre?.fecha || caja.abierta).toLocaleDateString('es-VE', { timeZone: 'America/Caracas', weekday: 'long', day: 'numeric', month: 'short' });
+  ventanaConteo(ctx, esperado, {
+    titulo: 'Abrir caja', boton: 'Abrir caja', botonId: 'arqueo-final', notaObligatoria: false,
+    intro: h('div', { class: 'aviso' }, icono('alerta'), h('div', {}, h('b', {}, `Tu caja del ${dia} se cerró sola a medianoche.`),
+      h('div', { class: 'nota' }, 'Cuenta lo que hay ahora. Con ese conteo se cierra la de ayer y empieza la de hoy.'))),
+    async alConfirmar(datos) {
+      const r = await ctx.almacen.arquearCaja(caja.id, datos);
+      if (!r.ok && r.error !== 'arqueada') return 'No se pudo guardar el conteo';
+      const c = datos.contado;
+      const a = await ctx.almacen.abrirCaja({ COP: c['efectivo-cop'] || 0, USD: c['efectivo-usd'] || 0, BS: c['efectivo-bs'] || 0 });
+      if (!a.ok && a.error !== 'ya-abierta') return 'No se pudo abrir la caja';
+      ctx.porArquear = (ctx.porArquear || []).filter(x => x.id !== caja.id);
+      toast('Caja abierta'); alAbrir && alAbrir();
+      return null;
+    },
+  });
 }
 
 function abrirMovimiento(ctx, caja) {
@@ -78,7 +134,7 @@ function abrirMovimiento(ctx, caja) {
   }));
 }
 
-function abrirCierre(ctx, caja, esperado) {
+function ventanaConteo(ctx, esperado, op) {
   const formas = formasCaja(ctx).filter(f => f.efectivo || Math.abs(esperado[f.id] || 0) > 0);
   const contado = {};
   const filas = h('div', { class: 'filas-cierre' });
@@ -107,19 +163,29 @@ function abrirCierre(ctx, caja, esperado) {
         inp, h('b', { class: 'dif num' }, ''));
     }));
   pintar();
-  const b = h('button', { class: 'btn primary', id: 'cierre-final' }, 'Cerrar caja');
-  const v = abrirVentana({ titulo: 'Cerrar caja', pantallaCompleta: true,
-    contenido: h('div', { class: 'pila' }, h('p', { class: 'nota' }, 'Cuenta lo que hay en cada forma de pago y escríbelo.'), filas, total, h('div', { class: 'campo' }, h('label', { for: 'cierre-nota' }, 'Nota'), nota, err)),
+  const b = h('button', { class: 'btn primary', id: op.botonId }, op.boton);
+  const v = abrirVentana({ titulo: op.titulo, pantallaCompleta: true,
+    contenido: h('div', { class: 'pila' }, op.intro || h('p', { class: 'nota' }, 'Cuenta lo que hay en cada forma de pago y escríbelo.'), filas, total, h('div', { class: 'campo' }, h('label', { for: 'cierre-nota' }, 'Nota'), nota, err)),
     acciones: h('div', { class: 'acciones' }, b) });
   b.addEventListener('click', async () => {
     const hayDif = calc.filas.some(f => f.nivel !== 'ok');
-    if (hayDif && !nota.value.trim()) { err.textContent = 'Escribe una nota sobre la diferencia'; nota.focus(); return; }
+    if (op.notaObligatoria && hayDif && !nota.value.trim()) { err.textContent = 'Escribe una nota sobre la diferencia'; nota.focus(); return; }
     b.disabled = true;
-    const r = await ctx.almacen.cerrarCaja(caja.id, { contado: Object.fromEntries(calc.filas.map(f => [f.forma, f.contado])), filas: calc.filas, totalEsperadoCop: calc.totalEsperadoCop, totalContadoCop: calc.totalContadoCop, totalCop: calc.totalCop, nota: nota.value.trim(), tasas: { copPorUsd: ctx.tasas.copPorUsd, bsPorUsd: ctx.tasas.bsPorUsd } });
+    const datos = { contado: Object.fromEntries(calc.filas.map(f => [f.forma, f.contado])), filas: calc.filas, totalEsperadoCop: calc.totalEsperadoCop, totalContadoCop: calc.totalContadoCop, totalCop: calc.totalCop, nota: nota.value.trim() };
+    const fallo = await op.alConfirmar(datos);
     b.disabled = false;
-    if (!r.ok) { err.textContent = 'No se pudo cerrar'; return; }
-    v.cerrar(); toast('Caja cerrada');
+    if (fallo) { err.textContent = fallo; return; }
+    v.cerrar();
   });
+}
+
+function abrirCierre(ctx, caja, esperado) {
+  ventanaConteo(ctx, esperado, { titulo: 'Cerrar caja', boton: 'Cerrar caja', botonId: 'cierre-final', notaObligatoria: true,
+    async alConfirmar(datos) {
+      const r = await ctx.almacen.cerrarCaja(caja.id, datos);
+      if (!r.ok) return 'No se pudo cerrar';
+      toast('Caja cerrada'); return null;
+    } });
 }
 
 function vistaAbierta(ctx, cont, caja, ventas, apartados) {
@@ -142,8 +208,27 @@ function vistaAbierta(ctx, cont, caja, ventas, apartados) {
       h('button', { class: 'btn', onclick: () => abrirCierre(ctx, caja, esp) }, icono('check'), 'Cerrar caja')));
 }
 
+// Dueños (admin, encargada): no abren ni arquean. Solo ven lo que cobraron hoy y las cajas de la tienda.
+function vistaDueno(ctx, cont, mia, ventas, apartados, cajas) {
+  const formas = formasCaja(ctx);
+  const abonos = mia ? apartados.flatMap(a => (a.abonos || []).filter(x => x.cajaId === mia.id)) : [];
+  const esp = mia ? esperadoCaja(mia, ventas.filter(v => v.cajaId === mia.id), abonos, formas) : {};
+  const usadas = formas.filter(f => Math.abs(esp[f.id] || 0) > 0);
+  const tienda = cajas.filter(c => c.tipo !== 'personal' && (c.estado === 'abierta' || c.cierre?.porArquear));
+  cont.replaceChildren(
+    h('div', { class: 'tarjeta' }, h('h2', { class: 'sec-t' }, icono('monedas'), 'Cobrado por mí hoy'),
+      usadas.length ? h('div', { class: 'esperados' }, ...usadas.map(f => h('div', { class: 'esperado', 'data-forma': f.id }, h('span', { class: CLASE[f.moneda] }, f.nombre), h('b', { class: 'monto num' }, `${fmtMonto(esp[f.id] || 0, f.moneda)} ${NOMBRE_MONEDA[f.moneda]}`))))
+        : h('p', { class: 'nota' }, 'Aún no has cobrado nada hoy.'),
+      h('p', { class: 'nota' }, 'Solo informativo: no tienes que abrir ni cerrar caja.')),
+    h('div', { class: 'tarjeta' }, h('h2', { class: 'sec-t' }, icono('cartera'), 'Cajas de la tienda'),
+      tienda.length ? h('div', { class: 'lista-mov' }, ...tienda.map(c => h('div', { class: 'mov' },
+        h('span', {}, h('b', {}, `@${c.usuario}`), h('span', { class: 'nota' }, ` · desde ${fechaHora(c.abierta)}`)),
+        c.estado === 'abierta' ? h('span', { class: 'est g' }, 'Abierta') : h('span', { class: 'est y' }, 'Por arquear'))))
+        : h('p', { class: 'nota' }, 'No hay cajas abiertas.')));
+}
+
 function historial(ctx, cajas) {
-  const cerradas = cajas.filter(c => c.estado === 'cerrada').sort((a, b) => b.abierta.localeCompare(a.abierta)).slice(0, 15);
+  const cerradas = cajas.filter(c => c.estado === 'cerrada' && c.tipo !== 'personal' && !c.cierre?.porArquear).sort((a, b) => b.abierta.localeCompare(a.abierta)).slice(0, 15);
   if (!cerradas.length) return null;
   return h('div', { class: 'tarjeta' }, h('h2', { class: 'sec-t' }, icono('historial'), 'Cajas cerradas'),
     ...cerradas.map(c => {
@@ -162,8 +247,12 @@ registrarVista('/caja', {
     const abajo = h('div');
     const pintar = () => {
       const mia = ctx.miCaja;
-      if (mia) vistaAbierta(ctx, principal, cajas.find(c => c.id === mia.id) || mia, ventas, apartados);
-      else {
+      if (ctx.puedeVer('cajaPersonal')) vistaDueno(ctx, principal, mia && (cajas.find(c => c.id === mia.id) || mia), ventas, apartados, cajas);
+      else if (mia) vistaAbierta(ctx, principal, cajas.find(c => c.id === mia.id) || mia, ventas, apartados);
+      else if ((ctx.porArquear || []).some(c => c.usuario === ctx.sesion.usuario)) {
+        principal.replaceChildren(h('div', { class: 'aviso' }, icono('alerta'), h('div', {}, h('b', {}, 'Tu caja de ayer se cerró sola a medianoche.'), h('div', { class: 'nota' }, 'Cuenta el dinero una vez: cierra la de ayer y abre la de hoy.'))),
+          h('button', { class: 'btn primary grande', onclick: () => abrirCajaVentana(ctx) }, icono('cartera'), 'Contar y abrir caja'));
+      } else {
         abrirFormulario(ctx, principal);
         if (cajas.some(c => c.usuario === ctx.sesion.usuario && c.estado === 'cerrada')) principal.prepend(h('div', { class: 'aviso ok-aviso' }, icono('check'), 'Caja cerrada'));
       }

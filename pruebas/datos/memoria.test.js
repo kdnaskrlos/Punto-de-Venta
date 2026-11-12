@@ -235,3 +235,69 @@ test('un abono reintentado con el mismo id no se cuenta dos veces; no se abona m
   assert.equal(a._estado('apartados').get(ap.id).saldo, 20000);
   assert.equal((await a.abonarApartado(ap.id, { id: 'ab2', forma: 'efectivo-cop', moneda: 'COP', monto: 30000, equivalenteCop: 30000 })).error, 'excede');
 });
+
+// ---- Cierre automático a medianoche, arqueo pendiente y caja personal de los dueños ----
+const cajas = a => [...a._estado('cajas').values()];
+const ayerALas = hora => { const d = new Date(Date.now() - 864e5); return new Date(`${d.toLocaleDateString('en-CA', { timeZone: 'America/Caracas' })}T${hora}:00-04:00`).toISOString(); };
+const hoyLocal = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Caracas' });
+
+test('a medianoche la caja de ayer se cierra sola a las 11:59 pm y queda por arquear', async () => {
+  const a = await comoVendedoraConCaja();
+  const c = cajas(a)[0]; c.abierta = ayerALas('08:00');
+  assert.equal((await a.cerrarCajasVencidas(hoyLocal())).cerradas, 1);
+  const cerrada = cajas(a)[0];
+  assert.equal(cerrada.estado, 'cerrada');
+  assert.equal(cerrada.cierre.automatico, true);
+  assert.equal(cerrada.cierre.porArquear, true);
+  assert.equal(new Date(cerrada.cierre.fecha).toLocaleString('en-GB', { timeZone: 'America/Caracas' }).slice(12), '23:59:59');
+  assert.equal((await a.guardarVenta(ventaDemo(a.nuevoId(), [{ sku: 'F-N-6', cantidad: 1 }]))).error, 'sin-caja');
+});
+
+test('la caja abierta hoy no se toca', async () => {
+  const a = await comoVendedoraConCaja();
+  assert.equal((await a.cerrarCajasVencidas(hoyLocal())).cerradas, 0);
+  assert.equal(cajas(a)[0].estado, 'abierta');
+});
+
+test('arquear la caja de ayer y abrir la de hoy con lo contado', async () => {
+  const a = await comoVendedoraConCaja();
+  cajas(a)[0].abierta = ayerALas('08:00');
+  await a.cerrarCajasVencidas(hoyLocal());
+  const id = cajas(a)[0].id;
+  const r = await a.arquearCaja(id, { contado: { 'efectivo-cop': 48000 }, filas: [], totalCop: -2000, nota: 'faltó cambio' });
+  assert.equal(r.ok, true);
+  const arqueada = a._estado('cajas').get(id);
+  assert.equal(arqueada.cierre.porArquear, false);
+  assert.equal(arqueada.cierre.automatico, true);
+  assert.equal(arqueada.cierre.arqueo.por, 'vendedora');
+  assert.equal(arqueada.cierre.contado['efectivo-cop'], 48000);
+  assert.equal((await a.arquearCaja(id, { contado: {} })).error, 'arqueada');
+  assert.equal((await a.abrirCaja({ COP: 48000, USD: 0, BS: 0 })).ok, true);
+});
+
+test('la encargada también cierra las cajas vencidas de la tienda (la app que se abra primero)', async () => {
+  const a = await comoVendedoraConCaja();
+  cajas(a)[0].abierta = ayerALas('08:00');
+  await a.salir(); await a.entrar('encargada', '1234');
+  assert.equal((await a.cerrarCajasVencidas(hoyLocal())).cerradas, 1);
+  await a.salir(); await a.entrar('vendedora', '1234');
+  assert.equal((await a.cerrarCajasVencidas(hoyLocal())).cerradas, 0);
+});
+
+test('caja personal de los dueños: sin fondo, se cierra sola sin arqueo', async () => {
+  const a = crearMemoria(semilla());
+  await a.entrar('admin', '1234');
+  assert.equal((await a.abrirCaja({}, { tipo: 'personal' })).ok, true);
+  const c = cajas(a)[0];
+  assert.equal(c.tipo, 'personal');
+  assert.deepEqual(c.fondo, { COP: 0, USD: 0, BS: 0 });
+  c.abierta = ayerALas('10:00');
+  await a.cerrarCajasVencidas(hoyLocal());
+  assert.equal(cajas(a)[0].cierre.porArquear, false);
+});
+
+test('la vendedora no puede abrir una caja personal', async () => {
+  const a = crearMemoria(semilla());
+  await a.entrar('vendedora', '1234');
+  assert.equal((await a.abrirCaja({}, { tipo: 'personal' })).error, 'permiso');
+});

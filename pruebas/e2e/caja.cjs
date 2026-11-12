@@ -71,4 +71,52 @@ casos('caja', [
     const clases = await p.$eval('.vista button:has-text("Cerrar caja")', b => b.className);
     a.ok(!/\bprimary\b/.test(clases), clases);
   }],
+  ['Vendedora sin caja: tocar una prenda abre "Abrir caja" y no la agrega', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', ruta: '/vender' });
+    await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
+    await p.waitForSelector('.capa #fondo-cop');
+    a.strictEqual(await p.evaluate(() => (window.__pos.ctx.carrito?.lineas || []).length), 0);
+  }],
+  ['Dueños: venden sin abrir caja; se crea sola su caja personal, sin fondo', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'encargada', ruta: '/vender' });
+    a.strictEqual(await p.isVisible('.sin-caja'), false);
+    await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
+    await p.click('.capa .talla[data-talla="S"]'); await p.click('.capa button:has-text("Listo")');
+    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
+    await p.click('.forma[data-forma="pago-movil"]');
+    await p.fill('#cli-tel', '0414-555.12.12'); await p.fill('#cli-nombre', 'Luis');
+    await p.click('#cobrar-final');
+    await p.waitForSelector('text=Venta guardada');
+    const c = await p.evaluate(() => [...window.__pos.ctx.almacen._estado('cajas').values()].map(x => ({ tipo: x.tipo, fondo: x.fondo, usuario: x.usuario })));
+    a.deepStrictEqual(c, [{ tipo: 'personal', fondo: { COP: 0, USD: 0, BS: 0 }, usuario: 'encargada' }]);
+  }],
+  ['Dueños: Caja muestra "Cobrado por mí hoy", sin fondo ni cierre', async (env, a) => {
+    const p = await env.pagina({ usuario: 'admin', ruta: '/caja' });
+    const t = await p.innerText('.vista');
+    a.match(t, /Cobrado por mí hoy/i);
+    a.strictEqual(!!(await p.$('#fondo-cop')), false, 'no pide fondo');
+    a.strictEqual(!!(await p.$('.vista button:has-text("Cerrar caja")')), false, 'no ofrece cerrar');
+  }],
+  ['Medianoche: la caja de ayer se cierra sola, el admin ve el aviso y la vendedora arquea con un solo conteo', async (env, a) => {
+    const p = await env.pagina({ usuario: 'vendedora', caja: true });
+    await p.evaluate(async () => {
+      const ctx = window.__pos.ctx; const c = [...ctx.almacen._estado('cajas').values()][0];
+      const d = new Date(Date.now() - 864e5).toLocaleDateString('en-CA', { timeZone: 'America/Caracas' });
+      c.abierta = new Date(`${d}T08:00:00-04:00`).toISOString();
+      await ctx.revisarCajas();
+    });
+    await p.waitForFunction(() => !window.__pos.ctx.miCaja);
+    await cambiarA(p, 'admin');
+    await p.evaluate(() => { location.hash = '/inicio'; });
+    await p.waitForSelector('.aviso:has-text("se cerró sola")');
+    await cambiarA(p, 'vendedora');
+    await p.evaluate(() => { location.hash = '/vender'; });
+    await p.click('.sin-caja button:has-text("Abrir caja")');
+    await p.waitForSelector('.capa:has-text("se cerró sola")');
+    await p.fill('#contado-efectivo-cop', '50.000'); await p.fill('#contado-efectivo-usd', '20'); await p.fill('#contado-efectivo-bs', '500');
+    await p.click('#arqueo-final');
+    await p.waitForSelector('.capa', { state: 'detached' });
+    const r = await p.evaluate(() => { const cs = [...window.__pos.ctx.almacen._estado('cajas').values()]; return { vieja: cs[0].cierre.porArquear, nueva: cs[1]?.fondo, abierta: cs[1]?.estado }; });
+    a.deepStrictEqual(r, { vieja: false, nueva: { COP: 50000, USD: 20, BS: 500 }, abierta: 'abierta' });
+  }],
 ]);

@@ -1,5 +1,6 @@
 // Ventana Cobrar (§9.2): cliente obligatorio, pagos mixtos, vuelto, guardar la venta y recibo por WhatsApp.
 import { h, icono, abrirVentana, toast, esTelefono } from '../ui.js';
+import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
 import { crearPanelPagos } from './pagos.js';
@@ -123,7 +124,7 @@ export function abrirCobrar(ctx) {
         total: r.total, pagos, vuelto,
         tasas: { copPorUsd: ctx.tasas.copPorUsd, bsPorUsd: ctx.tasas.bsPorUsd, fuenteBs: ctx.tasas.fuenteBs },
       };
-      const res = await ctx.almacen.guardarVenta(venta);
+      const res = await conCaja(ctx, () => ctx.almacen.guardarVenta(venta));
       if (!res.ok) {
         if (res.faltantes) toast(`Ya no hay existencia de ${res.faltantes.map(s => nombreLinea(ctx, s)).join(', ')}`, { malo: true });
         else if (res.error === 'sin-caja') toast('Abre tu caja para vender', { malo: true });

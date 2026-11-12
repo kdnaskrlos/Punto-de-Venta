@@ -127,3 +127,10 @@ Suite final: npm test 99/99 · e2e 59/59
 - Ruling: el cliente (teléfono y nombre) va al final de Cobrar, después de los pagos — costo: ninguno.
 - Prueba: el corredor de pruebas en navegador reemplaza los elementos de la página por un texto antes de comparar; antes, una comparación fallida con un elemento colgaba la prueba.
 - Pendiente: el fallo intermitente de "cerrar sesión y volver a entrar" apareció una vez más con el equipo cargado; no se reproduce aislado (25 + 40 intentos).
+
+## Caja sin fricción (v1.20)
+- Vendedora: no puede vender ni apartar sin caja abierta; tocar una prenda abre "Abrir caja".
+- Toda caja abierta se cierra sola a las 11:59 pm de su día (la cierra la primera app que se abra después, y se revisa cada minuto). Las de la vendedora quedan "Por arquear".
+- Arqueo con un solo conteo: al abrir la caja del día siguiente, lo contado cierra la de ayer (contado vs esperado) y el efectivo contado es el fondo de hoy. La nota no es obligatoria aquí; la diferencia queda registrada.
+- Admin y encargada ven en Inicio el aviso mientras haya una caja por arquear.
+- Dueños (admin, encargada): sin caja visible. Al cobrar, apartar, abonar o anular se crea sola una caja personal sin fondo, que se cierra a medianoche sin arqueo. Inicio y Caja muestran "Cobrado por mí hoy" solo como información; "En cajas abiertas" ya no cuenta las cajas personales.

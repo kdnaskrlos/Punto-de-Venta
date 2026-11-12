@@ -21,6 +21,9 @@ const MATRIZ = {
   cambiarTasas: ADMIN,
   reabrirCaja: ADMIN,
   ajustes: ADMIN,
+  // La vendedora tiene caja física (fondo, cierre y arqueo); los dueños, una caja personal automática sin arqueo.
+  cajaFisica: ['vendedora'],
+  cajaPersonal: GESTION,
 };
 
 export function puede(rol, accion) {
