@@ -9,6 +9,8 @@ import { abrirCalculadora, abrirDetalleTasas } from './vistas/calculadora.js';
 import { definirCalculadora } from './app.js';
 definirCalculadora(() => abrirCalculadora(ctx));
 ctx.abrirTasas = () => abrirDetalleTasas(ctx);
+import { abrirCobrar } from './vistas/cobrar.js';
+ctx.abrirCobro = modo => { if (modo === 'venta') abrirCobrar(ctx); else if (ctx.abrirApartar) ctx.abrirApartar(); };
 import { iniciarDatos } from './datos/vivos.js';
 
 window.__pos = { ctx };

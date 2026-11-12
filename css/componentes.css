@@ -182,3 +182,38 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .capa.no-modal{pointer-events:none}
 .capa.no-modal .caja{pointer-events:auto}
 .hoja.derecha.no-modal .caja{height:auto;max-height:calc(100vh - 72px);margin-top:64px;border:1px solid var(--line);border-radius:16px 0 0 16px}
+
+/* Cobrar y pagos */
+.cobro{display:flex;flex-direction:column;gap:14px;max-width:560px;margin:0 auto;width:100%}
+.cliente{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.total-cobro{display:flex;align-items:baseline;gap:6px}
+.panel-pagos{display:flex;flex-direction:column;gap:12px}
+.formas{display:flex;flex-direction:column;gap:10px}
+.sec-m{font-size:11px;font-weight:800;letter-spacing:.05em;margin-bottom:5px}
+.sec-m .nota{letter-spacing:0}
+.formas-rejilla{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.forma{min-width:0;min-height:48px;border:1px solid var(--line);background:var(--surface);border-radius:10px;font-weight:700;font-size:13px;padding:4px 8px;color:var(--ink)}
+.forma.c-cop:hover{border-color:var(--cop)} .forma.c-usd:hover{border-color:var(--usd)} .forma.c-bs:hover{border-color:var(--bs)}
+.forma:disabled{background:var(--surface-2);color:var(--muted);cursor:default}
+.pagos{display:flex;flex-direction:column;gap:8px}
+.pago{display:grid;grid-template-columns:minmax(0,1fr) 170px 44px;gap:8px;align-items:center;border-top:1px solid var(--line);padding-top:8px}
+.pago-nombre{display:flex;flex-direction:column;min-width:0}
+.pago-nombre .equiv{font-size:12px}
+.pago-monto{display:flex;align-items:center;gap:6px}
+.pago-monto .inp{text-align:right;font-weight:800}
+.barra-falta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-radius:10px;padding:9px 12px;font-weight:800;border:1px solid}
+.barra-falta.falta{background:var(--y-bg);border-color:var(--y-bd);color:var(--y-tx)}
+.barra-falta.ok{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
+.barra-falta.vuelto{background:var(--b-bg);border-color:var(--b-bd);color:var(--b-tx)}
+.barra-falta .monto{font-size:17px}
+.vuelto-moneda{width:100%}
+.vuelto-moneda button{min-height:40px}
+.listo{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:20px 0}
+.listo-ic{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:var(--g-bg);color:var(--accent)}
+.listo-ic svg.i{width:40px;height:40px;stroke-width:2.6}
+.listo h2{font-size:22px;font-weight:800}
+.listo .btn{width:100%;max-width:360px}
+.btn.recibo{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
+@media (max-width:760px){.cliente{grid-template-columns:1fr}.pago{grid-template-columns:minmax(0,1fr) 140px 44px}}
+.forma span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pie-cobro{display:flex;flex-direction:column;gap:8px;max-width:560px;margin:0 auto;width:100%}
