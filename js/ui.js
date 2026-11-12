@@ -126,10 +126,11 @@ export function abrirVentana({ titulo, contenido, acciones, pantallaCompleta = f
   return abrirCapa(el);
 }
 
-export function abrirHoja({ titulo, contenido, lado }) {
+// modal:false deja usar el resto de la pantalla mientras la hoja está abierta (sin fondo oscuro).
+export function abrirHoja({ titulo, contenido, lado, modal = true }) {
   const l = lado || (matchMedia('(max-width:760px)').matches ? 'abajo' : 'derecha');
-  const el = h('div', { class: `capa hoja ${l}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': titulo },
-    h('div', { class: 'fondo' }),
+  const el = h('div', { class: `capa hoja ${l}${modal ? '' : ' no-modal'}`, role: 'dialog', 'aria-modal': String(modal), 'aria-label': titulo },
+    modal ? h('div', { class: 'fondo' }) : null,
     h('div', { class: 'caja' }, cabecera(titulo), h('div', { class: 'cuerpo' }, contenido)));
   return abrirCapa(el);
 }

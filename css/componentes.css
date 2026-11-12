@@ -167,3 +167,18 @@
   .barra-carrito[hidden]{display:none}
   .vista.vender .vender-main{padding-bottom:70px}
 }
+
+/* Tasas y calculadora */
+button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
+.calc{gap:14px}
+.calc-fila label{font-weight:800;color:inherit}
+.calc-fila label.c-cop{color:var(--cop)} .calc-fila label.c-usd{color:var(--usd)} .calc-fila label.c-bs{color:var(--bs)}
+.calc-entrada{display:flex;gap:4px;align-items:center}
+.calc-entrada .inp{font-size:20px;font-weight:800;min-height:52px}
+.calc-pie{border-top:1px solid var(--line);padding-top:10px}
+.tasa-fila{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.tasa-fila b{font-size:18px}
+.nota.chica{font-size:12px;font-weight:600}
+.capa.no-modal{pointer-events:none}
+.capa.no-modal .caja{pointer-events:auto}
+.hoja.derecha.no-modal .caja{height:auto;max-height:calc(100vh - 72px);margin-top:64px;border:1px solid var(--line);border-radius:16px 0 0 16px}

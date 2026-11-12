@@ -68,7 +68,7 @@ export function pintarCabecera() {
   cabecera.replaceChildren(
     h('span', { class: 'conn' + (conn.error ? ' err' : conn.enLinea ? '' : ' off'), role: 'status' }, h('i'), textoConn),
     h('span', { class: 'sp' }),
-    h('button', { class: 'pill tasas', 'aria-label': 'Tasas del día', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
+    h('button', { class: 'pill tasas' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), 'aria-label': 'Tasas del día', title: t.ultimaConocida ? 'Bs: última tasa conocida' : '', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
       h('span', { class: 'num' }, '$ ', h('b', { class: 'c-cop' }, fmt(t.copPorUsd)), ' · Bs ', h('b', { class: 'c-bs' }, fmt(t.bsPorUsd)))),
     h('button', { class: 'ibtn', 'aria-label': 'Calculadora', onclick: () => alAbrirCalculadora() }, icono('calculadora')),
     h('button', { class: 'ibtn', 'aria-label': 'Actualizar', onclick: () => location.reload() }, icono('actualizar')),
