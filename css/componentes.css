@@ -570,3 +570,25 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .mas-ic{color:var(--c);background:linear-gradient(135deg,color-mix(in srgb,var(--c) 18%,var(--surface)),color-mix(in srgb,var(--c) 6%,var(--surface)));border:1px solid color-mix(in srgb,var(--c) 25%,var(--line));box-shadow:none}
 .mas-fila .mas-ic svg.i{color:var(--c)}
 .tasa-ic{color:var(--c);background:linear-gradient(135deg,color-mix(in srgb,var(--c) 18%,var(--surface)),color-mix(in srgb,var(--c) 6%,var(--surface)));border:1px solid color-mix(in srgb,var(--c) 25%,var(--line))}
+
+/* Tasas en Ajustes como en la Calculadora de Tasas (v1.27) */
+.et-moneda{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.fila-usd{display:flex;align-items:center;gap:12px}
+.usd-eq{font:600 14px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);white-space:nowrap;flex:none}
+.tasa-entrada{flex:1;min-width:0;display:flex;align-items:center;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:0 14px;min-height:54px;transition:border-color .15s,box-shadow .15s}
+.tasa-entrada:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.tasa-entrada .inp{border:0;background:none;box-shadow:none!important;padding:0;min-height:50px;flex:1;min-width:0;font:700 19px ui-monospace,SFMono-Regular,Menlo,monospace}
+.tasa-entrada .suf{font-weight:700;color:var(--muted);flex:none}
+.modos-bs{display:flex;flex-direction:column;gap:10px}
+.modo-bs{border:1px solid var(--line);border-radius:14px;background:var(--surface-2);padding:14px;display:flex;flex-direction:column;gap:12px;cursor:pointer;transition:border-color .15s,background .15s}
+.modo-bs.activo{border:1.5px solid color-mix(in srgb,var(--accent) 70%,#34d399);background:color-mix(in srgb,var(--accent) 6%,var(--surface))}
+.modo-cab{display:flex;align-items:center;gap:12px}
+.modo-bs .radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--muted);flex:none;display:grid;place-items:center}
+.modo-bs.activo .radio{border-color:var(--accent)}
+.modo-bs.activo .radio::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--accent)}
+.modo-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.modo-txt b{font-size:15px;font-weight:800}
+.modo-txt .nota{font-size:12.5px}
+.modo-val{font:800 16px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;flex:none}
+.modo-bs:not(.activo) .modo-extra:has(#aj-recargo){display:none}
+.modo-extra{padding-left:34px}

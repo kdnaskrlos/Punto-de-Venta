@@ -183,3 +183,6 @@ Suite final: npm test 99/99 · e2e 59/59
 ## Detalles (v1.26)
 - "Guardar cambios" de Ajustes vuelve abajo (como en el resto de la app), aunque el teclado lo tape.
 - La versión ya no se muestra en Inicio; queda al pie de Más (teléfono) y en la barra lateral (PC).
+
+## Tasas en Ajustes (v1.27)
+- Como la Calculadora de Tasas: "1 USD = [ ] COP" para el peso; para Bs, tres tarjetas con radio (Binance P2P con su tasa base, hora y total con recargo; BCV oficial; Manual con "1 USD = [ ] Bs."). El recargo solo se ve con Binance elegido; escribir la tasa manual elige Manual. Se mantiene "Guardar cambios" abajo (no se copiaron Listo/Restablecer).

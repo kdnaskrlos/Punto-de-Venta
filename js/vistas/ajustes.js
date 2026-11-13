@@ -17,35 +17,58 @@ const montoCom = (id, valor, ejemplo, alCambiar) => {
 };
 const guardado = r => toast(r.ok ? 'Guardado' : 'No se pudo guardar', { malo: !r.ok });
 
+// "hace 15 min" a partir de una fecha ISO.
+function haceTiempo(iso) {
+  if (!iso) return 'sin datos';
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (min < 1) return 'hace un momento';
+  if (min < 60) return `hace ${min} min`;
+  const hr = Math.round(min / 60);
+  return hr < 24 ? `hace ${hr} h` : `hace ${Math.round(hr / 24)} d`;
+}
+
+// Tasas como en la Calculadora de Tasas: pesos por dólar arriba y, para Bs, tres opciones en tarjetas
+// (Binance P2P con recargo, BCV oficial o Manual), cada una con su tasa a la derecha.
 function tasas(ctx) {
   const aj = ctx.ajustesTasas || {};
-  // Modo de la tasa de Bs con botones (no la lista del teléfono) y solo el campo que aplica a cada modo.
+  const remota = ctx.tasaRemota || {};
   const modo = { value: aj.bsModo || 'binance' };
-  const MODOS = [['binance', 'Binance', 'Automático desde Binance P2P, más el recargo.'], ['bcv', 'BCV', 'Automático, dólar oficial del BCV.'], ['manual', 'Manual', 'La escribes tú.']];
-  const segModo = h('div', { class: 'segmentado', id: 'aj-bs-modo', role: 'group', 'aria-label': 'Bs por dólar' });
-  const ayuda = h('p', { class: 'nota chica' });
-  const recargo = campo('aj-recargo', 'Recargo sobre Binance (Bs)', { inputmode: 'decimal', value: aj.bsRecargo != null ? fmtDec(aj.bsRecargo) : '' });
-  const manualC = campo('aj-bs-manual', 'Tasa manual de Bs', { inputmode: 'decimal', value: aj.bsManual ? fmtDec(aj.bsManual) : '' });
-  const pintarModo = () => {
-    segModo.replaceChildren(...MODOS.map(([v, t]) => h('button', { type: 'button', 'data-modo': v, 'aria-pressed': String(v === modo.value), onclick: () => { modo.value = v; pintarModo(); } }, t)));
-    ayuda.textContent = MODOS.find(m => m[0] === modo.value)[2];
-    recargo.hidden = modo.value !== 'binance';
-    manualC.hidden = modo.value !== 'manual';
-  };
-  pintarModo();
+  const entrada = (id, valor, sufijo) => h('div', { class: 'tasa-entrada' }, h('input', { class: 'inp num', id, inputmode: 'decimal', value: valor }), h('span', { class: 'suf' }, sufijo));
+  const filaUsd = (inp, sufijo) => h('div', { class: 'fila-usd' }, h('span', { class: 'usd-eq' }, '1 USD ='), inp);
+  const cop = entrada('aj-cop', aj.copPorUsd ? fmtCop(aj.copPorUsd) : '', 'COP');
+  const recargo = entrada('aj-recargo', aj.bsRecargo != null ? fmtDec(aj.bsRecargo) : '', 'Bs.');
+  const manual = entrada('aj-bs-manual', aj.bsManual ? fmtDec(aj.bsManual) : '', 'Bs.');
+  const valBin = h('span', { class: 'modo-val num' }), valBcv = h('span', { class: 'modo-val num' }), valMan = h('span', { class: 'modo-val num' });
+  const base = Number(remota.rate) || null, bcv = Number(remota.bcv?.rate) || null;
+  const num = (inp, m) => parseMonto(inp.querySelector('input').value, m);
+  const tarjeta = (v, titulo, desc, valor, extra) => h('div', { class: 'modo-bs', 'data-modo': v, role: 'radio', tabindex: '0',
+    onclick: e => { if (modo.value !== v) { modo.value = v; pintar(); if (!e.target.closest('input')) e.currentTarget.dispatchEvent(new Event('change', { bubbles: true })); } } },
+    h('div', { class: 'modo-cab' }, h('span', { class: 'radio' }), h('div', { class: 'modo-txt' }, h('b', {}, titulo), h('span', { class: 'nota' }, desc)), valor),
+    extra);
+  const cBin = tarjeta('binance', 'Binance P2P', `Binance ${base ? fmtDec(base) : '—'} · ${haceTiempo(remota.updated_at)}`, valBin, h('div', { class: 'modo-extra' }, h('div', { class: 'fila-usd' }, h('span', { class: 'usd-eq' }, 'Recargo: +'), recargo)));
+  const cBcv = tarjeta('bcv', 'BCV oficial', `Dólar oficial del Banco Central · ${haceTiempo(remota.bcv?.updated_at)}`, valBcv, null);
+  const cMan = tarjeta('manual', 'Manual', 'Escribe tú la tasa: cuántos Bs. equivalen a 1 USD', valMan, h('div', { class: 'modo-extra' }, filaUsd(manual)));
+  const grupo = h('div', { class: 'modos-bs', id: 'aj-bs-modo', role: 'radiogroup', 'aria-label': 'Bs por dólar' }, cBin, cBcv, cMan);
+  function pintar() {
+    for (const c of [cBin, cBcv, cMan]) { const on = c.dataset.modo === modo.value; c.classList.toggle('activo', on); c.setAttribute('aria-checked', String(on)); c.setAttribute('aria-pressed', String(on)); }
+    const r = num(recargo, 'BS') || 0;
+    valBin.textContent = base ? `${fmtDec(base + r)} Bs.` : '—';
+    valBcv.textContent = bcv ? `${fmtDec(bcv)} Bs.` : '—';
+  }
+  recargo.addEventListener('input', pintar);
+  manual.addEventListener('input', () => { modo.value = 'manual'; pintar(); });
+  pintar();
   const el = seccion('Tasas', 'monedas',
-    campo('aj-cop', 'Pesos por dólar (COP)', { inputmode: 'decimal', value: aj.copPorUsd ? fmtCop(aj.copPorUsd) : '' }),
-    h('div', { class: 'campo' }, h('label', {}, 'Bs por dólar'), segModo, ayuda),
-    recargo, manualC);
+    h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-cop' }, 'Peso colombiano'), filaUsd(cop)),
+    h('div', { class: 'campo' }, h('label', { class: 'et-moneda' }, 'Bs'), grupo));
   // Devuelve true si se guardó (o no había nada que guardar).
   const guardar = async () => {
-    const v = (id, m) => parseMonto(el.querySelector('#' + id).value, m);
     const ahora = new Date().toISOString();
-    const cop = v('aj-cop', 'COP'), manual = v('aj-bs-manual', 'BS');
-    const datos = { bsModo: modo.value, bsRecargo: v('aj-recargo', 'BS') || 0 };
-    if (cop && cop !== aj.copPorUsd) Object.assign(datos, { copPorUsd: cop, copActualizada: ahora });
-    if (manual && manual !== aj.bsManual) Object.assign(datos, { bsManual: manual, bsManualActualizada: ahora });
-    if (modo.value === 'manual' && !manual) { toast('Escribe la tasa manual de Bs', { malo: true }); return false; }
+    const vCop = num(cop, 'COP'), vMan = num(manual, 'BS');
+    const datos = { bsModo: modo.value, bsRecargo: num(recargo, 'BS') || 0 };
+    if (vCop && vCop !== aj.copPorUsd) Object.assign(datos, { copPorUsd: vCop, copActualizada: ahora });
+    if (vMan && vMan !== aj.bsManual) Object.assign(datos, { bsManual: vMan, bsManualActualizada: ahora });
+    if (modo.value === 'manual' && !vMan) { toast('Escribe la tasa manual de Bs', { malo: true }); return false; }
     return (await ctx.almacen.guardarAjustes('tasas', datos)).ok;
   };
   return { el, guardar };
@@ -177,7 +200,7 @@ registrarVista('/ajustes', {
     const t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
     const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el };
     // Un solo botón para guardar; aparece cuando se cambia algo.
-    for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button, button[aria-pressed]')) cambio(); }); }
+    for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button, button[aria-pressed], .modo-bs')) cambio(); }); }
     boton.addEventListener('click', e => unaVez(e.currentTarget, async () => {
       if (!(await t.guardar())) return;
       const partes = [await ve.guardar(), await pa.guardar(), await re.guardar()];

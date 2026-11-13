@@ -150,15 +150,26 @@ casos('gestion', [
     const altos = await p.$$eval('.tile .sub', els => els.map(e => [e.textContent, Math.round(e.getBoundingClientRect().height)]));
     for (const [t, alto] of altos) a.ok(alto <= 20, `«${t}» ocupa ${alto} px`);
   }],
-  ['Ajustes de tasas: botones Binance/BCV/Manual y solo el campo que aplica', async (env, a) => {
+  ['Ajustes de tasas como la Calculadora: tarjetas Binance/BCV/Manual con su tasa; recargo solo en Binance', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
-    a.strictEqual(!!(await p.$('#aj-bs-modo select, select#aj-bs-modo')), false, 'no debe usar la lista del teléfono');
-    await p.click('#aj-bs-modo button[data-modo="binance"]');
-    a.strictEqual(await p.isVisible('#aj-recargo'), true); a.strictEqual(await p.isVisible('#aj-bs-manual'), false);
-    await p.click('#aj-bs-modo button[data-modo="manual"]');
-    a.strictEqual(await p.isVisible('#aj-recargo'), false); a.strictEqual(await p.isVisible('#aj-bs-manual'), true);
-    await p.click('#aj-bs-modo button[data-modo="bcv"]');
-    a.strictEqual(await p.isVisible('#aj-recargo'), false); a.strictEqual(await p.isVisible('#aj-bs-manual'), false);
+    await p.evaluate(() => { const c = window.__pos.ctx; c.tasaRemota = { rate: 1074.57, updated_at: new Date(Date.now() - 15 * 60000).toISOString(), bcv: { rate: 904.45, updated_at: new Date(Date.now() - 15 * 60000).toISOString() } }; location.hash = '/mas'; });
+    await p.evaluate(() => { location.hash = '/ajustes'; });
+    await p.waitForSelector('#aj-bs-modo .modo-bs');
+    a.match(await p.innerText('.fila-usd:has(#aj-cop)'), /1 USD =/);
+    await p.click('#aj-bs-modo [data-modo="binance"]');
+    await p.fill('#aj-recargo', '15');
+    a.match(await p.innerText('[data-modo="binance"]'), /Binance 1\.074,57 · hace 15 min/);
+    a.match(await p.innerText('[data-modo="binance"] .modo-val'), /1\.089,57 Bs\./);
+    a.match(await p.innerText('[data-modo="bcv"] .modo-val'), /904,45 Bs\./);
+    a.strictEqual(await p.isVisible('#aj-recargo'), true);
+    await p.click('#aj-bs-modo [data-modo="bcv"]');
+    a.strictEqual(await p.isVisible('#aj-recargo'), false);
+    a.strictEqual(await p.getAttribute('[data-modo="bcv"]', 'aria-checked'), 'true');
+    await p.fill('#aj-bs-manual', '1.100');
+    a.strictEqual(await p.getAttribute('[data-modo="manual"]', 'aria-checked'), 'true', 'escribir la tasa manual la elige');
+    await p.click('#aj-guardar');
+    await p.waitForFunction(() => window.__pos.ctx.ajustesTasas?.bsModo === 'manual');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.tasas.bsPorUsd), 1100);
   }],
   ['Ajustes: comisiones con punto de miles y nombres de formas de pago completos', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
