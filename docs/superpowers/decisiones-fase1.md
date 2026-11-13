@@ -213,3 +213,13 @@ Suite final: npm test 99/99 · e2e 59/59
 
 ## Detalle (v1.34)
 - Elección de prenda y tallas con acento azul muy suave (#3b82f6 a baja intensidad); la cantidad en pastilla azul crema.
+
+## Auditoría de diseño (v1.35) — cada mejora en su propio commit, para poder revertirla sola
+- Punto de partida marcado con la etiqueta git `antes-auditoria`.
+- Mejora 1 (5478ff4): escala de letra 12·13·14·16·20·26 y radios 8·12·16·pastilla.
+- Mejora 2 (622211a): títulos y etiquetas sin mayúsculas, sin letra monoespaciada, "Talla 4: 12", "25.000 c/u (1–5 prendas)".
+- Mejora 3 (0a301c2): tonos de Inicio sin chocar con las monedas (ganancia rosa, cajas ámbar, cobrado naranja), un solo ícono por tarjeta, colores pasados a tokens, sin bloque de modo oscuro ni estilos sin uso.
+- Mejora 4 (432291f): filas de ventas tocables con detalle (prendas, pagos, total); "Anular venta" vive en el detalle.
+- Mejora 5 (26b58a4): tarjetas de Vender con la silueta en el color real de la prenda (nucleo/colores.js), tallas a la vista (agotadas tachadas) y precio destacado.
+- Mejora 6 (802ef6f): Inicio con "Últimas ventas" (5) y "Ver las N"; la última tarjeta impar ocupa todo el ancho; formas de pago llenan su fila; Reportes con más vendidos legibles.
+- Para revertir una: `git revert <commit>` y subir la versión.
