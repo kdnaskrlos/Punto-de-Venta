@@ -67,7 +67,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
         onclick: () => { if (elegida) quitarPago(pagos.find(x => x.forma.id === f.id)); else agregar(f); } },
         h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
         h('span', { class: 'forma-txt' }, h('b', {}, nombreCorto(f.nombre)),
-          h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), bloqueada ? (f.moneda === 'BS' ? ' · Sin tasa de Bs' : ' · Sin tasa') : f.efectivo ? ' · efectivo' : '')));
+          h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), bloqueada ? (f.moneda === 'BS' ? ' · Sin tasa de Bs' : ' · Sin tasa') : f.efectivo && !/efectivo/i.test(nombreCorto(f.nombre)) ? ' · efectivo' : '')));
     }));
     pintarBarra();
     avisar();

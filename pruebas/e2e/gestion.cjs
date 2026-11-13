@@ -294,7 +294,7 @@ casos('gestion', [
     a.ok(await p.evaluate(() => [...window.__pos.ctx.almacen._estado('ventas').values()].filter(v => v.demo).length >= 30));
     await p.evaluate(() => { location.hash = '/apartados'; });
     await p.waitForSelector('.apartado');
-    a.ok(await p.$('.apartado.viejo .ap-dato.viejo'), 'un apartado con más de 15 días');
+    a.ok(await p.$('.apartado.viejo .ap-hace.viejo'), 'un apartado con más de 15 días');
     await p.evaluate(() => { location.hash = '/mas'; });
     await p.click('#modo-prueba'); await p.click('#quitar-ejemplos');
     await p.waitForSelector('#modo-prueba:not(.on)');

@@ -138,7 +138,7 @@ function pagos(ctx, alCambiar) {
         onclick: () => { f.activa = !activa; pintar(); alCambiar(); } },
         h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
         h('span', { class: 'forma-txt' }, h('b', {}, f.nombre),
-          h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), f.efectivo ? ' · efectivo' : ''))),
+          h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), f.efectivo && !/efectivo/i.test(f.nombre) ? ' · efectivo' : ''))),
       menuForma(f));
   }), h('button', { type: 'button', class: 'forma-nueva', id: 'aj-forma-nueva', onclick: () => editarForma(null, d => {
     let id = d.nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'forma';

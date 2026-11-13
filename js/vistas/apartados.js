@@ -110,19 +110,18 @@ function tarjeta(ctx, ap, filtro) {
   const dias = diasDesde(ap.fecha);
   const nombre = ap.cliente?.nombre || '—';
   const viejo = pendiente && dias >= 15;
-  const n = ap.lineas.reduce((t, l) => t + l.cantidad, 0);
   const abonado = ap.total - ap.saldo;
   return h('button', { type: 'button', class: `apartado ap-${ap.estado}${viejo ? ' viejo' : ''}`, 'data-id': ap.id, onclick: () => abrirDetalle(ctx, ap) },
-    // Como la imagen de Carlos: a la izquierda quién (nombre) y qué (prendas · fecha, con íconos);
-    // a la derecha dos columnas separadas por líneas: Abonado y Saldo (en rojo si debe).
-    h('span', { class: 'ap-izq' },
-      h('b', { class: 'ap-nombre' }, nombre),
-      h('span', { class: 'ap-meta' },
-        h('span', { class: 'ap-dato' }, icono('franela'), `${n} ${n === 1 ? 'prenda' : 'prendas'}`),
-        h('span', { class: 'ap-dato' + (viejo ? ' viejo' : ''), title: viejo ? `${dias} días` : null }, icono('calendario'), diaCorto(ap.fecha)))),
-    h('span', { class: 'ap-col' }, h('span', { class: 'ap-et' }, 'Abonado'), h('b', { class: 'num' }, fmtCop(abonado))),
-    h('span', { class: 'ap-col' }, h('span', { class: 'ap-et' }, pendiente ? 'Saldo' : etiqueta),
-      h('b', { class: 'num ap-saldo' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total))));
+    // Tres líneas (boceto aprobado): 1) nombre a todo el ancho; 2) «Hace N días» | Abonado | Saldo;
+    // 3) fecha | monto abonado | saldo, en la misma línea base. Una sola línea divisoria, continua, entre Abonado y Saldo.
+    h('b', { class: 'ap-nombre' }, nombre),
+    h('span', { class: 'ap-hace' + (viejo ? ' viejo' : '') }, dias <= 0 ? 'Hoy' : `Hace ${dias} ${dias === 1 ? 'día' : 'días'}`),
+    h('span', { class: 'ap-et ap-et-abono' }, 'Abonado'),
+    h('span', { class: 'ap-et ap-et-saldo' }, pendiente ? 'Saldo' : etiqueta),
+    h('span', { class: 'ap-fecha' }, icono('calendario'), diaCorto(ap.fecha)),
+    h('b', { class: 'num ap-abono' }, fmtCop(abonado)),
+    h('b', { class: 'num ap-saldo' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total)),
+    h('span', { class: 'ap-linea', 'aria-hidden': 'true' }));
 }
 
 // Detalle del apartado: saldo y abonado arriba, prendas, último abono (con historial) y acciones.

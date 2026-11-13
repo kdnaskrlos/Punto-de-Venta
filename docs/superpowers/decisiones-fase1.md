@@ -336,3 +336,7 @@ Suite final: npm test 99/99 · e2e 59/59
 - Teclado: en el teléfono ningún campo se enfoca solo (ventanas, entrada, cliente, caja, descuento). La ventana Descuento ya no salta al cambiar de moneda (la línea del equivalente siempre ocupa su lugar).
 - Cobrar: total en verde crema. Cada pago en tarjeta: ícono, nombre y «≈ pesos», recuadro con el monto y la moneda, y botón redondo − en la esquina. Al agregar un pago entra abriéndose; al quitarlo se cierra.
 - «Venta exitosa»: check animado con onda, total cobrado en verde crema con equivalentes, pagos y vuelto, botones de recibo y Nueva venta, y cierre automático a los 10 s con barra (tocar la pantalla o el recibo lo detiene).
+
+## v1.57 — Tarjeta de apartado en tres líneas (boceto aprobado)
+- 1) nombre a todo el ancho, sin cortarse; 2) «Hace N días» (rojo desde 15) en línea con «Abonado» y «Saldo»; 3) fecha con ícono en la misma línea base que los montos. Sin cantidad de prendas. Una sola línea divisoria, continua, entre Abonado y Saldo.
+- Formas de pago (Cobrar y Ajustes): «· efectivo» solo aparece si el nombre no lo dice ya («Efectivo / COP» en lugar de «Efectivo / COP · efectivo»).
