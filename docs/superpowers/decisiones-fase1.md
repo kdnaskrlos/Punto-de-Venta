@@ -199,3 +199,6 @@ Suite final: npm test 99/99 · e2e 59/59
 - El "−" de las tallas en rojo crema y del mismo tamaño que la cantidad.
 - Inventario sin tarjetas de valor arriba.
 - Existencias bajas (Inicio) y el ícono de Ajustes (Más) en azul turquesa (#0891b2).
+
+## Detalle (v1.31)
+- Prenda elegida en Vender con contorno azul crema (borde #a8c5fa y anillo var(--b-bd)).

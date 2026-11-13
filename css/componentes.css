@@ -126,7 +126,7 @@
 .talla-menos{position:absolute;top:-7px;left:-7px;width:22px;height:22px;border-radius:11px;border:1px solid var(--r-bd);background:var(--r-bg);color:var(--r-tx);font-size:16px;font-weight:800;line-height:1;display:grid;place-items:center;padding:0}
 .talla-menos::before{content:"";position:absolute;inset:-11px}
 .tarjeta-prenda{position:relative}
-.tarjeta-prenda.elegida{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent)}
+.tarjeta-prenda.elegida{border-color:#a8c5fa;box-shadow:0 0 0 3px var(--b-bd)}
 .tarjeta-prenda .foto{position:relative}
 .tarjeta-prenda .en-carrito{position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;gap:3px;height:24px;padding:0 8px 0 6px;border-radius:99px;background:var(--accent);color:var(--accent-ink);font-size:12.5px;font-weight:800}
 .tarjeta-prenda .en-carrito svg.i{width:14px;height:14px}
