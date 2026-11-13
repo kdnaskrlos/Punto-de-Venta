@@ -127,3 +127,12 @@
 .apartado{align-items:stretch}
 .ap-der{align-self:stretch;align-items:flex-end;text-align:right}
 .ap-der .ap-saldo{margin-top:auto}
+
+/* v1.45 — Consistencia en todo el sistema */
+/* Títulos y nombres: peso 700 en todas las pantallas (el 800 queda solo para cifras) */
+.saludo,.cab h2,.caja .cab h2,.listo h2,.entrar h1,.sec-t,.ap-nombre,.ap-det-nombre,.tf-talla,.stepper .cant,.lc-cont .cant,.lc-q{font-weight:700!important}
+/* Nombres en tarjetas de lista: mismo tamaño en Vender, Inventario y Apartados */
+.ap-nombre,.gi-info b,.tarjeta-prenda .info b{font-size:16px}
+/* Alturas: 48 normal, 56 acción final de ancho completo y campos de cifra grande */
+.acciones-carrito .cobrar,.guardar-ajustes .btn,.cliente-registrar{min-height:56px!important}
+.calc-entrada .inp,.calc-caja .inp,.tasa-entrada .inp{min-height:56px}

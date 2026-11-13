@@ -284,3 +284,7 @@ Suite final: npm test 99/99 · e2e 59/59
 - Detalles: talla bajo el nombre en el detalle del apartado; «Valor del inventario» en dos líneas; descripciones cortas en Binance/BCV; montos grandes que se encogen solos según su largo (--n); en Vender máximo 5 tallas y «+N».
 - Ventanas adaptables de M3: teléfono y tableta hasta 839px (barra abajo), computadora desde 840px; Vender en una columna < 600px, dos columnas de 600 a 839px y rejilla libre desde 840px.
 - Apartados (a pedido de Carlos): sin la flecha › en las tarjetas; la pastilla y el monto quedan pegados al borde derecho y el monto siempre a la altura de la fecha.
+
+## v1.45 — Revisión de consistencia en todo el sistema
+- Medición de todas las pantallas y ventanas a 360px: 7 tamaños de letra (12·13·14·16·20·24·32), 4 radios (8·12·pastilla·círculo), campos de 48px y cerrar de 48px en todas las ventanas.
+- Se corrigen las excepciones que quedaban: títulos y nombres con peso 700 (el 800 solo en cifras); nombres de tarjeta a 16px en Vender, Inventario y Apartados; botones finales de ancho completo y campos de cifra grande a 56px (antes 50–52).
