@@ -687,3 +687,6 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .segmentado button[aria-pressed="true"]:focus-visible{outline-color:#fff}
 /* W4: toques de 44px en el teléfono */
 .chip,.btn.chico,.u-acc .btn,.pill.demo,.vuelto-moneda button,.rango-btn{min-height:44px}
+/* W2: el área de toque del − crece solo hacia su propia talla, y las tallas se separan más */
+.tallas{gap:14px}
+.talla-menos::before{inset:-22px -22px -4px -4px}
