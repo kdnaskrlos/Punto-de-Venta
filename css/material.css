@@ -189,7 +189,7 @@
 /* Tarifa: pastilla neutra (el verde queda para Cobrar) */
 .lc-chip.tramo:not(.oferta){background:var(--surface-2);color:var(--muted)}
 /* Total en recuadro neutro */
-.caja-total{background:var(--surface-2);border:1px solid var(--line)}
+.caja-total{background:var(--g-bg)}
 .caja-total .et-total{font-weight:700}
 .fila-total .desc-et{display:inline-flex;align-items:center;gap:8px}
 /* El nombre puede usar dos líneas antes de cortarse (el contador ocupa la esquina) */
