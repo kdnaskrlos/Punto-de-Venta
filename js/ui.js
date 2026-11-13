@@ -179,8 +179,10 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && pila.length) { e.preventDefault(); cerrarCapaSuperior(); }
 });
 
-function cabecera(titulo, extra) {
-  return h('div', { class: 'cab' }, h('h2', {}, titulo), extra || null, h('button', { class: 'ibtn cerrar', 'aria-label': 'Cerrar' }, icono('x')));
+// Las hojas que suben desde abajo se ocultan con una flecha hacia abajo; las ventanas, con la X.
+function cabecera(titulo, extra, ocultar = false) {
+  return h('div', { class: 'cab' }, h('h2', {}, titulo), extra || null,
+    h('button', { class: 'ibtn cerrar', 'aria-label': ocultar ? 'Ocultar' : 'Cerrar' }, icono(ocultar ? 'abajo' : 'x')));
 }
 
 // clase: variante visual ('desplegable' baja desde la barra superior). sinCabecera: sin título ni X (se cierra tocando fuera o con Esc).
@@ -196,7 +198,7 @@ export function abrirHoja({ titulo, contenido, lado, modal = true, extraCab = nu
   const l = lado || (matchMedia('(max-width:839px)').matches ? 'abajo' : 'derecha');
   const el = h('div', { class: `capa hoja ${l}${modal ? '' : ' no-modal'}`, role: 'dialog', 'aria-modal': String(modal), 'aria-label': titulo },
     modal ? h('div', { class: 'fondo' }) : null,
-    h('div', { class: 'caja' }, cabecera(titulo, extraCab), h('div', { class: 'cuerpo' }, contenido)));
+    h('div', { class: 'caja' }, cabecera(titulo, extraCab, l === 'abajo'), h('div', { class: 'cuerpo' }, contenido)));
   return abrirCapa(el);
 }
 

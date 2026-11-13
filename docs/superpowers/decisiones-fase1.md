@@ -314,3 +314,4 @@ Suite final: npm test 99/99 · e2e 59/59
 - Sin descuento no se muestra la fila «Descuento 0 COP» (ya está el botón Descuento).
 - v1.52: cabecera de ventanas y hojas (Carrito, Calculadora, etc.) de 72 a 56px de alto.
 - v1.53: vuelve el fondo verde crema del recuadro Total en el carrito (a pedido de Carlos).
+- v1.54: las hojas que suben desde abajo (Carrito, Calculadora en el teléfono) se ocultan con una flecha hacia abajo en lugar de la X; las ventanas conservan la X.
