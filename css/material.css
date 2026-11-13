@@ -340,3 +340,5 @@
 
 /* Relleno y borde sin !important: así la animación al quitar un pago puede cerrarlos (las reglas !important no se animan) */
 .panel-pagos .pagos .pago,.pagos .pago.pago{padding:12px;border:1px solid var(--line)}
+/* Sin «anclaje de desplazamiento» del navegador en Cobrar: evitaba que el contenido se acomodara solo y daba saltos */
+.capa .cuerpo,.panel-pagos{overflow-anchor:none}

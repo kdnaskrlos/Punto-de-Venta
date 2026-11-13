@@ -43,7 +43,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       inp.addEventListener('focus', () => inp.select());
       inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') inp.blur(); });
       const eq = h('span', { class: 'nota num equiv' });
-      p.pintarEq = () => { const e = estado().pagos.find(x => x.forma === f.id); eq.textContent = f.moneda === 'COP' ? '' : (e?.equivalenteCop != null ? `≈ ${fmtCop(e.equivalenteCop)} COP` : 'Sin tasa'); };
+      p.pintarEq = () => { const e = estado().pagos.find(x => x.forma === f.id); eq.textContent = f.moneda === 'COP' ? '' : (e?.equivalenteCop == null ? 'Sin tasa' : e.equivalenteCop > 0 ? `≈ ${fmtCop(e.equivalenteCop)} COP` : ''); };
       p.pintarEq();
       if (enfocar === f.id && !esTelefono()) setTimeout(() => { inp.focus(); inp.select(); }, 20);
       // Tarjeta de pago: ícono, nombre y equivalente en pesos; el monto en su recuadro con la moneda;
@@ -58,12 +58,13 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     const nueva = enfocar && lista.querySelector(`.pago[data-forma="${enfocar}"]`);
     if (nueva && nueva.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const alto = nueva.offsetHeight;
-      const cs = getComputedStyle(nueva);
+      const cs = getComputedStyle(nueva), quitar = nueva.querySelector('.pago-quitar');
       nueva.style.overflow = 'hidden';
-      nueva.animate([{ height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', opacity: 0, transform: 'scale(.97)' },
-        { height: alto + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, opacity: 0, transform: 'scale(.97)', offset: .5 },
-        { height: alto + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, opacity: 1, transform: 'none' }], { duration: 340, easing: 'cubic-bezier(.22,.9,.3,1)' })
-        .onfinish = () => { nueva.style.overflow = ''; };
+      nueva.animate([
+        { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', opacity: 0, transform: 'translateY(-4px)' },
+        { height: alto + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, opacity: 1, transform: 'none' }],
+        { duration: 300, easing: 'cubic-bezier(.4,0,.2,1)' })
+        .onfinish = () => { nueva.style.overflow = ''; quitar?.animate([{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'none' }], { duration: 160, easing: 'ease-out' }); };
     }
     botones.replaceChildren(...formas.map(f => {
       const elegida = pagos.some(x => x.forma.id === f.id);
@@ -83,13 +84,17 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     const fila = lista.querySelector(`.pago[data-forma="${p.forma.id}"]`);
     const fin = () => { const i = pagos.indexOf(p); if (i >= 0) pagos.splice(i, 1); pintar(); avisar(); };
     if (!fila || !fila.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { fin(); return; }
-    // Dos tiempos, sin saltos: primero se desvanece en su lugar; luego su espacio (alto, relleno y margen) se cierra.
+    // Un solo movimiento continuo: la tarjeta se encoge y se desvanece a la vez (300 ms), y la forma de pago
+    // de abajo se desmarca al instante, para que lo que se ve coincida con lo que se tocó.
+    const tarjeta = botones.querySelector(`[data-forma-card="${p.forma.id}"]`);
+    tarjeta?.classList.remove('activa'); tarjeta?.setAttribute('aria-pressed', 'false');
     const cs = getComputedStyle(fila);
     fila.style.pointerEvents = 'none'; fila.style.overflow = 'hidden';
-    const desde = { height: fila.offsetHeight + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth };
-    const cero = { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', borderTopWidth: '0px', borderBottomWidth: '0px' };
-    fila.animate([{ ...desde, opacity: 1, transform: 'none' }, { ...desde, opacity: 0, transform: 'scale(.97)', offset: .4 }, { ...cero, opacity: 0, transform: 'scale(.97)' }],
-      { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = fin;
+    fila.querySelector('.pago-quitar')?.remove();
+    fila.animate([
+      { height: fila.offsetHeight + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth, opacity: 1, transform: 'none' },
+      { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', opacity: 0, transform: 'scale(.98)' }],
+      { duration: 300, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = fin;
   }
 
   function pintarBarra() {
