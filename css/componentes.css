@@ -716,3 +716,20 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .datos{grid-template-columns:repeat(2,minmax(0,1fr))}
 .datos .dato:last-child:nth-child(odd){grid-column:1/-1}
 @media (min-width:1100px){.datos{grid-template-columns:repeat(4,minmax(0,1fr))}.datos .dato:last-child:nth-child(odd){grid-column:auto}}
+/* P1: la fecha y la hora no se parten a la mitad */
+.sin-corte{white-space:nowrap}
+/* P2: títulos de grupo de Más alineados con las filas */
+.mas-grupo-t{margin-left:0}
+/* P3: en cada fila de tarjetas, etiquetas, cifras y notas a la misma altura */
+@supports (grid-template-rows:subgrid){
+  .tiles .tile{display:grid;grid-row:span 3;grid-template-rows:subgrid;row-gap:5px;align-content:start}
+}
+/* P4: respuesta al pasar el ratón en la laptop */
+@media (hover:hover){
+  .chip:not(.activo):hover{border-color:var(--ink);color:var(--ink)}
+  .talla:not(:disabled):hover{border-color:var(--ink)}
+  .lista-ventas .venta-hoy:hover,.grupo-inv:hover{background:var(--surface-2)}
+  .segmentado button:not([aria-pressed="true"]):hover{background:var(--surface-2)}
+}
+/* P5: etiquetas de Comisiones con contraste suficiente sobre fondo de color */
+.dato.fuerte .nota,.dato.pend .nota{color:#374151}
