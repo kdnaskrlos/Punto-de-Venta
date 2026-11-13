@@ -58,7 +58,7 @@
 
 /* Toast */
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:12px;font-weight:700;z-index:300;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:92vw;font-size:13px;white-space:nowrap;display:flex;gap:14px;align-items:center}
-.toast button{border:0;border-radius:8px;padding:7px 12px;font-weight:800;background:color-mix(in srgb,var(--bg) 16%,transparent);color:#86efac}
+.toast button{border:0;border-radius:8px;padding:7px 12px;font-weight:800;background:color-mix(in srgb,var(--bg) 16%,transparent);color:var(--g-bd)}
 @media (max-width:760px){.toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 
 /* Recuadros KPI */
@@ -75,7 +75,7 @@
 .puerta{min-height:100vh;display:grid;place-items:center;padding:24px 14px;background:var(--surface-2)}
 .entrar{width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;padding:22px}
 .entrar h1{font-size:20px;font-weight:800}
-.entrar-logo{width:48px;height:48px;border-radius:12px;background:#7c3aed;color:#fff;display:grid;place-items:center}
+.entrar-logo{width:48px;height:48px;border-radius:12px;background:var(--tono-violeta);color:#fff;display:grid;place-items:center}
 .entrar-logo svg.i{width:26px;height:26px}
 .nota{color:var(--muted);font-size:13px;font-weight:600}
 .nota.demo{background:var(--b-bg);border:1px solid var(--b-bd);color:var(--b-tx);border-radius:8px;padding:8px 10px}
@@ -127,7 +127,7 @@
 .talla-menos::before{content:"";position:absolute;inset:-11px}
 .tarjeta-prenda{position:relative}
 /* Elección de prenda: acento azul muy suave (distinto del verde de las acciones) */
-.tarjeta-prenda{--sel:#3b82f6}
+
 .tarjeta-prenda.elegida{border-color:color-mix(in srgb,var(--sel) 35%,var(--line));background:linear-gradient(170deg,var(--surface) 40%,color-mix(in srgb,var(--sel) 8%,var(--surface)))}
 .tarjeta-prenda.elegida .foto{background:color-mix(in srgb,var(--sel) 5%,var(--surface-2))}
 .tarjeta-prenda.elegida .foto svg.i{color:var(--sel)}
@@ -214,8 +214,7 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .pagos{display:flex;flex-direction:column;gap:8px}
 .pago{display:grid;grid-template-columns:minmax(0,1fr) 170px 44px;gap:8px;align-items:center;border-top:1px solid var(--line);padding-top:8px}
 .pago-nombre{display:flex;flex-direction:column;min-width:0}
-.pago-nombre .equiv{font-size:12px}
-.pago-monto{display:flex;align-items:center;gap:6px}
+.pago-nombre .pago-monto{display:flex;align-items:center;gap:6px}
 .pago-monto .inp{text-align:right;font-weight:800}
 .barra-falta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-radius:8px;padding:9px 12px;font-weight:800;border:1px solid}
 .barra-falta.falta{background:var(--r-bg);border-color:var(--r-bd);color:var(--r-tx)}
@@ -269,7 +268,6 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 
 /* Inventario */
 .vista[data-ruta="/inventario"]{display:flex;flex-direction:column;gap:12px}
-.valor-inv{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .lista-inv{display:flex;flex-direction:column;gap:6px}
 .grupo-inv{display:flex;gap:12px;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 12px;text-align:left;color:var(--ink);min-height:64px}
 .grupo-inv:hover{box-shadow:0 0 0 1.5px var(--g-bd)}
@@ -379,10 +377,7 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .tf-info{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
 /* Inventario en el teléfono: valores en una fila compacta */
 @media (max-width:760px){
-  .valor-inv{grid-template-columns:1fr 1fr;gap:8px}
-  .valor-inv .tile{padding:10px 12px}
-  .valor-inv .tile .val{font-size:20px;margin-top:2px}
-  .filtros{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -12px;padding:0 12px}
+        .filtros{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -12px;padding:0 12px}
   .filtros::-webkit-scrollbar{display:none}
   .filtros .chip{flex:none}
 }
@@ -438,7 +433,6 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .chips-recibo .chip{display:inline-flex;align-items:center;gap:4px}
 .chips-recibo .chip svg.i{width:14px;height:14px}
 textarea.inp{resize:vertical;min-height:44px;font:inherit}
-.vista-recibo-viejo{margin:0;white-space:pre-wrap;font:600 13px/1.45 var(--f);background:#e7fbe9;color:#111827;border:1px solid var(--g-bd);border-radius:12px 12px 12px 8px;padding:10px 12px;max-width:340px}
 .switch{width:40px;height:24px;border-radius:12px;background:var(--line);position:relative;flex:none;transition:background .15s}
 .switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s}
 .switch.on{background:var(--accent)} .switch.on::after{transform:translateX(16px)}
@@ -462,8 +456,8 @@ textarea.inp{resize:vertical;min-height:44px;font:inherit}
 .cliente-resumen > svg.i{color:var(--g-tx)}
 
 /* Recibo: vista previa como en WhatsApp (v1.22) */
-.wa-fondo{background:#efe7dd;border-radius:12px;padding:14px 12px}
-.wa-burbuja{background:#fff;border-radius:8px 8px 8px 8px;padding:8px 10px;max-width:320px;white-space:pre-wrap;font:500 14px/1.4 var(--f);color:#111b21;box-shadow:0 1px 1px rgba(0,0,0,.12)}
+.wa-fondo{background:var(--wa-fondo);border-radius:12px;padding:14px 12px}
+.wa-burbuja{background:#fff;border-radius:8px 8px 8px 8px;padding:8px 10px;max-width:320px;white-space:pre-wrap;font:500 14px/1.4 var(--f);color:var(--wa-burbuja-tx);box-shadow:0 1px 1px rgba(0,0,0,.12)}
 .wa-burbuja b{font-weight:800}
 textarea.plantilla{min-height:220px;line-height:1.45}
 /* Sugerencias de clientes al escribir el nombre */
@@ -494,20 +488,13 @@ textarea.plantilla{min-height:220px;line-height:1.45}
 .calc-caja .ibtn{color:var(--muted)}
 
 /* Tasas del día (v1.23) */
-.tasas-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media (max-width:760px){.tasas-tiles{grid-template-columns:1fr}.tasa-meta{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px}}
-.tasa-tile{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:6px;padding:13px 14px;border-radius:var(--r);background:color-mix(in srgb,var(--c) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 26%,var(--line))}
-.tasa-tile .et{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:700;color:var(--muted)}
-.tasa-tile .tile-ic{position:absolute;right:-6px;top:-6px;width:64px;height:64px;opacity:.12;color:var(--c);pointer-events:none}
-.tasa-tile .tile-ic svg.i{width:100%;height:100%}
+@media (max-width:760px){.tasa-meta{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px}}
 .tasa-val{font-size:26px;font-weight:800;line-height:1.05;color:var(--c);white-space:nowrap}
 .tasa-val small{font-size:13px;font-weight:800;margin-left:5px}
 .tasa-meta{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
 .tasa-fuente{font-size:12px;font-weight:800;color:var(--c);background:color-mix(in srgb,var(--c) 14%,var(--surface));border-radius:99px;padding:2px 9px}
 .tasa-meta .nota{display:inline-flex;align-items:center;gap:4px;font-size:12px}
 .tasa-meta .nota svg.i{width:13px;height:13px}
-.equivalencias{display:flex;flex-wrap:wrap;gap:6px}
-.equiv{font-size:13px;font-weight:700;border:1px solid var(--line);background:var(--surface-2);border-radius:99px;padding:5px 11px;white-space:nowrap}
 
 /* Usuarios como en Pedidos (v1.24) */
 .lista-usuarios{display:flex;flex-direction:column}
@@ -584,7 +571,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .tasa-entrada .suf{font-weight:700;color:var(--muted);flex:none}
 .modos-bs{display:flex;flex-direction:column;gap:10px}
 .modo-bs{border:1px solid var(--line);border-radius:12px;background:var(--surface-2);padding:14px;display:flex;flex-direction:column;gap:12px;cursor:pointer;transition:border-color .15s,background .15s}
-.modo-bs.activo{border:1.5px solid color-mix(in srgb,var(--accent) 70%,#34d399);background:color-mix(in srgb,var(--accent) 6%,var(--surface))}
+.modo-bs.activo{border:1.5px solid color-mix(in srgb,var(--accent) 70%,var(--surface));background:color-mix(in srgb,var(--accent) 6%,var(--surface))}
 .modo-cab{display:flex;align-items:center;gap:12px}
 .modo-bs .radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--muted);flex:none;display:grid;place-items:center}
 .modo-bs.activo .radio{border-color:var(--accent)}
@@ -626,7 +613,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .ap-prenda b{font-weight:800}
 .ap-pago{display:flex;flex-direction:column;gap:6px}
 .ap-barra{height:8px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
-.ap-barra i{display:block;height:100%;background:linear-gradient(90deg,#4ade80,var(--accent));border-radius:8px}
+.ap-barra i{display:block;height:100%;background:var(--accent);border-radius:8px}
 .ap-montos{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:600;color:var(--muted)}
 .ap-saldo{color:var(--r-tx);font-size:14px;font-weight:800}
 .ap-pie{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -637,11 +624,12 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .modo-prueba{display:flex;justify-content:center;margin-top:8px}
 .pill.demo{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 16px;border:1.5px dashed var(--line);border-radius:99px;background:var(--surface);color:var(--muted);font-weight:800;font-size:13px}
 .pill.demo svg.i{width:16px;height:16px}
-.pill.demo.on{border-style:solid;border-color:#f59e0b;background:#fff4dc;color:#b45309}
+.pill.demo.on{border-style:solid;border-color:var(--y-bd);background:var(--y-bg);color:var(--y-tx)}
 
 .tarjeta-prenda .en-carrito{background:var(--b-bg);color:var(--b-tx);border:1px solid var(--b-bd)}
-.talla.con{border-color:color-mix(in srgb,#3b82f6 45%,var(--line));background:color-mix(in srgb,#3b82f6 7%,var(--surface));box-shadow:none}
+.talla.con{border-color:color-mix(in srgb,var(--sel) 45%,var(--line));background:color-mix(in srgb,var(--sel) 7%,var(--surface));box-shadow:none}
 .talla .en-carrito{background:var(--b-bg);color:var(--b-tx);border:1px solid var(--b-bd)}
 .tarjeta-prenda .en-carrito svg.i{color:var(--b-tx)}
 .linea .tramo{color:var(--ink);font-weight:700}
 .linea .tramo-n{color:var(--muted);font-weight:600}
+.tiles .tile .chip-ic{display:none}

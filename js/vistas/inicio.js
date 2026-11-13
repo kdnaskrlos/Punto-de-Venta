@@ -76,9 +76,9 @@ registrarVista('/inicio', {
         const cobrado = mia ? totalCajaCop(ctx, mia, porCaja.ventas(mia.id), apartados) : 0;
         tiles.replaceChildren(
           tile('ventas', 'var(--tono-verde)', 'Ventas de hoy', fmtCop(r.total), `${r.ventas} ${r.ventas === 1 ? 'venta' : 'ventas'} · ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, 'carrito'),
-          tile('ganancia', 'var(--tono-violeta)', 'Ganancia', r.ganancia == null ? '—' : fmtCop(r.ganancia), r.gananciaParcial ? 'Calculando costos…' : 'Total menos costo', 'grafica'),
-          tile('caja', 'var(--tono-azul)', 'En cajas abiertas', fmtCop(enCaja), abiertas.length === 1 ? '1 abierta, en pesos' : `${abiertas.length} abiertas, en pesos`, 'cartera'),
-          tile('cobrado', 'var(--tono-rosa)', 'Cobrado por mí hoy', fmtCop(cobrado), 'solo informativo', 'monedas'),
+          tile('ganancia', 'var(--tono-rosa)', 'Ganancia', r.ganancia == null ? '—' : fmtCop(r.ganancia), r.gananciaParcial ? 'Calculando costos…' : 'Total menos costo', 'grafica'),
+          tile('caja', 'var(--tono-ambar)', 'En cajas abiertas', fmtCop(enCaja), abiertas.length === 1 ? '1 abierta, en pesos' : `${abiertas.length} abiertas, en pesos`, 'cartera'),
+          tile('cobrado', 'var(--tono-naranja)', 'Cobrado por mí hoy', fmtCop(cobrado), 'solo informativo', 'monedas'),
           tile('bajas', 'var(--tono-turquesa)', 'Existencias bajas', String(bajas.length), 'en el mínimo o menos', 'caja'));
       } else {
         const mia = ctx.miCaja;
@@ -86,8 +86,8 @@ registrarVista('/inicio', {
         const comision = datos.ventas.filter(v => v.estado !== 'anulada').flatMap(v => v.lineas).reduce((s, l) => s + (l.comision || 0), 0);
         tiles.replaceChildren(
           tile('mis-ventas', 'var(--tono-verde)', 'Mis ventas de hoy', fmtCop(r.total), `${r.ventas} ${r.ventas === 1 ? 'venta' : 'ventas'} · ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, 'carrito'),
-          tile('mi-caja', 'var(--tono-azul)', 'Mi caja', mia ? fmtCop(totalCajaCop(ctx, mia, porCaja.ventas(mia.id), apartados)) : 'Cerrada', mia ? 'Debería haber' : 'Ábrela para vender', 'cartera'),
-          tile('comision', 'var(--tono-violeta)', 'Mi comisión de hoy', fmtCop(comision), null, 'porcentaje'));
+          tile('mi-caja', 'var(--tono-ambar)', 'Mi caja', mia ? fmtCop(totalCajaCop(ctx, mia, porCaja.ventas(mia.id), apartados)) : 'Cerrada', mia ? 'Debería haber' : 'Ábrela para vender', 'cartera'),
+          tile('comision', 'var(--tono-rosa)', 'Mi comisión de hoy', fmtCop(comision), null, 'porcentaje'));
       }
       const pendientes = autorizaciones.filter(a => a.estado === 'pendiente');
       auts.replaceChildren(...(ctx.puedeVer('aprobarDescuento') && pendientes.length ? [h('h2', { class: 'sec-t' }, icono('porcentaje'), 'Autorizaciones de descuento'),
