@@ -111,7 +111,9 @@ const MENOS_MOV = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 export function ponerCarrito(cont, nuevo) {
   if (MENOS_MOV() || !cont.animate) { cont.replaceChildren(nuevo); return; }
   const antes = new Map([...cont.querySelectorAll('.linea[data-sku]')].map(el => [el.dataset.sku, { h: el.getBoundingClientRect().height, mini: el.classList.contains('mini') }]));
-  const avisoAntes = cont.querySelector('.aviso-tramo')?.textContent || null;
+  const avisoViejo = cont.querySelector('.aviso-tramo');
+  const avisoAntes = avisoViejo?.textContent || null;
+  const rectViejo = avisoViejo?.getBoundingClientRect();
   const habia = antes.size > 0 || cont.querySelector('.carrito');
   cont.replaceChildren(nuevo);
   if (!habia) return;
@@ -123,14 +125,40 @@ export function ponerCarrito(cont, nuevo) {
     if (!el.classList.contains('mini') && (!a || a.mini)) [...el.children].forEach((c, k) => c.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 240, delay: 40 + k * 35, easing: 'ease-out', fill: 'backwards' }));
     an.onfinish = an.oncancel = () => { el.style.overflow = ''; };
   });
+  // Aviso amarillo de tramos (como el aviso de Pedidos): al aparecer, primero se abre su espacio y luego
+  // se desvanece hacia adentro; al irse, lo inverso. El hueco del «gap» del carrito también se anima, sin saltos.
   const aviso = cont.querySelector('.aviso-tramo');
-  if (aviso && aviso.textContent !== avisoAntes) {
-    if (!avisoAntes) {
-      const h1 = aviso.getBoundingClientRect().height;
-      aviso.style.overflow = 'hidden';
-      const an = aviso.animate([{ height: '0px', opacity: 0, transform: 'translateY(-6px)', paddingTop: '0px', paddingBottom: '0px' }, { height: `${h1}px`, opacity: 1, transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.22,.9,.3,1)' });
-      an.onfinish = an.oncancel = () => { aviso.style.overflow = ''; aviso.classList.add('anim'); };
-    } else aviso.classList.add('anim');
+  const hueco = el => parseFloat(getComputedStyle(el.parentElement).rowGap) || 0;
+  if (aviso && !avisoAntes) {
+    const alto = aviso.getBoundingClientRect().height, g = hueco(aviso), cs = getComputedStyle(aviso);
+    aviso.style.overflow = 'hidden';
+    const an = aviso.animate([
+      { height: '0px', paddingTop: '0px', paddingBottom: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', marginTop: `-${g}px`, opacity: 0, transform: 'translateY(-8px)' },
+      { height: `${alto}px`, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth, marginTop: '0px', opacity: 0, transform: 'translateY(-8px)', offset: .45 },
+      { height: `${alto}px`, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth, marginTop: '0px', opacity: 1, transform: 'none' }],
+      { duration: 480, easing: 'cubic-bezier(.4,0,.2,1)' });
+    an.onfinish = () => { aviso.style.overflow = ''; aviso.classList.add('anim'); };
+    an.oncancel = () => { aviso.style.overflow = ''; };
+  } else if (aviso && aviso.textContent !== avisoAntes) {
+    // Cambió el número: el texto se renueva con un fundido corto y el aviso late.
+    aviso.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
+    aviso.classList.add('anim');
+  } else if (!aviso && avisoViejo) {
+    // Se fue: un fantasma del aviso queda en su lugar, se desvanece y cierra su espacio.
+    const totales = cont.querySelector('.carrito > .totales');
+    if (totales) {
+      const fantasma = avisoViejo.cloneNode(true);
+      fantasma.classList.remove('anim'); fantasma.setAttribute('aria-hidden', 'true');
+      totales.before(fantasma);
+      const g = hueco(fantasma), cs = getComputedStyle(fantasma);
+      fantasma.style.overflow = 'hidden'; fantasma.style.pointerEvents = 'none';
+      const lleno = { height: `${rectViejo.height}px`, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth, marginTop: '0px' };
+      fantasma.animate([
+        { ...lleno, opacity: 1, transform: 'none' },
+        { ...lleno, opacity: 0, transform: 'translateY(-8px)', offset: .4 },
+        { height: '0px', paddingTop: '0px', paddingBottom: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', marginTop: `-${g}px`, opacity: 0, transform: 'translateY(-8px)' }],
+        { duration: 380, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => fantasma.remove();
+    }
   }
 }
 
