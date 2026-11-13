@@ -137,12 +137,24 @@ function abrirCapa(el) {
   return { cerrar, el, set alCerrar(fn) { capa.alCerrar = fn; } };
 }
 
+// Al cerrar, cada capa hace el movimiento inverso al de apertura antes de quitarse:
+// la hoja de abajo baja hasta salir, la lateral sale por la derecha, las ventanas se desvanecen.
 function quitar(capa) {
   capa.cerrada = true;
   const i = pila.indexOf(capa);
   if (i >= 0) pila.splice(i, 1);
-  capa.el.remove();
+  const el = capa.el, caja = el.querySelector(':scope > .caja'), fondo = el.querySelector(':scope > .fondo');
   capa.alCerrar && capa.alCerrar();
+  if (!caja || !el.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); return; }
+  el.style.pointerEvents = 'none';
+  const salida = el.classList.contains('abajo') ? [{ transform: 'none' }, { transform: 'translateY(100%)' }]
+    : el.classList.contains('derecha') ? [{ transform: 'none' }, { transform: 'translateX(100%)' }]
+    : el.classList.contains('desplegable') ? [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-14px) scaleY(.92)' }]
+    : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(14px) scale(.985)' }];
+  const dur = el.classList.contains('hoja') ? 240 : 140;
+  caja.animate(salida, { duration: dur, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
+  fondo?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, easing: 'ease-in', fill: 'forwards' });
+  el.querySelector(':scope > .caja') && setTimeout(() => el.remove(), dur);
 }
 
 function atraparFoco(e, el) {
@@ -241,3 +253,25 @@ document.addEventListener('focusout', () => setTimeout(() => { if (!ES_CAMPO(doc
 // Montos largos bajan un paso de la escala de letra (sin tamaños intermedios):
 // hasta 9 caracteres normal, 10–11 «l», 12 o más «xl».
 export const largo = t => { const n = String(t).length; return n >= 12 ? 'xl' : n >= 10 ? 'l' : null; };
+
+// Desplegar/plegar como en Pedidos: el cuerpo cambia de alto en 280 ms y sus filas entran
+// con opacidad y un pequeño desplazamiento, escalonadas cada 35 ms. Al plegar, lo inverso.
+const CURVA = 'cubic-bezier(.22,.9,.3,1)';
+export function desplegar(cuerpo, abrir, alTerminar) {
+  const quieto = !cuerpo.animate || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  cuerpo.getAnimations?.().forEach(a => a.cancel());
+  if (quieto) { cuerpo.hidden = !abrir; alTerminar && alTerminar(); return; }
+  if (abrir) {
+    cuerpo.hidden = false;
+    const alto = cuerpo.scrollHeight;
+    cuerpo.style.overflow = 'hidden';
+    cuerpo.animate([{ height: '0px', opacity: 0 }, { height: alto + 'px', opacity: 1 }], { duration: 280, easing: CURVA })
+      .onfinish = () => { cuerpo.style.overflow = ''; alTerminar && alTerminar(); };
+    [...cuerpo.children].forEach((f, i) => f.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 220, delay: 40 + i * 35, easing: 'ease-out', fill: 'backwards' }));
+  } else {
+    const alto = cuerpo.offsetHeight;
+    cuerpo.style.overflow = 'hidden';
+    cuerpo.animate([{ height: alto + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: 220, easing: 'cubic-bezier(.4,0,1,1)' })
+      .onfinish = () => { cuerpo.hidden = true; cuerpo.style.overflow = ''; alTerminar && alTerminar(); };
+  }
+}

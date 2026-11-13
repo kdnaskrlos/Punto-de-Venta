@@ -1,6 +1,6 @@
 // Usuarios (Más → Usuarios): el administrador crea usuarios, cambia PIN y activa/desactiva.
 // Al final, "Mi cuenta" (para todos los roles).
-import { h, icono, abrirVentana, toast, unaVez } from '../ui.js';
+import { h, icono, abrirVentana, toast, unaVez, desplegar } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { NOMBRE_ROL, opcionesCuenta } from './cuenta.js';
 import { ganaComision } from '../nucleo/comisiones.js';
@@ -79,7 +79,14 @@ function usuarios(ctx) {
     const yo = u.uid === ctx.sesion.uid;
     const idCuerpo = `u-cuerpo-${u.usuario}`;
     return h('div', { class: 'usuario' + (u.activo ? '' : ' off') + (abierto ? ' abierto' : ''), 'data-usuario': u.usuario },
-      h('button', { type: 'button', class: 'u-cab', 'aria-expanded': String(abierto), 'aria-controls': idCuerpo, onclick: () => { abierto ? abiertos.delete(u.usuario) : abiertos.add(u.usuario); pintar(); } },
+      h('button', { type: 'button', class: 'u-cab', 'aria-expanded': String(abierto), 'aria-controls': idCuerpo, onclick: e => {
+        // Se despliega en su lugar, con la animación de Pedidos (sin volver a pintar la lista).
+        const tarjeta = e.currentTarget.closest('.usuario'), cuerpo = tarjeta.querySelector('.u-cuerpo');
+        const abrir = !abiertos.has(u.usuario);
+        abrir ? abiertos.add(u.usuario) : abiertos.delete(u.usuario);
+        tarjeta.classList.toggle('abierto', abrir); e.currentTarget.setAttribute('aria-expanded', String(abrir));
+        desplegar(cuerpo, abrir);
+      } },
         h('span', { class: 'avatar' }, (u.nombre || u.usuario).slice(0, 1).toUpperCase()),
         h('span', { class: 'u-info' }, h('b', {}, u.nombre, yo ? h('span', { class: 'nota' }, ' (tú)') : null), h('span', { class: 'nota' }, `@${u.usuario}`)),
         u.activo ? null : h('span', { class: 'est n' }, 'Inactivo'),

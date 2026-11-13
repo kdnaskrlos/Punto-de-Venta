@@ -130,11 +130,11 @@ casos('gestion', [
     a.ok(await p.$('.segmentado button:text-is("Semana")'));
     await p.click('#rango-btn');
     await p.waitForSelector('.calendario');
-    a.strictEqual(await p.$$eval('.calendario .dia', d => d.length), 42);
+    a.strictEqual(await p.$$eval('.calendario .cal-actual .dia', d => d.length), 42);
     const mes = await p.evaluate(() => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0')]; });
-    await p.click(`.calendario .dia[data-fecha="${mes[0]}-${mes[1]}-03"]`);
-    await p.click(`.calendario .dia[data-fecha="${mes[0]}-${mes[1]}-05"]`);
-    a.strictEqual(await p.$$eval('.calendario .dia.en-rango', d => d.length), 3);
+    await p.click(`.calendario .cal-actual .dia[data-fecha="${mes[0]}-${mes[1]}-03"]`);
+    await p.click(`.calendario .cal-actual .dia[data-fecha="${mes[0]}-${mes[1]}-05"]`);
+    a.strictEqual(await p.$$eval('.calendario .cal-actual .dia.en-rango', d => d.length), 3);
     await p.click('.calendario-aplicar');
     await p.waitForSelector('.calendario', { state: 'detached' });
     a.match(await texto(p, '#rango-btn'), /^3 – 5 \w{3}$/);
@@ -205,7 +205,7 @@ casos('gestion', [
   }],
   ['Ajustes: un solo "Guardar cambios" fijo al final que se activa al cambiar algo', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
-    a.strictEqual(await p.$$eval('button', b => b.filter(x => /^Guardar( tasas)?$/.test(x.textContent.trim())).length), 0);
+    a.strictEqual(await p.$$eval('button', b => b.filter(x => !x.closest('.aviso-guardar') && /^Guardar( tasas)?$/.test(x.textContent.trim())).length), 0);
     a.strictEqual(await p.isDisabled('#aj-guardar'), true);
     await p.click('#aj-tab-venta');
     await p.fill('#aj-redondeo', '50');
@@ -217,7 +217,7 @@ casos('gestion', [
   ['Calendario: "hoy" se distingue aunque esté elegido', async (env, a) => {
     const p = await env.pagina({ ruta: '/reportes' });
     await p.click('#rango-btn');
-    const c = await p.$eval('.calendario .dia.hoy', e => getComputedStyle(e, '::after').content);
+    const c = await p.$eval('.calendario .cal-actual .dia.hoy', e => getComputedStyle(e, '::after').content);
     a.notStrictEqual(c, 'none');
   }],
   ['Ajustes: 4 apartados, sin modo oscuro; formas de pago en tarjetas que se activan, agregan y eliminan', async (env, a) => {

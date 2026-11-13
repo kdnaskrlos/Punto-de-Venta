@@ -1,5 +1,5 @@
 // Ajustes (solo administrador), en 4 apartados: Tasas, Venta, Pagos y Recibo. Los usuarios están en Más → Usuarios.
-import { h, icono, abrirVentana, toast, unaVez } from '../ui.js';
+import { h, icono, abrirVentana, toast, unaVez, desplegar, esTelefono } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { etiquetaTramo } from '../nucleo/tramos.js';
@@ -80,8 +80,15 @@ function venta(ctx) {
   const coms = aj.comisiones.map(c => (c ? { ...c } : null));
   // Tramos y comisión: tarjetas que se despliegan (como Usuarios).
   const desplegable = (id, ic, titulo, desc, ...cuerpo) => {
-    const det = h('details', { class: 'despl', id }, h('summary', {}, h('span', { class: 'despl-ic' }, icono(ic)),
-      h('span', { class: 'despl-t' }, h('b', {}, titulo), h('span', { class: 'nota' }, desc)), icono('abajo')), h('div', { class: 'despl-cuerpo' }, ...cuerpo));
+    const caja = h('div', { class: 'despl-cuerpo' }, ...cuerpo);
+    const det = h('details', { class: 'despl', id }, h('summary', {
+      // Se abre y cierra con la misma animación que Usuarios (como en Pedidos).
+      onclick: e => {
+        e.preventDefault();
+        if (det.open) desplegar(caja, false, () => { det.open = false; caja.hidden = false; });
+        else { det.open = true; desplegar(caja, true); }
+      } }, h('span', { class: 'despl-ic' }, icono(ic)),
+      h('span', { class: 'despl-t' }, h('b', {}, titulo), h('span', { class: 'nota' }, desc)), icono('abajo')), caja);
     return det;
   };
   const el = seccion(null, null,
@@ -212,7 +219,14 @@ registrarVista('/ajustes', {
     const boton = h('button', { class: 'btn primary', id: 'aj-guardar' }, icono('check'), 'Guardar cambios');
     boton.disabled = true;
     const barra = h('div', { class: 'guardar-ajustes' }, boton);
-    const cambio = () => { boton.disabled = false; };
+    // Aviso flotante y discreto mientras haya cambios sin guardar y el botón de abajo no se vea.
+    const aviso = h('div', { class: 'aviso-guardar', role: 'status', 'aria-live': 'polite', hidden: true },
+      h('span', {}, 'Cambios sin guardar'),
+      h('button', { type: 'button', class: 'btn texto', id: 'aj-guardar-aviso', onclick: () => boton.click() }, 'Guardar'));
+    let botonVisible = false;
+    const pintarAviso = () => { aviso.hidden = boton.disabled || botonVisible; };
+    if ('IntersectionObserver' in window) new IntersectionObserver(([e]) => { botonVisible = e.isIntersecting; pintarAviso(); }, { rootMargin: esTelefono() ? '0px 0px -84px 0px' : '0px' }).observe(boton); // en el teléfono la barra de abajo tapa 84 px
+    const cambio = () => { boton.disabled = false; pintarAviso(); };
     const t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
     const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el };
     // Un solo botón para guardar; aparece cuando se cambia algo.
@@ -227,7 +241,7 @@ registrarVista('/ajustes', {
       const r = await ctx.almacen.guardarAjustes('general', Object.assign({}, ...partes));
       if (!r.ok) { toast('No se pudo guardar', { malo: true }); return; }
       listo = true; document.activeElement?.blur(); toast('Cambios guardados');
-      setTimeout(() => { if (listo) boton.disabled = true; });
+      setTimeout(() => { if (listo) { boton.disabled = true; pintarAviso(); } });
       } finally { boton.replaceChildren(icono('check'), 'Guardar cambios'); }
     })());
     const pest = h('div', { class: 'segmentado pestanas-aj', role: 'tablist' });
@@ -238,6 +252,6 @@ registrarVista('/ajustes', {
       if (id === 'recibo') re.pintar();
     };
     mostrar(pestanaActual);
-    cont.append(pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), barra);
+    cont.append(pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), barra, aviso);
   },
 });

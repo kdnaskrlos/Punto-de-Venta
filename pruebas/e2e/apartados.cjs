@@ -25,7 +25,7 @@ casos('apartados', [
     a.strictEqual(await p.$('.lado-carrito .linea'), null);
     await p.click('.side .nav[aria-label="Apartados"]'); await p.waitForSelector('.apartado');
     const t = await texto(p, '.apartado');
-    for (const x of ['Ana Pérez', '84.000', '2 prendas · Jogger']) a.ok(t.includes(x), `falta ${x} en ${t}`);
+    for (const x of ['Ana Pérez', '84.000', '2 prendas', 'Abonado 0']) a.ok(t.includes(x), `falta ${x} en ${t}`);
     await p.click('.apartado');
     const d = await texto(p, '.ap-det');
     for (const x of ['Pendiente', 'Saldo pendiente', '84.000', 'Prendas']) a.ok(d.includes(x), `falta ${x} en el detalle: ${d}`);

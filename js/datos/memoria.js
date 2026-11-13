@@ -30,18 +30,19 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
   for (const c of datos.clientes || []) col.clientes.set(c.telefono, copia(c));
   for (const [k, v] of Object.entries(datos.ajustes || {})) col.ajustes.set(k, copia({ id: k, ...v }));
 
-  // Demostración: lo guardado sobrevive a recargas y al botón atrás (sessionStorage de la pestaña).
+  // Demostración: lo guardado se guarda en el teléfono (localStorage): sobrevive a recargas, a cerrar la app y a las actualizaciones.
   let reloj = null;
   const persistir = () => {
     if (!guardarEn || reloj) return;
     reloj = setTimeout(() => {
       reloj = null;
-      try { sessionStorage.setItem(guardarEn, JSON.stringify({ col: Object.fromEntries(Object.entries(col).map(([k, m]) => [k, [...m]])), pins: [...pins], contadorVentas })); } catch { /* sin almacenamiento */ }
+      try { localStorage.setItem(guardarEn, JSON.stringify({ col: Object.fromEntries(Object.entries(col).map(([k, m]) => [k, [...m]])), pins: [...pins], contadorVentas })); } catch { /* sin almacenamiento */ }
     }, 50);
   };
   if (guardarEn) {
     try {
-      const g = JSON.parse(sessionStorage.getItem(guardarEn) || 'null');
+      // Primera vez tras la v1.55: se rescata lo que hubiera en la pestaña (sessionStorage).
+      const g = JSON.parse(localStorage.getItem(guardarEn) || sessionStorage.getItem(guardarEn) || 'null');
       if (g) {
         for (const [k, filas] of Object.entries(g.col)) if (col[k]) { col[k].clear(); for (const [id, d] of filas) col[k].set(id, d); }
         pins.clear(); for (const [k, v] of g.pins) pins.set(k, v);

@@ -101,11 +101,6 @@ const diasDesde = iso => Math.floor((Date.now() - new Date(iso).getTime()) / 864
 const telLegible = t => { const d = String(t || ''); return d.startsWith('58') && d.length === 12 ? `0${d.slice(2, 5)} ${d.slice(5, 8)} ${d.slice(8)}` : d; };
 
 const fechaCorta = iso => fechaHora(iso).split(' · ')[0];
-const resumenPrendas = ap => {
-  const n = ap.lineas.reduce((s, l) => s + l.cantidad, 0);
-  const primera = ap.lineas[0] ? `${ap.lineas[0].nombre}${ap.lineas[0].talla ? ' ' + ap.lineas[0].talla : ''}` : '';
-  return `${n} ${n === 1 ? 'prenda' : 'prendas'} · ${primera}${ap.lineas.length > 1 ? ` y ${ap.lineas.length - 1} más` : ''}`;
-};
 
 const diaCorto = iso => { const t = fechaHora(iso).split(' · ')[0].split(' '); return `${t[0].slice(0, 3)}. ${t[1]} ${t[2]}.`; };
 // Tarjeta compacta: a la izquierda quién y qué; a la derecha cuánto falta y el estado.
@@ -115,14 +110,17 @@ function tarjeta(ctx, ap, filtro) {
   const dias = diasDesde(ap.fecha);
   const nombre = ap.cliente?.nombre || '—';
   const viejo = pendiente && dias >= 15;
+  const n = ap.lineas.reduce((t, l) => t + l.cantidad, 0);
+  const abonado = ap.total - ap.saldo;
   return h('button', { type: 'button', class: `apartado ap-${ap.estado}${viejo ? ' viejo' : ''}`, 'data-id': ap.id, onclick: () => abrirDetalle(ctx, ap) },
-    // Tres filas: nombre y estado arriba; fecha y monto abajo, sobre la misma línea base.
-    h('span', { class: 'ap-main' },
-      h('span', { class: 'ap-l1' }, h('b', { class: 'ap-nombre' }, nombre),
-        pendiente && filtro === 'pendiente' ? null : h('span', { class: `est ${pendiente ? 'r' : color}` }, pendiente ? 'Por cobrar' : etiqueta)),
-      h('span', { class: 'ap-l2' }, resumenPrendas(ap)),
-      h('span', { class: 'ap-l3' }, h('span', { class: 'ap-fecha' }, diaCorto(ap.fecha), viejo ? h('span', { class: 'ap-dias' }, ` · ${dias} días`) : null),
-        h('b', { class: 'ap-saldo num' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total)))));
+    // Jerarquía: quién (nombre) → cuánto debe (monto grande a la derecha) → detalle en gris (prendas, fecha, abonado).
+    h('span', { class: 'ap-l1' }, h('b', { class: 'ap-nombre' }, nombre),
+      pendiente && filtro === 'pendiente' ? null : h('span', { class: `est ${pendiente ? 'r' : color}` }, pendiente ? 'Por cobrar' : etiqueta)),
+    h('span', { class: 'ap-l2' },
+      h('span', { class: 'ap-meta' }, `${n} ${n === 1 ? 'prenda' : 'prendas'} · ${diaCorto(ap.fecha)}`, viejo ? h('span', { class: 'ap-dias' }, ` · ${dias} días`) : null)),
+    h('span', { class: 'ap-l3' },
+      h('span', { class: 'ap-abono' }, 'Abonado ', h('b', { class: 'num' }, fmtCop(abonado))),
+      h('b', { class: 'ap-saldo num' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total))));
 }
 
 // Detalle del apartado: saldo y abonado arriba, prendas, último abono (con historial) y acciones.
@@ -144,9 +142,10 @@ function abrirDetalle(ctx, ap) {
       h('span', { class: 'ap-det-cab-der' }, h('span', { class: `est ${color}` }, etiqueta), h('button', { class: 'ibtn cerrar', 'aria-label': 'Cerrar' }, icono('x')))),
     h('div', { class: 'ap-det-pago' },
       h('div', { class: 'ap-det-cifras' },
-        h('div', {}, h('span', { class: 'nota' }, pendiente ? 'Saldo pendiente' : 'Total'), h('b', { class: 'num grande' + (pendiente ? ' rojo' : ''), 'data-largo': largo(fmtCop(pendiente ? ap.saldo : ap.total)) }, fmtCop(pendiente ? ap.saldo : ap.total))),
+        // Primero lo abonado y luego lo que falta (de izquierda a derecha, como se lee el pago).
+        h('div', { class: 'ap-cif-abono' }, h('span', { class: 'nota' }, 'Total abonado'), h('b', { class: 'num' }, fmtCop(abonado)), h('small', {}, `de ${fmtCop(ap.total)}`)),
         h('div', { class: 'sep' }),
-        h('div', {}, h('span', { class: 'nota' }, 'Total abonado'), h('b', { class: 'num' }, fmtCop(abonado)), h('small', {}, `de ${fmtCop(ap.total)}`))),
+        h('div', { class: 'ap-cif-saldo' }, h('span', { class: 'nota' }, pendiente ? 'Saldo pendiente' : 'Total'), h('b', { class: 'num grande' + (pendiente ? ' rojo' : ''), 'data-largo': largo(fmtCop(pendiente ? ap.saldo : ap.total)) }, fmtCop(pendiente ? ap.saldo : ap.total)))),
       h('div', { class: 'ap-barra', role: 'progressbar', 'aria-label': 'Pagado', 'aria-valuenow': String(pct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: `width:${pct}%` }))),
     h('h3', { class: 'ap-det-t' }, icono('franela'), 'Prendas'),
     h('div', { class: 'ap-det-caja' }, ...ap.lineas.map(l => h('div', { class: 'ap-det-fila prenda' },

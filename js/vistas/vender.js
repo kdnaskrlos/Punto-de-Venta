@@ -156,37 +156,56 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
       r.descuento ? h('div', { class: 'fila-total' }, h('span', {}, 'Subtotal'), h('span', { class: 'num' }, fmtCop(r.subtotal), h('span', { class: 'c-cop moneda' }, 'COP'))) : null,
       // Sin descuento no hay fila: ya está el botón «Descuento» abajo.
       !r.descuento ? null : h('div', { class: 'fila-total desc' },
-        h('span', { class: 'desc-et' }, icono('etiqueta'), 'Descuento',
-          r.descuento ? h('button', { class: 'ibtn chico', 'aria-label': 'Quitar descuento', onclick: () => { c.descuento = null; c.autorizacion = null; window.dispatchEvent(new CustomEvent('pos:carrito')); } }, icono('x')) : null),
-        h('span', { class: 'num' }, r.descuento ? '-' + fmtCop(r.descuento) : '0', h('span', { class: 'c-cop moneda' }, 'COP'))),
+        h('span', { class: 'desc-et' }, icono('etiqueta'), 'Descuento'),
+        h('span', { class: 'num desc-monto' }, '−' + fmtCop(r.descuento), h('span', { class: 'moneda' }, 'COP'))),
       h('div', { class: 'caja-total' },
         h('div', { class: 'et-total' }, 'Total'),
         h('div', { class: 'tc-der' },
           h('div', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
           h('div', { class: 'tc-eq' }, equivalentes(ctx, r.total))))),
     h('div', { class: 'acciones-carrito' },
-      h('button', { class: 'btn', onclick: () => abrirDescuento(ctx) }, icono('porcentaje'), 'Descuento'),
+      h('button', { class: 'btn', id: 'car-descuento', onclick: () => abrirDescuento(ctx) }, icono('etiqueta'), 'Descuento'),
       h('button', { class: 'btn', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'),
       h('button', { class: 'btn primary cobrar', onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') }, 'Cobrar')));
 }
 
+// Descuento por monto, en pesos o en dólares (sin porcentaje). En dólares se convierte a pesos con la tasa del día.
+// Si ya hay uno, la misma ventana permite quitarlo.
 function abrirDescuento(ctx) {
   const c = carrito(ctx);
   const r = resumenCarrito(ctx);
   const max = 0; // la vendedora no da descuentos por su cuenta: todo descuento suyo necesita autorización
-  let tipo = c.descuento?.tipo || 'pct';
-  const valor = h('input', { class: 'inp', id: 'desc-valor', inputmode: 'decimal', value: c.descuento?.valor ?? '' });
+  const tasa = ctx.tasas?.copPorUsd || 0;
+  let moneda = c.descuento?.moneda === 'USD' && tasa ? 'USD' : 'COP';
+  const valor = h('input', { class: 'inp num', id: 'desc-valor', inputmode: 'decimal', autocomplete: 'off',
+    value: c.descuento ? (moneda === 'USD' ? fmtDec(c.descuento.valorUsd) : fmtCop(c.descuento.valor)) : '' });
+  const sufijo = h('span', { class: 'desc-moneda' });
+  const equiv = h('p', { class: 'nota desc-equiv' });
   const err = h('span', { class: 'error' });
+  const enPesos = () => { const n = parseMonto(valor.value, moneda); return n > 0 ? (moneda === 'USD' ? Math.round(n * tasa) : Math.round(n)) : 0; };
+  const pintar = () => {
+    sufijo.textContent = moneda; sufijo.className = 'desc-moneda ' + (moneda === 'USD' ? 'c-usd' : 'c-cop');
+    const cop = enPesos();
+    equiv.textContent = moneda === 'USD' && cop ? `= ${fmtCop(cop)} COP` : '';
+  };
   const segm = h('div', { class: 'segmentado' },
-    ...[['pct', '%'], ['monto', 'Monto COP']].map(([t, txt]) => h('button', { type: 'button', 'aria-pressed': String(t === tipo), onclick: e => { tipo = t; segm.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); } }, txt)));
+    ...[['COP', 'Pesos (COP)'], ['USD', 'Dólares (USD)']].map(([m, txt]) => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === moneda), disabled: m === 'USD' && !tasa,
+      onclick: e => { moneda = m; segm.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); valor.value = ''; err.textContent = ''; pintar(); valor.focus(); } }, txt)));
+  valor.addEventListener('input', pintar);
   const nota = ctx.sesion.rol === 'vendedora' ? h('p', { class: 'nota' }, 'El descuento se aplica cuando lo autorice el administrador o la encargada.') : null;
   const aplicar = h('button', { class: 'btn primary' }, 'Aplicar');
-  const v = abrirVentana({ titulo: 'Descuento', contenido: h('div', { class: 'pila' }, segm, h('div', { class: 'campo' }, h('label', { for: 'desc-valor' }, 'Valor'), valor, err), nota), acciones: h('div', { class: 'acciones' }, aplicar) });
+  const quitarDesc = c.descuento ? h('button', { type: 'button', class: 'btn texto peligro', id: 'desc-quitar', onclick: () => { c.descuento = null; c.autorizacion = null; v.cerrar(); toast('Descuento quitado'); window.dispatchEvent(new CustomEvent('pos:carrito')); } }, 'Quitar descuento') : null;
+  const v = abrirVentana({ titulo: 'Descuento', contenido: h('div', { class: 'pila' }, segm,
+    h('div', { class: 'campo' }, h('label', { for: 'desc-valor' }, 'Monto a descontar'), h('div', { class: 'desc-entrada' }, valor, sufijo), equiv, err), nota),
+    acciones: h('div', { class: 'acciones' }, quitarDesc, aplicar) });
+  pintar();
   aplicar.addEventListener('click', async () => {
-    const n = parseMonto(valor.value, tipo === 'pct' ? 'USD' : 'COP');
-    if (!n || n <= 0) { err.textContent = 'Escribe un valor'; return; }
-    const pct = tipo === 'pct' ? n : (r.subtotal ? n * 100 / r.subtotal : 0);
+    const n = enPesos();
+    if (!n) { err.textContent = 'Escribe un monto'; return; }
+    const pct = r.subtotal ? n * 100 / r.subtotal : 100;
     if (pct >= 100) { err.textContent = 'Debe ser menor que el total'; return; }
+    const tipo = 'monto';
+    const desc = { tipo, valor: n, moneda, valorUsd: moneda === 'USD' ? parseMonto(valor.value, 'USD') : null };
     if (requiereAutorizacion(ctx.sesion.rol, pct, max)) {
       aplicar.disabled = true;
       const s = await ctx.almacen.solicitarAutorizacion({ pct: Math.round(pct * 100) / 100, tipo, valor: n, subtotal: r.subtotal });
@@ -197,13 +216,13 @@ function abrirDescuento(ctx) {
         const a = lista.find(x => x.id === s.id);
         if (!a || a.estado === 'pendiente') return;
         setTimeout(() => quitar && quitar());
-        if (a.estado === 'aprobada') { c.descuento = { tipo, valor: n }; c.autorizacion = { id: a.id, por: a.aprueba, subtotal: r.subtotal }; v.cerrar(); toast('Descuento autorizado'); window.dispatchEvent(new CustomEvent('pos:carrito')); }
+        if (a.estado === 'aprobada') { c.descuento = desc; c.autorizacion = { id: a.id, por: a.aprueba, subtotal: r.subtotal }; v.cerrar(); toast('Descuento autorizado'); window.dispatchEvent(new CustomEvent('pos:carrito')); }
         else { aplicar.disabled = false; aplicar.textContent = 'Aplicar'; err.textContent = 'Descuento rechazado'; }
       });
       v.alCerrar = () => quitar && quitar();
       return;
     }
-    c.descuento = { tipo, valor: n }; c.autorizacion = null;
+    c.descuento = desc; c.autorizacion = null;
     v.cerrar(); window.dispatchEvent(new CustomEvent('pos:carrito'));
   });
 }

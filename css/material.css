@@ -194,3 +194,45 @@
 .fila-total .desc-et{display:inline-flex;align-items:center;gap:8px}
 /* El nombre puede usar dos líneas antes de cortarse (el contador ocupa la esquina) */
 .linea-info b{white-space:normal!important;display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.25}
+
+/* v1.55 — Aviso discreto de cambios sin guardar en Ajustes */
+.aviso-guardar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;padding:4px 4px 4px 16px;border:1px solid var(--line);border-radius:99px;background:var(--surface);box-shadow:var(--sombra-2);font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;animation:avisoEntra .22s var(--ease)}
+.aviso-guardar[hidden]{display:none}
+.aviso-guardar .btn.texto{min-height:40px;color:var(--accent);font-weight:700}
+@media (max-width:839px){.aviso-guardar{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
+@keyframes avisoEntra{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+/* Ajustes → Pagos: nombre y moneda alineados a la derecha */
+.formas-aj .forma-txt{text-align:right;display:flex;flex-direction:column;align-items:flex-end}
+.formas-aj .forma-toque b{max-width:100%}
+/* Tarjeta de apartado (v1.55): izquierda quién y detalle; derecha cuánto debe */
+.apartado{flex-direction:column!important;align-items:stretch!important;gap:4px!important;padding:12px 16px!important}
+.apartado .ap-l1,.apartado .ap-l2,.apartado .ap-l3{display:flex;justify-content:space-between;align-items:baseline;gap:12px;min-width:0}
+.apartado .ap-l1{align-items:center}
+.apartado .ap-nombre{font-size:16px;line-height:1.3}
+.apartado .ap-meta{min-width:0;font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apartado .ap-et{flex:none;font-size:12px;font-weight:600;color:var(--muted)}
+.apartado .ap-abono{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
+.apartado .ap-abono b{color:var(--ink);font-weight:700}
+.apartado .ap-l3 .ap-saldo{font-size:20px;line-height:1.1}
+.apartado .ap-l2,.apartado .ap-l3{line-height:1.3}
+/* Descuento: monto descontado en rojo, sin X (se quita desde la ventana Descuento) */
+.fila-total .desc-monto,.fila-total .desc-monto .moneda{color:var(--r-tx)}
+.desc-entrada{position:relative}
+.desc-entrada .inp{padding-right:56px;text-align:right}
+.desc-entrada .desc-moneda{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:700}
+.desc-equiv{text-align:right;margin:4px 0 0}
+.desc-equiv:empty{display:none}
+/* Calendario: tira de tres meses que se desliza como en Pedidos */
+.cal-visor{overflow:hidden;touch-action:pan-y;margin:0 -2px}
+.cal-pista{display:flex;width:300%;transform:translateX(-33.3333%);will-change:transform}
+.cal-pista>.cal-dias{width:33.3333%;flex:none;padding:0 2px;box-sizing:border-box}
+/* Pastillas de filtro: solo se desplazan de lado; sin el bamboleo vertical (el área de toque de 48 px sobresalía) */
+.filtros,.filtro-ap,.filtro-inv{overflow-y:hidden!important;overscroll-behavior-x:contain}
+/* Hojas: entran completas desde su borde (abajo o derecha), suave; al cerrar hacen lo inverso (ui.js quitar) */
+.hoja.abajo .caja{animation:hojaSube .28s cubic-bezier(.22,.9,.3,1)!important}
+.hoja.derecha .caja{animation:hojaEntra .26s cubic-bezier(.22,.9,.3,1)!important}
+@keyframes hojaSube{from{transform:translateY(100%)}to{transform:none}}
+@keyframes hojaEntra{from{transform:translateX(100%)}to{transform:none}}
+@media (prefers-reduced-motion:reduce){.hoja.abajo .caja,.hoja.derecha .caja{animation:none!important}}
+/* Flecha de los desplegables: gira con la misma curva que el despliegue */
+.lista-usuarios .u-cab > svg.i,.despl > summary > svg.i{transition:transform .28s cubic-bezier(.22,.9,.3,1)}

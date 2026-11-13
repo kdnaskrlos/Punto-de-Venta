@@ -315,3 +315,15 @@ Suite final: npm test 99/99 · e2e 59/59
 - v1.52: cabecera de ventanas y hojas (Carrito, Calculadora, etc.) de 72 a 56px de alto.
 - v1.53: vuelve el fondo verde crema del recuadro Total en el carrito (a pedido de Carlos).
 - v1.54: las hojas que suben desde abajo (Carrito, Calculadora en el teléfono) se ocultan con una flecha hacia abajo en lugar de la X; las ventanas conservan la X.
+
+## v1.55 — Pedidos de Carlos (descuento, apartados, animaciones, ajustes)
+- Ajustes que se perdían: la app publicada corre en modo demostración (config.js sin Firebase) y guardaba en sessionStorage, que se borra al cerrar la app o al actualizarse. Ahora guarda en localStorage (y rescata lo que hubiera en la pestaña la primera vez).
+- Descuento del carrito: sin porcentaje; monto en pesos o en dólares (convertido a COP con la tasa del día y mostrando el equivalente). La fila del carrito muestra el monto descontado en rojo, sin X; se quita desde la misma ventana («Quitar descuento»).
+- Detalle de apartado: primero «Total abonado» y luego «Saldo pendiente».
+- Tarjeta de apartado: nombre (y estado si aplica); cantidad de prendas y fecha en gris; abajo «Abonado X» a la izquierda y el saldo grande a la derecha, en la misma línea base. Sin nombre de prenda ni «Debe».
+- Calendario de fechas: tira de tres meses que sigue al dedo y pasa de mes deslizándose (0,26 s; 0,18 s con gesto rápido; cambia con 20 % de arrastre o > 0,35 px/ms), como la agenda de Pedidos.
+- Pastillas de filtro sin bamboleo vertical (el área de toque de 48 px sobresalía): overflow-y hidden.
+- Desplegables (Usuarios y tarjetas de Ajustes → Venta) con la animación de Pedidos: alto en 280 ms y filas escalonadas cada 35 ms; al plegar, lo inverso (desplegar() en ui.js).
+- Cierre de capas con el movimiento inverso al de apertura: la hoja del carrito baja completa (240 ms), la lateral sale por la derecha, las ventanas se desvanecen. Las hojas ahora entran completas desde su borde (280 ms).
+- Ajustes: aviso flotante discreto «Cambios sin guardar · Guardar» mientras haya cambios y el botón de abajo no se vea.
+- Ajustes → Pagos: nombre y moneda alineados a la derecha.
