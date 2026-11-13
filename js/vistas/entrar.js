@@ -62,7 +62,7 @@ export function pantallaPrimerAdmin(raiz, ctx) {
     if (!/^\d{4}$/.test(v('adm-pin'))) return err('adm-pin', 'El PIN debe tener 4 números');
     if (v('adm-pin') !== v('adm-pin2')) return err('adm-pin2', 'Los PIN no coinciden');
     const r = await ctx.almacen.crearAdministrador({ nombre: v('adm-nombre'), usuario: v('adm-usuario'), pin: v('adm-pin') });
-    if (!r.ok) err('adm-pin2', r.error === 'red' ? 'Sin conexión a internet' : 'No se pudo crear');
+    if (!r.ok) err('adm-pin2', r.error === 'red' ? 'Sin conexión a internet' : `No se pudo crear${r.detalle ? ` (${r.detalle})` : ''}`);
   });
   raiz.replaceChildren(h('div', { class: 'puerta' }, form));
 }

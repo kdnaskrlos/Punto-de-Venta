@@ -179,16 +179,24 @@ export function crearFirebase(config) {
     async crearAdministrador({ nombre, usuario, pin }) {
       usuario = limpiarUsuario(usuario);
       if (!/^[a-z0-9._-]{3,20}$/.test(usuario) || !/^\d{4}$/.test(String(pin)) || String(nombre || '').trim().length < 2) return NO('datos');
+      let creada = null;
       try {
         const email = correo(usuario);
         const cred = await createUserWithEmailAndPassword(auth, email, pinPass(pin));
+        creada = cred.user;
         const b = writeBatch(db);
         b.set(ref('usuarios', cred.user.uid), { uid: cred.user.uid, usuario, nombre: nombre.trim(), rol: 'admin', activo: true, creado: ahora() });
         b.set(ref('logins', usuario), { email, uid: cred.user.uid });
         b.set(ref('sistema', 'estado'), { iniciado: true, creado: ahora() });
-        await b.commit();
+        // Se espera la respuesta del servidor (hasta 15 s): si las reglas lo rechazan o no hay base de datos,
+        // se dice por qué y se borra la cuenta recién creada para no dejarla a medias.
+        await Promise.race([b.commit(), new Promise((_, no) => setTimeout(() => no(Object.assign(new Error('sin respuesta'), { code: 'sin-respuesta-de-firestore' })), 15000))]);
         return SI();
-      } catch (e) { console.warn(e); return NO(e.code === 'auth/network-request-failed' ? 'red' : 'error'); }
+      } catch (e) {
+        console.warn(e);
+        if (creada) { await creada.delete().catch(() => {}); await signOut(auth).catch(() => {}); }
+        return NO(e.code === 'auth/network-request-failed' ? 'red' : 'error', { detalle: e.code || e.message });
+      }
     },
     async entrar(usuario, pin) {
       const u = limpiarUsuario(usuario);

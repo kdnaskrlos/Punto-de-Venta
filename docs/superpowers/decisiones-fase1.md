@@ -354,3 +354,4 @@ Suite final: npm test 99/99 · e2e 59/59
 - Ajustes en Firebase: guardarAjustes espera la respuesta del servidor (hasta 8 s) para avisar si las reglas lo rechazan, y quita los campos «undefined» (Firestore los rechaza). Si las tasas no se guardan, ahora sale un aviso con la causa (antes no decía nada).
 - Más: junto a la versión dice «conectado a Firebase» o «modo demostración».
 - v1.64: la entrada ya no se queda callada: si la cuenta es correcta pero el perfil no llega (reglas, perfil borrado o inactivo, sin respuesta), dice «no se pudo cargar tu perfil (causa)»; otros errores muestran su código. Verificado con un Firebase simulado (crear admin, salir, entrar, guardar tasas).
+- v1.65: crear el administrador espera la respuesta de Firestore (hasta 15 s); si falla, muestra la causa y borra la cuenta de Authentication recién creada para no dejarla a medias.
