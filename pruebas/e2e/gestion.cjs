@@ -124,6 +124,20 @@ casos('gestion', [
     await p.waitForSelector('text=Usuario desactivado');
     a.deepStrictEqual(p.errores, []);
   }],
+  ['Usuarios: eliminar pide confirmación, quita la tarjeta y ya no deja entrar', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/usuarios' });
+    await p.click('#nu-abrir'); await p.fill('#nu-nombre', 'Rosa Pérez');
+    await p.click('#nu-rol [data-rol="vendedora"]'); await p.fill('#nu-pin', '4321');
+    await p.click('#nu-crear'); await p.click('.capa button:has-text("Listo")');
+    await p.waitForSelector('.usuario[data-usuario="rosa"]');
+    await p.click('.usuario[data-usuario="rosa"] .u-cab');
+    await p.click('.usuario[data-usuario="rosa"] [data-eliminar]');
+    await p.click('#eliminar-si');
+    await p.waitForSelector('.usuario[data-usuario="rosa"]', { state: 'detached' });
+    a.strictEqual((await p.evaluate(() => window.__pos.ctx.almacen.entrar('rosa', '4321'))).ok, false);
+    a.strictEqual(await p.$('.usuario[data-usuario="admin"] [data-eliminar]'), null, 'no se puede eliminar a uno mismo');
+    a.deepStrictEqual(p.errores, []);
+  }],
   ['Fechas con calendario propio: un solo calendario para el rango, sin el selector del teléfono', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/reportes' });
     a.strictEqual(!!(await p.$('input[type=date]')), false, 'no debe haber selector de fecha del teléfono');
@@ -264,14 +278,16 @@ casos('gestion', [
     await p.click('#aj-recibo-original');
     a.match(await p.innerText('#aj-recibo-vista'), /Resumen de tu compra/);
   }],
-  ['Más → Usuarios (debajo de Comisiones) con Mi cuenta al final; Más ya no tiene Mi cuenta', async (env, a) => {
+  ['Más → Usuarios (debajo de Comisiones); las opciones de la cuenta van en la tarjeta propia, sin «(tú)»', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/mas' });
     const filas = await p.$$eval('.lista-mas .mas-t', b => b.map(x => x.textContent.trim()));
     a.ok(filas.indexOf('Usuarios') === filas.indexOf('Comisiones') + 1, filas.join(','));
     a.strictEqual(await p.$('.vista .cuenta'), null);
     await p.click('.lista-mas .fila-btn:has-text("Usuarios")');
     await p.waitForSelector('.usuario[data-usuario="admin"]');
-    a.ok(await p.$eval('#mi-cuenta', m => m === m.parentElement.lastElementChild), 'Mi cuenta va de último');
+    a.strictEqual(await p.$('#mi-cuenta'), null, 'sin sección Mi cuenta para el administrador');
+    a.ok(!(await p.innerText('.usuario[data-usuario="admin"] .u-cab')).includes('(tú)'), 'sin «(tú)»');
+    a.ok(await p.$('.usuario[data-usuario="admin"] .u-cuerpo .probar'), 'opciones de la cuenta en la tarjeta propia');
     a.strictEqual(await p.$('.pestanas-aj'), null);
   }],
   ['Ajustes: cambiar solo el modo de Bs muestra "Guardar" y queda guardado; sin título de pantalla', async (env, a) => {

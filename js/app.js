@@ -3,6 +3,7 @@ import { h, icono, logo, abrirHoja, esTelefono } from './ui.js';
 import { APP_VERSION } from './version.js';
 import { puede } from './nucleo/permisos.js';
 import { opcionesCuenta } from './vistas/cuenta.js';
+import { MODO_DEMO } from './datos/index.js';
 
 const VISTAS = {};
 export function registrarVista(ruta, def) { VISTAS[ruta] = def; }
@@ -112,7 +113,7 @@ function montar() {
   contenedor.replaceChildren(cont);
   if (v && (!v.accion || ctx.puedeVer(v.accion))) desmontar = v.montar(cont, ctx) || null;
   else cont.append(h('div', { class: 'vacio' }, 'Próximamente'));
-  if (ruta === '/mas') cont.append(h('p', { class: 'ver-pie' }, `versión ${APP_VERSION}`));
+  if (ruta === '/mas') cont.append(h('p', { class: 'ver-pie' }, `versión ${APP_VERSION} · ${MODO_DEMO ? 'modo demostración' : 'conectado a Firebase'}`));
   window.scrollTo(0, 0);
 }
 export function refrescar() { montar(); }

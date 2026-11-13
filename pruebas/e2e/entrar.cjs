@@ -53,6 +53,7 @@ casos('entrar', [
     await p.click('.side .nav[aria-label="Más"]');
     await p.click('.lista-mas .fila-btn:has-text("Usuarios")');
     a.strictEqual(await p.$('text=Cerrar sesión'), null);
+    await p.click('.usuario[data-usuario="admin"] .u-cab'); // «Probar como» va en la tarjeta propia
     await p.click('#probar-vendedora');
     await p.waitForFunction(() => window.__pos.ctx.sesion?.rol === 'vendedora');
     await p.reload();

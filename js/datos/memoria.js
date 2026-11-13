@@ -133,6 +133,14 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       const u = col.usuarios.get(uid); if (!u) return NO('no-existe');
       u.ganaComision = !!gana; avisar('usuarios'); return SI();
     },
+    // Eliminar: el perfil queda (las ventas viejas lo nombran) pero se apaga, se marca eliminado y su usuario
+    // queda libre para crear otro con el mismo nombre. No se puede eliminar a uno mismo.
+    async eliminarUsuario(uid) {
+      const e = exigir('ajustes'); if (e) return NO(e);
+      if (sesion?.uid === uid) return NO('propio');
+      const u = col.usuarios.get(uid); if (!u) return NO('no-existe');
+      u.activo = false; u.eliminado = true; u.usuario = `${u.usuario}~${uid}`; avisar('usuarios'); return SI();
+    },
     async activarUsuario(uid, activo) {
       const e = exigir('ajustes'); if (e) return NO(e);
       const u = col.usuarios.get(uid); if (!u) return NO('no-existe');

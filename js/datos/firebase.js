@@ -54,6 +54,8 @@ export function crearFirebase(config) {
     return Promise.race([p.then(() => 'servidor'), new Promise(r => setTimeout(() => { local = true; r('local'); }, 1200))])
       .then(() => SI({ offline: local }), e => NO(e.code === 'permission-denied' ? 'permiso' : 'error'));
   }
+  // Firestore no acepta campos «undefined»: se quitan (en cualquier nivel) antes de guardar.
+  const limpiarIndefinidos = v => Array.isArray(v) ? v.map(limpiarIndefinidos) : v && typeof v === 'object' && v.constructor === Object ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).map(([k, x]) => [k, limpiarIndefinidos(x)])) : v;
   const exigir = accion => (!sesion ? 'sesion' : !puede(sesion.rol, accion) ? 'permiso' : null);
   const ref = (n, id) => doc(db, n, id);
   const porSku = lineas => { const m = {}; for (const l of lineas) m[l.sku] = (m[l.sku] || 0) + l.cantidad; return m; };
@@ -251,6 +253,19 @@ export function crearFirebase(config) {
     async marcarComision(uid, gana) {
       const e = exigir('ajustes'); if (e) return NO(e);
       return sinEsperar(updateDoc(ref('usuarios', uid), { ganaComision: !!gana }));
+    },
+    // Eliminar: el perfil queda (las ventas viejas lo nombran) pero se apaga y se marca eliminado, y se borra
+    // su entrada de «logins» para que nadie pueda entrar con ese usuario y se pueda volver a usar el nombre.
+    async eliminarUsuario(uid) {
+      const e = exigir('ajustes'); if (e) return NO(e);
+      if (uid === sesion.uid) return NO('propio');
+      const u = (await getDoc(ref('usuarios', uid))).data();
+      if (!u) return NO('no-existe');
+      const b = writeBatch(db);
+      b.update(ref('usuarios', uid), { activo: false, eliminado: true, eliminadoEl: ahora() });
+      const l = await getDoc(ref('logins', u.usuario));
+      if (l.exists() && l.data().uid === uid) b.delete(ref('logins', u.usuario));
+      return sinEsperar(b.commit());
     },
     async activarUsuario(uid, activo) {
       const e = exigir('ajustes'); if (e) return NO(e);
@@ -491,7 +506,14 @@ export function crearFirebase(config) {
     // ---- otros ----
     async guardarAjustes(nombreDoc, datos) {
       const e = exigir(nombreDoc === 'tasas' ? 'cambiarTasas' : 'ajustes'); if (e) return NO(e);
-      return sinEsperar(setDoc(ref('ajustes', nombreDoc), datos, { merge: true }));
+      // Los ajustes se cambian poco y casi siempre con conexión: se espera la respuesta del servidor (hasta 8 s)
+      // para avisar si las reglas lo rechazan, en vez de dar por guardado algo que luego se deshace.
+      const p = setDoc(ref('ajustes', nombreDoc), limpiarIndefinidos(datos), { merge: true });
+      sinEsperar(p);
+      try {
+        const r = await Promise.race([p.then(() => 'servidor'), new Promise(ok => setTimeout(() => ok('local'), 8000))]);
+        return SI({ offline: r === 'local' });
+      } catch (e) { console.warn('ajustes', e); return NO(e.code === 'permission-denied' ? 'permiso' : 'error'); }
     },
     async guardarCliente({ telefono, nombre }) {
       if (!sesion) return NO('sesion');

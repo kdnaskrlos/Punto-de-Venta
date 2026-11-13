@@ -347,3 +347,9 @@ Suite final: npm test 99/99 · e2e 59/59
 
 ## v1.62 — Conexión a Firebase
 - config.js con el proyecto «punto-de-venta-comic-shop». Sin ?demo la app usa Firebase (Authentication por usuario y PIN, Firestore con las reglas de firestore.rules). El modo demostración sigue disponible con ?demo.
+
+## v1.63 — Usuarios y guardado de ajustes en Firebase
+- Usuarios (administrador): sin la sección «Mi cuenta»; en su propia tarjeta van «Cambiar mi PIN» y «Cerrar sesión» (en la demostración, «Probar como»). Sin «(tú)». Los demás roles siguen viendo «Mi cuenta».
+- Eliminar usuario: botón «Eliminar» en la tarjeta de los demás (no en la propia), con confirmación. El perfil queda apagado y marcado eliminado (sus ventas y cajas se conservan) y se borra su entrada de «logins»: ya no puede entrar y el nombre de usuario se puede volver a usar.
+- Ajustes en Firebase: guardarAjustes espera la respuesta del servidor (hasta 8 s) para avisar si las reglas lo rechazan, y quita los campos «undefined» (Firestore los rechaza). Si las tasas no se guardan, ahora sale un aviso con la causa (antes no decía nada).
+- Más: junto a la versión dice «conectado a Firebase» o «modo demostración».

@@ -346,3 +346,8 @@
 .rep-kpis .rep-kpi .val{font-size:32px!important}
 .rep-kpis[data-largo=l] .rep-kpi .val{font-size:24px!important}
 .rep-kpis[data-largo=xl] .rep-kpi .val{font-size:20px!important}
+/* Botón de confirmación destructiva (Eliminar usuario) */
+.btn.primary.peligro-lleno{background:var(--err);border-color:var(--err);color:#fff}
+.lista-usuarios .u-acc{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;justify-content:stretch}
+.lista-usuarios .u-acc .btn{width:100%;justify-content:center}
+.lista-usuarios .u-acc .u-eliminar{grid-column:1/-1;justify-self:start;width:auto;padding-left:4px}

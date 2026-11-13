@@ -69,7 +69,9 @@ function tasas(ctx) {
     if (vCop && vCop !== aj.copPorUsd) Object.assign(datos, { copPorUsd: vCop, copActualizada: ahora });
     if (vMan && vMan !== aj.bsManual) Object.assign(datos, { bsManual: vMan, bsManualActualizada: ahora });
     if (modo.value === 'manual' && !vMan) { toast('Escribe la tasa manual de Bs', { malo: true }); return false; }
-    return (await ctx.almacen.guardarAjustes('tasas', datos)).ok;
+    const r = await ctx.almacen.guardarAjustes('tasas', datos);
+    if (!r.ok) toast(r.error === 'permiso' ? 'No se guardaron las tasas: Firebase no dio permiso (revisa las reglas)' : r.error === 'sesion' ? 'Tu sesión se cerró: vuelve a entrar' : 'No se guardaron las tasas. Revisa la conexión', { malo: true });
+    return r.ok;
   };
   return { el, guardar };
 }
@@ -239,7 +241,7 @@ registrarVista('/ajustes', {
       const partes = [await ve.guardar(), await pa.guardar(), await re.guardar()];
       if (partes.some(x => !x)) return;
       const r = await ctx.almacen.guardarAjustes('general', Object.assign({}, ...partes));
-      if (!r.ok) { toast('No se pudo guardar', { malo: true }); return; }
+      if (!r.ok) { toast(r.error === 'permiso' ? 'No se guardó: Firebase no dio permiso (revisa las reglas)' : 'No se pudo guardar. Revisa la conexión', { malo: true }); return; }
       listo = true; document.activeElement?.blur(); toast('Cambios guardados');
       setTimeout(() => { if (listo) { boton.disabled = true; pintarAviso(); } });
       } finally { boton.replaceChildren(icono('check'), 'Guardar cambios'); }

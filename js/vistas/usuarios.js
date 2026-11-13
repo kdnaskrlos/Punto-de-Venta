@@ -1,8 +1,9 @@
 // Usuarios (Más → Usuarios): el administrador crea usuarios, cambia PIN y activa/desactiva.
-// Al final, "Mi cuenta" (para todos los roles).
+// Cada quien tiene sus opciones (cambiar PIN, cerrar sesión) en su propia tarjeta; los demás roles ven «Mi cuenta».
 import { h, icono, abrirVentana, toast, unaVez, desplegar } from '../ui.js';
 import { registrarVista } from '../app.js';
-import { NOMBRE_ROL, opcionesCuenta } from './cuenta.js';
+import { NOMBRE_ROL, opcionesCuenta, cambiarMiPin } from './cuenta.js';
+import { DEMO_DIRECTO } from '../datos/index.js';
 import { ganaComision } from '../nucleo/comisiones.js';
 
 const seccion = (titulo, ic, ...hijos) => h('section', { class: 'tarjeta pila' }, h('h2', { class: 'sec-t' }, icono(ic), titulo), ...hijos);
@@ -88,29 +89,56 @@ function usuarios(ctx) {
         desplegar(cuerpo, abrir);
       } },
         h('span', { class: 'avatar' }, (u.nombre || u.usuario).slice(0, 1).toUpperCase()),
-        h('span', { class: 'u-info' }, h('b', {}, u.nombre, yo ? h('span', { class: 'nota' }, ' (tú)') : null), h('span', { class: 'nota' }, `@${u.usuario}`)),
+        h('span', { class: 'u-info' }, h('b', {}, u.nombre), h('span', { class: 'nota' }, `@${u.usuario}`)),
         u.activo ? null : h('span', { class: 'est n' }, 'Inactivo'),
         h('span', { class: 'est n rol' }, NOMBRE_ROL[u.rol] || u.rol),
         icono('abajo')),
       h('div', { class: 'u-cuerpo', id: idCuerpo, hidden: !abierto },
         h('label', { class: 'interruptor u-com' }, h('input', { type: 'checkbox', 'data-comision': u.usuario, checked: ganaComision(u),
           onchange: async e => { const r = await ctx.almacen.marcarComision(u.uid, e.target.checked); if (!r.ok) { e.target.checked = !e.target.checked; guardado(r); } else toast(e.target.checked ? `${u.nombre} gana comisión` : `${u.nombre} ya no gana comisión`); } }), 'Gana comisión por prenda vendida'),
-        yo ? h('p', { class: 'nota' }, 'Tu PIN se cambia en «Mi cuenta», más abajo.') : h('div', { class: 'u-acc' },
+        // En la tarjeta propia van «Cambiar mi PIN» y «Cerrar sesión» (antes en «Mi cuenta»).
+        yo ? accionesPropias(ctx) : h('div', { class: 'u-acc' },
           h('button', { class: 'btn', onclick: async () => { const pin = await pedirPin(`Nuevo PIN para ${u.nombre}`); if (pin) guardado(await ctx.almacen.cambiarPin(u.uid, pin)); } }, icono('llave'), 'Nuevo PIN'),
-          h('button', { class: 'btn ' + (u.activo ? 'danger' : ''), onclick: async () => guardado(await ctx.almacen.activarUsuario(u.uid, !u.activo)) }, u.activo ? 'Desactivar' : 'Activar'))));
+          h('button', { class: 'btn', onclick: async () => guardado(await ctx.almacen.activarUsuario(u.uid, !u.activo)) }, u.activo ? 'Desactivar' : 'Activar'),
+          h('button', { class: 'btn texto peligro u-eliminar', 'data-eliminar': u.usuario, onclick: () => eliminar(ctx, u) }, icono('borrar'), 'Eliminar'))));
   }));
   const quitar = ctx.almacen.escuchar('usuarios', l => {
-    ultimos = l.filter(u => !u.reemplazadoPor).sort((a, b) => (a.rol === 'admin' ? -1 : 1) - (b.rol === 'admin' ? -1 : 1) || a.usuario.localeCompare(b.usuario));
+    ultimos = l.filter(u => !u.reemplazadoPor && !u.eliminado).sort((a, b) => (a.rol === 'admin' ? -1 : 1) - (b.rol === 'admin' ? -1 : 1) || a.usuario.localeCompare(b.usuario));
     pintar();
   });
   return { el, quitar };
+}
+
+function accionesPropias(ctx) {
+  // En la demostración no hay PIN ni sesión que cerrar: se cambia de rol con «Probar como».
+  if (DEMO_DIRECTO) return opcionesCuenta(ctx).querySelector('.probar');
+  return h('div', { class: 'u-acc' },
+    h('button', { class: 'btn', id: 'mi-pin', onclick: () => cambiarMiPin(ctx) }, icono('llave'), 'Cambiar mi PIN'),
+    h('button', { class: 'btn texto peligro', id: 'cerrar-sesion', onclick: () => ctx.almacen.salir() }, icono('salir'), 'Cerrar sesión'));
+}
+
+// Eliminar pide confirmación: no se puede deshacer (el usuario queda libre y ya no puede entrar).
+// Sus ventas, cajas y comisiones se conservan con su nombre.
+function eliminar(ctx, u) {
+  const si = h('button', { class: 'btn primary peligro-lleno', id: 'eliminar-si' }, icono('borrar'), 'Eliminar');
+  const no = h('button', { class: 'btn' }, 'Cancelar');
+  const v = abrirVentana({ titulo: `Eliminar a ${u.nombre}`, contenido: h('div', { class: 'aviso' }, icono('alerta'),
+    `@${u.usuario} ya no podrá entrar. Sus ventas y cajas se conservan en los reportes. Esto no se puede deshacer.`),
+    acciones: h('div', { class: 'acciones' }, no, si) });
+  no.onclick = () => v.cerrar();
+  si.onclick = unaVez(si, async () => {
+    const r = await ctx.almacen.eliminarUsuario(u.uid);
+    v.cerrar();
+    toast(r.ok ? `${u.nombre} eliminado` : r.error === 'propio' ? 'No puedes eliminarte a ti mismo' : 'No se pudo eliminar', { malo: !r.ok });
+  });
 }
 
 registrarVista('/usuarios', {
   montar(cont, ctx) {
     const admin = ctx.puedeVer('ajustes');
     const u = admin ? usuarios(ctx) : null;
-    cont.append(...(u ? [u.el] : []), h('section', { class: 'tarjeta pila', id: 'mi-cuenta' }, h('h2', { class: 'sec-t' }, icono('usuario'), 'Mi cuenta'), opcionesCuenta(ctx)));
+    // El administrador tiene sus opciones en su propia tarjeta; los demás roles ven solo «Mi cuenta».
+    cont.append(u ? u.el : h('section', { class: 'tarjeta pila', id: 'mi-cuenta' }, h('h2', { class: 'sec-t' }, icono('usuario'), 'Mi cuenta'), opcionesCuenta(ctx)));
     return u?.quitar;
   },
 });
