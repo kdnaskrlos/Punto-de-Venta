@@ -288,3 +288,9 @@ Suite final: npm test 99/99 · e2e 59/59
 ## v1.45 — Revisión de consistencia en todo el sistema
 - Medición de todas las pantallas y ventanas a 360px: 7 tamaños de letra (12·13·14·16·20·24·32), 4 radios (8·12·pastilla·círculo), campos de 48px y cerrar de 48px en todas las ventanas.
 - Se corrigen las excepciones que quedaban: títulos y nombres con peso 700 (el 800 solo en cifras); nombres de tarjeta a 16px en Vender, Inventario y Apartados; botones finales de ancho completo y campos de cifra grande a 56px (antes 50–52).
+
+## v1.46 — Rol, carrito, espacios, tasas y tarjeta de apartado
+- Rol en Usuarios: pastilla neutra para todos los roles. Prenda en el carrito: selección neutra (fondo gris claro, contador oscuro) en lugar de azul.
+- Espacio de 12px entre las pastillas de filtro y el primer elemento en Vender, Apartados, Inventario, Reportes y Comisiones (antes 24 en varias). La pastilla de fecha mide lo que se ve (36) con área de toque de 48.
+- Tasas del día: monto a 18px (20 desde 400px) alineado arriba con el título.
+- Tarjeta de apartado: nombre y estado en la primera línea; fecha y monto en la última sobre la misma línea base (antes el monto se alineaba al fondo de la tarjeta y quedaba más bajo que la fecha).

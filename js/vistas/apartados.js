@@ -116,13 +116,13 @@ function tarjeta(ctx, ap, filtro) {
   const nombre = ap.cliente?.nombre || '—';
   const viejo = pendiente && dias >= 15;
   return h('button', { type: 'button', class: `apartado ap-${ap.estado}${viejo ? ' viejo' : ''}`, 'data-id': ap.id, onclick: () => abrirDetalle(ctx, ap) },
+    // Tres filas: nombre y estado arriba; fecha y monto abajo, sobre la misma línea base.
     h('span', { class: 'ap-main' },
-      h('b', { class: 'ap-nombre' }, nombre),
+      h('span', { class: 'ap-l1' }, h('b', { class: 'ap-nombre' }, nombre),
+        pendiente && filtro === 'pendiente' ? null : h('span', { class: `est ${pendiente ? 'r' : color}` }, pendiente ? 'Por cobrar' : etiqueta)),
       h('span', { class: 'ap-l2' }, resumenPrendas(ap)),
-      h('span', { class: 'ap-l3' }, diaCorto(ap.fecha), viejo ? h('span', { class: 'ap-dias' }, ` · ${dias} días`) : null)),
-    h('span', { class: 'ap-der' },
-      pendiente && filtro === 'pendiente' ? null : h('span', { class: `est ${pendiente ? 'r' : color}` }, pendiente ? 'Por cobrar' : etiqueta),
-      h('b', { class: 'ap-saldo num' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total))));
+      h('span', { class: 'ap-l3' }, h('span', { class: 'ap-fecha' }, diaCorto(ap.fecha), viejo ? h('span', { class: 'ap-dias' }, ` · ${dias} días`) : null),
+        h('b', { class: 'ap-saldo num' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total)))));
 }
 
 // Detalle del apartado: saldo y abonado arriba, prendas, último abono (con historial) y acciones.

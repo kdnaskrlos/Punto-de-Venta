@@ -136,3 +136,33 @@
 /* Alturas: 48 normal, 56 acción final de ancho completo y campos de cifra grande */
 .acciones-carrito .cobrar,.guardar-ajustes .btn,.cliente-registrar{min-height:56px!important}
 .calc-entrada .inp,.calc-caja .inp,.tasa-entrada .inp{min-height:56px}
+
+/* v1.46 */
+/* Rol en Usuarios: pastilla neutra (el color queda para estados que piden atención) */
+.est.rol{background:var(--sel-neu-bg);border-color:var(--sel-neu-bd);color:var(--ink)}
+/* Prenda en el carrito: selección neutra como las pastillas activas, sin azul */
+.tarjeta-prenda.elegida{background:var(--sel-neu-bg)!important;border-color:var(--sel-neu-bd)!important}
+.tarjeta-prenda.elegida .foto{background:var(--surface)!important}
+.tarjeta-prenda.elegida .foto svg.i{color:var(--muted)!important}
+.tarjeta-prenda .en-carrito,.talla .en-carrito{background:var(--sel-neu)!important;color:#fff!important;border-color:var(--sel-neu)!important}
+.tarjeta-prenda .en-carrito svg.i{color:#fff!important}
+/* Mismo espacio (12px) entre las pastillas de filtro y lo primero que sigue, en todas las pantallas */
+.filtro-ap,.filtro-inv{margin-bottom:0!important}
+.ap-filtros{margin-bottom:12px}
+.cab-vista:has(.rango){margin-bottom:-4px}
+/* Tasas del día: monto más pequeño y alineado arriba con el título */
+.desplegable .tasa-fila{align-items:flex-start}
+.desplegable .tasa-fila .tasa-val{font-size:18px;line-height:23px}
+@media (min-width:400px){.desplegable .tasa-fila .tasa-val{font-size:20px}}
+/* Apartados: nombre y estado en la primera línea; fecha y monto en la última, sobre la misma línea base */
+.apartado .ap-l1{display:flex;align-items:center;gap:8px}
+.apartado .ap-l1 .est{flex:none;line-height:1.2}
+.apartado .ap-l3{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.apartado .ap-fecha{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apartado .ap-saldo{flex:none;font-size:16px;font-weight:800;color:var(--r-tx);white-space:nowrap}
+.apartado .ap-saldo.cerrado{color:var(--ink)}
+.apartado .ap-saldo{line-height:1.2}
+/* Pastilla de fecha en Reportes/Comisiones: caja del tamaño de lo que se ve; el área de toque de 48 la da ::after */
+.rango-btn{min-height:36px!important;position:relative}
+.rango-btn::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,48px);height:48px;transform:translate(-50%,-50%)}
+.rango-btn{display:inline-flex;align-items:stretch;padding:0}.rango-btn>span{min-height:36px;box-sizing:border-box}

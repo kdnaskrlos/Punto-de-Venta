@@ -66,7 +66,6 @@ function nuevoUsuario(ctx) {
   })();
 }
 
-const ROL_EST = { admin: 'g', encargada: 'b', vendedora: 'y' };
 
 // Usuarios como en Pedidos: tarjetas compactas (avatar, nombre, @usuario, rol) que se despliegan al tocarlas.
 function usuarios(ctx) {
@@ -84,7 +83,7 @@ function usuarios(ctx) {
         h('span', { class: 'avatar' }, (u.nombre || u.usuario).slice(0, 1).toUpperCase()),
         h('span', { class: 'u-info' }, h('b', {}, u.nombre, yo ? h('span', { class: 'nota' }, ' (tú)') : null), h('span', { class: 'nota' }, `@${u.usuario}`)),
         u.activo ? null : h('span', { class: 'est n' }, 'Inactivo'),
-        h('span', { class: `est ${ROL_EST[u.rol] || 'n'}` }, NOMBRE_ROL[u.rol] || u.rol),
+        h('span', { class: 'est n rol' }, NOMBRE_ROL[u.rol] || u.rol),
         icono('abajo')),
       h('div', { class: 'u-cuerpo', id: idCuerpo, hidden: !abierto },
         h('label', { class: 'interruptor u-com' }, h('input', { type: 'checkbox', 'data-comision': u.usuario, checked: ganaComision(u),
