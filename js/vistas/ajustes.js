@@ -7,7 +7,7 @@ import { NOMBRE_MONEDA, ICONOS_FORMA, iconoForma } from '../nucleo/formas.js';
 import { PLANTILLA_DEFECTO, VARIABLES_RECIBO, textoRecibo } from '../nucleo/recibo.js';
 
 const campo = (id, etiqueta, attrs = {}) => h('div', { class: 'campo' }, h('label', { for: id }, etiqueta), h('input', { class: 'inp', id, autocomplete: 'off', ...attrs }));
-const seccion = (titulo, ic, ...hijos) => h('section', { class: 'tarjeta pila' }, h('h2', { class: 'sec-t' }, icono(ic), titulo), ...hijos);
+const seccion = (titulo, ic, ...hijos) => h('section', { class: 'tarjeta pila' }, titulo ? h('h2', { class: 'sec-t' }, icono(ic), titulo) : null, ...hijos);
 // Monto de comisión: se muestra con punto de miles (4.000); vacío = usa el tramo anterior.
 const montoCom = (id, valor, ejemplo, alCambiar) => {
   const inp = h('input', { class: 'inp num', id, inputmode: 'numeric', value: valor != null ? fmtCop(valor) : '', placeholder: ejemplo, 'aria-label': id.endsWith('normal') ? 'Comisión normal' : 'Comisión reducida' });
@@ -58,7 +58,7 @@ function tasas(ctx) {
   recargo.addEventListener('input', pintar);
   manual.addEventListener('input', () => { modo.value = 'manual'; pintar(); });
   pintar();
-  const el = seccion('Tasas', 'monedas',
+  const el = seccion(null, null,
     h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-cop' }, 'Peso colombiano'), filaUsd(cop)),
     h('div', { class: 'campo' }, h('label', { class: 'et-moneda' }, 'Bs'), grupo));
   // Devuelve true si se guardó (o no había nada que guardar).
@@ -78,7 +78,7 @@ function venta(ctx) {
   const aj = ctx.ajustes;
   const tramos = [...aj.tramos];
   const coms = aj.comisiones.map(c => (c ? { ...c } : null));
-  const el = seccion('Venta', 'carrito',
+  const el = seccion(null, null,
     h('div', { class: 'rejilla-aj' }, campo('aj-tienda', 'Nombre de la tienda', { value: aj.tienda?.nombre || '' }), campo('aj-redondeo', 'Redondeo del vuelto (COP)', { inputmode: 'numeric', value: String(aj.redondeo) }), campo('aj-desc-max', 'Descuento máximo de la vendedora (%)', { inputmode: 'decimal', value: String(aj.descuentoMaxVendedora) })),
     h('h3', { class: 'sub-t' }, 'Tramos (desde cuántas prendas)'),
     h('div', { class: 'rejilla-aj' }, ...tramos.map((t, i) => h('div', { class: 'campo' }, h('label', {}, `Tramo ${i + 1}`), h('input', { class: 'inp num', inputmode: 'numeric', value: String(t), disabled: i === 0, oninput: e => { tramos[i] = Number(e.target.value) || tramos[i]; } })))),
@@ -124,7 +124,7 @@ function pagos(ctx, alCambiar) {
     formas.push({ id, activa: true, ...d }); pintar(); alCambiar();
   }) }, icono('mas1'), 'Agregar forma de pago'));
   pintar();
-  const el = seccion('Formas de pago', 'monedas', h('p', { class: 'nota' }, 'Toca una forma para activarla o apagarla. Las apagadas no salen al cobrar.'), rejilla);
+  const el = seccion(null, null, h('p', { class: 'nota' }, 'Toca una forma para activarla o apagarla. Las apagadas no salen al cobrar.'), rejilla);
   const guardar = async () => {
     if (!formas.some(f => f.activa !== false)) { toast('Deja al menos una forma de pago activa', { malo: true }); return false; }
     return { formasPago: formas };
@@ -195,19 +195,22 @@ registrarVista('/ajustes', {
   accion: 'ajustes',
   montar(cont, ctx) {
     const boton = h('button', { class: 'btn primary', id: 'aj-guardar' }, icono('check'), 'Guardar cambios');
-    const barra = h('div', { class: 'guardar-ajustes', hidden: true }, boton);
-    const cambio = () => { barra.hidden = false; };
+    boton.disabled = true;
+    const barra = h('div', { class: 'guardar-ajustes' }, boton);
+    const cambio = () => { boton.disabled = false; };
     const t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
     const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el };
     // Un solo botón para guardar; aparece cuando se cambia algo.
     for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button, button[aria-pressed], .modo-bs')) cambio(); }); }
     boton.addEventListener('click', e => unaVez(e.currentTarget, async () => {
+      let listo = false;
       if (!(await t.guardar())) return;
       const partes = [await ve.guardar(), await pa.guardar(), await re.guardar()];
       if (partes.some(x => !x)) return;
       const r = await ctx.almacen.guardarAjustes('general', Object.assign({}, ...partes));
       if (!r.ok) { toast('No se pudo guardar', { malo: true }); return; }
-      barra.hidden = true; document.activeElement?.blur(); toast('Cambios guardados');
+      listo = true; document.activeElement?.blur(); toast('Cambios guardados');
+      setTimeout(() => { if (listo) boton.disabled = true; });
     })());
     const pest = h('div', { class: 'segmentado pestanas-aj', role: 'tablist' });
     const mostrar = id => {

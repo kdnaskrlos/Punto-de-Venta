@@ -187,16 +187,16 @@ casos('gestion', [
       await p.context().close();
     }
   }],
-  ['Ajustes: un solo "Guardar cambios" que aparece al cambiar algo', async (env, a) => {
+  ['Ajustes: un solo "Guardar cambios" fijo al final que se activa al cambiar algo', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
     a.strictEqual(await p.$$eval('button', b => b.filter(x => /^Guardar( tasas)?$/.test(x.textContent.trim())).length), 0);
-    a.strictEqual(await p.isVisible('#aj-guardar'), false);
+    a.strictEqual(await p.isDisabled('#aj-guardar'), true);
     await p.click('#aj-tab-venta');
     await p.fill('#aj-redondeo', '50');
-    a.strictEqual(await p.isVisible('#aj-guardar'), true);
+    a.strictEqual(await p.isDisabled('#aj-guardar'), false);
     await p.click('#aj-guardar');
     await p.waitForFunction(() => window.__pos.ctx.ajustes.redondeo === 50);
-    await p.waitForSelector('#aj-guardar', { state: 'hidden' });
+    await p.waitForFunction(() => document.querySelector('#aj-guardar').disabled);
   }],
   ['Calendario: "hoy" se distingue aunque esté elegido', async (env, a) => {
     const p = await env.pagina({ ruta: '/reportes' });
@@ -260,7 +260,7 @@ casos('gestion', [
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
     a.strictEqual(await p.$('.vista h1'), null);
     await p.click('#aj-bs-modo [data-modo="bcv"]');
-    a.ok(await p.isVisible('#aj-guardar'));
+    a.strictEqual(await p.isDisabled('#aj-guardar'), false);
     await p.click('#aj-guardar');
     await p.waitForFunction(() => window.__pos.ctx.ajustesTasas?.bsModo === 'bcv');
     await p.evaluate(() => { location.hash = '/mas'; }); await p.evaluate(() => { location.hash = '/ajustes'; });

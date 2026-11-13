@@ -189,3 +189,7 @@ Suite final: npm test 99/99 · e2e 59/59
 
 ## Tonos (v1.28)
 - Tonos de la app de Pedidos (verde #15803d, rojo #dc2626, azul #2563eb, violeta #7c3aed, rosa #db2777) en tarjetas de Inicio (ventas verde, ganancia violeta, caja azul, cobrado rosa, existencias bajas rojo) y en íconos de Más (Caja verde, Reportes azul, Comisiones violeta, Usuarios rosa, Ajustes rojo). El diseño de las tarjetas no cambia.
+
+## Guardar fijo y actualizaciones (v1.29)
+- "Guardar cambios" de Ajustes fijo al final del contenido (no flotante), siempre visible y activo solo cuando hay cambios. Tasas, Venta y Pagos sin título.
+- Actualizaciones: al quitar el botón de recargar, la app ya no buscaba versiones nuevas (solo al cargar). Ahora busca al volver a la app y cada 10 minutos; si no hay nada a medias se actualiza sola, si no muestra "Hay una versión nueva · Actualizar". Los archivos se revalidan con el servidor (no-cache) para no servir copias viejas del navegador. No se puede probar en las pruebas automáticas (corren sin https): verificar en el teléfono.

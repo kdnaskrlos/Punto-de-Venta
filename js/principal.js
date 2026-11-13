@@ -45,8 +45,16 @@ async function iniciar() {
 }
 iniciar();
 
+// Actualizaciones: se buscan al volver a la app y cada 10 minutos (antes solo al recargar con el botón que se quitó).
+// Si no hay nada a medias (ventana abierta, carrito con prendas, escribiendo), se aplica sola; si no, aviso con "Actualizar".
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  let recargando = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!recargando) { recargando = true; location.reload(); } });
   navigator.serviceWorker.register('sw.js').then(reg => {
+    const buscar = () => { if (reg.waiting && navigator.serviceWorker.controller) avisarVersionNueva(reg.waiting); reg.update().catch(() => {}); };
+    setInterval(buscar, 10 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') buscar(); });
+    if (reg.waiting && navigator.serviceWorker.controller) avisarVersionNueva(reg.waiting);
     reg.addEventListener('updatefound', () => {
       const nuevo = reg.installing;
       nuevo && nuevo.addEventListener('statechange', () => {
@@ -56,7 +64,11 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   }).catch(() => {});
 }
 
+const sinNadaAMedias = () => !document.querySelector('.capa') && !(window.__pos?.ctx?.carrito?.lineas?.length) && !document.activeElement?.matches?.('input, textarea');
+
 function avisarVersionNueva(sw) {
-  document.body.append(h('div', { class: 'toast', role: 'status' }, 'Hay una versión nueva',
-    h('button', { onclick: () => { sw.postMessage('activar'); location.reload(); } }, 'Actualizar')));
+  if (sinNadaAMedias()) { sw.postMessage('activar'); return; }
+  document.querySelector('.toast.version')?.remove();
+  document.body.append(h('div', { class: 'toast version', role: 'status' }, 'Hay una versión nueva',
+    h('button', { onclick: () => sw.postMessage('activar') }, 'Actualizar')));
 }

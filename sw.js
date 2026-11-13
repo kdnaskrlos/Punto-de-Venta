@@ -1,5 +1,5 @@
 // Permite instalar la app y abrirla sin internet. Las ventas las guarda Firebase (con su propia caché).
-const CACHE = 'pos-v1.28';
+const CACHE = 'pos-v1.29';
 const LIBS = 'libs-v1'; // Firebase y la fuente: archivos con versión fija
 const FOTOS = 'fotos-v1';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icono-192.png', './icono-512.png', './logo-carrito.png',
@@ -33,7 +33,7 @@ self.addEventListener('fetch', e => {
   }
   const nav = r.mode === 'navigate';
   e.respondWith(caches.open(CACHE).then(c => c.match(nav ? './index.html' : r, { ignoreSearch: nav }).then(hit => {
-    const red = fetch(r).then(res => { if (res.ok && !nav) c.put(r, res.clone()); return res; });
+    const red = fetch(r, { cache: 'no-cache' }).then(res => { if (res.ok && !nav) c.put(r, res.clone()); return res; });
     if (hit) { e.waitUntil(red.catch(() => {})); return hit; }
     return red.catch(() => caches.match('./index.html'));
   })));
