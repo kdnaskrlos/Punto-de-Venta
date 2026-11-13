@@ -1,5 +1,5 @@
 // Ventas de un rango con su costo congelado (§15) y lista de ventas con "Anular" para gestión.
-import { h, toast, pedirMotivo, unaVez } from '../ui.js';
+import { h, icono, abrirVentana, toast, pedirMotivo, unaVez } from '../ui.js';
 import { conCaja } from './caja.js';
 import { costoVenta } from '../nucleo/costos.js';
 import { fmtCop } from '../nucleo/dinero.js';
@@ -30,17 +30,40 @@ export function escucharVentasConCosto(ctx, { desde, hasta }, cb) {
   return () => q.forEach(x => x());
 }
 
+const hora = iso => new Date(iso).toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: 'numeric', minute: '2-digit' }).replace('a. m.', 'am').replace('p. m.', 'pm');
+const NOMBRE_MON = { COP: 'COP', USD: 'USD', BS: 'Bs' };
+
+// Detalle de una venta: prendas, pagos y, para gestión, "Anular venta" (la acción vive aquí, no en la lista).
+function abrirDetalle(ctx, v) {
+  const anulada = v.estado === 'anulada';
+  const filas = (v.lineas || []).map(l => h('div', { class: 'det-fila' }, h('span', {}, h('b', {}, `${l.cantidad}× `), `${l.nombre}${l.talla ? ' · Talla ' + l.talla : ''}`), h('span', { class: 'num' }, fmtCop(l.subtotal ?? l.precioUnit * l.cantidad))));
+  const pagos = (v.pagos || []).map(p => h('div', { class: 'det-fila' }, h('span', {}, p.nombre || p.forma), h('span', { class: 'num' }, `${p.moneda === 'COP' ? fmtCop(p.monto) : p.monto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${NOMBRE_MON[p.moneda] || p.moneda}`)));
+  const anular = ctx.puedeVer('anularVenta') && !anulada ? h('button', { class: 'btn danger', id: 'det-anular', onclick: e => unaVez(e.currentTarget, async () => {
+    const motivo = await pedirMotivo({ titulo: `Anular ${v.numero || 'venta'}`, boton: 'Anular venta', peligro: true });
+    if (!motivo) return;
+    const r = await conCaja(ctx, () => ctx.almacen.anularVenta(v.id, motivo));
+    toast(r.ok ? 'Venta anulada' : r.error === 'sin-caja' ? 'Abre tu caja para registrar la devolución' : 'No se pudo anular', { malo: !r.ok });
+    if (r.ok) vent.cerrar();
+  })() }, icono('borrar'), 'Anular venta') : null;
+  const vent = abrirVentana({ titulo: v.numero || 'Venta', contenido: h('div', { class: 'pila detalle-venta' },
+    h('div', { class: 'det-cab' }, h('div', {}, h('b', {}, v.cliente?.nombre || 'Sin cliente'), h('span', { class: 'nota' }, `${fechaHora(v.fecha)}, por @${v.usuario}`)),
+      anulada ? h('span', { class: 'est r' }, 'Anulada') : null),
+    anulada && v.anulacion?.motivo ? h('div', { class: 'aviso' }, icono('alerta'), `Motivo: ${v.anulacion.motivo}`) : null,
+    h('div', { class: 'det-grupo' }, ...filas),
+    v.descuento?.monto ? h('div', { class: 'det-fila' }, h('span', {}, 'Descuento'), h('span', { class: 'num' }, `−${fmtCop(v.descuento.monto)}`)) : null,
+    h('div', { class: 'det-fila det-total' }, h('span', {}, 'Total'), h('b', { class: 'num' }, fmtCop(v.total))),
+    pagos.length ? h('div', { class: 'det-grupo' }, h('span', { class: 'sec-m' }, 'Pagos'), ...pagos) : null),
+    acciones: anular ? h('div', { class: 'acciones' }, anular) : null });
+}
+
+// Lista de ventas: cada fila se toca para ver el detalle (y ahí, Anular).
 export function listaVentas(ctx, ventas) {
   const orden = [...ventas].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 40);
   if (!orden.length) return h('p', { class: 'nota' }, 'Sin ventas en este período.');
-  return h('div', { class: 'lista-ventas' }, ...orden.map(v => h('div', { class: 'venta-hoy' + (v.estado === 'anulada' ? ' anulada' : '') },
-    h('div', { class: 'vh-info' }, h('b', {}, `${v.numero || 'Sin número'} · ${v.cliente?.nombre || '—'}`),
-      h('div', { class: 'nota' }, `${fechaHora(v.fecha)} · @${v.usuario}${v.offline ? ' · sin conexión' : ''}${v.estado === 'anulada' ? ` · anulada: ${v.anulacion?.motivo || ''}` : ''}`)),
-    h('b', { class: 'num' }, fmtCop(v.total)),
-    ctx.puedeVer('anularVenta') && v.estado !== 'anulada' ? h('button', { class: 'btn danger', onclick: e => unaVez(e.currentTarget, async () => {
-      const motivo = await pedirMotivo({ titulo: `Anular ${v.numero || 'venta'}`, boton: 'Anular venta', peligro: true });
-      if (!motivo) return;
-      const r = await conCaja(ctx, () => ctx.almacen.anularVenta(v.id, motivo));
-      toast(r.ok ? 'Venta anulada' : r.error === 'sin-caja' ? 'Abre tu caja para registrar la devolución' : 'No se pudo anular', { malo: !r.ok });
-    })() }, 'Anular') : null)));
+  return h('div', { class: 'lista-ventas' }, ...orden.map(v => h('button', { type: 'button', class: 'venta-hoy' + (v.estado === 'anulada' ? ' anulada' : ''), onclick: () => abrirDetalle(ctx, v) },
+    h('div', { class: 'vh-info' }, h('b', {}, v.cliente?.nombre || 'Sin cliente'),
+      h('div', { class: 'vh-meta' }, h('span', { class: 'num' }, hora(v.fecha)), h('span', { class: 'vh-quien' }, `@${v.usuario}`),
+        v.estado === 'anulada' ? h('span', { class: 'est r' }, 'Anulada') : v.offline ? h('span', { class: 'est y' }, 'Sin conexión') : null)),
+    h('div', { class: 'vh-der' }, h('b', { class: 'num' }, fmtCop(v.total)), h('span', { class: 'nota num' }, v.numero || '')),
+    h('span', { class: 'vh-flecha' }, icono('der')))));
 }

@@ -57,7 +57,9 @@ casos('gestion', [
     const p = await env.pagina({ usuario: 'vendedora', caja: true });
     await vender(p);
     await cambiarA(p, 'encargada');
-    await p.click('.venta-hoy button:has-text("Anular")');
+    a.strictEqual(await p.$('.venta-hoy button:has-text("Anular")'), null, 'la lista no tiene botón Anular');
+    await p.click('.venta-hoy');
+    await p.click('#det-anular');
     await p.fill('#motivo', 'Cliente devolvió');
     await p.click('#motivo-final');
     await p.waitForFunction(() => window.__pos.ctx.productos['J-M'].existencia === 5);
