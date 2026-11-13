@@ -126,10 +126,10 @@
 .talla-menos{position:absolute;bottom:-7px;left:-7px;width:22px;height:22px;border-radius:11px;border:1px solid var(--r-bd);background:var(--r-bg);color:var(--r-tx);font-size:16px;font-weight:800;line-height:1;display:grid;place-items:center;padding:0}
 .talla-menos::before{content:"";position:absolute;inset:-11px}
 .tarjeta-prenda{position:relative}
-/* Elección de prenda: acento violeta (distinto del verde de las acciones) */
-.tarjeta-prenda{--sel:var(--tono-violeta)}
-.tarjeta-prenda.elegida{border-color:color-mix(in srgb,var(--sel) 45%,var(--line));background:linear-gradient(170deg,var(--surface) 40%,color-mix(in srgb,var(--sel) 11%,var(--surface)))}
-.tarjeta-prenda.elegida .foto{background:color-mix(in srgb,var(--sel) 7%,var(--surface-2))}
+/* Elección de prenda: acento azul muy suave (distinto del verde de las acciones) */
+.tarjeta-prenda{--sel:#3b82f6}
+.tarjeta-prenda.elegida{border-color:color-mix(in srgb,var(--sel) 35%,var(--line));background:linear-gradient(170deg,var(--surface) 40%,color-mix(in srgb,var(--sel) 8%,var(--surface)))}
+.tarjeta-prenda.elegida .foto{background:color-mix(in srgb,var(--sel) 5%,var(--surface-2))}
 .tarjeta-prenda.elegida .foto svg.i{color:var(--sel)}
 .tarjeta-prenda .foto{position:relative}
 .tarjeta-prenda .en-carrito{position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;gap:3px;height:24px;padding:0 8px 0 6px;border-radius:99px;background:var(--accent);color:var(--accent-ink);font-size:12.5px;font-weight:800}
@@ -639,7 +639,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .pill.demo svg.i{width:16px;height:16px}
 .pill.demo.on{border-style:solid;border-color:#f59e0b;background:#fff4dc;color:#b45309}
 
-.tarjeta-prenda .en-carrito{background:var(--tono-violeta);color:#fff}
-.talla.con{border-color:var(--tono-violeta);background:color-mix(in srgb,var(--tono-violeta) 9%,var(--surface));box-shadow:0 0 0 1px var(--tono-violeta)}
-.talla .en-carrito{background:var(--tono-violeta);color:#fff}
-.tarjeta-prenda .en-carrito svg.i{color:#fff}
+.tarjeta-prenda .en-carrito{background:var(--b-bg);color:var(--b-tx);border:1px solid var(--b-bd)}
+.talla.con{border-color:color-mix(in srgb,#3b82f6 45%,var(--line));background:color-mix(in srgb,#3b82f6 7%,var(--surface));box-shadow:none}
+.talla .en-carrito{background:var(--b-bg);color:var(--b-tx);border:1px solid var(--b-bd)}
+.tarjeta-prenda .en-carrito svg.i{color:var(--b-tx)}

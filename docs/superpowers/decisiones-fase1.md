@@ -210,3 +210,6 @@ Suite final: npm test 99/99 · e2e 59/59
 
 ## Detalle (v1.33)
 - El círculo "−" de las tallas pasa a la esquina inferior izquierda.
+
+## Detalle (v1.34)
+- Elección de prenda y tallas con acento azul muy suave (#3b82f6 a baja intensidad); la cantidad en pastilla azul crema.
