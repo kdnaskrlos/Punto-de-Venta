@@ -400,26 +400,27 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 /* Ajustes en 5 apartados (v1.21) */
 .pestanas-aj{margin:4px 0 12px;overflow-x:auto}
 .pestanas-aj button{min-width:64px;padding:0 8px;white-space:nowrap;font-size:13px}
-.formas-aj{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.formas-aj{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
 .forma-tarjeta{--c:var(--muted);position:relative;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);transition:opacity .15s,background .15s,border-color .15s}
 .forma-tarjeta.m-cop{--c:var(--cop)} .forma-tarjeta.m-usd{--c:var(--usd)} .forma-tarjeta.m-bs{--c:var(--bs)}
 .forma-tarjeta:not(.activa){opacity:.5;filter:grayscale(1)}
 .forma-tarjeta.activa{background:color-mix(in srgb,var(--c) 10%,var(--surface));border-color:color-mix(in srgb,var(--c) 55%,var(--line));box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 14px color-mix(in srgb,var(--c) 14%,transparent)}
-.forma-toque{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;min-height:118px;border:0;background:none;padding:12px 12px 10px;text-align:left;color:var(--ink)}
+.forma-toque{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;border:0;background:none;padding:10px 84px 10px 12px;text-align:left;color:var(--ink)}
+.forma-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
 .forma-toque b{font-size:13.5px;font-weight:800;line-height:1.25}
-.forma-ic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--surface);color:var(--c);border:1px solid var(--line)}
+.forma-ic{flex:none;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;background:var(--surface);color:var(--c);border:1px solid var(--line)}
 .forma-tarjeta.activa .forma-ic{background:var(--c);color:#fff;border-color:var(--c)}
-.forma-pie{margin-top:auto;display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:12px;font-weight:600;color:var(--muted);width:100%}
+.forma-pie{display:flex;gap:3px;align-items:center;flex-wrap:wrap;font-size:12px;font-weight:600;color:var(--muted)}
 .forma-pie .moneda{font-weight:800;color:var(--c)}
-.forma-est{margin-left:auto;font-weight:800;font-size:11.5px}
+.forma-est{font-weight:800;font-size:12px}
 .forma-tarjeta.activa .forma-est{color:var(--c)}
-.forma-acc{position:absolute;top:6px;right:4px;display:flex;gap:0}
+.forma-acc{position:absolute;top:50%;right:4px;transform:translateY(-50%);display:flex;gap:0}
 .forma-acc .ibtn{color:var(--muted)}
 .forma-acc .ibtn svg.i{width:17px;height:17px}
 .forma-acc .ibtn.peligro:hover{color:var(--err)}
 .forma-tarjeta:not(.activa) .forma-acc{opacity:1}
 .ibtn.peligro{color:var(--err)}
-.forma-nueva{min-height:118px;border:1.5px dashed var(--g-bd);border-radius:12px;background:none;color:var(--g-tx);font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.forma-nueva{min-height:56px;border:1.5px dashed var(--g-bd);border-radius:12px;background:none;color:var(--g-tx);font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px}
 .iconos-forma{display:flex;gap:6px;flex-wrap:wrap}
 .iconos-forma .ibtn{border:1px solid var(--line)}
 .iconos-forma .ibtn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -427,8 +428,7 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .chips-recibo .chip{display:inline-flex;align-items:center;gap:4px}
 .chips-recibo .chip svg.i{width:14px;height:14px}
 textarea.inp{resize:vertical;min-height:44px;font:inherit}
-.vista-recibo{margin:0;white-space:pre-wrap;font:600 13px/1.45 var(--f);background:#e7fbe9;color:#111827;border:1px solid var(--g-bd);border-radius:12px 12px 12px 2px;padding:10px 12px;max-width:340px}
-.fila-btn.tema{margin-top:12px;border:1px solid var(--line);background:var(--surface)}
+.vista-recibo-viejo{margin:0;white-space:pre-wrap;font:600 13px/1.45 var(--f);background:#e7fbe9;color:#111827;border:1px solid var(--g-bd);border-radius:12px 12px 12px 2px;padding:10px 12px;max-width:340px}
 .switch{width:40px;height:24px;border-radius:12px;background:var(--line);position:relative;flex:none;transition:background .15s}
 .switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s}
 .switch.on{background:var(--accent)} .switch.on::after{transform:translateX(16px)}
@@ -450,3 +450,15 @@ textarea.inp{resize:vertical;min-height:44px;font:inherit}
 .cli-recibo .sp{flex:1}
 .cliente-resumen{border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
 .cliente-resumen > svg.i{color:var(--g-tx)}
+
+/* Recibo: vista previa como en WhatsApp (v1.22) */
+.wa-fondo{background:#efe7dd;border-radius:12px;padding:14px 12px}
+.wa-burbuja{background:#fff;border-radius:2px 10px 10px 10px;padding:8px 10px;max-width:320px;white-space:pre-wrap;font:500 14px/1.4 var(--f);color:#111b21;box-shadow:0 1px 1px rgba(0,0,0,.12)}
+.wa-burbuja b{font-weight:800}
+textarea.plantilla{min-height:220px;line-height:1.45}
+/* Sugerencias de clientes al escribir el nombre */
+.sugerencias-cli{display:flex;flex-direction:column;gap:4px}
+.sugerencias-cli:empty{display:none}
+.sug-cli{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-align:left;color:var(--ink)}
+.sug-cli svg.i{width:16px;height:16px;color:var(--g-tx)}
+.sug-cli .nota{margin-left:auto}

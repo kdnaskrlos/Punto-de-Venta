@@ -143,3 +143,13 @@ Suite final: npm test 99/99 · e2e 59/59
 - Recibo editable: saludo con {cliente}, apartados que se muestran, mensaje final y pie, con vista previa.
 - Tema: un interruptor "Modo claro / Modo oscuro" sin el título "Apariencia".
 - Arreglo: al cerrar una ventana y abrir otra seguida (cliente → cobro), el historial se comía una entrada y al cerrar la segunda la app salía de la página.
+
+## Ajustes de pantallas (v1.22)
+- Cliente en pantalla aparte: al tocar Cobrar o Apartar se abre "Cliente" (pantalla completa) con nombre primero y teléfono después; al escribir el nombre sugiere clientes ya registrados. El carrito ya no tiene bloque de cliente.
+- El recibo por WhatsApp es un botón opcional en la pantalla "Venta guardada"; sin interruptor previo.
+- Sin modo oscuro: la app queda siempre en claro (se borra la preferencia guardada).
+- Más: sin "Mi cuenta"; nueva entrada "Usuarios" debajo de Comisiones (admin) o "Mi cuenta" (otros roles), con Mi cuenta al final de esa pantalla. En PC, "Usuarios" en la barra lateral. Ajustes queda en 4 apartados.
+- Formas de pago: tarjetas bajas, ícono a la izquierda y nombre con descripción a la derecha.
+- Recibo: un mensaje libre con variables ({cliente}, {tienda}, {ticket}, {fecha}, {prendas}, {totalCOP}, {totalUSD}, {totalBs}, {pagos}, {vuelto}); vista previa estilo WhatsApp arriba y el mensaje debajo. Una línea cuyas variables quedan vacías no se muestra.
+- Pendiente de decisión de Carlos: enviar el recibo desde su número (API de WhatsApp).
+- Intermitente conocido: tras cambiar de rol, a veces la espera de la barra lateral vence (pruebas de gestión, distinta prueba cada vez).

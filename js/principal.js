@@ -15,6 +15,7 @@ import './vistas/caja.js';
 import './vistas/inventario.js';
 import './vistas/reportes.js';
 import './vistas/ajustes.js';
+import './vistas/usuarios.js';
 import './vistas/mas.js';
 
 window.__pos = { ctx };

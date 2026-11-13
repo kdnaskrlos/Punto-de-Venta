@@ -30,6 +30,7 @@ casos('entrar', [
   ['Teléfono: Más → Cerrar sesión vuelve a la entrada', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'encargada', query: '?demo&entrar' });
     await p.click('.side .nav[aria-label="Más"]');
+    await p.click('.lista-mas .fila-btn:has-text("Mi cuenta")');
     await p.click('text=Cerrar sesión');
     await p.waitForSelector('#entrar-usuario');
   }],
@@ -50,6 +51,7 @@ casos('entrar', [
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: null });
     await p.waitForSelector('.side .nav');
     await p.click('.side .nav[aria-label="Más"]');
+    await p.click('.lista-mas .fila-btn:has-text("Usuarios")');
     a.strictEqual(await p.$('text=Cerrar sesión'), null);
     await p.click('#probar-vendedora');
     await p.waitForFunction(() => window.__pos.ctx.sesion?.rol === 'vendedora');

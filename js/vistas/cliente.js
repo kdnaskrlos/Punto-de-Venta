@@ -1,8 +1,8 @@
-// Cliente de la venta: se registra en el carrito, antes de pasar al pago (nombre y teléfono obligatorios).
+// Cliente de la venta: pantalla propia al tocar Cobrar o Apartar, antes del pago (nombre y teléfono obligatorios).
 import { h, icono, abrirVentana, esTelefono } from '../ui.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
 
-// Campos de cliente (teléfono primero; si ya existe, completa el nombre).
+// Campos de cliente: nombre primero (sugiere clientes ya registrados) y luego el teléfono (si ya existe, completa el nombre).
 export function camposCliente(ctx, alCambiar = () => {}, inicial = null) {
   let clientes = [];
   const quitar = ctx.almacen.escuchar('clientes', l => { clientes = l; });
@@ -18,12 +18,21 @@ export function camposCliente(ctx, alCambiar = () => {}, inicial = null) {
     alCambiar();
   });
   tel.addEventListener('blur', () => { if (tel.value.trim() && !telefonoInternacional(tel.value)) errTel.textContent = 'Teléfono no válido'; });
-  nombre.addEventListener('input', () => { errNom.textContent = ''; alCambiar(); });
+  const sugerencias = h('div', { class: 'sugerencias-cli' });
+  const sinTildes = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  nombre.addEventListener('input', () => {
+    errNom.textContent = ''; alCambiar();
+    const q = sinTildes(nombre.value.trim());
+    const hallados = q.length < 2 ? [] : clientes.filter(c => sinTildes(c.nombre || '').includes(q)).slice(0, 3);
+    sugerencias.replaceChildren(...hallados.map(c => h('button', { type: 'button', class: 'sug-cli', onclick: () => {
+      nombre.value = c.nombre; tel.value = telefonoLegible(c.telefono); sugerencias.replaceChildren(); errTel.textContent = ''; alCambiar();
+    } }, icono('usuario'), h('b', {}, c.nombre), h('span', { class: 'nota num' }, telefonoLegible(c.telefono)))));
+  });
   const el = h('div', { class: 'cliente' },
-    h('div', { class: 'campo' }, h('label', { for: 'cli-tel' }, 'Teléfono del cliente'), tel, errTel),
-    h('div', { class: 'campo' }, h('label', { for: 'cli-nombre' }, 'Nombre'), nombre, errNom));
+    h('div', { class: 'campo' }, h('label', { for: 'cli-nombre' }, 'Nombre del cliente'), nombre, errNom, sugerencias),
+    h('div', { class: 'campo' }, h('label', { for: 'cli-tel' }, 'Teléfono'), tel, errTel));
   // Qué le falta al cliente ('tel', 'nombre' o null) y marcarlo: error bajo el campo y foco en él.
-  const falta = () => (!telefonoInternacional(tel.value) ? 'tel' : nombre.value.trim().length < 2 ? 'nombre' : null);
+  const falta = () => (nombre.value.trim().length < 2 ? 'nombre' : !telefonoInternacional(tel.value) ? 'tel' : null);
   const marcar = cual => {
     if (cual === 'tel') { errTel.textContent = tel.value.trim() ? 'Teléfono no válido' : 'Escribe el teléfono del cliente'; tel.focus(); }
     if (cual === 'nombre') { errNom.textContent = 'Escribe el nombre del cliente'; nombre.focus(); }
@@ -32,7 +41,7 @@ export function camposCliente(ctx, alCambiar = () => {}, inicial = null) {
     el, quitar, falta, marcar,
     valido: () => !falta(),
     datos: () => ({ nombre: nombre.value.trim(), telefono: telefonoInternacional(tel.value) }),
-    foco: () => tel.focus(),
+    foco: () => nombre.focus(),
   };
 }
 
@@ -51,15 +60,14 @@ export function ventanaCliente(ctx, alListo) {
   const c = ctx.carrito;
   const editar = !!c.cliente;
   const campos = camposCliente(ctx, () => {}, c.cliente && { nombre: c.cliente.nombre, telefonoTexto: telefonoLegible(c.cliente.telefono) });
-  const b = h('button', { class: 'btn primary grande', id: 'cli-guardar' }, icono('check'), editar ? 'Guardar cliente' : 'Registrar cliente');
-  const v = abrirVentana({ titulo: editar ? 'Editar cliente' : 'Registrar cliente', contenido: h('div', { class: 'pila' }, campos.el), acciones: b });
+  const b = h('button', { class: 'btn primary grande', id: 'cli-guardar' }, editar ? icono('check') : null, editar ? 'Guardar cliente' : 'Continuar al pago', editar ? null : icono('der'));
+  const v = abrirVentana({ titulo: editar ? 'Editar cliente' : 'Cliente', pantallaCompleta: true, contenido: h('div', { class: 'pila' }, h('p', { class: 'nota' }, editar ? 'Corrige los datos del cliente.' : '¿A nombre de quién es la venta?'), campos.el), acciones: b });
   v.alCerrar = () => campos.quitar();
   if (!esTelefono()) setTimeout(() => campos.foco(), 40);
   b.onclick = () => {
     const falta = campos.falta();
     if (falta) { campos.marcar(falta); return; }
     c.cliente = campos.datos();
-    if (c.enviarRecibo == null) c.enviarRecibo = true;
     document.activeElement?.blur();
     v.cerrar(); avisar();
     alListo && alListo();
@@ -70,17 +78,4 @@ export function ventanaCliente(ctx, alListo) {
 export function conCliente(ctx, seguir) {
   if (ctx.carrito?.cliente) seguir();
   else ventanaCliente(ctx, seguir);
-}
-
-// Bloque del cliente dentro del carrito: Registrar, o nombre + Editar + Enviar recibo.
-export function bloqueCliente(ctx) {
-  const c = ctx.carrito;
-  if (!c.cliente) return h('button', { class: 'cliente-registrar', id: 'cli-registrar', onclick: () => ventanaCliente(ctx) }, icono('usuario'), 'Registrar cliente', h('span', { class: 'nota' }, 'Obligatorio para cobrar'));
-  const recibo = c.enviarRecibo !== false;
-  return h('div', { class: 'cliente-carrito' },
-    h('div', { class: 'cli-fila' }, h('span', { class: 'cli-ic' }, icono('usuario')),
-      h('div', { class: 'cli-datos' }, h('b', {}, c.cliente.nombre), h('span', { class: 'nota num' }, telefonoLegible(c.cliente.telefono))),
-      h('button', { class: 'btn chico', id: 'cli-editar', onclick: () => ventanaCliente(ctx) }, icono('lapiz'), 'Editar')),
-    h('button', { class: 'cli-recibo', id: 'cli-recibo', role: 'switch', 'aria-checked': String(recibo), onclick: () => { c.enviarRecibo = !recibo; avisar(); } },
-      icono('mensaje'), 'Enviar recibo por WhatsApp', h('span', { class: 'sp' }), h('span', { class: 'switch' + (recibo ? ' on' : '') })));
 }

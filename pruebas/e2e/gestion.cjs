@@ -99,14 +99,14 @@ casos('gestion', [
     await p.fill('#aj-cop', '4.000');
     await p.click('#aj-guardar');
     await p.waitForFunction(() => document.querySelector('.topbar .tasas').textContent.includes('4.000'));
-    await p.click('#aj-tab-usuarios');
+    await p.evaluate(() => { location.hash = '/usuarios'; });
     await p.fill('#nu-usuario', 'maria'); await p.fill('#nu-nombre', 'María'); await p.selectOption('#nu-rol', 'vendedora'); await p.fill('#nu-pin', '5555');
     await p.click('#nu-crear');
     await p.waitForSelector('.usuario[data-usuario="maria"]');
     await cambiarA(p, 'maria', '5555');
     a.ok(await p.$('.side .nav[aria-label="Vender"]'));
     await cambiarA(p, 'admin');
-    await p.evaluate(() => { location.hash = '/ajustes'; });
+    await p.evaluate(() => { location.hash = '/usuarios'; });
     await p.click('.usuario[data-usuario="maria"] button:has-text("Desactivar")');
     await p.waitForSelector('.usuario[data-usuario="maria"] .est.n');
     await p.evaluate(() => window.__pos.ctx.almacen.salir());
@@ -187,17 +187,20 @@ casos('gestion', [
     const c = await p.$eval('.calendario .dia.hoy', e => getComputedStyle(e, '::after').content);
     a.notStrictEqual(c, 'none');
   }],
-  ['Ajustes: 5 apartados; formas de pago en tarjetas que se activan, agregan y eliminan', async (env, a) => {
+  ['Ajustes: 4 apartados, sin modo oscuro; formas de pago en tarjetas que se activan, agregan y eliminan', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
-    a.deepStrictEqual(await p.$$eval('.pestanas-aj button', b => b.map(x => x.textContent)), ['Tasas', 'Venta', 'Pagos', 'Recibo', 'Usuarios']);
+    a.deepStrictEqual(await p.$$eval('.pestanas-aj button', b => b.map(x => x.textContent)), ['Tasas', 'Venta', 'Pagos', 'Recibo']);
     a.strictEqual(await p.$('text=Apariencia'), null);
-    a.strictEqual(await p.$$eval('.vista svg.i', s => s.filter(x => x.innerHTML.includes('M12 3a6')).length) <= 1, true, 'una sola luna');
+    a.strictEqual(await p.$('#aj-tema'), null);
+    a.strictEqual(await p.$('text=/oscuro/i'), null);
     await p.click('#aj-tab-pagos');
     const zelle = '.forma-tarjeta[data-forma="zelle"]';
     a.ok(await p.$(zelle + '.activa'));
     await p.click(zelle + ' .forma-toque');
     a.strictEqual(await p.$(zelle + '.activa'), null);
     a.strictEqual(await p.$eval(zelle, e => getComputedStyle(e).opacity), '0.5');
+    const caja = await p.$eval(zelle, e => { const i = e.querySelector('.forma-ic').getBoundingClientRect(), b = e.querySelector('b').getBoundingClientRect(); return { alto: e.offsetHeight, derecha: b.left > i.right }; });
+    a.ok(caja.derecha, 'nombre a la derecha del ícono'); a.ok(caja.alto <= 72, `tarjeta baja (${caja.alto}px)`);
     await p.click('.forma-tarjeta[data-forma="punto"] [aria-label^="Eliminar"]');
     a.strictEqual(await p.$('.forma-tarjeta[data-forma="punto"]'), null);
     await p.click('#aj-forma-nueva');
@@ -211,21 +214,29 @@ casos('gestion', [
     a.deepStrictEqual(f.find(x => x[0] === 'zelle'), ['zelle', false]);
     a.deepStrictEqual(f.find(x => x[0] === 'nequi'), ['nequi', true]);
   }],
-  ['Ajustes: el recibo se edita con vista previa y se usa al vender', async (env, a) => {
+  ['Ajustes: el recibo se edita con vista previa arriba y variables, y se usa al vender', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
     await p.click('#aj-tab-recibo');
-    await p.fill('#aj-saludo', 'Hola {cliente}');
-    await p.fill('#aj-pie', 'Instagram @comicshop');
-    await p.click('.chips-recibo [data-apartado="pagos"]');
-    const vista = await p.innerText('#aj-recibo-vista');
-    a.match(vista, /Hola Ana Pérez/); a.match(vista, /Instagram @comicshop/); a.doesNotMatch(vista, /Pagos:/);
+    const orden = await p.$eval('#aj-recibo-vista', v => v.getBoundingClientRect().top < document.querySelector('#aj-plantilla').getBoundingClientRect().top);
+    a.ok(orden, 'la vista previa va primero');
+    a.match(await p.innerText('#aj-recibo-vista'), /Hola, Juan Pérez/);
+    await p.fill('#aj-plantilla', 'Gracias ');
+    await p.click('.chips-recibo [data-variable="cliente"]');
+    a.strictEqual(await p.inputValue('#aj-plantilla'), 'Gracias {cliente}');
+    a.strictEqual(await p.innerText('#aj-recibo-vista'), 'Gracias Juan Pérez');
     await p.click('#aj-guardar');
-    await p.waitForFunction(() => window.__pos.ctx.ajustes.recibo?.pie === 'Instagram @comicshop');
-    a.strictEqual(await p.evaluate(() => window.__pos.ctx.ajustes.recibo.mostrar.pagos), false);
+    await p.waitForFunction(() => window.__pos.ctx.ajustes.recibo?.plantilla === 'Gracias {cliente}');
+    await p.click('#aj-recibo-original');
+    a.match(await p.innerText('#aj-recibo-vista'), /Resumen de tu compra/);
   }],
-  ['Ajustes > Usuarios: el administrador cambia su PIN ahí y ya no en Mi cuenta', async (env, a) => {
-    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
-    await p.click('#aj-tab-usuarios');
-    a.ok(await p.$('.usuario[data-usuario="admin"] #mi-pin'));
+  ['Más → Usuarios (debajo de Comisiones) con Mi cuenta al final; Más ya no tiene Mi cuenta', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/mas' });
+    const filas = await p.$$eval('.lista-mas .fila-btn', b => b.map(x => x.innerText.trim()));
+    a.ok(filas.indexOf('Usuarios') === filas.indexOf('Comisiones') + 1, filas.join(','));
+    a.strictEqual(await p.$('.vista .cuenta'), null);
+    await p.click('.lista-mas .fila-btn:has-text("Usuarios")');
+    await p.waitForSelector('.usuario[data-usuario="admin"]');
+    a.ok(await p.$eval('#mi-cuenta', m => m === m.parentElement.lastElementChild), 'Mi cuenta va de último');
+    a.strictEqual(await p.$('.pestanas-aj'), null);
   }],
 ]);

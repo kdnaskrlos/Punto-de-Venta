@@ -37,31 +37,29 @@ test('fecha y hora de la tienda en 12 h', () => {
   assert.equal(fechaHora('2026-11-12T13:30:00Z'), 'Jueves 12 nov · 9:30 am');
 });
 
-test('texto del recibo con detalle, total y pagos (§9.4)', () => {
-  const t = textoRecibo(VENTA, { nombre: 'Comic Shop' });
-  for (const parte of ['*Comic Shop*', 'Jueves 12 nov · 3:05 pm', 'Venta V-0001', 'Ana Pérez', '2 × Franela AS Niño Negro · Talla 6 — 48.000', 'Descuento: -2.000', '*Total: 46.000 COP*', 'Efectivo pesos: 20.000 COP', 'Pago móvil: 7.166,67 Bs', 'Gracias'])
+const V2 = { ...VENTA, tasas: { copPorUsd: 4000, bsPorUsd: 100 } };
+
+test('recibo por plantilla: reemplaza las variables con los datos de la venta', () => {
+  const t = textoRecibo(V2, { nombre: 'Comic Shop' }, { plantilla: 'Hola, {cliente}\nGracias por comprar en {tienda}\nTicket: {ticket}\nTotal COP: {totalCOP}\nTotal USD: {totalUSD}\nTotal Bs: {totalBs}\n{prendas}\n{pagos}' });
+  assert.equal(t, ['Hola, Ana Pérez', 'Gracias por comprar en Comic Shop', 'Ticket: V-0001', 'Total COP: 46.000', 'Total USD: 11,50', 'Total Bs: 1.150,00',
+    '2 × Franela AS Niño Negro · Talla 6 — 48.000', 'Efectivo pesos: 20.000 COP', 'Pago móvil: 7.166,67 Bs'].join('\n'));
+});
+
+test('recibo por plantilla: la línea con una variable vacía desaparece', () => {
+  const t = textoRecibo(V2, { nombre: 'Comic Shop' }, { plantilla: 'Total: {totalCOP}\n{vuelto}\nChao' });
+  assert.equal(t, 'Total: 46.000\nChao');
+  const conVuelto = textoRecibo({ ...V2, vuelto: { monto: 2000, moneda: 'COP' } }, { nombre: 'X' }, { plantilla: '{vuelto}' });
+  assert.equal(conVuelto, 'Vuelto: 2.000 COP');
+});
+
+test('recibo sin plantilla usa el mensaje por defecto (saludo, resumen y tip)', () => {
+  const t = textoRecibo(V2, { nombre: 'Comic Shop' });
+  for (const parte of ['Hola, Ana Pérez', 'Comic Shop', '*Resumen de tu compra:*', 'Ticket: V-0001', 'Total COP: 46.000', 'Total USD: 11,50'])
     assert.ok(t.includes(parte), `falta «${parte}» en:\n${t}`);
-  assert.ok(!t.includes('Vuelto'));
+  assert.ok(!t.includes('{'), 'no quedan variables sin reemplazar');
 });
 
-test('enlace de WhatsApp con el número internacional', () => {
-  assert.match(enlaceWhatsApp(VENTA, { nombre: 'Comic Shop' }), /^https:\/\/wa\.me\/584121234567\?text=%2AComic%20Shop%2A/);
-  assert.equal(enlaceWhatsApp({ ...VENTA, cliente: { nombre: 'x', telefono: '12' } }, { nombre: 'Comic Shop' }), null);
-});
-
-test('recibo editable: saludo, mensaje final, pie y apartados ocultos', () => {
-  const t = textoRecibo(VENTA, { nombre: 'Comic Shop' }, {
-    saludo: 'Hola {cliente}, este es tu recibo', despedida: 'Vuelve pronto', pie: 'Instagram: @comicshop',
-    mostrar: { fecha: false, numero: false, pagos: false },
-  });
-  for (const parte of ['*Comic Shop*', 'Hola Ana Pérez, este es tu recibo', '*Total: 46.000 COP*', 'Vuelve pronto', 'Instagram: @comicshop', '2 × Franela'])
-    assert.ok(t.includes(parte), `falta «${parte}» en:\n${t}`);
-  for (const no of ['Jueves 12 nov', 'V-0001', 'Pagos:', 'Gracias por tu compra', 'Cliente:'])
-    assert.ok(!t.includes(no), `sobra «${no}» en:\n${t}`);
-});
-
-test('recibo editable: sin prendas no muestra el detalle', () => {
-  const t = textoRecibo(VENTA, { nombre: 'Comic Shop' }, { mostrar: { prendas: false } });
-  assert.ok(!t.includes('Franela'));
-  assert.ok(t.includes('*Total: 46.000 COP*'));
+test('enlace de WhatsApp al teléfono del cliente con el texto', () => {
+  const url = enlaceWhatsApp(V2, { nombre: 'Comic Shop' }, { plantilla: 'Hola {cliente}' });
+  assert.equal(url, 'https://wa.me/584121234567?text=' + encodeURIComponent('Hola Ana Pérez'));
 });

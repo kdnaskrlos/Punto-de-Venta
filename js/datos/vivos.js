@@ -7,7 +7,6 @@ import { COMISIONES_DEFECTO } from '../nucleo/comisiones.js';
 import { leerTasaRemota } from './tasa-remota.js';
 import { puede } from '../nucleo/permisos.js';
 import { hoy } from '../nucleo/fechas.js';
-import { RECIBO_DEFECTO } from '../nucleo/recibo.js';
 
 export const AJUSTES_DEFECTO = {
   tienda: { nombre: 'Comic Shop', telefono: '' },
@@ -16,7 +15,7 @@ export const AJUSTES_DEFECTO = {
   comisiones: COMISIONES_DEFECTO,
   redondeo: 100,
   descuentoMaxVendedora: 5,
-  recibo: RECIBO_DEFECTO,
+  recibo: {},
 };
 
 const CLAVE_TASA = 'pos.tasaBs';

@@ -18,39 +18,43 @@ export function telefonoInternacional(texto) {
   return null;
 }
 
-// Plantilla del recibo editable en Ajustes. Lo que no se indique usa estos valores.
-export const RECIBO_DEFECTO = {
-  saludo: '',
-  despedida: '¡Gracias por tu compra!',
-  pie: '',
-  mostrar: { fecha: true, numero: true, cliente: true, prendas: true, pagos: true, vuelto: true },
-};
+// Recibo editable en Ajustes: un mensaje con variables entre llaves.
+export const PLANTILLA_DEFECTO = [
+  'Hola, {cliente} 👋', '',
+  '¡Muchas gracias por tu compra en {tienda}! Agradecemos tu preferencia.', '',
+  '*Resumen de tu compra:*', 'Ticket: {ticket}', '{prendas}', 'Total COP: {totalCOP}', 'Total USD: {totalUSD}', '',
+  'Esperamos que disfrutes tu producto. ¡Te esperamos de vuelta pronto!', '',
+  '✅ Tip: Agréganos a tus contactos si aún no lo has hecho. Estamos siempre a la orden 😊👍',
+].join('\n');
+
+export const VARIABLES_RECIBO = [
+  ['cliente', 'Cliente'], ['tienda', 'Tienda'], ['ticket', 'Ticket'], ['fecha', 'Fecha'],
+  ['prendas', 'Prendas'], ['totalCOP', 'Total COP'], ['totalUSD', 'Total USD'], ['totalBs', 'Total Bs'],
+  ['pagos', 'Pagos'], ['vuelto', 'Vuelto'],
+];
+
+function valoresRecibo(venta, tienda) {
+  const usd = venta.tasas?.copPorUsd ? venta.total / venta.tasas.copPorUsd : null;
+  const bs = usd != null && venta.tasas?.bsPorUsd ? usd * venta.tasas.bsPorUsd : null;
+  return {
+    cliente: venta.cliente?.nombre || '', tienda: tienda.nombre || '', ticket: venta.numero || '', fecha: venta.fecha ? fechaHora(venta.fecha) : '',
+    prendas: venta.lineas.map(l => `${l.cantidad} × ${l.nombre}${l.talla ? ` · Talla ${l.talla}` : ''} — ${fmtCop(l.subtotal ?? l.precioUnit * l.cantidad)}`).join('\n'),
+    totalCOP: fmtCop(venta.total), totalUSD: usd == null ? '' : fmtMonto(usd, 'USD'), totalBs: bs == null ? '' : fmtMonto(bs, 'BS'),
+    pagos: (venta.pagos || []).map(p => `${p.nombre || p.forma}: ${fmtMonto(p.monto, p.moneda)} ${NOMBRE_MONEDA[p.moneda]}`).join('\n'),
+    vuelto: venta.vuelto?.monto > 0 ? `Vuelto: ${fmtMonto(venta.vuelto.monto, venta.vuelto.moneda)} ${NOMBRE_MONEDA[venta.vuelto.moneda]}` : '',
+  };
+}
 
 export function textoRecibo(venta, tienda, recibo = {}) {
-  const m = { ...RECIBO_DEFECTO.mostrar, ...(recibo.mostrar || {}) };
-  const despedida = recibo.despedida ?? RECIBO_DEFECTO.despedida;
-  const nombreCli = venta.cliente?.nombre || '';
-  const L = [`*${tienda.nombre}*`];
-  if (recibo.saludo?.trim()) L.push(recibo.saludo.trim().replace(/\{cliente\}/g, nombreCli));
-  if (m.fecha) L.push(fechaHora(venta.fecha));
-  if (m.numero && venta.numero) L.push(`Venta ${venta.numero}`);
-  if (m.cliente && !recibo.saludo?.includes('{cliente}')) L.push(`Cliente: ${nombreCli}`);
-  L.push('');
-  if (m.prendas) {
-    for (const l of venta.lineas) L.push(`${l.cantidad} × ${l.nombre}${l.talla ? ` · Talla ${l.talla}` : ''} — ${fmtCop(l.subtotal ?? l.precioUnit * l.cantidad)}`);
-    L.push('');
-  }
-  const desc = venta.descuento?.monto || 0;
-  if (desc > 0) L.push(`Subtotal: ${fmtCop(venta.subtotal)}`, `Descuento: -${fmtCop(desc)}`);
-  L.push(`*Total: ${fmtCop(venta.total)} COP*`);
-  if (m.pagos) {
-    L.push('', 'Pagos:');
-    for (const p of venta.pagos || []) L.push(`${p.nombre || p.forma}: ${fmtMonto(p.monto, p.moneda)} ${NOMBRE_MONEDA[p.moneda]}`);
-  }
-  if (m.vuelto && venta.vuelto && venta.vuelto.monto > 0) L.push(`Vuelto: ${fmtMonto(venta.vuelto.monto, venta.vuelto.moneda)} ${NOMBRE_MONEDA[venta.vuelto.moneda]}`);
-  if (despedida.trim()) L.push('', despedida.trim());
-  if (recibo.pie?.trim()) L.push('', recibo.pie.trim());
-  return L.join('\n');
+  const val = valoresRecibo(venta, tienda);
+  const plantilla = recibo.plantilla?.trim() ? recibo.plantilla : PLANTILLA_DEFECTO;
+  return plantilla.split('\n').flatMap(linea => {
+    const vars = linea.match(/\{(\w+)\}/g) || [];
+    const lleno = linea.replace(/\{(\w+)\}/g, (m, k) => (k in val ? val[k] : m));
+    // Si todas las variables de la línea quedan vacías (sin vuelto, sin tasa…), la línea no se muestra.
+    if (vars.length && vars.every(v => val[v.slice(1, -1)] === '')) return [];
+    return [lleno];
+  }).join('\n');
 }
 
 export function enlaceWhatsApp(venta, tienda, recibo) {

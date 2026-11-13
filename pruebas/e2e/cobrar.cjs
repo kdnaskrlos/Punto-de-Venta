@@ -142,7 +142,7 @@ casos('cobrar', [
   }],
   ['El ejemplo de teléfono no parece un dato escrito', async (env, a) => {
     const p = await preparar(env, { ancho: 360, alto: 780, sinCliente: true });
-    await p.click('.barra-carrito'); await p.click('.capa #cli-registrar');
+    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
     a.match(await p.getAttribute('#cli-tel', 'placeholder'), /^Ej\. /);
   }],
   ['Carrito: el monto del descuento va alineado a la derecha, como los demás', async (env, a) => {
@@ -153,27 +153,27 @@ casos('cobrar', [
     });
     a.ok(Math.abs(d.desc - d.sub) < 2, `descuento termina en ${d.desc}, subtotal en ${d.sub}`);
   }],
-  ['Carrito: Registrar cliente, Editar y "Enviar recibo" opcional', async (env, a) => {
+  ['Cliente en pantalla aparte: nombre primero, sugerencias, Editar desde el cobro y recibo opcional al final', async (env, a) => {
     const p = await preparar(env, { sinCliente: true });
-    await p.click('.lado-carrito #cli-registrar');
-    await p.click('#cli-guardar');
-    a.ok(await p.isVisible('.campo .error:text("Escribe el teléfono del cliente")'));
-    await p.fill('#cli-tel', '0414-555.12.12'); await p.fill('#cli-nombre', 'Luis');
-    await p.click('#cli-guardar');
-    await p.waitForSelector('.lado-carrito .cliente-carrito');
-    a.match(await texto(p, '.lado-carrito .cliente-carrito'), /Luis.*0414 555 1212/);
-    a.strictEqual(await p.getAttribute('.lado-carrito #cli-recibo', 'aria-checked'), 'true');
-    await p.click('.lado-carrito #cli-editar');
-    a.strictEqual(await p.inputValue('#cli-nombre'), 'Luis');
-    await p.fill('#cli-nombre', 'Luis Mora'); await p.click('#cli-guardar');
-    await p.waitForSelector('.lado-carrito .cliente-carrito:has-text("Luis Mora")');
-    await p.click('.lado-carrito #cli-recibo');
-    a.strictEqual(await p.getAttribute('.lado-carrito #cli-recibo', 'aria-checked'), 'false');
+    a.strictEqual(await p.$('.lado-carrito #cli-registrar'), null, 'el carrito ya no registra cliente');
     await p.click('.lado-carrito .cobrar');
+    await p.waitForSelector('.capa.ventana.completa #cli-nombre');
+    a.deepStrictEqual(await p.$$eval('.capa .cliente label', l => l.map(x => x.textContent)), ['Nombre del cliente', 'Teléfono']);
+    await p.click('#cli-guardar');
+    a.ok(await p.isVisible('.campo .error:text("Escribe el nombre del cliente")'));
+    await p.fill('#cli-nombre', 'ana');
+    await p.click('.sug-cli:has-text("Ana Pérez")');
+    a.strictEqual(await p.inputValue('#cli-tel'), '0412 123 4567');
+    await p.fill('#cli-nombre', 'Luis'); await p.fill('#cli-tel', '0414-555.12.12');
+    await p.click('#cli-guardar');
+    await p.waitForSelector('#cobrar-final');
+    await p.click('#cobro-cli-editar');
+    await p.fill('#cli-nombre', 'Luis Mora'); await p.click('#cli-guardar');
+    await p.waitForSelector('.cliente-resumen:has-text("Luis Mora")');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.click('#cobrar-final');
     await p.waitForSelector('text=Venta guardada');
-    a.strictEqual(await p.$('a.recibo'), null, 'sin recibo no ofrece enviarlo');
+    a.ok(await p.$('a.recibo'), 'el recibo es un botón opcional al final');
     const [v] = await ventas(p);
     a.deepStrictEqual(v.cliente, { nombre: 'Luis Mora', telefono: '584145551212' });
   }],

@@ -1,7 +1,6 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
 import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas } from '../ui.js';
 import { abrirCajaVentana } from './caja.js';
-import { bloqueCliente } from './cliente.js';
 import { registrarVista, navegar } from '../app.js';
 import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
 import { aplicarDescuento, requiereAutorizacion } from '../nucleo/descuento.js';
@@ -110,7 +109,6 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
       h('div', { class: 'et-total' }, 'TOTAL'),
       h('div', { class: 'total' }, h('span', { class: 'total-cop num' }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
       equivalentes(ctx, r.total)),
-    bloqueCliente(ctx),
     h('div', { class: 'acciones-carrito' },
       h('button', { class: 'btn', onclick: () => abrirDescuento(ctx) }, icono('porcentaje'), 'Descuento'),
       h('button', { class: 'btn', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'),

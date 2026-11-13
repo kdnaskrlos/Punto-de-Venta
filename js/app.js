@@ -16,7 +16,8 @@ const ACCESOS = [
   { ruta: '/inventario', titulo: 'Inventario', icono: 'caja', pc: 4, movil: 4 },
   { ruta: '/caja', titulo: 'Caja', icono: 'cartera', pc: 5 },
   { ruta: '/reportes', titulo: 'Reportes', icono: 'grafica', pc: 6 },
-  { ruta: '/ajustes', titulo: 'Ajustes', icono: 'ajustes', pc: 7, accion: 'ajustes' },
+  { ruta: '/usuarios', titulo: 'Usuarios', icono: 'usuarios', pc: 7, accion: 'ajustes' },
+  { ruta: '/ajustes', titulo: 'Ajustes', icono: 'ajustes', pc: 8, accion: 'ajustes' },
   { ruta: '/mas', titulo: 'Más', icono: 'mas', movil: 5 },
 ];
 
@@ -47,7 +48,7 @@ function pintarNav() {
   barra.replaceChildren(
     h('div', { class: 'logo', 'aria-hidden': 'true' }, logo()),
     ...lista.map(a => {
-      const enMas = tel && a.ruta === '/mas' && ['/caja', '/reportes', '/ajustes', '/comisiones'].includes(actual);
+      const enMas = tel && a.ruta === '/mas' && ['/caja', '/reportes', '/ajustes', '/comisiones', '/usuarios'].includes(actual);
       const activo = actual === a.ruta || enMas;
       const centro = tel && a.centro;
       return h('a', { class: 'nav' + (centro ? ' centro' : ''), href: '#' + a.ruta, 'aria-label': a.titulo, 'aria-current': activo ? 'true' : 'false' },

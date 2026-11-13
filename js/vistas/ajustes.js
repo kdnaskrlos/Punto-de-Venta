@@ -1,11 +1,10 @@
-// Ajustes (solo administrador), en 5 apartados: Tasas, Venta, Pagos, Recibo y Usuarios.
+// Ajustes (solo administrador), en 4 apartados: Tasas, Venta, Pagos y Recibo. Los usuarios están en Más → Usuarios.
 import { h, icono, abrirVentana, toast, unaVez } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { etiquetaTramo } from '../nucleo/tramos.js';
 import { NOMBRE_MONEDA, ICONOS_FORMA, iconoForma } from '../nucleo/formas.js';
-import { RECIBO_DEFECTO, textoRecibo } from '../nucleo/recibo.js';
-import { NOMBRE_ROL, cambiarTema, cambiarMiPin } from './cuenta.js';
+import { PLANTILLA_DEFECTO, VARIABLES_RECIBO, textoRecibo } from '../nucleo/recibo.js';
 
 const campo = (id, etiqueta, attrs = {}) => h('div', { class: 'campo' }, h('label', { for: id }, etiqueta), h('input', { class: 'inp', id, autocomplete: 'off', ...attrs }));
 const seccion = (titulo, ic, ...hijos) => h('section', { class: 'tarjeta pila' }, h('h2', { class: 'sec-t' }, icono(ic), titulo), ...hijos);
@@ -87,8 +86,8 @@ function pagos(ctx, alCambiar) {
       h('button', { type: 'button', class: 'forma-toque', 'aria-pressed': String(activa), 'aria-label': `${f.nombre}: ${activa ? 'activa' : 'apagada'}`,
         onclick: () => { f.activa = !activa; pintar(); alCambiar(); } },
         h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
-        h('b', {}, f.nombre),
-        h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), f.efectivo ? ' · efectivo' : '', h('span', { class: 'forma-est' }, activa ? 'Activa' : 'Apagada'))),
+        h('span', { class: 'forma-txt' }, h('b', {}, f.nombre),
+          h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), f.efectivo ? ' · efectivo' : '', ' · ', h('span', { class: 'forma-est' }, activa ? 'Activa' : 'Apagada')))),
       h('div', { class: 'forma-acc' },
         h('button', { type: 'button', class: 'ibtn chico', 'aria-label': `Editar ${f.nombre}`, onclick: () => editarForma(f, d => { Object.assign(f, d); pintar(); alCambiar(); }) }, icono('lapiz')),
         h('button', { type: 'button', class: 'ibtn chico peligro', 'aria-label': `Eliminar ${f.nombre}`, onclick: () => {
@@ -135,86 +134,39 @@ function editarForma(f, alGuardar) {
   };
 }
 
-// Recibo por WhatsApp: qué dice y qué apartados lleva, con vista previa.
-const EJEMPLO = { fecha: new Date().toISOString(), numero: 'V-0001', cliente: { nombre: 'Ana Pérez', telefono: '584121234567' },
+// Recibo por WhatsApp: primero la vista previa (como la ve el cliente) y debajo el mensaje para editar.
+const EJEMPLO = { fecha: new Date().toISOString(), numero: 'V-0001', cliente: { nombre: 'Juan Pérez', telefono: '584121234567' }, tasas: { copPorUsd: 3900, bsPorUsd: 1075 },
   lineas: [{ cantidad: 2, nombre: 'Franela Negra', talla: 'M', subtotal: 48000 }], subtotal: 48000, descuento: null, total: 48000,
   pagos: [{ nombre: 'Efectivo pesos', monto: 50000, moneda: 'COP' }], vuelto: { monto: 2000, moneda: 'COP' } };
-const APARTADOS = [['fecha', 'Fecha y hora'], ['numero', 'Número de venta'], ['cliente', 'Cliente'], ['prendas', 'Prendas'], ['pagos', 'Pagos'], ['vuelto', 'Vuelto']];
 
 function recibo(ctx) {
-  const r = { ...RECIBO_DEFECTO, ...(ctx.ajustes.recibo || {}) };
-  const mostrar = { ...RECIBO_DEFECTO.mostrar, ...(r.mostrar || {}) };
-  const area = (id, etiqueta, valor, ayuda) => h('div', { class: 'campo' }, h('label', { for: id }, etiqueta), h('textarea', { class: 'inp', id, rows: 2 }, valor || ''), ayuda ? h('span', { class: 'nota chica' }, ayuda) : null);
-  const vista = h('pre', { class: 'vista-recibo', id: 'aj-recibo-vista' });
-  const chips = h('div', { class: 'chips-recibo' });
-  const datos = () => ({ saludo: el.querySelector('#aj-saludo').value, despedida: el.querySelector('#aj-despedida').value, pie: el.querySelector('#aj-pie').value, mostrar });
+  const area = h('textarea', { class: 'inp plantilla', id: 'aj-plantilla', rows: 12, spellcheck: 'true' });
+  area.value = ctx.ajustes.recibo?.plantilla?.trim() ? ctx.ajustes.recibo.plantilla : PLANTILLA_DEFECTO;
+  const burbuja = h('div', { class: 'wa-burbuja', id: 'aj-recibo-vista' });
   const pintar = () => {
-    chips.replaceChildren(...APARTADOS.map(([k, t]) => h('button', { type: 'button', class: 'chip' + (mostrar[k] ? ' activo' : ''), 'data-apartado': k, 'aria-pressed': String(!!mostrar[k]), onclick: () => { mostrar[k] = !mostrar[k]; pintar(); el.dispatchEvent(new Event('input')); } }, mostrar[k] ? icono('check') : null, t)));
-    const txt = textoRecibo(EJEMPLO, { nombre: el.querySelector('#aj-tienda')?.value || ctx.ajustes.tienda?.nombre || 'Comic Shop' }, datos());
+    const txt = textoRecibo(EJEMPLO, ctx.ajustes.tienda || { nombre: 'Comic Shop' }, { plantilla: area.value });
     // Como en WhatsApp: *texto* se ve en negrita.
-    vista.replaceChildren(...txt.split(/(\*[^*\n]+\*)/).map(t => (/^\*[^*]+\*$/.test(t) ? h('b', {}, t.slice(1, -1)) : t)));
+    burbuja.replaceChildren(...txt.split(/(\*[^*\n]+\*)/).map(t => (/^\*[^*]+\*$/.test(t) ? h('b', {}, t.slice(1, -1)) : t)));
+  };
+  const insertar = clave => {
+    const t = `{${clave}}`, i = area.selectionStart ?? area.value.length, f = area.selectionEnd ?? i;
+    area.value = area.value.slice(0, i) + t + area.value.slice(f);
+    area.focus(); area.setSelectionRange(i + t.length, i + t.length);
+    area.dispatchEvent(new Event('input', { bubbles: true }));
   };
   const el = seccion('Recibo por WhatsApp', 'recibo',
-    area('aj-saludo', 'Saludo (opcional)', r.saludo, 'Escribe {cliente} para poner el nombre del cliente.'),
-    h('div', { class: 'campo' }, h('label', {}, 'Qué lleva el recibo'), chips),
-    area('aj-despedida', 'Mensaje final', r.despedida),
-    area('aj-pie', 'Pie (redes, dirección, horario…)', r.pie),
-    h('div', { class: 'campo' }, h('label', {}, 'Así lo recibe el cliente'), vista));
-  el.addEventListener('input', () => pintar());
+    h('div', { class: 'wa-fondo' }, burbuja),
+    h('div', { class: 'campo' }, h('label', { for: 'aj-plantilla' }, 'Mensaje'), area,
+      h('span', { class: 'nota chica' }, 'Usa *asteriscos* para negrita. Toca un dato para ponerlo donde está el cursor:')),
+    h('div', { class: 'chips-recibo' }, ...VARIABLES_RECIBO.map(([k, t]) => h('button', { type: 'button', class: 'chip', 'data-variable': k, onclick: () => insertar(k) }, icono('mas1'), t))),
+    h('div', { class: 'acciones' }, h('button', { type: 'button', class: 'btn', id: 'aj-recibo-original', onclick: () => { area.value = PLANTILLA_DEFECTO; area.dispatchEvent(new Event('input', { bubbles: true })); } }, icono('actualizar'), 'Volver al mensaje original')));
+  area.addEventListener('input', pintar);
   pintar();
-  return { el, guardar: async () => ({ recibo: datos() }), pintar };
-}
-function pedirPin(titulo) {
-  return new Promise(res => {
-    const inp = h('input', { class: 'inp', id: 'pin-otro', type: 'password', inputmode: 'numeric', maxlength: '4' });
-    const err = h('span', { class: 'error' });
-    const b = h('button', { class: 'btn primary' }, 'Guardar PIN');
-    let valor = null;
-    const v = abrirVentana({ titulo, contenido: h('div', { class: 'campo' }, h('label', { for: 'pin-otro' }, 'PIN nuevo (4 números)'), inp, err), acciones: h('div', { class: 'acciones' }, b) });
-    b.onclick = () => { if (!/^\d{4}$/.test(inp.value)) { err.textContent = 'El PIN debe tener 4 números'; return; } valor = inp.value; v.cerrar(); };
-    v.alCerrar = () => res(valor);
-  });
+  return { el, guardar: async () => ({ recibo: { plantilla: area.value } }), pintar };
 }
 
-function usuarios(ctx) {
-  const lista = h('div', { class: 'pila' });
-  const rol = h('select', { class: 'inp', id: 'nu-rol' }, ...['vendedora', 'encargada', 'admin'].map(r => h('option', { value: r }, NOMBRE_ROL[r])));
-  const err = h('span', { class: 'error' });
-  const el = seccion('Usuarios', 'usuarios', lista,
-    h('h3', { class: 'sub-t' }, 'Nuevo usuario'),
-    h('div', { class: 'rejilla-aj' }, campo('nu-nombre', 'Nombre'), campo('nu-usuario', 'Usuario', { autocapitalize: 'none', spellcheck: 'false' }), h('div', { class: 'campo' }, h('label', { for: 'nu-rol' }, 'Rol'), rol), campo('nu-pin', 'PIN (4 números)', { type: 'password', inputmode: 'numeric', maxlength: '4' })),
-    err,
-    h('div', { class: 'acciones' }, h('button', { class: 'btn primary', id: 'nu-crear', onclick: e => unaVez(e.currentTarget, async () => {
-      const v = id => el.querySelector('#' + id).value.trim();
-      if (!/^\d{4}$/.test(v('nu-pin'))) { err.textContent = 'El PIN debe tener 4 números'; return; }
-      const r = await ctx.almacen.crearUsuario({ usuario: v('nu-usuario'), nombre: v('nu-nombre'), rol: rol.value, pin: v('nu-pin') });
-      if (!r.ok) { err.textContent = r.error === 'existe' ? 'Ese usuario ya existe' : r.error === 'datos' ? 'Revisa el usuario (minúsculas, sin espacios)' : 'No se pudo crear'; return; }
-      err.textContent = ''; ['nu-nombre', 'nu-usuario', 'nu-pin'].forEach(id => { el.querySelector('#' + id).value = ''; });
-      toast('Usuario creado');
-    })() }, icono('mas1'), 'Crear usuario')));
-  const quitar = ctx.almacen.escuchar('usuarios', l => {
-    lista.replaceChildren(...l.filter(u => !u.reemplazadoPor).sort((a, b) => a.usuario.localeCompare(b.usuario)).map(u => h('div', { class: 'usuario', 'data-usuario': u.usuario },
-      h('span', { class: 'avatar' }, (u.nombre || u.usuario).slice(0, 1).toUpperCase()),
-      h('div', { class: 'u-info' }, h('b', {}, u.nombre), h('div', { class: 'nota' }, `@${u.usuario} · ${NOMBRE_ROL[u.rol] || u.rol}`)),
-      h('span', { class: 'est ' + (u.activo ? 'g' : 'n') }, u.activo ? 'Activo' : 'Inactivo'),
-      u.uid === ctx.sesion.uid ? h('div', { class: 'acciones' }, h('button', { class: 'btn', id: 'mi-pin', onclick: () => cambiarMiPin(ctx) }, icono('llave'), 'Cambiar mi PIN')) : h('div', { class: 'acciones' },
-        h('button', { class: 'btn', onclick: async () => { const pin = await pedirPin(`Nuevo PIN para ${u.nombre}`); if (pin) guardado(await ctx.almacen.cambiarPin(u.uid, pin)); } }, icono('llave'), 'Nuevo PIN'),
-        h('button', { class: 'btn ' + (u.activo ? 'danger' : ''), onclick: async () => guardado(await ctx.almacen.activarUsuario(u.uid, !u.activo)) }, u.activo ? 'Desactivar' : 'Activar')))));
-  });
-  return { el, quitar };
-}
-
-const PESTANAS = [['tasas', 'Tasas'], ['venta', 'Venta'], ['pagos', 'Pagos'], ['recibo', 'Recibo'], ['usuarios', 'Usuarios']];
+const PESTANAS = [['tasas', 'Tasas'], ['venta', 'Venta'], ['pagos', 'Pagos'], ['recibo', 'Recibo']];
 let pestanaActual = 'tasas';
-
-function filaTema() {
-  const oscuro = () => document.documentElement.dataset.theme === 'dark';
-  const b = h('button', { class: 'fila-btn tema', id: 'aj-tema', role: 'switch' });
-  const pintar = () => { b.setAttribute('aria-checked', String(oscuro())); b.replaceChildren(icono(oscuro() ? 'luna' : 'sol'), oscuro() ? 'Modo oscuro' : 'Modo claro', h('span', { class: 'sp' }), h('span', { class: 'switch' + (oscuro() ? ' on' : '') })); };
-  b.onclick = () => { cambiarTema(); pintar(); };
-  pintar();
-  return b;
-}
 
 registrarVista('/ajustes', {
   accion: 'ajustes',
@@ -222,8 +174,8 @@ registrarVista('/ajustes', {
     const boton = h('button', { class: 'btn primary', id: 'aj-guardar' }, icono('check'), 'Guardar cambios');
     const barra = h('div', { class: 'guardar-ajustes', hidden: true }, boton);
     const cambio = () => { barra.hidden = false; };
-    const u = usuarios(ctx), t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
-    const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el, usuarios: u.el };
+    const t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
+    const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el };
     // Un solo botón para guardar; aparece cuando se cambia algo.
     for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button')) cambio(); }); }
     boton.addEventListener('click', e => unaVez(e.currentTarget, async () => {
@@ -242,7 +194,6 @@ registrarVista('/ajustes', {
       if (id === 'recibo') re.pintar();
     };
     mostrar(pestanaActual);
-    cont.append(h('h1', { class: 'sec-t' }, icono('ajustes'), 'Ajustes'), pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), filaTema(), barra);
-    return u.quitar;
+    cont.append(h('h1', { class: 'sec-t' }, icono('ajustes'), 'Ajustes'), pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), barra);
   },
 });

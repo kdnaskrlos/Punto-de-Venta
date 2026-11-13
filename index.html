@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<style>html,body{background:#fff;margin:0}html[data-theme="dark"],html[data-theme="dark"] body{background:#0e1319}html.fx #app{visibility:hidden}</style>
-<script>try{const t=localStorage.getItem("pos-tema");if(t)document.documentElement.dataset.theme=t;}catch(e){}
+<style>html,body{background:#fff;margin:0}html.fx #app{visibility:hidden}</style>
+<script>try{localStorage.removeItem("pos-tema")}catch(e){}
 document.documentElement.classList.add("fx");
 window.__ver=()=>document.documentElement.classList.remove("fx");
 window.__fuente=()=>{const f=document.fonts;(f?Promise.race([f.load('700 16px "Plus Jakarta Sans"'),new Promise(r=>setTimeout(r,1200))]):Promise.resolve()).then(()=>requestAnimationFrame(window.__ver));};

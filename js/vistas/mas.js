@@ -1,7 +1,6 @@
-// "Más" en el teléfono: accesos que no caben en la barra inferior y la cuenta.
+// "Más" en el teléfono: accesos que no caben en la barra inferior. "Mi cuenta" está dentro de Usuarios.
 import { h, icono } from '../ui.js';
 import { registrarVista, navegar } from '../app.js';
-import { opcionesCuenta } from './cuenta.js';
 
 registrarVista('/mas', {
   montar(cont, ctx) {
@@ -11,8 +10,7 @@ registrarVista('/mas', {
         ir('/caja', 'cartera', 'Caja'),
         ir('/reportes', 'grafica', 'Reportes'),
         ctx.puedeVer('pagarComisiones') ? ir('/comisiones', 'porcentaje', 'Comisiones') : null,
-        ctx.puedeVer('ajustes') ? ir('/ajustes', 'ajustes', 'Ajustes') : null),
-      h('h2', { class: 'sec-t' }, icono('usuarios'), 'Mi cuenta'),
-      opcionesCuenta(ctx));
+        ctx.puedeVer('ajustes') ? ir('/usuarios', 'usuarios', 'Usuarios') : ir('/usuarios', 'usuario', 'Mi cuenta'),
+        ctx.puedeVer('ajustes') ? ir('/ajustes', 'ajustes', 'Ajustes') : null));
   },
 });

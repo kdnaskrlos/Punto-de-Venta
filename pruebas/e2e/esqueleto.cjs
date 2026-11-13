@@ -12,10 +12,10 @@ async function medidas(p, sel) {
 }
 
 casos('esqueleto', [
-  ['PC: barra lateral con 7 accesos ≥ 44 px', async (env, a) => {
+  ['PC: barra lateral con 8 accesos ≥ 44 px', async (env, a) => {
     const p = await env.pagina();
     const n = await medidas(p, '.side .nav');
-    a.strictEqual(n.length, 7, JSON.stringify(n.map(x => x.t)));
+    a.strictEqual(n.length, 8, JSON.stringify(n.map(x => x.t)));
     for (const x of n) a.ok(x.w >= 44 && x.h >= 44, `${x.t} mide ${x.w}x${x.h}`);
   }],
   ['PC: cabecera con conexión, tasas, calculadora, actualizar y fecha', async (env, a) => {

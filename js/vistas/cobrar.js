@@ -1,4 +1,4 @@
-// Ventana Cobrar (§9.2): el cliente ya viene del carrito; pagos mixtos, vuelto, guardar la venta y recibo por WhatsApp.
+// Ventana Cobrar (§9.2): el cliente se registra antes, en su propia pantalla; pagos mixtos, vuelto, guardar la venta y recibo por WhatsApp.
 import { h, icono, abrirVentana, toast } from '../ui.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
@@ -105,8 +105,7 @@ export function abrirCobrar(ctx) {
       hecha = true;
       ctx.almacen.guardarCliente(venta.cliente);
       const guardada = await ctx.almacen.obtener('ventas', idVenta) || venta;
-      const enviar = carrito(ctx).enviarRecibo !== false;
-      const enlace = enviar ? enlaceWhatsApp(guardada, ctx.ajustes.tienda || { nombre: 'Comic Shop' }, ctx.ajustes.recibo) : null;
+      const enlace = enlaceWhatsApp(guardada, ctx.ajustes.tienda || { nombre: 'Comic Shop' }, ctx.ajustes.recibo);
       vaciarCarrito(ctx);
       window.dispatchEvent(new CustomEvent('pos:carrito'));
       toast('Venta guardada');
