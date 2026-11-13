@@ -25,19 +25,23 @@ casos('apartados', [
     a.strictEqual(await p.$('.lado-carrito .linea'), null);
     await p.click('.side .nav[aria-label="Apartados"]'); await p.waitForSelector('.apartado');
     const t = await texto(p, '.apartado');
-    for (const x of ['Ana Pérez', 'Pendiente', 'Saldo 84.000']) a.ok(t.includes(x), `falta ${x} en ${t}`);
+    for (const x of ['Ana Pérez', '84.000', '2 prendas · Jogger']) a.ok(t.includes(x), `falta ${x} en ${t}`);
+    await p.click('.apartado');
+    const d = await texto(p, '.ap-det');
+    for (const x of ['Pendiente', 'Saldo', '84.000', 'Prendas']) a.ok(d.includes(x), `falta ${x} en el detalle: ${d}`);
   }],
   ['Abonar suma y Completar crea la venta sin volver a descontar', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await apartar(p, '20.000');
     await p.click('.side .nav[aria-label="Apartados"]'); await p.waitForSelector('.apartado');
-    a.ok((await texto(p, '.apartado')).includes('Saldo 64.000'));
-    await p.click('.apartado button:has-text("Abonar")');
+    a.ok((await texto(p, '.apartado')).includes('64.000'));
+    await p.click('.apartado'); await p.click('#ap-abonar');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.fill('.pago[data-forma="efectivo-cop"] input', '4.000');
     await p.click('#abono-final');
-    await p.waitForFunction(() => document.querySelector('.apartado')?.textContent.includes('Saldo 60.000'));
-    await p.click('.apartado button:has-text("Completar")');
+    await p.waitForFunction(() => document.querySelector('.apartado')?.textContent.includes('60.000'));
+    await p.click('.apartado'); a.ok((await texto(p, '.ap-det')).includes('Abonos'), 'historial de abonos');
+    await p.click('#ap-completar');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.click('#completar-final');
     await p.waitForFunction(() => !document.querySelector('.apartado')); // sale de Pendientes
@@ -53,10 +57,12 @@ casos('apartados', [
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await apartar(p, null);
     await p.click('.side .nav[aria-label="Apartados"]'); await p.waitForSelector('.apartado');
-    a.strictEqual(await p.$('.apartado button:has-text("Cancelar")'), null);
+    await p.click('.apartado'); await p.waitForSelector('#ap-abonar');
+    a.strictEqual(await p.$('#ap-cancelar'), null);
+    await p.keyboard.press('Escape');
     await cambiarA(p, 'encargada');
     await p.click('.side .nav[aria-label="Apartados"]'); await p.waitForSelector('.apartado');
-    await p.click('.apartado button:has-text("Cancelar")');
+    await p.click('.apartado'); await p.click('#ap-cancelar');
     await p.fill('#motivo', 'El cliente no volvió');
     await p.click('#motivo-final');
     await p.waitForFunction(() => !document.querySelector('.apartado')); // sale de Pendientes

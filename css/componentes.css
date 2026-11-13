@@ -734,3 +734,46 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 }
 /* P5: etiquetas de Comisiones con contraste suficiente sobre fondo de color */
 .dato.fuerte .nota,.dato.pend .nota{color:#374151}
+
+/* v1.37 — Apartados: tarjeta compacta (como Pedidos) que abre el detalle */
+.lista-ap{display:flex;flex-direction:column;gap:8px}
+.apartado{display:flex;flex-direction:row;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;min-width:0}
+.apartado.viejo{border-left:3px solid var(--err)}
+.apartado.ap-cancelado{opacity:.7}
+.apartado .avatar{flex:none;background:var(--surface-2);color:var(--ink)}
+.apartado > svg.i{flex:none;width:18px;height:18px;color:var(--muted)}
+.ap-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ap-l1{display:flex;align-items:baseline;gap:8px;min-width:0}
+.ap-nombre{flex:1;min-width:0;font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap-l1 .ap-saldo{flex:none;font-size:15px;color:var(--r-tx)}
+.ap-l2{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap-l3{display:flex;gap:10px;align-items:center;font-size:12px;font-weight:600;color:var(--muted);min-width:0}
+.ap-dias{display:inline-flex;align-items:center;gap:3px;color:var(--r-tx);font-weight:800}
+.ap-dias svg.i{width:12px;height:12px}
+@media (hover:hover){.apartado:hover{background:var(--surface-2)}}
+/* Resumen en una sola tarjeta neutra */
+.ap-resumen{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:12px}
+.ap-res-cifra{display:flex;flex-direction:column;gap:2px}
+.ap-res-cifra b{font-size:24px;font-weight:800;line-height:1.1;white-space:nowrap}
+.ap-res-sub{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:13px;font-weight:600;color:var(--muted)}
+.ap-res-sub b{color:var(--ink)}
+.ap-res-viejos{display:inline-flex;align-items:center;gap:4px;color:var(--r-tx)}
+.ap-res-viejos b{color:inherit}
+.ap-res-viejos svg.i{width:14px;height:14px}
+/* Detalle */
+.ap-det{display:flex;flex-direction:column;gap:12px}
+.ap-det-cli{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ap-det-pago{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.ap-det-cifras{display:flex;justify-content:space-between;gap:12px}
+.ap-det-cifras > div{display:flex;flex-direction:column;gap:2px}
+.ap-det-cifras .der{align-items:flex-end;text-align:right}
+.ap-det-cifras b{font-size:20px;font-weight:800;white-space:nowrap}
+.ap-det-cifras b.rojo{color:var(--r-tx)}
+.ap-det-cifras small{font-size:12px;color:var(--muted);font-weight:600}
+.ap-det .ap-barra i{background:var(--ink)}
+.ap-det-t{font-size:13px;font-weight:800;margin:4px 0 -4px}
+.ap-det-lista{display:flex;flex-direction:column}
+.ap-det-fila{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;font-weight:600}
+.ap-det-fila:last-child{border-bottom:0}
+.ap-det-fila .num{white-space:nowrap}
+.ap-det-meta{font-size:12px;margin:0}

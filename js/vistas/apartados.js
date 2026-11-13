@@ -1,12 +1,12 @@
 // Apartados (§10): apartar desde el carrito, abonar, completar y cancelar.
-import { h, icono, abrirVentana, toast, pedirMotivo, unaVez } from '../ui.js';
+import { h, icono, abrirVentana, toast, pedirMotivo, despuesDeCerrar } from '../ui.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { registrarVista } from '../app.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
 import { crearPanelPagos } from './pagos.js';
 import { resumenCliente, lineasParaGuardar, firmaCarrito } from './cobrar.js';
-import { fmtCop } from '../nucleo/dinero.js';
+import { fmtCop, fmtMonto } from '../nucleo/dinero.js';
 import { fechaHora } from '../nucleo/fechas.js';
 
 const ESTADO = { pendiente: ['y', 'Pendiente'], completado: ['g', 'Completado'], cancelado: ['n', 'Cancelado'] };
@@ -100,37 +100,66 @@ function abrirPago(ctx, ap, modo) {
 const diasDesde = iso => Math.floor((Date.now() - new Date(iso).getTime()) / 864e5);
 const telLegible = t => { const d = String(t || ''); return d.startsWith('58') && d.length === 12 ? `0${d.slice(2, 5)} ${d.slice(5, 8)} ${d.slice(8)}` : d; };
 
+const fechaCorta = iso => fechaHora(iso).split(' · ')[0];
+const resumenPrendas = ap => {
+  const n = ap.lineas.reduce((s, l) => s + l.cantidad, 0);
+  const primera = ap.lineas[0] ? `${ap.lineas[0].nombre}${ap.lineas[0].talla ? ' ' + ap.lineas[0].talla : ''}` : '';
+  return `${n} ${n === 1 ? 'prenda' : 'prendas'} · ${primera}${ap.lineas.length > 1 ? ` y ${ap.lineas.length - 1} más` : ''}`;
+};
+
+// Tarjeta compacta (como en Pedidos): quién, qué y cuánto falta. Al tocarla se abre el detalle.
 function tarjeta(ctx, ap) {
   const [color, etiqueta] = ESTADO[ap.estado] || ESTADO.pendiente;
-  const prendas = ap.lineas.reduce((s, l) => s + l.cantidad, 0);
+  const pendiente = ap.estado === 'pendiente';
+  const dias = diasDesde(ap.fecha);
+  const nombre = ap.cliente?.nombre || '—';
+  const viejo = pendiente && dias >= 15;
+  return h('button', { type: 'button', class: `apartado ap-${ap.estado}${viejo ? ' viejo' : ''}`, 'data-id': ap.id, onclick: () => abrirDetalle(ctx, ap) },
+    h('span', { class: 'avatar' }, nombre.slice(0, 1).toUpperCase()),
+    h('span', { class: 'ap-main' },
+      h('span', { class: 'ap-l1' }, h('b', { class: 'ap-nombre' }, nombre),
+        pendiente ? h('b', { class: 'ap-saldo num' }, fmtCop(ap.saldo)) : h('span', { class: `est ${color}` }, etiqueta)),
+      h('span', { class: 'ap-l2' }, resumenPrendas(ap)),
+      h('span', { class: 'ap-l3' }, h('span', {}, fechaCorta(ap.fecha)),
+        viejo ? h('span', { class: 'ap-dias' }, icono('alerta'), `${dias} días`) : null)),
+    icono('der'));
+}
+
+// Detalle del apartado: todo lo que antes iba en la tarjeta, más el historial de abonos y las acciones.
+function abrirDetalle(ctx, ap) {
+  const [color, etiqueta] = ESTADO[ap.estado] || ESTADO.pendiente;
   const pendiente = ap.estado === 'pendiente';
   const abonado = ap.total - ap.saldo;
   const pct = ap.total ? Math.min(100, Math.round((abonado / ap.total) * 100)) : 0;
   const dias = diasDesde(ap.fecha);
-  const nombre = ap.cliente?.nombre || '—';
-  return h('article', { class: `apartado tarjeta ap-${ap.estado}`, 'data-id': ap.id },
-    h('div', { class: 'ap-cab' },
-      h('span', { class: 'avatar' }, nombre.slice(0, 1).toUpperCase()),
-      h('div', { class: 'ap-cli' }, h('b', {}, nombre), h('span', { class: 'nota num' }, telLegible(ap.cliente?.telefono))),
-      h('span', { class: `est ${color}` }, etiqueta)),
-    h('div', { class: 'ap-prendas' }, ...ap.lineas.map(l => h('span', { class: 'ap-prenda' }, h('b', {}, `${l.cantidad}×`), ` ${l.nombre}${l.talla ? ' · Talla ' + l.talla : ''}`))),
-    h('div', { class: 'ap-pago' },
-      h('div', { class: 'ap-barra', role: 'progressbar', 'aria-valuenow': String(pct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: `width:${pct}%` })),
-      h('div', { class: 'ap-montos num' },
-        h('span', {}, `Abonado ${fmtCop(abonado)} de ${fmtCop(ap.total)}`),
-        pendiente ? h('b', { class: 'ap-saldo' }, `Saldo ${fmtCop(ap.saldo)}`) : null)),
-    h('div', { class: 'ap-pie' },
-      h('span', { class: 'nota' }, `${fechaHora(ap.fecha)} · ${prendas} ${prendas === 1 ? 'prenda' : 'prendas'} · @${ap.usuario}`),
-      pendiente && dias >= 15 ? h('span', { class: 'est r ap-dias' }, `${dias} días`) : null),
-    pendiente ? h('div', { class: 'acciones ap-acc' },
-      ctx.puedeVer('cancelarApartado') ? h('button', { class: 'btn danger', onclick: e => unaVez(e.currentTarget, async () => {
-        const motivo = await pedirMotivo({ titulo: 'Cancelar apartado', boton: 'Cancelar apartado', peligro: true });
-        if (!motivo) return;
-        const r = await ctx.almacen.cancelarApartado(ap.id, motivo);
-        toast(r.ok ? 'Apartado cancelado' : 'No se pudo cancelar', { malo: !r.ok });
-      })() }, 'Cancelar') : null,
-      h('button', { class: 'btn', onclick: () => abrirPago(ctx, ap, 'abonar') }, 'Abonar'),
-      h('button', { class: 'btn primary', onclick: () => abrirPago(ctx, ap, 'completar') }, 'Completar')) : null);
+  const ir = fn => { v.cerrar(); despuesDeCerrar(fn); };
+  const contenido = h('div', { class: 'ap-det' },
+    h('div', { class: 'ap-det-cli' },
+      h('span', { class: 'num nota' }, telLegible(ap.cliente?.telefono)), h('span', { class: `est ${color}` }, etiqueta)),
+    h('div', { class: 'ap-det-pago' },
+      h('div', { class: 'ap-det-cifras' },
+        h('div', {}, h('span', { class: 'nota' }, pendiente ? 'Saldo' : 'Total'), h('b', { class: 'num' + (pendiente ? ' rojo' : '') }, fmtCop(pendiente ? ap.saldo : ap.total))),
+        h('div', { class: 'der' }, h('span', { class: 'nota' }, 'Abonado'), h('b', { class: 'num' }, `${fmtCop(abonado)} `, h('small', {}, `de ${fmtCop(ap.total)}`)))),
+      h('div', { class: 'ap-barra', role: 'progressbar', 'aria-label': 'Pagado', 'aria-valuenow': String(pct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: `width:${pct}%` }))),
+    h('h3', { class: 'ap-det-t' }, 'Prendas'),
+    h('div', { class: 'ap-det-lista' }, ...ap.lineas.map(l => h('div', { class: 'ap-det-fila' },
+      h('span', {}, h('b', {}, `${l.cantidad}× `), l.nombre, l.talla ? h('span', { class: 'nota' }, ` · Talla ${l.talla}`) : null),
+      l.subtotal != null ? h('span', { class: 'num' }, fmtCop(l.subtotal)) : null))),
+    (ap.abonos || []).length ? h('h3', { class: 'ap-det-t' }, 'Abonos') : null,
+    (ap.abonos || []).length ? h('div', { class: 'ap-det-lista' }, ...ap.abonos.map(x => h('div', { class: 'ap-det-fila' },
+      h('span', {}, x.nombre || x.forma, h('span', { class: 'nota' }, x.fecha ? ` · ${fechaCorta(x.fecha)}` : '')),
+      h('span', { class: 'num' }, `${fmtMonto(x.monto, x.moneda)} ${x.moneda === 'COP' ? '' : x.moneda}`.trim())))) : null,
+    h('p', { class: 'nota ap-det-meta' }, `Apartado el ${fechaHora(ap.fecha)} por @${ap.usuario}${pendiente ? ` · hace ${dias} ${dias === 1 ? 'día' : 'días'}` : ''}`));
+  const acciones = pendiente ? h('div', { class: 'acciones ap-acc' },
+    ctx.puedeVer('cancelarApartado') ? h('button', { class: 'btn danger', id: 'ap-cancelar', onclick: () => ir(async () => {
+      const motivo = await pedirMotivo({ titulo: 'Cancelar apartado', boton: 'Cancelar apartado', peligro: true });
+      if (!motivo) return;
+      const r = await ctx.almacen.cancelarApartado(ap.id, motivo);
+      toast(r.ok ? 'Apartado cancelado' : 'No se pudo cancelar', { malo: !r.ok });
+    }) }, 'Cancelar') : null,
+    h('button', { class: 'btn', id: 'ap-abonar', onclick: () => ir(() => abrirPago(ctx, ap, 'abonar')) }, 'Abonar'),
+    h('button', { class: 'btn primary', id: 'ap-completar', onclick: () => ir(() => abrirPago(ctx, ap, 'completar')) }, 'Completar')) : null;
+  const v = abrirVentana({ titulo: ap.cliente?.nombre || 'Apartado', contenido, acciones });
 }
 
 // Apartados: resumen de lo que falta por cobrar, búsqueda por cliente y filtros por estado.
@@ -148,9 +177,9 @@ registrarVista('/apartados', {
       const porCobrar = pend.reduce((s, a) => s + a.saldo, 0);
       const viejos = pend.filter(a => diasDesde(a.fecha) >= 15).length;
       resumen.replaceChildren(
-        h('div', { class: 'ap-res-dato' }, h('span', { class: 'tasa-et' }, 'Por cobrar'), h('b', { class: 'num' }, fmtCop(porCobrar))),
-        h('div', { class: 'ap-res-dato' }, h('span', { class: 'tasa-et' }, 'Pendientes'), h('b', { class: 'num' }, String(pend.length))),
-        h('div', { class: 'ap-res-dato' + (viejos ? ' alerta' : '') }, h('span', { class: 'tasa-et' }, '+15 días'), h('b', { class: 'num' }, String(viejos))));
+        h('div', { class: 'ap-res-cifra' }, h('span', { class: 'nota' }, 'Por cobrar'), h('b', { class: 'num' }, fmtCop(porCobrar))),
+        h('div', { class: 'ap-res-sub' }, h('span', {}, h('b', { class: 'num' }, String(pend.length)), pend.length === 1 ? ' pendiente' : ' pendientes'),
+          viejos ? h('span', { class: 'ap-res-viejos' }, icono('alerta'), h('b', { class: 'num' }, String(viejos)), ' con +15 días') : null));
       const cuenta = k => (k === 'todos' ? lista.length : lista.filter(a => a.estado === k).length);
       seg.replaceChildren(...FILTROS.map(([k, t]) => h('button', { 'aria-pressed': String(k === filtro), onclick: () => { filtro = k; pintar(); } }, t, k === 'pendiente' && cuenta(k) ? h('span', { class: 'cuenta' }, String(cuenta(k))) : null)));
       const q = norm(busqueda);
