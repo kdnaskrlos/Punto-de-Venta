@@ -300,3 +300,4 @@ Suite final: npm test 99/99 · e2e 59/59
 
 ## v1.48 — Título de la tasa en Bs
 - En Tasas del día, el título de la fila de Bs es la fuente elegida en Ajustes («Binance P2P» con su recargo, «BCV oficial» o «Tasa manual»); abajo solo queda la fecha y hora.
+- v1.49: el título «Binance P2P» va sin el recargo.
