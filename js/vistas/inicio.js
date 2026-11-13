@@ -12,10 +12,10 @@ import { escucharVentasConCosto, listaVentas } from './ventas-rango.js';
 // Tarjetas como en la app de Pedidos: chip con ícono + etiqueta, valor grande, subtítulo de color e ícono de fondo.
 // Al tocarlas llevan a la pantalla que explica ese número.
 const DESTINO = { ventas: '/reportes', ganancia: '/reportes', caja: '/caja', cobrado: '/caja', bajas: '/inventario', 'mis-ventas': '/reportes', 'mi-caja': '/caja', comision: '/reportes' };
-const tile = (k, color, etiqueta, valor, sub, ic) => h('button', { type: 'button', class: 'tile', 'data-k': k, style: `--c:${color}`, onclick: () => DESTINO[k] && navegar(DESTINO[k]) },
+const tile = (k, color, etiqueta, valor, sub, ic) => h('button', { type: 'button', class: 'tile' + (String(valor).length >= 13 ? ' ancha' : ''), 'data-k': k, style: `--c:${color}`, onclick: () => DESTINO[k] && navegar(DESTINO[k]) },
   ic ? h('span', { class: 'tile-ic', 'aria-hidden': 'true' }, icono(ic)) : null,
   h('span', { class: 'et' }, ic ? h('span', { class: 'chip-ic' }, icono(ic)) : null, etiqueta),
-  h('span', { class: 'val num' }, valor), sub ? h('span', { class: 'sub' }, sub) : null);
+  h('span', { class: 'val num', style: `--n:${String(valor).length}` }, valor), sub ? h('span', { class: 'sub' }, sub) : null);
 
 const DIAS_L = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const MESES_L = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];

@@ -29,7 +29,7 @@ function selectorRango(alCambiar, inicial = 'hoy') {
   return { el: h('div', { class: 'rango' }, seg, boton), valor: () => [desde, hasta] };
 }
 
-const tile = (k, color, et, val, sub, ic) => h('div', { class: 'tile', 'data-k': k, style: `--c:${color}` }, ic ? h('span', { class: 'tile-ic', 'aria-hidden': 'true' }, icono(ic)) : null, h('div', { class: 'et' }, et), h('div', { class: 'val num' }, val), sub ? h('div', { class: 'sub' }, sub) : null);
+const tile = (k, color, et, val, sub, ic) => h('div', { class: 'tile' + (String(val).length >= 13 ? ' ancha' : ''), 'data-k': k, style: `--c:${color}` }, ic ? h('span', { class: 'tile-ic', 'aria-hidden': 'true' }, icono(ic)) : null, h('div', { class: 'et' }, et), h('div', { class: 'val num', style: `--n:${String(val).length}` }, val), sub ? h('div', { class: 'sub' }, sub) : null);
 
 registrarVista('/reportes', {
   montar(cont, ctx) {

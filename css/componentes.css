@@ -676,3 +676,9 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .mv-nombre .nota{font-size:12px}
 .rango-btn{min-height:36px}
 .cab-vista{margin-bottom:8px}
+
+/* Auditoría UI v1.36 */
+/* C1: la cifra se achica según su largo y el ancho de la tarjeta (mín. 17px); si es muy larga, la tarjeta ocupa toda la fila */
+.tile{container-type:inline-size}
+.tiles .tile .val,.tile .val{font-size:clamp(17px,calc(100cqi / (var(--n,6) * .6)),26px)}
+.tiles .tile.ancha{grid-column:1/-1}

@@ -33,11 +33,11 @@ function tasas(ctx) {
   const aj = ctx.ajustesTasas || {};
   const remota = ctx.tasaRemota || {};
   const modo = { value: aj.bsModo || 'binance' };
-  const entrada = (id, valor, sufijo) => h('div', { class: 'tasa-entrada' }, h('input', { class: 'inp num', id, inputmode: 'decimal', value: valor }), h('span', { class: 'suf' }, sufijo));
+  const entrada = (id, valor, sufijo, nombre) => h('div', { class: 'tasa-entrada' }, h('input', { class: 'inp num', id, inputmode: 'decimal', value: valor, 'aria-label': nombre }), h('span', { class: 'suf' }, sufijo));
   const filaUsd = (inp, sufijo) => h('div', { class: 'fila-usd' }, h('span', { class: 'usd-eq' }, '1 USD ='), inp);
   const cop = entrada('aj-cop', aj.copPorUsd ? fmtCop(aj.copPorUsd) : '', 'COP');
-  const recargo = entrada('aj-recargo', aj.bsRecargo != null ? fmtDec(aj.bsRecargo) : '', 'Bs.');
-  const manual = entrada('aj-bs-manual', aj.bsManual ? fmtDec(aj.bsManual) : '', 'Bs.');
+  const recargo = entrada('aj-recargo', aj.bsRecargo != null ? fmtDec(aj.bsRecargo) : '', 'Bs.', 'Recargo en Bs sobre Binance');
+  const manual = entrada('aj-bs-manual', aj.bsManual ? fmtDec(aj.bsManual) : '', 'Bs.', 'Tasa Bs por dólar');
   const valBin = h('span', { class: 'modo-val num' }), valBcv = h('span', { class: 'modo-val num' }), valMan = h('span', { class: 'modo-val num' });
   const base = Number(remota.rate) || null, bcv = Number(remota.bcv?.rate) || null;
   const num = (inp, m) => parseMonto(inp.querySelector('input').value, m);
