@@ -8,8 +8,8 @@ casos('calculadora', [
     a.strictEqual(await texto(p, '.topbar .tasas'), '$ 3.900 · Bs 1.075');
     await p.click('.topbar .tasas');
     const d = await texto(p, '.capa');
-    a.ok(!d.includes('Manual'), 'no dice Manual');
-    for (const t of ['3.900', '1.075', 'Pesos por dólar', 'Bs por dólar']) a.ok(d.includes(t), `falta ${t} en ${d}`);
+    // El título de Bs es la fuente elegida en Ajustes (el demo usa la tasa manual).
+    for (const t of ['3.900', '1.075', 'Pesos por dólar', 'Tasa manual']) a.ok(d.includes(t), `falta ${t} en ${d}`);
   }],
   ['PC: panel derecho sin tapar el carrito; 100 USD = 390.000 COP = 107.500,00 Bs', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });

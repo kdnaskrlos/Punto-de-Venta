@@ -68,7 +68,7 @@ export function abrirCalculadora(ctx) {
   return hj;
 }
 
-const FUENTE = { binance: 'Binance P2P', bcv: 'BCV (oficial)', manual: 'Manual' };
+const TITULO_BS = { binance: 'Binance P2P', bcv: 'BCV oficial', manual: 'Tasa manual' };
 
 export function abrirDetalleTasas(ctx) {
   const t = ctx.tasas, aj = ctx.ajustesTasas || {};
@@ -81,8 +81,9 @@ export function abrirDetalleTasas(ctx) {
   const tuerca = ctx.puedeVer('cambiarTasas') ? h('button', { class: 'tasas-ajustar', id: 'tasas-ajustes', onclick: () => { v.cerrar(); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca'), 'Cambiar tasas') : null;
   const cont = h('div', { class: 'tasas-dia' },
     fila('cop', 'monedas', 'Pesos por dólar', t.copPorUsd ? fmtCop(t.copPorUsd) : null, 'COP', '', t.copActualizada),
-    fila('bs', 'banco', 'Bs por dólar', t.bsPorUsd ? fmtDec(t.bsPorUsd) : null, 'Bs',
-      t.fuenteBs === 'manual' ? (t.ultimaConocida ? 'Última conocida' : '') : `${FUENTE[t.fuenteBs] || t.fuenteBs || ''}${t.fuenteBs === 'binance' && aj.bsRecargo ? ` + ${fmtDec(aj.bsRecargo)}` : ''}${t.ultimaConocida ? ' · última conocida' : ''}`, t.bsActualizada),
+    // El título es la fuente elegida en Ajustes (Binance P2P, BCV oficial o Tasa manual); abajo solo la fecha.
+    fila('bs', 'banco', `${TITULO_BS[t.fuenteBs] || t.fuenteBs || 'Bs por dólar'}${t.fuenteBs === 'binance' && aj.bsRecargo ? ` + ${fmtDec(aj.bsRecargo)}` : ''}`,
+      t.bsPorUsd ? fmtDec(t.bsPorUsd) : null, 'Bs', t.ultimaConocida ? 'Última conocida' : '', t.bsActualizada),
     !t.bsPorUsd ? h('div', { class: 'aviso' }, icono('alerta'), 'Sin tasa de Bs: los pagos en Bs quedan desactivados.') : null,
     tuerca);
   const v = abrirVentana({ titulo: 'Tasas del día', contenido: cont, clase: 'desplegable', sinCabecera: true });

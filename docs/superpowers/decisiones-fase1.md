@@ -297,3 +297,6 @@ Suite final: npm test 99/99 · e2e 59/59
 
 ## v1.47 — Tasas del día
 - La fecha va sin el día de la semana («12 nov · 8:00 am») y el monto se apoya en la misma línea base que la fecha y hora.
+
+## v1.48 — Título de la tasa en Bs
+- En Tasas del día, el título de la fila de Bs es la fuente elegida en Ajustes («Binance P2P» con su recargo, «BCV oficial» o «Tasa manual»); abajo solo queda la fecha y hora.
