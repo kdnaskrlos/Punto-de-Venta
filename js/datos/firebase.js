@@ -68,7 +68,9 @@ export function crearFirebase(config) {
   let errorPerfil = null; // por qué no se pudo cargar el perfil (se muestra en la entrada)
   function publicarSesion(s) { sesion = s; for (const cb of oyentesSesion) cb(s ? { ...s } : null); }
   onAuthStateChanged(auth, user => {
-    quitarPerfil && quitarPerfil(); quitarCaja && quitarCaja(); quitarPendientes && quitarPendientes(); miCaja = null; pendientesVentas = 0;
+    quitarPerfil && quitarPerfil();
+    // Si «entrar» ya abrió la sesión de este mismo usuario, no se desarma lo que dejó listo (caja, pendientes).
+    if (!user || sesion?.uid !== user.uid) { quitarCaja && quitarCaja(); quitarPendientes && quitarPendientes(); quitarCaja = quitarPendientes = null; miCaja = null; pendientesVentas = 0; }
     if (!user) { publicarSesion(null); return; }
     quitarPerfil = onSnapshot(ref('usuarios', user.uid), { includeMetadataChanges: true }, snap => {
       // La copia del teléfono puede venir vacía justo después de cerrar sesión: solo se decide con la respuesta
@@ -76,6 +78,12 @@ export function crearFirebase(config) {
       if (!snap.exists() && snap.metadata.fromCache) return;
       const u = snap.data();
       if (!u || !u.activo) { errorPerfil = !u ? 'perfil-no-encontrado' : 'perfil-inactivo'; signOut(auth); return; }
+      aplicarPerfil(user, u);
+    }, e => { console.warn('perfil', e); errorPerfil = e.code || e.message || 'perfil-error'; publicarSesion(null); });
+  });
+  // Abre (o actualiza) la sesión con el perfil leído: lo usan el aviso de Firestore y también «entrar»,
+  // que ya leyó el perfil del servidor y no tiene por qué esperar otro aviso para abrir la app.
+  function aplicarPerfil(user, u) {
       errorPerfil = null;
       const nueva = { uid: user.uid, usuario: u.usuario, nombre: u.nombre, rol: u.rol };
       const cambio = !sesion || sesion.rol !== nueva.rol || sesion.uid !== nueva.uid;
@@ -95,8 +103,7 @@ export function crearFirebase(config) {
         if (puede(u.rol, 'verReportesTodos') && navigator.onLine) completarNumeros().catch(() => {});
       }
       publicarSesion(nueva);
-    }, e => { console.warn('perfil', e); errorPerfil = e.code || e.message || 'perfil-error'; publicarSesion(null); });
-  });
+  }
 
   async function completarNumeros() {
     const q = await getDocs(query(collection(db, 'ventas'), where('numero', '==', null)));
@@ -201,26 +208,31 @@ export function crearFirebase(config) {
         return NO(e.code === 'auth/network-request-failed' ? 'red' : 'error', { detalle: e.code || e.message });
       }
     },
-    async entrar(usuario, pin) {
+    // pasos(texto): la pantalla de entrada muestra en qué va («Buscando usuario…», etc.) para saber dónde se traba.
+    async entrar(usuario, pin, pasos = () => {}) {
       const u = limpiarUsuario(usuario);
+      const aTiempo = (prom, que) => Promise.race([prom, new Promise((_, no) => setTimeout(() => no(Object.assign(new Error(que), { code: 'sin-respuesta: ' + que })), 15000))]);
       try {
-        const l = await getDoc(ref('logins', u));
+        pasos('Buscando usuario…'); console.info('[entrar] buscando usuario', u);
+        const l = await aTiempo(getDoc(ref('logins', u)), 'buscar usuario');
         if (!l.exists()) return NO('no-existe');
-        const cred = await signInWithEmailAndPassword(auth, l.data().email, pinPass(pin));
-        let perfil;
-        try { perfil = await getDoc(ref('usuarios', cred.user.uid)); } catch { perfil = null; }
-        if (!perfil || !perfil.exists() || !perfil.data().activo) { await signOut(auth); return NO('inactivo'); }
-        await new Promise(r => { const fin = () => { quitar(); r(); }; const quitar = api.alCambiarSesion(s => { if (s && s.uid === cred.user.uid) setTimeout(fin); }); setTimeout(fin, 8000); });
-        // La cuenta es correcta pero el perfil no llegó: se dice por qué en vez de quedarse callado.
-        if (!sesion) return NO('perfil', { detalle: errorPerfil || 'sin respuesta de Firebase' });
-        return SI();
+        pasos('Verificando PIN…'); console.info('[entrar] verificando PIN');
+        const cred = await aTiempo(signInWithEmailAndPassword(auth, l.data().email, pinPass(pin)), 'verificar PIN');
+        pasos('Cargando tu perfil…'); console.info('[entrar] cargando perfil', cred.user.uid);
+        const perfil = await aTiempo(getDoc(ref('usuarios', cred.user.uid)), 'cargar perfil');
+        if (!perfil.exists() || !perfil.data().activo) { await signOut(auth); return NO('inactivo'); }
+        // Con el perfil del servidor en la mano se abre la sesión de una vez.
+        if (!sesion || sesion.uid !== cred.user.uid) aplicarPerfil(cred.user, perfil.data());
+        console.info('[entrar] listo', !!sesion);
+        return sesion ? SI() : NO('perfil', { detalle: errorPerfil || 'sin sesión' });
       } catch (e) {
         if (auth.currentUser && !sesion) signOut(auth).catch(() => {});
         const c = e.code || '';
+        console.warn('[entrar]', c, e);
         if (c === 'auth/wrong-password' || c === 'auth/invalid-credential') return NO('pin');
         if (c === 'auth/too-many-requests') return NO('intentos');
         if (c === 'auth/network-request-failed' || c === 'unavailable') return NO('red');
-        console.warn(e); return NO('error', { detalle: c || e.message });
+        return NO('error', { detalle: c || e.message });
       }
     },
     async salir() { errorPerfil = null; await signOut(auth); return SI(); },

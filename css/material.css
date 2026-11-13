@@ -351,3 +351,4 @@
 .lista-usuarios .u-acc{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;justify-content:stretch}
 .lista-usuarios .u-acc .btn{width:100%;justify-content:center}
 .lista-usuarios .u-acc .u-eliminar{grid-column:1/-1;justify-self:start;width:auto;padding-left:4px}
+.entrar-paso{text-align:center;min-height:19px;margin:0}

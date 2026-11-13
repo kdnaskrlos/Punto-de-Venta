@@ -24,6 +24,7 @@ export function pantallaEntrada(raiz, ctx, { demo }) {
     campo('entrar-usuario', 'Usuario', { autocapitalize: 'none', autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'next' }),
     campo('entrar-pin', 'PIN', { type: 'password', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', enterkeyhint: 'go' }),
     h('button', { class: 'btn primary grande', id: 'entrar-btn' }, icono('check'), 'Entrar'),
+    h('p', { class: 'nota entrar-paso', role: 'status', 'aria-live': 'polite' }),
     demo ? h('p', { class: 'nota demo' }, 'Modo demostración: usuarios admin, encargada o vendedora · PIN 1234') : null,
     h('p', { class: 'ver-pie' }, `versión ${APP_VERSION}`));
   const error = (cual, texto) => { form.querySelectorAll('.error').forEach(e => { e.textContent = ''; }); if (cual) form.querySelector(`[data-de="entrar-${cual}"]`).textContent = texto; };
@@ -35,7 +36,9 @@ export function pantallaEntrada(raiz, ctx, { demo }) {
     if (!/^\d{4}$/.test(pin)) return error('pin', 'El PIN debe tener 4 números');
     error(null);
     const b = form.querySelector('#entrar-btn'); b.disabled = true;
-    const r = await ctx.almacen.entrar(usuario, pin);
+    const paso = form.querySelector('.entrar-paso');
+    const r = await ctx.almacen.entrar(usuario, pin, txt => { paso.textContent = txt; });
+    paso.textContent = '';
     b.disabled = false;
     if (!r.ok) { const [c, t] = MENSAJES[r.error] || MENSAJES.error; error(c, r.detalle ? `${t} (${r.detalle})` : t); }
   });
