@@ -173,3 +173,9 @@ Suite final: npm test 99/99 · e2e 59/59
 - Más: filas agrupadas (Negocio / Administración) con ícono de color, descripción y flecha.
 - Calculadora: sin "0" de ejemplo y con borrador junto a Cerrar que limpia todo.
 - En toda la app, Enter en un campo de una línea oculta el teclado.
+
+## Detalles (v1.25)
+- Barra superior sin botón de actualizar; la calculadora ocupa su lugar.
+- "Nuevo usuario": ancho completo, punteado y sin relleno, como "Agregar forma de pago".
+- Tasas del día: no se muestra "Manual" (sí Binance/BCV o "última conocida").
+- Degradado sutil (color al 9 % hacia blanco, borde teñido) en tarjetas de Inicio; íconos de Más y de Tasas con fondo degradado e ícono de color.

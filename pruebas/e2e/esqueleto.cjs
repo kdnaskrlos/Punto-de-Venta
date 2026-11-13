@@ -18,9 +18,10 @@ casos('esqueleto', [
     a.strictEqual(n.length, 8, JSON.stringify(n.map(x => x.t)));
     for (const x of n) a.ok(x.w >= 44 && x.h >= 44, `${x.t} mide ${x.w}x${x.h}`);
   }],
-  ['PC: cabecera con conexión, tasas, calculadora, actualizar y fecha', async (env, a) => {
+  ['PC: cabecera con conexión, tasas, calculadora y fecha; sin botón de actualizar', async (env, a) => {
     const p = await env.pagina();
-    for (const s of ['.topbar .conn', '.topbar .tasas', '.topbar [aria-label="Calculadora"]', '.topbar [aria-label="Actualizar"]', '.topbar .fecha']) a.ok(await p.$(s), `falta ${s}`);
+    for (const s of ['.topbar .conn', '.topbar .tasas', '.topbar [aria-label="Calculadora"]', '.topbar .fecha']) a.ok(await p.$(s), `falta ${s}`);
+    a.strictEqual(await p.$('.topbar [aria-label="Actualizar"]'), null);
     a.strictEqual((await p.textContent('.topbar .fecha')).trim(), FECHA);
     for (const x of await medidas(p, '.topbar button')) a.ok(x.w >= 44 && x.h >= 44, `${x.t} mide ${x.w}x${x.h}`);
   }],

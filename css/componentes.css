@@ -516,7 +516,7 @@ textarea.plantilla{min-height:220px;line-height:1.45}
 .u-acc .btn{min-height:40px}
 .btn.crema{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
 .btn.crema:hover{border-color:var(--accent)}
-.nuevo-usuario{align-self:flex-start;min-height:44px;padding:10px 18px;font-size:15px}
+.nuevo-usuario{width:100%;font-size:15px;margin-top:6px}
 .fila-pin{display:flex;gap:8px}
 .fila-pin .inp{flex:1;letter-spacing:.2em;font-weight:800}
 pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px}
@@ -560,3 +560,12 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .mas-flecha{color:var(--muted);display:grid;place-items:center}
 .mas-flecha svg.i{width:18px;height:18px}
 .mas-fila .mas-ic svg.i{color:#fff}
+
+/* Degradado sutil (v1.25): tarjetas de Inicio e íconos de Más */
+.tiles .tile{border:1px solid color-mix(in srgb,var(--c) 28%,var(--line));border-left:1px solid color-mix(in srgb,var(--c) 28%,var(--line));border-radius:12px;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 9%,var(--surface)) 0%,var(--surface) 75%)}
+.tiles .tile:hover{border-color:color-mix(in srgb,var(--c) 50%,var(--line));border-left-color:color-mix(in srgb,var(--c) 50%,var(--line))}
+.tiles .tile .chip-ic{width:28px;height:28px;border-radius:8px;color:var(--c);background:linear-gradient(135deg,color-mix(in srgb,var(--c) 16%,var(--surface)),color-mix(in srgb,var(--c) 6%,var(--surface)));border:1px solid color-mix(in srgb,var(--c) 22%,var(--line))}
+.tiles .tile .chip-ic svg.i{width:16px;height:16px}
+.mas-ic{color:var(--c);background:linear-gradient(135deg,color-mix(in srgb,var(--c) 18%,var(--surface)),color-mix(in srgb,var(--c) 6%,var(--surface)));border:1px solid color-mix(in srgb,var(--c) 25%,var(--line));box-shadow:none}
+.mas-fila .mas-ic svg.i{color:var(--c)}
+.tasa-ic{color:var(--c);background:linear-gradient(135deg,color-mix(in srgb,var(--c) 18%,var(--surface)),color-mix(in srgb,var(--c) 6%,var(--surface)));border:1px solid color-mix(in srgb,var(--c) 25%,var(--line))}

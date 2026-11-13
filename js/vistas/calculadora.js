@@ -75,12 +75,12 @@ export function abrirDetalleTasas(ctx) {
   const cuando = iso => (iso ? fechaHora(iso) : 'sin fecha');
   const fila = (cls, ic, etiqueta, valor, moneda, fuente, fecha) => h('div', { class: 'tasa-fila ' + cls },
     h('span', { class: 'tasa-ic' }, icono(ic)),
-    h('div', { class: 'tasa-txt' }, h('span', { class: 'tasa-et' }, etiqueta), h('span', { class: 'tasa-dato nota' }, h('b', {}, fuente), ' · ', cuando(fecha))),
+    h('div', { class: 'tasa-txt' }, h('span', { class: 'tasa-et' }, etiqueta), h('span', { class: 'tasa-dato nota' }, fuente ? h('b', {}, fuente) : null, fuente ? ' · ' : null, cuando(fecha))),
     h('span', { class: 'tasa-val num' }, valor ?? '—', valor != null ? h('small', {}, moneda) : null));
   const cont = h('div', { class: 'tasas-dia' },
-    fila('cop', 'monedas', 'Pesos por dólar', t.copPorUsd ? fmtCop(t.copPorUsd) : null, 'COP', 'Manual', t.copActualizada),
+    fila('cop', 'monedas', 'Pesos por dólar', t.copPorUsd ? fmtCop(t.copPorUsd) : null, 'COP', '', t.copActualizada),
     fila('bs', 'banco', 'Bs por dólar', t.bsPorUsd ? fmtDec(t.bsPorUsd) : null, 'Bs',
-      `${FUENTE[t.fuenteBs] || t.fuenteBs || '—'}${t.fuenteBs === 'binance' && aj.bsRecargo ? ` + ${fmtDec(aj.bsRecargo)}` : ''}${t.ultimaConocida ? ' · última conocida' : ''}`, t.bsActualizada),
+      t.fuenteBs === 'manual' ? (t.ultimaConocida ? 'Última conocida' : '') : `${FUENTE[t.fuenteBs] || t.fuenteBs || ''}${t.fuenteBs === 'binance' && aj.bsRecargo ? ` + ${fmtDec(aj.bsRecargo)}` : ''}${t.ultimaConocida ? ' · última conocida' : ''}`, t.bsActualizada),
     !t.bsPorUsd ? h('div', { class: 'aviso' }, icono('alerta'), 'Sin tasa de Bs: los pagos en Bs quedan desactivados.') : null);
   const tuerca = ctx.puedeVer('cambiarTasas') ? h('button', { class: 'ibtn', id: 'tasas-ajustes', 'aria-label': 'Cambiar tasas', onclick: () => { v.cerrar(); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca')) : null;
   const v = abrirVentana({ titulo: 'Tasas del día', contenido: cont, extraCab: tuerca });

@@ -68,7 +68,7 @@ function nuevoUsuario(ctx) {
 function usuarios(ctx) {
   const lista = h('div', { class: 'lista-usuarios' });
   const el = seccion('Usuarios', 'usuarios', lista,
-    h('button', { class: 'btn crema nuevo-usuario', id: 'nu-abrir', onclick: () => nuevoUsuario(ctx) }, icono('mas1'), 'Nuevo usuario'));
+    h('button', { class: 'forma-nueva nuevo-usuario', id: 'nu-abrir', onclick: () => nuevoUsuario(ctx) }, icono('mas1'), 'Nuevo usuario'));
   const quitar = ctx.almacen.escuchar('usuarios', l => {
     lista.replaceChildren(...l.filter(u => !u.reemplazadoPor).sort((a, b) => (a.rol === 'admin' ? -1 : 1) - (b.rol === 'admin' ? -1 : 1) || a.usuario.localeCompare(b.usuario)).map(u => h('div', { class: 'usuario' + (u.activo ? '' : ' off'), 'data-usuario': u.usuario },
       h('div', { class: 'u-cab' },

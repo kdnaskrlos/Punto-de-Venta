@@ -98,7 +98,6 @@ export function pintarCabecera() {
     h('button', { class: 'pill tasas' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), 'aria-label': 'Tasas del día', title: t.ultimaConocida ? 'Bs: última tasa conocida' : '', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
       h('span', { class: 'num' }, '$ ', h('b', { class: 'c-cop' }, fmt(t.copPorUsd)), ' · Bs ', h('b', { class: 'c-bs' }, fmt(t.bsPorUsd)))),
     h('button', { class: 'ibtn', 'aria-label': 'Calculadora', onclick: () => alAbrirCalculadora() }, icono('calculadora')),
-    h('button', { class: 'ibtn', 'aria-label': 'Actualizar', onclick: () => location.reload() }, icono('actualizar')),
     h('span', { class: 'pill fecha' }, fechaCorta()));
 }
 
