@@ -179,3 +179,7 @@ Suite final: npm test 99/99 · e2e 59/59
 - "Nuevo usuario": ancho completo, punteado y sin relleno, como "Agregar forma de pago".
 - Tasas del día: no se muestra "Manual" (sí Binance/BCV o "última conocida").
 - Degradado sutil (color al 9 % hacia blanco, borde teñido) en tarjetas de Inicio; íconos de Más y de Tasas con fondo degradado e ícono de color.
+
+## Detalles (v1.26)
+- "Guardar cambios" de Ajustes vuelve abajo (como en el resto de la app), aunque el teclado lo tape.
+- La versión ya no se muestra en Inicio; queda al pie de Más (teléfono) y en la barra lateral (PC).

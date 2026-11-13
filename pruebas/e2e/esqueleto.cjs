@@ -25,9 +25,14 @@ casos('esqueleto', [
     a.strictEqual((await p.textContent('.topbar .fecha')).trim(), FECHA);
     for (const x of await medidas(p, '.topbar button')) a.ok(x.w >= 44 && x.h >= 44, `${x.t} mide ${x.w}x${x.h}`);
   }],
-  ['Versión visible', async (env, a) => {
+  ['Versión visible (en Más, no en Inicio)', async (env, a) => {
     const p = await env.pagina();
     a.ok((await p.innerText('body')).includes(VERSION), VERSION);
+    const t = await env.pagina({ ancho: 360, alto: 780, ruta: '/inicio' });
+    a.strictEqual(await t.$('.ver-pie'), null);
+    await t.evaluate(() => { location.hash = '/mas'; });
+    await t.waitForSelector('.ver-pie');
+    a.ok((await t.innerText('.ver-pie')).includes(VERSION));
   }],
   ['Teléfono: barra inferior de 5 con Vender al centro', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780 });

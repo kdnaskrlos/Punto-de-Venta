@@ -400,8 +400,9 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .dia{position:relative}
 .dia.hoy::after{content:'';position:absolute;left:50%;bottom:5px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:currentColor}
 /* Barra fija para guardar los cambios de Ajustes */
-.guardar-ajustes{position:sticky;top:64px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:6px 6px 6px 12px;border:1px solid var(--y-bd);border-radius:12px;background:var(--y-bg);color:var(--y-tx);font-weight:800;font-size:13px;box-shadow:0 4px 14px rgba(16,24,40,.08)}
-.guardar-ajustes .btn{min-height:40px}
+.guardar-ajustes{position:sticky;bottom:12px;z-index:5;display:flex;justify-content:flex-end;margin-top:12px}
+.guardar-ajustes .btn{box-shadow:0 8px 20px rgba(21,128,61,.3)}
+@media (max-width:760px){.guardar-ajustes{bottom:calc(80px + env(safe-area-inset-bottom,0px))}.guardar-ajustes .btn{width:100%;min-height:52px}}
 
 /* Ajustes en 5 apartados (v1.21) */
 .pestanas-aj{margin:4px 0 12px;overflow-x:auto}

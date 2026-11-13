@@ -172,7 +172,7 @@ registrarVista('/ajustes', {
   accion: 'ajustes',
   montar(cont, ctx) {
     const boton = h('button', { class: 'btn primary', id: 'aj-guardar' }, icono('check'), 'Guardar cambios');
-    const barra = h('div', { class: 'guardar-ajustes', hidden: true }, h('span', {}, 'Cambios sin guardar'), boton);
+    const barra = h('div', { class: 'guardar-ajustes', hidden: true }, boton);
     const cambio = () => { barra.hidden = false; };
     const t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
     const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el };
@@ -194,6 +194,6 @@ registrarVista('/ajustes', {
       if (id === 'recibo') re.pintar();
     };
     mostrar(pestanaActual);
-    cont.append(barra, pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)));
+    cont.append(pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), barra);
   },
 });

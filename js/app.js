@@ -112,7 +112,7 @@ function montar() {
   contenedor.replaceChildren(cont);
   if (v && (!v.accion || ctx.puedeVer(v.accion))) desmontar = v.montar(cont, ctx) || null;
   else cont.append(h('div', { class: 'vacio' }, 'Próximamente'));
-  if (ruta === '/inicio' || ruta === '/mas') cont.append(h('p', { class: 'ver-pie' }, `versión ${APP_VERSION}`));
+  if (ruta === '/mas') cont.append(h('p', { class: 'ver-pie' }, `versión ${APP_VERSION}`));
   window.scrollTo(0, 0);
 }
 export function refrescar() { montar(); }
