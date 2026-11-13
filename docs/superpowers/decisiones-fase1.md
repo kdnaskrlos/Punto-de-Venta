@@ -202,3 +202,8 @@ Suite final: npm test 99/99 · e2e 59/59
 
 ## Detalle (v1.31)
 - Prenda elegida en Vender con contorno azul crema (borde #a8c5fa y anillo var(--b-bd)).
+
+## Apartados, modo prueba y elección de prenda (v1.32)
+- Apartados rediseñados: resumen arriba (Por cobrar, Pendientes, +15 días), búsqueda por cliente o teléfono, filtros Pendientes (con conteo) · Completados · Cancelados · Todos; tarjetas con cliente y teléfono, prendas en pastillas, barra de lo abonado, saldo en rojo y aviso de días cuando pasan 15.
+- Modo prueba como en Pedidos (solo admin, en Más arriba de la versión): carga ejemplos con demo:true (45 ventas en 30 días, apartados en los tres estados, clientes y, si hay pocos productos reales, prendas de ejemplo con costo). "Modo prueba · activo" los quita sin tocar lo real. Reglas: el admin solo crea/borra documentos con demo:true (y costosVenta "demo-…"). Ruling: el ID de venta de ejemplo empieza con "demo-" para poder borrar su costo congelado.
+- Prenda elegida en Vender: acento violeta (fondo suave, borde y ícono violeta, pastilla de cantidad violeta) en lugar de contorno; las tallas elegidas también en violeta.

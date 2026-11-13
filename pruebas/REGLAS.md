@@ -56,3 +56,8 @@ const prueba = async (nombre, fn, esperado) => { try { await fn(); console.log(e
 - [ ] Encargada: intentar cerrar SIN `cierre.automatico` la caja de la vendedora → rechazado.
 - [ ] Vendedora: `arquearCaja(id, …)` sobre su caja por arquear → permitido; repetirlo → rechazado (ya no está por arquear).
 - [ ] Vendedora: `arquearCaja` sobre la caja de otra persona → rechazado.
+
+## Modo prueba (v1.32)
+- [ ] Admin: "Modo prueba" crea productos, costos, clientes, ventas y apartados con demo:true.
+- [ ] Admin: "Quitar ejemplos" borra solo lo que tiene demo:true (y costosVenta "demo-…"); una venta real no se puede borrar.
+- [ ] Encargada o vendedora: no pueden crear ni borrar documentos con demo:true.

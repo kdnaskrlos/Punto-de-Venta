@@ -12,6 +12,9 @@ service cloud.firestore {
     function me() { return get(uPath()).data; }
     function activo() { return signed() && exists(uPath()) && me().activo == true; }
     function esAdmin() { return activo() && me().rol == 'admin'; }
+    // Modo prueba: el administrador crea y borra ejemplos marcados con demo:true (nunca toca datos reales).
+    function ejemploNuevo() { return esAdmin() && request.resource.data.demo == true; }
+    function ejemploExistente() { return esAdmin() && resource.data.demo == true; }
     function esGestion() { return activo() && (me().rol == 'admin' || me().rol == 'encargada'); }
     function yo() { return me().usuario; }
     function estadoPath() { return /databases/$(database)/documents/sistema/estado; }
@@ -58,11 +61,14 @@ service cloud.firestore {
     match /costosVenta/{id} {
       allow read: if esGestion();
       allow create: if esGestion();
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if esAdmin() && id.matches('demo-.*');
     }
 
     // Ventas: solo se crean (nunca se reescriben ni se borran). Gestión puede anular o poner el número.
     match /ventas/{id} {
+      allow create: if ejemploNuevo();
+      allow delete: if ejemploExistente();
       allow get: if esGestion() || (activo() && (resource == null || resource.data.usuario == yo()));
       allow list: if esGestion() || (activo() && resource.data.usuario == yo());
       allow create: if activo()
@@ -85,6 +91,8 @@ service cloud.firestore {
 
     // Apartados: cualquiera del equipo crea, abona y completa; solo gestión cancela. Solo se modifican mientras están pendientes.
     match /apartados/{id} {
+      allow create: if ejemploNuevo();
+      allow delete: if ejemploExistente();
       allow read: if activo();
       allow create: if activo() && request.resource.data.usuario == yo() && request.resource.data.estado == 'pendiente';
       allow update: if activo() && resource.data.estado == 'pendiente' && (

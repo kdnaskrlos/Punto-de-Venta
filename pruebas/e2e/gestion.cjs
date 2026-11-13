@@ -266,4 +266,25 @@ casos('gestion', [
     await p.evaluate(() => { location.hash = '/mas'; }); await p.evaluate(() => { location.hash = '/ajustes'; });
     a.strictEqual(await p.getAttribute('#aj-bs-modo [data-modo="bcv"]', 'aria-pressed'), 'true');
   }],
+  ['Modo prueba (admin, en Más arriba de la versión): llena la app con ejemplos y se quitan sin tocar lo real', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/mas' });
+    const orden = await p.$eval('#modo-prueba', b => b.getBoundingClientRect().top < document.querySelector('.ver-pie').getBoundingClientRect().top);
+    a.ok(orden, 'arriba de la versión');
+    const antes = await p.evaluate(() => window.__pos.ctx.almacen._estado('ventas').size);
+    await p.click('#modo-prueba');
+    await p.waitForSelector('#modo-prueba.on');
+    a.ok(await p.evaluate(() => [...window.__pos.ctx.almacen._estado('ventas').values()].filter(v => v.demo).length >= 30));
+    await p.evaluate(() => { location.hash = '/apartados'; });
+    await p.waitForSelector('.apartado');
+    a.ok(await p.$('.ap-dias'), 'un apartado con más de 15 días');
+    await p.evaluate(() => { location.hash = '/mas'; });
+    await p.click('#modo-prueba'); await p.click('#quitar-ejemplos');
+    await p.waitForSelector('#modo-prueba:not(.on)');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.almacen._estado('ventas').size), antes);
+  }],
+  ['Modo prueba: solo el administrador lo ve', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'encargada', ruta: '/mas' });
+    await p.waitForSelector('.lista-mas');
+    a.strictEqual(await p.$('#modo-prueba'), null);
+  }],
 ]);

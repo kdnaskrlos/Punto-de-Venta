@@ -126,7 +126,11 @@
 .talla-menos{position:absolute;top:-7px;left:-7px;width:22px;height:22px;border-radius:11px;border:1px solid var(--r-bd);background:var(--r-bg);color:var(--r-tx);font-size:16px;font-weight:800;line-height:1;display:grid;place-items:center;padding:0}
 .talla-menos::before{content:"";position:absolute;inset:-11px}
 .tarjeta-prenda{position:relative}
-.tarjeta-prenda.elegida{border-color:#a8c5fa;box-shadow:0 0 0 3px var(--b-bd)}
+/* Elección de prenda: acento violeta (distinto del verde de las acciones) */
+.tarjeta-prenda{--sel:var(--tono-violeta)}
+.tarjeta-prenda.elegida{border-color:color-mix(in srgb,var(--sel) 45%,var(--line));background:linear-gradient(170deg,var(--surface) 40%,color-mix(in srgb,var(--sel) 11%,var(--surface)))}
+.tarjeta-prenda.elegida .foto{background:color-mix(in srgb,var(--sel) 7%,var(--surface-2))}
+.tarjeta-prenda.elegida .foto svg.i{color:var(--sel)}
 .tarjeta-prenda .foto{position:relative}
 .tarjeta-prenda .en-carrito{position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;gap:3px;height:24px;padding:0 8px 0 6px;border-radius:99px;background:var(--accent);color:var(--accent-ink);font-size:12.5px;font-weight:800}
 .tarjeta-prenda .en-carrito svg.i{width:14px;height:14px}
@@ -597,3 +601,45 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .venta-curso .chip-ic{width:36px;height:36px;border-radius:10px}
 .venta-curso b{display:block;font-weight:800}
 .venta-curso small{color:var(--muted);font-weight:600;font-size:12.5px}
+
+/* Apartados rediseñados (v1.32) */
+.ap-resumen{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.ap-res-dato{--c:var(--tono-violeta);display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;border:1px solid color-mix(in srgb,var(--c) 26%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--c) 9%,var(--surface)),var(--surface) 80%)}
+.ap-res-dato b{font-size:19px;font-weight:800;color:var(--c);white-space:nowrap}
+.ap-res-dato:nth-child(2){--c:var(--tono-azul)}
+.ap-res-dato.alerta{--c:var(--tono-rojo)}
+.ap-res-dato:nth-child(3):not(.alerta){--c:var(--muted)}
+.ap-filtros{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.filtro-ap{overflow-x:auto}
+.filtro-ap button{white-space:nowrap;padding:0 6px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+.filtro-ap .cuenta{min-width:20px;height:20px;border-radius:10px;font-size:11.5px;font-weight:800;display:inline-grid;place-items:center;padding:0 5px;background:var(--r-bg);color:var(--r-tx)}
+.filtro-ap button[aria-pressed="true"] .cuenta{background:rgba(255,255,255,.25);color:#fff}
+.lista-ap{gap:10px}
+.apartado{gap:10px;padding:14px}
+.apartado.ap-cancelado{opacity:.75}
+.ap-cab{display:flex;align-items:center;gap:10px}
+.ap-cli{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.ap-cli b{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap-cli .nota{font-size:12px}
+.ap-prendas{display:flex;flex-wrap:wrap;gap:6px}
+.ap-prenda{font-size:12.5px;font-weight:600;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+.ap-prenda b{font-weight:800}
+.ap-pago{display:flex;flex-direction:column;gap:6px}
+.ap-barra{height:8px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.ap-barra i{display:block;height:100%;background:linear-gradient(90deg,#4ade80,var(--accent));border-radius:4px}
+.ap-montos{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12.5px;font-weight:600;color:var(--muted)}
+.ap-saldo{color:var(--r-tx);font-size:14px;font-weight:800}
+.ap-pie{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ap-pie .nota{font-size:12px}
+.ap-acc{justify-content:flex-end;margin-top:0}
+
+/* Modo prueba (v1.32) */
+.modo-prueba{display:flex;justify-content:center;margin-top:8px}
+.pill.demo{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 16px;border:1.5px dashed var(--line);border-radius:99px;background:var(--surface);color:var(--muted);font-weight:800;font-size:13px}
+.pill.demo svg.i{width:16px;height:16px}
+.pill.demo.on{border-style:solid;border-color:#f59e0b;background:#fff4dc;color:#b45309}
+
+.tarjeta-prenda .en-carrito{background:var(--tono-violeta);color:#fff}
+.talla.con{border-color:var(--tono-violeta);background:color-mix(in srgb,var(--tono-violeta) 9%,var(--surface));box-shadow:0 0 0 1px var(--tono-violeta)}
+.talla .en-carrito{background:var(--tono-violeta);color:#fff}
+.tarjeta-prenda .en-carrito svg.i{color:#fff}

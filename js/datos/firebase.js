@@ -2,7 +2,7 @@
 // Cumple el contrato de contrato.js. Las reglas de firestore.rules repiten estos permisos en el servidor.
 import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocs, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocs, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion, documentId } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { puede } from '../nucleo/permisos.js';
 import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
@@ -512,6 +512,26 @@ export function crearFirebase(config) {
       const id = nuevoId();
       const r = await sinEsperar(setDoc(ref('comisiones', id), { ...reg, id, por: sesion.usuario, fecha: ahora() }));
       return r.ok ? SI({ id }) : r;
+    },
+    // Modo prueba: ejemplos con demo:true, en lotes de 400 escrituras.
+    async cargarEjemplos(lote) {
+      const e = exigir('ajustes'); if (e) return NO(e);
+      const CLAVE = { productos: 'sku', costos: 'sku', clientes: 'telefono', ventas: 'id', apartados: 'id' };
+      const ops = Object.entries(CLAVE).flatMap(([n, k]) => (lote[n] || []).map(d => [ref(n, String(d[k])), { ...d, demo: true }]));
+      try {
+        for (let i = 0; i < ops.length; i += 400) { const b = writeBatch(db); ops.slice(i, i + 400).forEach(([r, d]) => b.set(r, d)); await b.commit(); }
+        return SI();
+      } catch { return NO('red'); }
+    },
+    async quitarEjemplos() {
+      const e = exigir('ajustes'); if (e) return NO(e);
+      try {
+        const refs = [];
+        for (const n of ['productos', 'costos', 'clientes', 'ventas', 'apartados']) (await getDocs(query(collection(db, n), where('demo', '==', true)))).forEach(d => refs.push(d.ref));
+        (await getDocs(query(collection(db, 'costosVenta'), where(documentId(), '>=', 'demo-'), where(documentId(), '<', 'demo.')))).forEach(d => refs.push(d.ref));
+        for (let i = 0; i < refs.length; i += 400) { const b = writeBatch(db); refs.slice(i, i + 400).forEach(r => b.delete(r)); await b.commit(); }
+        return SI({ quitados: refs.length });
+      } catch { return NO('red'); }
     },
     async congelarCostoVenta(ventaId, costo) {
       const e = exigir('verCostos'); if (e) return NO(e);
