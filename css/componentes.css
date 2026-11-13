@@ -690,3 +690,10 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 /* W2: el área de toque del − crece solo hacia su propia talla, y las tallas se separan más */
 .tallas{gap:14px}
 .talla-menos::before{inset:-22px -22px -4px -4px}
+/* W3: en el teléfono los cuatro filtros de Apartados van en 2 × 2, sin cortarse ni barra de desplazamiento */
+@media (max-width:480px){
+  .filtro-ap{display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+  .filtro-ap button{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .filtro-ap button:nth-child(2n){border-right:0}
+  .filtro-ap button:nth-last-child(-n+2){border-bottom:0}
+}
