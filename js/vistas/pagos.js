@@ -7,7 +7,7 @@ import { formaEfectivo, NOMBRE_MONEDA } from '../nucleo/formas.js';
 // En los botones el grupo ya dice la moneda: "Efectivo pesos" → "Efectivo", "Transferencia / Nequi / …" → "Transferencia".
 export const nombreCorto = n => (n.split('/')[0].replace(/\(.*?\)/g, '').replace(/\b(pesos|d[oó]lares|bol[ií]vares)\b/gi, '').replace(/\s+/g, ' ').trim()) || n;
 
-const GRUPOS = [['COP', 'PESOS', 'c-cop'], ['USD', 'DÓLARES', 'c-usd'], ['BS', 'BOLÍVARES', 'c-bs']];
+const GRUPOS = [['COP', 'PESOS', 'c-cop'], ['USD', 'DÓLARES', 'c-usd'], ['BS', 'BS', 'c-bs']];
 
 // total: monto a cubrir en COP. permitirMenos: en abonos de apartado se puede pagar menos que el total.
 export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar = () => {} }) {

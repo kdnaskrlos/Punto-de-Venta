@@ -59,7 +59,7 @@ registrarVista('/reportes', {
     };
     const cargar = (desde, hasta) => { quitar && quitar(); quitar = escucharVentasConCosto(ctx, { desde, hasta }, d => { datos = d; pintar(); }); };
     const rango = selectorRango(cargar);
-    cont.append(h('div', { class: 'cab-vista' }, h('h1', { class: 'sec-t' }, icono('grafica'), 'Reportes'), gestion ? rango.el : h('span', { class: 'nota' }, 'Tus ventas de hoy')), cuerpo);
+    cont.append(h('div', { class: 'cab-vista' }, gestion ? rango.el : h('span', { class: 'nota' }, 'Tus ventas de hoy')), cuerpo);
     cargar(...(gestion ? rango.valor() : [hoy(), hoy()]));
     return () => quitar && quitar();
   },
@@ -93,7 +93,7 @@ registrarVista('/comisiones', {
     const cargar = (d, hh) => { desde = d; hasta = hh; quitarVentas && quitarVentas(); quitarVentas = escucharVentasConCosto(ctx, { desde, hasta }, x => { ventas = x.ventas; pintar(); }); };
     const rango = selectorRango(cargar, 'semana');
     const q = [ctx.almacen.escuchar('usuarios', l => { usuarios = l; pintar(); }), ctx.almacen.escuchar('comisiones', l => { pagos = l; pintar(); })];
-    cont.append(h('div', { class: 'cab-vista' }, h('h1', { class: 'sec-t' }, icono('porcentaje'), 'Comisiones'), rango.el), sel, res);
+    cont.append(h('div', { class: 'cab-vista' }, rango.el), sel, res);
     cargar(...rango.valor());
     return () => { q.forEach(x => x()); quitarVentas && quitarVentas(); };
   },

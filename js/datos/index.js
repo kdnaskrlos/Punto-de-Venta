@@ -11,7 +11,7 @@ export function usuarioDemo() { try { return localStorage.getItem(CLAVE_DEMO) ||
 export function recordarUsuarioDemo(u) { try { localStorage.setItem(CLAVE_DEMO, u); } catch { /* sin almacenamiento */ } }
 
 export async function crearAlmacen() {
-  if (MODO_DEMO) return crearMemoria(semilla());
+  if (MODO_DEMO) return crearMemoria(semilla(), { guardarEn: 'pos-demo-datos' });
   const { crearFirebase } = await import('./firebase.js');
   return crearFirebase(firebaseConfig);
 }

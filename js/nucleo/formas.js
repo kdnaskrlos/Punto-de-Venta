@@ -5,7 +5,7 @@ export const FORMAS_PAGO_DEFECTO = [
   { id: 'efectivo-usd', nombre: 'Efectivo dólares', moneda: 'USD', efectivo: true, activa: true },
   { id: 'zelle', nombre: 'Zelle', moneda: 'USD', efectivo: false, activa: true },
   { id: 'usdt', nombre: 'USDT (Binance)', moneda: 'USD', efectivo: false, activa: true },
-  { id: 'efectivo-bs', nombre: 'Efectivo bolívares', moneda: 'BS', efectivo: true, activa: true },
+  { id: 'efectivo-bs', nombre: 'Efectivo Bs', moneda: 'BS', efectivo: true, activa: true },
   { id: 'pago-movil', nombre: 'Pago móvil', moneda: 'BS', efectivo: false, activa: true },
   { id: 'punto', nombre: 'Punto de venta', moneda: 'BS', efectivo: false, activa: true },
 ];

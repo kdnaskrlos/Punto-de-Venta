@@ -153,3 +153,15 @@ Suite final: npm test 99/99 · e2e 59/59
 - Recibo: un mensaje libre con variables ({cliente}, {tienda}, {ticket}, {fecha}, {prendas}, {totalCOP}, {totalUSD}, {totalBs}, {pagos}, {vuelto}); vista previa estilo WhatsApp arriba y el mensaje debajo. Una línea cuyas variables quedan vacías no se muestra.
 - Pendiente de decisión de Carlos: enviar el recibo desde su número (API de WhatsApp).
 - Intermitente conocido: tras cambiar de rol, a veces la espera de la barra lateral vence (pruebas de gestión, distinta prueba cada vez).
+
+## Navegación y diseño (v1.23)
+- Atrás como en una app: Inicio es la base. Ir de Inicio a otra pestaña agrega una entrada; cambiar entre pestañas la reemplaza; las pantallas de Más agregan una. Así atrás va Ajustes → Más → Inicio y desde Inicio sale de la app.
+- La demostración guarda sus datos en la pestaña (sessionStorage): sobreviven a recargas y al botón atrás.
+- Modo de Bs: cambiar solo Binance/BCV/Manual ya activa "Guardar" (antes el clic no se detectaba porque el botón se redibujaba).
+- "Guardar cambios" de Ajustes: aviso compacto "Cambios sin guardar" arriba, bajo la barra superior, para no tapar lo que se escribe.
+- Sin la palabra "bolívares" en pantalla: "Bs".
+- Sin título en las pantallas de Más (Ajustes, Caja, Reportes, Comisiones).
+- Cobro: "Falta" en rojo crema.
+- Calculadora: etiqueta con ícono y tasa a la derecha, caja con prefijo (COP, $, Bs.) y copiar; sin descripción al pie.
+- Más en tarjetas; Inicio con tarjetas como la app de Pedidos (chip con ícono, ícono de fondo, saludo según la hora y fecha). Las tarjetas de Inicio llevan a su pantalla.
+- Tasas del día: tarjetas por moneda con fuente y hora, y equivalencias en pastillas.

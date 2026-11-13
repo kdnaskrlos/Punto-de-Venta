@@ -231,12 +231,22 @@ casos('gestion', [
   }],
   ['Más → Usuarios (debajo de Comisiones) con Mi cuenta al final; Más ya no tiene Mi cuenta', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/mas' });
-    const filas = await p.$$eval('.lista-mas .fila-btn', b => b.map(x => x.innerText.trim()));
+    const filas = await p.$$eval('.lista-mas .mas-t', b => b.map(x => x.textContent.trim()));
     a.ok(filas.indexOf('Usuarios') === filas.indexOf('Comisiones') + 1, filas.join(','));
     a.strictEqual(await p.$('.vista .cuenta'), null);
     await p.click('.lista-mas .fila-btn:has-text("Usuarios")');
     await p.waitForSelector('.usuario[data-usuario="admin"]');
     a.ok(await p.$eval('#mi-cuenta', m => m === m.parentElement.lastElementChild), 'Mi cuenta va de último');
     a.strictEqual(await p.$('.pestanas-aj'), null);
+  }],
+  ['Ajustes: cambiar solo el modo de Bs muestra "Guardar" y queda guardado; sin título de pantalla', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
+    a.strictEqual(await p.$('.vista h1'), null);
+    await p.click('#aj-bs-modo [data-modo="bcv"]');
+    a.ok(await p.isVisible('#aj-guardar'));
+    await p.click('#aj-guardar');
+    await p.waitForFunction(() => window.__pos.ctx.ajustesTasas?.bsModo === 'bcv');
+    await p.evaluate(() => { location.hash = '/mas'; }); await p.evaluate(() => { location.hash = '/ajustes'; });
+    a.strictEqual(await p.getAttribute('#aj-bs-modo [data-modo="bcv"]', 'aria-pressed'), 'true');
   }],
 ]);

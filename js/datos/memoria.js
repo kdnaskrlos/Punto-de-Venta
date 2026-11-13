@@ -11,7 +11,7 @@ const copia = x => (x == null ? x : JSON.parse(JSON.stringify(x)));
 const NO = error => ({ ok: false, error });
 const SI = (extra = {}) => ({ ok: true, ...extra });
 
-export function crearMemoria(datos) {
+export function crearMemoria(datos, { guardarEn = null } = {}) {
   const col = Object.fromEntries(NOMBRES.map(n => [n, new Map()]));
   const pins = new Map();
   let sesion = null, offline = false, pendientes = 0, contadorVentas = 0;
@@ -29,6 +29,26 @@ export function crearMemoria(datos) {
   for (const c of datos.costos || []) col.costos.set(c.sku, copia(c));
   for (const c of datos.clientes || []) col.clientes.set(c.telefono, copia(c));
   for (const [k, v] of Object.entries(datos.ajustes || {})) col.ajustes.set(k, copia({ id: k, ...v }));
+
+  // Demostración: lo guardado sobrevive a recargas y al botón atrás (sessionStorage de la pestaña).
+  let reloj = null;
+  const persistir = () => {
+    if (!guardarEn || reloj) return;
+    reloj = setTimeout(() => {
+      reloj = null;
+      try { sessionStorage.setItem(guardarEn, JSON.stringify({ col: Object.fromEntries(Object.entries(col).map(([k, m]) => [k, [...m]])), pins: [...pins], contadorVentas })); } catch { /* sin almacenamiento */ }
+    }, 50);
+  };
+  if (guardarEn) {
+    try {
+      const g = JSON.parse(sessionStorage.getItem(guardarEn) || 'null');
+      if (g) {
+        for (const [k, filas] of Object.entries(g.col)) if (col[k]) { col[k].clear(); for (const [id, d] of filas) col[k].set(id, d); }
+        pins.clear(); for (const [k, v] of g.pins) pins.set(k, v);
+        contadorVentas = g.contadorVentas || 0;
+      }
+    } catch { /* datos dañados: se empieza de cero */ }
+  }
 
   // ---- utilidades internas ----
   const rol = () => sesion?.rol;
@@ -50,7 +70,7 @@ export function crearMemoria(datos) {
     return true;
   };
   const leer = (nombre, filtro) => [...col[nombre].values()].filter(d => visible(nombre, d) && cumple(d, filtro)).map(copia);
-  const avisar = (...nombres) => { for (const o of [...oyentes]) if (nombres.includes(o.nombre)) o.cb(leer(o.nombre, o.filtro)); };
+  const avisar = (...nombres) => { persistir(); for (const o of [...oyentes]) if (nombres.includes(o.nombre)) o.cb(leer(o.nombre, o.filtro)); };
   const avisarSync = () => { for (const cb of oyentesSync) cb({ enLinea: !offline, pendientes, error: null }); };
   const escribio = () => { if (offline) { pendientes++; avisarSync(); } };
   const cajaAbierta = uid => [...col.cajas.values()].find(c => c.usuario === col.usuarios.get(uid)?.usuario && c.estado === 'abierta');

@@ -6,15 +6,15 @@ import { copPorBs } from '../nucleo/tasas.js';
 import { fechaHora } from '../nucleo/fechas.js';
 
 const CAMPOS = [
-  { id: 'cop', moneda: 'COP', nombre: 'Peso colombiano', copiar: 'Copiar pesos', clase: 'c-cop' },
-  { id: 'usd', moneda: 'USD', nombre: 'Dólar', copiar: 'Copiar dólares', clase: 'c-usd' },
-  { id: 'bs', moneda: 'BS', nombre: 'Bolívar', copiar: 'Copiar bolívares', clase: 'c-bs' },
+  { id: 'cop', moneda: 'COP', nombre: 'Peso colombiano (COP)', prefijo: 'COP', ic: 'monedas', copiar: 'Copiar pesos', clase: 'c-cop' },
+  { id: 'usd', moneda: 'USD', nombre: 'Dólar americano (USD)', prefijo: '$', ic: 'billete', copiar: 'Copiar dólares', clase: 'c-usd' },
+  { id: 'bs', moneda: 'BS', nombre: 'Bs (VES)', prefijo: 'Bs.', ic: 'banco', copiar: 'Copiar Bs', clase: 'c-bs' },
 ];
 
 export function abrirCalculadora(ctx) {
   let usdBase = null, fuente = null;
   const inputs = {};
-  const pie = h('p', { class: 'nota calc-pie num' });
+  const tasaPill = {};
   const filas = CAMPOS.map(c => {
     const inp = h('input', { class: 'inp num', id: 'calc-' + c.id, inputmode: 'decimal', autocomplete: 'off' });
     inputs[c.id] = inp;
@@ -33,7 +33,10 @@ export function abrirCalculadora(ctx) {
       if (!inp.value) return;
       try { await navigator.clipboard.writeText(inp.value); toast('Copiado'); } catch { inp.select(); }
     } }, icono('copiar'));
-    return h('div', { class: 'campo calc-fila' }, h('label', { for: 'calc-' + c.id, class: c.clase }, c.nombre, ' ', h('b', {}, c.moneda === 'BS' ? 'Bs' : c.moneda)), h('div', { class: 'calc-entrada' }, inp, copiar));
+    tasaPill[c.id] = c.id === 'usd' ? null : h('span', { class: 'calc-tasa num' });
+    return h('div', { class: 'campo calc-fila' },
+      h('div', { class: 'calc-cab' }, h('label', { for: 'calc-' + c.id, class: c.clase }, icono(c.ic), c.nombre), tasaPill[c.id]),
+      h('div', { class: 'calc-caja' }, h('span', { class: 'calc-pre' }, c.prefijo), inp, copiar));
   });
   function pintar() {
     const t = ctx.tasas;
@@ -49,16 +52,15 @@ export function abrirCalculadora(ctx) {
       inp.disabled = sinTasa;
       if (c.id !== fuente) inp.value = sinTasa ? '' : valores[c.id];
     }
-    const cxb = copPorBs(t);
-    // Cada equivalencia en su propio bloque: si no caben, bajan enteras a la línea siguiente (nunca se cortan).
-    pie.replaceChildren(...[t.copPorUsd && `1 USD = ${fmtCop(t.copPorUsd)} COP`, t.bsPorUsd && `1 USD = ${fmtDec(t.bsPorUsd)} Bs`, cxb && `1 Bs = ${fmtDec(cxb)} COP`].filter(Boolean).map(x => h('span', {}, x)));
+    if (tasaPill.cop) tasaPill.cop.textContent = t.copPorUsd ? `Tasa: ${fmtDec(t.copPorUsd)}` : 'Sin tasa';
+    if (tasaPill.bs) tasaPill.bs.textContent = t.bsPorUsd ? `Tasa: ${fmtDec(t.bsPorUsd)}` : 'Sin tasa';
   }
   pintar();
   const alDatos = e => { if (e.detail.que === 'tasas') pintar(); };
   window.addEventListener('pos:datos', alDatos);
   // En PC no tapa el carrito: se abre a su izquierda y sin bloquear la pantalla.
   const tel = esTelefono();
-  const hj = abrirHoja({ titulo: 'Calculadora', contenido: h('div', { class: 'pila calc' }, ...filas, pie), modal: tel });
+  const hj = abrirHoja({ titulo: 'Calculadora', contenido: h('div', { class: 'pila calc' }, ...filas), modal: tel });
   const lado = document.querySelector('.lado-carrito');
   if (!tel && lado && lado.offsetParent) hj.el.querySelector('.caja').style.marginRight = `${hj.el.getBoundingClientRect().right - lado.getBoundingClientRect().left + 8}px`;
   hj.alCerrar = () => window.removeEventListener('pos:datos', alDatos);
@@ -69,15 +71,24 @@ const FUENTE = { binance: 'Binance P2P', bcv: 'BCV (oficial)', manual: 'Manual' 
 
 export function abrirDetalleTasas(ctx) {
   const t = ctx.tasas, aj = ctx.ajustesTasas || {};
-  const cuando = iso => (iso ? fechaHora(iso) : '—');
+  const cuando = iso => (iso ? fechaHora(iso) : 'sin fecha');
   const cxb = copPorBs(t);
-  const fila = (et, val, sub) => h('div', { class: 'tasa-fila' }, h('div', {}, h('div', { class: 'nota' }, et), sub ? h('div', { class: 'nota chica' }, sub) : null), h('b', { class: 'num' }, val));
-  const cont = h('div', { class: 'pila' },
-    fila('Pesos por dólar', t.copPorUsd ? `${fmtCop(t.copPorUsd)} COP` : 'Sin tasa', `Manual · Último cambio: ${cuando(t.copActualizada)}`),
-    fila('Bolívares por dólar', t.bsPorUsd ? `${fmtDec(t.bsPorUsd)} Bs` : 'Sin tasa',
-      `${FUENTE[t.fuenteBs] || t.fuenteBs}${t.fuenteBs === 'binance' && aj.bsRecargo ? ` + ${fmtDec(aj.bsRecargo)} Bs de recargo` : ''} · ${t.ultimaConocida ? 'Última conocida: ' : 'Actualizada: '}${cuando(t.bsActualizada)}`),
-    cxb ? h('p', { class: 'nota num' }, `1 Bs = ${fmtDec(cxb)} COP`) : null,
-    !t.bsPorUsd ? h('div', { class: 'aviso' }, icono('alerta'), 'Sin tasa de Bs: los pagos en bolívares quedan desactivados.') : null);
+  const tarjeta = (cls, color, ic, etiqueta, valor, moneda, fuente, fecha) => h('div', { class: 'tasa-tile ' + cls, style: `--c:${color}` },
+    h('span', { class: 'tile-ic', 'aria-hidden': 'true' }, icono(ic)),
+    h('span', { class: 'et' }, h('span', { class: 'chip-ic' }, icono(ic)), etiqueta),
+    h('span', { class: 'tasa-val num' }, valor ?? '—', valor != null ? h('small', {}, moneda) : null),
+    h('span', { class: 'tasa-meta' }, h('span', { class: 'tasa-fuente' }, fuente), h('span', { class: 'nota' }, icono('reloj'), cuando(fecha))));
+  const cont = h('div', { class: 'pila tasas-dia' },
+    h('div', { class: 'tasas-tiles' },
+      tarjeta('cop', 'var(--cop)', 'monedas', 'Pesos por dólar', t.copPorUsd ? fmtCop(t.copPorUsd) : null, 'COP', 'Manual', t.copActualizada),
+      tarjeta('bs', 'var(--bs)', 'banco', 'Bs por dólar', t.bsPorUsd ? fmtDec(t.bsPorUsd) : null, 'Bs',
+        `${FUENTE[t.fuenteBs] || t.fuenteBs || '—'}${t.fuenteBs === 'binance' && aj.bsRecargo ? ` + ${fmtDec(aj.bsRecargo)}` : ''}${t.ultimaConocida ? ' · última conocida' : ''}`, t.bsActualizada)),
+    h('div', { class: 'equivalencias' }, ...[
+      t.copPorUsd && ['c-usd', `1 USD = ${fmtCop(t.copPorUsd)} COP`],
+      t.bsPorUsd && ['c-usd', `1 USD = ${fmtDec(t.bsPorUsd)} Bs`],
+      cxb && ['c-bs', `1 Bs = ${fmtDec(cxb)} COP`],
+    ].filter(Boolean).map(([c, txt]) => h('span', { class: 'equiv num ' + c }, txt))),
+    !t.bsPorUsd ? h('div', { class: 'aviso' }, icono('alerta'), 'Sin tasa de Bs: los pagos en Bs quedan desactivados.') : null);
   const acciones = ctx.puedeVer('cambiarTasas') ? h('div', { class: 'acciones' }, h('button', { class: 'btn', onclick: () => { v.cerrar(); setTimeout(() => navegar('/ajustes'), 0); } }, icono('ajustes'), 'Cambiar tasas')) : null;
   const v = abrirVentana({ titulo: 'Tasas del día', contenido: cont, acciones });
   return v;

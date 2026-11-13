@@ -93,4 +93,19 @@ casos('esqueleto', [
     await p.waitForTimeout(300);
     a.deepStrictEqual(p.errores, []);
   }],
+  ['Atrás como en una app: Ajustes → Más → Inicio; pestañas vuelven a Inicio; lo guardado no se pierde', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inicio' });
+    const r = () => p.evaluate(() => location.hash);
+    const nav = async n => { await p.click(`.side .nav[aria-label="${n}"]`); await p.waitForTimeout(150); };
+    const atras = async () => { await p.goBack(); await p.waitForTimeout(250); };
+    await nav('Más'); await p.click('.lista-mas .fila-btn:has-text("Ajustes")'); await p.waitForTimeout(150);
+    await p.fill('#aj-cop', '3.200'); await p.click('#aj-guardar'); await p.waitForTimeout(200);
+    await atras(); a.strictEqual(await r(), '#/mas');
+    await atras(); a.strictEqual(await r(), '#/inicio');
+    await nav('Apartados'); await nav('Inventario'); await atras(); a.strictEqual(await r(), '#/inicio');
+    await nav('Más'); await p.click('.lista-mas .fila-btn:has-text("Caja")'); await p.waitForTimeout(150);
+    await nav('Vender'); await atras(); a.strictEqual(await r(), '#/inicio');
+    await p.reload(); await p.waitForFunction(() => window.__pos?.ctx?.tasas?.copPorUsd);
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.tasas.copPorUsd), 3200, 'la demostración conserva lo guardado');
+  }],
 ]);

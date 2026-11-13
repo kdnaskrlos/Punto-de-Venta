@@ -8,7 +8,7 @@ casos('calculadora', [
     a.strictEqual(await texto(p, '.topbar .tasas'), '$ 3.900 · Bs 1.075');
     await p.click('.topbar .tasas');
     const d = await texto(p, '.capa');
-    for (const t of ['3.900', '1.075', 'Manual', 'Último cambio', '1 Bs = 3,63 COP']) a.ok(d.includes(t), `falta ${t} en ${d}`);
+    for (const t of ['3.900', '1.075', 'Manual', 'Pesos por dólar', 'Bs por dólar', '1 Bs = 3,63 COP']) a.ok(d.includes(t), `falta ${t} en ${d}`);
   }],
   ['PC: panel derecho sin tapar el carrito; 100 USD = 390.000 COP = 107.500,00 Bs', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
@@ -51,10 +51,12 @@ casos('calculadora', [
     await p.click('[aria-label="Copiar pesos"]');
     a.strictEqual(await p.evaluate(() => navigator.clipboard.readText()), '7.800');
   }],
-  ['Teléfono: la línea de tasas al pie no se corta', async (env, a) => {
+  ['Teléfono: tasa junto a cada moneda, prefijo en la caja y sin descripción al pie', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780 });
     await p.click('.topbar [aria-label="Calculadora"]');
-    const d = await p.$eval('.calc-pie', e => [e.scrollWidth, e.clientWidth, e.textContent]);
-    a.ok(d[0] <= d[1], `ancho ${d[0]} > ${d[1]}: ${d[2]}`);
+    a.strictEqual(await p.$('.calc-pie'), null);
+    a.deepStrictEqual(await p.$$eval('.calc-pre', e => e.map(x => x.textContent)), ['COP', '$', 'Bs.']);
+    a.match(await p.innerText('.calc-fila:first-child .calc-tasa'), /^Tasa: /);
+    a.strictEqual(await p.$$eval('.calc-fila', f => f.every(x => x.scrollWidth <= x.clientWidth)), true);
   }],
 ]);

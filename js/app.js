@@ -6,7 +6,33 @@ import { opcionesCuenta } from './vistas/cuenta.js';
 
 const VISTAS = {};
 export function registrarVista(ruta, def) { VISTAS[ruta] = def; }
-export function navegar(ruta) { if (location.hash !== '#' + ruta) location.hash = ruta; else montar(); }
+export function navegar(ruta) {
+  if (location.hash === '#' + ruta) { montar(); return; }
+  const prof = history.state?.profundidad || 0;
+  location.hash = ruta;
+  history.replaceState({ pestana: true, profundidad: prof + 1 }, '');
+}
+
+// Pestañas de la barra (como una app): Inicio es la base; ir a otra pestaña agrega una sola entrada
+// y cambiar entre pestañas la reemplaza. Así "atrás" vuelve a Inicio, y desde Inicio sale de la app.
+// Las pantallas de Más (Caja, Reportes…) sí agregan entrada: "atrás" vuelve a Más.
+function irPestana(ruta) {
+  const actual = rutaActual();
+  if (ruta === actual) return;
+  if (ruta === '/inicio') {
+    if (history.state?.pestana) history.go(-(history.state.profundidad || 1));
+    else location.replace('#/inicio');
+    return;
+  }
+  if (actual === '/inicio') { location.hash = ruta; history.replaceState({ pestana: true, profundidad: 1 }, ''); return; }
+  const prof = history.state?.profundidad || 1;
+  const reemplazar = () => { location.replace('#' + ruta); history.replaceState({ pestana: true, profundidad: 1 }, ''); };
+  if (prof > 1) {
+    // Desde una pantalla de Más: primero se vuelve a la entrada de la pestaña, luego se reemplaza.
+    window.addEventListener('popstate', () => setTimeout(reemplazar), { once: true });
+    history.go(-(prof - 1));
+  } else reemplazar();
+}
 
 // Accesos: en PC la barra lateral muestra los de `pc`; en el teléfono, los de `movil` en ese orden.
 const ACCESOS = [
@@ -51,7 +77,7 @@ function pintarNav() {
       const enMas = tel && a.ruta === '/mas' && ['/caja', '/reportes', '/ajustes', '/comisiones', '/usuarios'].includes(actual);
       const activo = actual === a.ruta || enMas;
       const centro = tel && a.centro;
-      return h('a', { class: 'nav' + (centro ? ' centro' : ''), href: '#' + a.ruta, 'aria-label': a.titulo, 'aria-current': activo ? 'true' : 'false' },
+      return h('a', { class: 'nav' + (centro ? ' centro' : ''), href: '#' + a.ruta, 'aria-label': a.titulo, 'aria-current': activo ? 'true' : 'false', onclick: e => { e.preventDefault(); irPestana(a.ruta); } },
         centro ? h('span', { class: 'ring' }, icono(a.icono)) : icono(a.icono),
         centro ? null : h('span', {}, a.titulo));
     }),

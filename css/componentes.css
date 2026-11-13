@@ -63,10 +63,13 @@
 
 /* Recuadros KPI */
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
-.tile{position:relative;overflow:hidden;border-radius:var(--r);padding:16px;background:color-mix(in srgb,var(--c) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 26%,var(--line))}
-.tile .et{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
-.tile .val{font-size:28px;font-weight:800;line-height:1.05;margin-top:6px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.tile .sub{font-size:12px;font-weight:700;color:var(--c);margin-top:4px}
+.tile{position:relative;overflow:hidden;border-radius:var(--r);padding:13px 15px;display:flex;flex-direction:column;gap:6px;min-width:0;text-align:left;color:var(--ink);font:inherit;cursor:pointer;background:color-mix(in srgb,var(--c) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 26%,var(--line));transition:border-color .15s}
+.tile:hover{border-color:color-mix(in srgb,var(--c) 55%,var(--line))}
+.tile .et{display:flex;gap:8px;align-items:center;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);line-height:1.2}
+.chip-ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 15%,var(--surface))}
+.chip-ic svg.i{width:16px;height:16px}
+.tile .val{font-size:26px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile .sub{font-size:12px;font-weight:600;color:var(--c)}
 
 /* Entrada */
 .puerta{min-height:100vh;display:grid;place-items:center;padding:24px 14px;background:var(--surface-2)}
@@ -211,7 +214,7 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .pago-monto{display:flex;align-items:center;gap:6px}
 .pago-monto .inp{text-align:right;font-weight:800}
 .barra-falta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-radius:10px;padding:9px 12px;font-weight:800;border:1px solid}
-.barra-falta.falta{background:var(--y-bg);border-color:var(--y-bd);color:var(--y-tx)}
+.barra-falta.falta{background:var(--r-bg);border-color:var(--r-bd);color:var(--r-tx)}
 .barra-falta.ok{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
 .barra-falta.vuelto{background:var(--b-bg);border-color:var(--b-bd);color:var(--b-tx)}
 .barra-falta .monto{font-size:17px}
@@ -287,11 +290,15 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .zona-fotos.encima{background:var(--g-bg)}
 
 /* Inicio, reportes, comisiones y ajustes */
-.saludo{font-size:25px;font-weight:800;margin-bottom:14px}
+.saludo-caja{display:flex;flex-direction:column;gap:2px;margin-bottom:14px}
+.saludo{font-size:25px;font-weight:800;margin:0}
+.fecha-hoy{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted)}
+.fecha-hoy svg.i{width:15px;height:15px}
+@media (max-width:760px){.saludo{font-size:21px}.tiles{grid-template-columns:1fr 1fr}}
 .saludo span{color:var(--accent)}
 .vista[data-ruta="/inicio"]>*+*{margin-top:14px}
-.tile .tile-ic{position:absolute;right:10px;bottom:6px;opacity:.12;color:var(--c)}
-.tile .tile-ic svg.i{width:46px;height:46px}
+.tile .tile-ic{position:absolute;right:-6px;top:-6px;width:64px;height:64px;opacity:.12;color:var(--c);pointer-events:none}
+.tile .tile-ic svg.i{width:100%;height:100%}
 .autorizaciones{display:flex;flex-direction:column;gap:8px}
 .autorizacion{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-left:3px solid var(--warn);border-radius:0}
 .alertas{display:flex;flex-direction:column;gap:8px}
@@ -340,7 +347,7 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .fila-total .desc-et .ibtn.chico{width:32px;height:32px;color:var(--err)}
 
 /* Recuadros: el subtítulo siempre en una línea */
-.tile .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 /* Pie de la calculadora: equivalencias que bajan enteras */
 .calc-pie{display:flex;flex-wrap:wrap;column-gap:12px;row-gap:2px}
 .calc-pie span{white-space:nowrap}
@@ -393,9 +400,8 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .dia{position:relative}
 .dia.hoy::after{content:'';position:absolute;left:50%;bottom:5px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:currentColor}
 /* Barra fija para guardar los cambios de Ajustes */
-.guardar-ajustes{position:sticky;bottom:12px;z-index:5;display:flex;justify-content:flex-end;margin-top:12px}
-.guardar-ajustes .btn{box-shadow:0 8px 20px rgba(21,128,61,.3)}
-@media (max-width:760px){.guardar-ajustes{bottom:calc(80px + env(safe-area-inset-bottom,0px))}.guardar-ajustes .btn{width:100%;min-height:52px}}
+.guardar-ajustes{position:sticky;top:64px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:6px 6px 6px 12px;border:1px solid var(--y-bd);border-radius:12px;background:var(--y-bg);color:var(--y-tx);font-weight:800;font-size:13px;box-shadow:0 4px 14px rgba(16,24,40,.08)}
+.guardar-ajustes .btn{min-height:40px}
 
 /* Ajustes en 5 apartados (v1.21) */
 .pestanas-aj{margin:4px 0 12px;overflow-x:auto}
@@ -462,3 +468,39 @@ textarea.plantilla{min-height:220px;line-height:1.45}
 .sug-cli{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-align:left;color:var(--ink)}
 .sug-cli svg.i{width:16px;height:16px;color:var(--g-tx)}
 .sug-cli .nota{margin-left:auto}
+
+/* Más en tarjetas (v1.23) */
+.lista-mas.tiles{display:grid;border:0;background:none;padding:0}
+.mas-tile.fila-btn{display:flex;flex-direction:column;background:color-mix(in srgb,var(--c) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 26%,var(--line));min-height:118px;align-items:flex-start;justify-content:flex-start;border-radius:var(--r);padding:14px 15px;gap:6px}
+.chip-ic.grande{width:36px;height:36px;border-radius:10px}
+.chip-ic.grande svg.i{width:20px;height:20px}
+.mas-t{font-size:16px;font-weight:800;margin-top:4px}
+
+/* Calculadora (v1.23): etiqueta con ícono y tasa, caja con prefijo y copiar */
+.calc{gap:16px}
+.calc-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.calc-cab label{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)!important;margin:0}
+.calc-cab label svg.i{width:18px;height:18px}
+.calc-cab label.c-cop svg.i{color:var(--cop)} .calc-cab label.c-usd svg.i{color:var(--usd)} .calc-cab label.c-bs svg.i{color:var(--bs)}
+.calc-tasa{font:600 11.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);background:var(--surface-2);border-radius:6px;padding:3px 7px;white-space:nowrap}
+.calc-caja{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:0 4px 0 14px;min-height:56px;transition:border-color .15s,box-shadow .15s}
+.calc-caja:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.calc-pre{font-weight:800;font-size:17px;color:var(--muted);flex:none}
+.calc-caja .inp{border:0;background:none;box-shadow:none!important;padding:0;min-height:52px;font-size:20px;font-weight:800;flex:1;min-width:0}
+.calc-caja .ibtn{color:var(--muted)}
+
+/* Tasas del día (v1.23) */
+.tasas-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:760px){.tasas-tiles{grid-template-columns:1fr}.tasa-meta{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px}}
+.tasa-tile{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:6px;padding:13px 14px;border-radius:var(--r);background:color-mix(in srgb,var(--c) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 26%,var(--line))}
+.tasa-tile .et{display:flex;gap:8px;align-items:center;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.tasa-tile .tile-ic{position:absolute;right:-6px;top:-6px;width:64px;height:64px;opacity:.12;color:var(--c);pointer-events:none}
+.tasa-tile .tile-ic svg.i{width:100%;height:100%}
+.tasa-val{font-size:28px;font-weight:800;line-height:1.05;color:var(--c);white-space:nowrap}
+.tasa-val small{font-size:13px;font-weight:800;margin-left:5px}
+.tasa-meta{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.tasa-fuente{font-size:11.5px;font-weight:800;color:var(--c);background:color-mix(in srgb,var(--c) 14%,var(--surface));border-radius:99px;padding:2px 9px}
+.tasa-meta .nota{display:inline-flex;align-items:center;gap:4px;font-size:11.5px}
+.tasa-meta .nota svg.i{width:13px;height:13px}
+.equivalencias{display:flex;flex-wrap:wrap;gap:6px}
+.equiv{font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--surface-2);border-radius:99px;padding:5px 11px;white-space:nowrap}

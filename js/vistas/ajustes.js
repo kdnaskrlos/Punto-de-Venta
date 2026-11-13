@@ -22,7 +22,7 @@ function tasas(ctx) {
   // Modo de la tasa de Bs con botones (no la lista del teléfono) y solo el campo que aplica a cada modo.
   const modo = { value: aj.bsModo || 'binance' };
   const MODOS = [['binance', 'Binance', 'Automático desde Binance P2P, más el recargo.'], ['bcv', 'BCV', 'Automático, dólar oficial del BCV.'], ['manual', 'Manual', 'La escribes tú.']];
-  const segModo = h('div', { class: 'segmentado', id: 'aj-bs-modo', role: 'group', 'aria-label': 'Bolívares por dólar' });
+  const segModo = h('div', { class: 'segmentado', id: 'aj-bs-modo', role: 'group', 'aria-label': 'Bs por dólar' });
   const ayuda = h('p', { class: 'nota chica' });
   const recargo = campo('aj-recargo', 'Recargo sobre Binance (Bs)', { inputmode: 'decimal', value: aj.bsRecargo != null ? fmtDec(aj.bsRecargo) : '' });
   const manualC = campo('aj-bs-manual', 'Tasa manual de Bs', { inputmode: 'decimal', value: aj.bsManual ? fmtDec(aj.bsManual) : '' });
@@ -35,7 +35,7 @@ function tasas(ctx) {
   pintarModo();
   const el = seccion('Tasas', 'monedas',
     campo('aj-cop', 'Pesos por dólar (COP)', { inputmode: 'decimal', value: aj.copPorUsd ? fmtCop(aj.copPorUsd) : '' }),
-    h('div', { class: 'campo' }, h('label', {}, 'Bolívares por dólar'), segModo, ayuda),
+    h('div', { class: 'campo' }, h('label', {}, 'Bs por dólar'), segModo, ayuda),
     recargo, manualC);
   // Devuelve true si se guardó (o no había nada que guardar).
   const guardar = async () => {
@@ -172,12 +172,12 @@ registrarVista('/ajustes', {
   accion: 'ajustes',
   montar(cont, ctx) {
     const boton = h('button', { class: 'btn primary', id: 'aj-guardar' }, icono('check'), 'Guardar cambios');
-    const barra = h('div', { class: 'guardar-ajustes', hidden: true }, boton);
+    const barra = h('div', { class: 'guardar-ajustes', hidden: true }, h('span', {}, 'Cambios sin guardar'), boton);
     const cambio = () => { barra.hidden = false; };
     const t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
     const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el };
     // Un solo botón para guardar; aparece cuando se cambia algo.
-    for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button')) cambio(); }); }
+    for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button, button[aria-pressed]')) cambio(); }); }
     boton.addEventListener('click', e => unaVez(e.currentTarget, async () => {
       if (!(await t.guardar())) return;
       const partes = [await ve.guardar(), await pa.guardar(), await re.guardar()];
@@ -194,6 +194,6 @@ registrarVista('/ajustes', {
       if (id === 'recibo') re.pintar();
     };
     mostrar(pestanaActual);
-    cont.append(h('h1', { class: 'sec-t' }, icono('ajustes'), 'Ajustes'), pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), barra);
+    cont.append(barra, pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)));
   },
 });

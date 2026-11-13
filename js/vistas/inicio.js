@@ -9,9 +9,22 @@ import { fmtCop } from '../nucleo/dinero.js';
 import { hoy, sumarDias, inicioDia } from '../nucleo/fechas.js';
 import { escucharVentasConCosto, listaVentas } from './ventas-rango.js';
 
-const tile = (k, color, etiqueta, valor, sub, ic) => h('div', { class: 'tile', 'data-k': k, style: `--c:${color}` },
-  h('div', { class: 'et' }, etiqueta), h('div', { class: 'val num' }, valor), sub ? h('div', { class: 'sub' }, sub) : null,
-  ic ? h('span', { class: 'tile-ic', 'aria-hidden': 'true' }, icono(ic)) : null);
+// Tarjetas como en la app de Pedidos: chip con ícono + etiqueta, valor grande, subtítulo de color e ícono de fondo.
+// Al tocarlas llevan a la pantalla que explica ese número.
+const DESTINO = { ventas: '/reportes', ganancia: '/reportes', caja: '/caja', cobrado: '/caja', bajas: '/inventario', 'mis-ventas': '/reportes', 'mi-caja': '/caja', comision: '/reportes' };
+const tile = (k, color, etiqueta, valor, sub, ic) => h('button', { type: 'button', class: 'tile', 'data-k': k, style: `--c:${color}`, onclick: () => DESTINO[k] && navegar(DESTINO[k]) },
+  ic ? h('span', { class: 'tile-ic', 'aria-hidden': 'true' }, icono(ic)) : null,
+  h('span', { class: 'et' }, ic ? h('span', { class: 'chip-ic' }, icono(ic)) : null, etiqueta),
+  h('span', { class: 'val num' }, valor), sub ? h('span', { class: 'sub' }, sub) : null);
+
+const DIAS_L = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const MESES_L = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+function saludo(nombre) {
+  const d = new Date(), hr = d.getHours();
+  return h('div', { class: 'saludo-caja' },
+    h('h1', { class: 'saludo' }, hr < 12 ? 'Buenos días, ' : hr < 19 ? 'Buenas tardes, ' : 'Buenas noches, ', h('span', {}, nombre)),
+    h('span', { class: 'fecha-hoy' }, icono('calendario'), `${DIAS_L[d.getDay()][0].toUpperCase()}${DIAS_L[d.getDay()].slice(1)} ${d.getDate()} de ${MESES_L[d.getMonth()]} ${d.getFullYear()}`));
+}
 
 // Ventas de cada caja abierta, por cajaId (no por fecha): una caja abierta varios días suma todo.
 function escucharVentasDeCajas(ctx, alCambiar) {
@@ -65,7 +78,7 @@ registrarVista('/inicio', {
           tile('ventas', 'var(--accent)', 'Ventas de hoy', fmtCop(r.total), `${r.ventas} ${r.ventas === 1 ? 'venta' : 'ventas'} · ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, 'carrito'),
           tile('ganancia', 'var(--kpi-ganancia)', 'Ganancia', r.ganancia == null ? '—' : fmtCop(r.ganancia), r.gananciaParcial ? 'Calculando costos…' : 'Total menos costo', 'grafica'),
           tile('caja', 'var(--kpi-neutro)', 'En cajas abiertas', fmtCop(enCaja), abiertas.length === 1 ? '1 abierta, en pesos' : `${abiertas.length} abiertas, en pesos`, 'cartera'),
-          tile('cobrado', 'var(--t-info)', 'Cobrado por mí hoy', fmtCop(cobrado), 'en pesos · solo informativo', 'monedas'),
+          tile('cobrado', 'var(--t-info)', 'Cobrado por mí hoy', fmtCop(cobrado), 'solo informativo', 'monedas'),
           tile('bajas', bajas.length ? 'var(--warn)' : 'var(--muted)', 'Existencias bajas', String(bajas.length), 'en el mínimo o menos', 'caja'));
       } else {
         const mia = ctx.miCaja;
@@ -106,7 +119,7 @@ registrarVista('/inicio', {
     const alDatos = e => { if (['productos', 'caja', 'tasas', 'ajustes'].includes(e.detail.que)) pintar(); };
     window.addEventListener('pos:datos', alDatos);
     const s = ctx.sesion;
-    cont.append(...sin(h('h1', { class: 'saludo' }, 'Hola, ', h('span', {}, (s.nombre || s.usuario).split(' ')[0])), tiles, auts, alertas, ventasEl,
+    cont.append(...sin(saludo((s.nombre || s.usuario).split(' ')[0]), tiles, auts, alertas, ventasEl,
       !gestion && !ctx.miCaja ? h('button', { class: 'btn primary grande', onclick: () => abrirCajaVentana(ctx, () => navegar('/vender')) }, icono('cartera'), 'Abrir caja') : null));
     pintar();
     return () => { q.forEach(x => x()); porCaja.parar(); window.removeEventListener('pos:datos', alDatos); };

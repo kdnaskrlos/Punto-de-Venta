@@ -19,7 +19,7 @@ function formasCaja(ctx) { return ctx.ajustes.formasPago || []; }
 
 // Campos del fondo inicial. Los que quedan vacíos cuentan como 0.
 function camposFondo() {
-  const fondos = h('div', { class: 'fondos' }, campoMonto('fondo-cop', 'Pesos (COP)', 'COP'), campoMonto('fondo-usd', 'Dólares (USD)', 'USD'), campoMonto('fondo-bs', 'Bolívares (Bs)', 'BS'));
+  const fondos = h('div', { class: 'fondos' }, campoMonto('fondo-cop', 'Pesos (COP)', 'COP'), campoMonto('fondo-usd', 'Dólares (USD)', 'USD'), campoMonto('fondo-bs', 'Bs', 'BS'));
   fondos.querySelectorAll('input').forEach(i => { i.placeholder = '0'; });
   return fondos;
 }
@@ -194,7 +194,7 @@ function vistaAbierta(ctx, cont, caja, ventas, apartados) {
   const esp = esperadoCaja(caja, ventas.filter(v => v.cajaId === caja.id), abonos, formas);
   const usadas = formas.filter(f => f.efectivo || Math.abs(esp[f.id] || 0) > 0);
   cont.replaceChildren(
-    h('div', { class: 'cab-vista' }, h('h1', { class: 'sec-t' }, icono('cartera'), 'Mi caja'), h('span', { class: 'est g' }, 'Abierta')),
+    h('div', { class: 'cab-vista' }, h('span', { class: 'est g' }, 'Caja abierta')),
     h('p', { class: 'nota' }, `Abierta desde ${fechaHora(caja.abierta)} · ${ventas.filter(v => v.cajaId === caja.id && v.estado !== 'anulada').length} ventas`),
     h('div', { class: 'tarjeta' }, h('h2', { class: 'sec-t' }, icono('monedas'), 'Debería haber'),
       h('div', { class: 'esperados' }, ...usadas.map(f => h('div', { class: 'esperado', 'data-forma': f.id }, h('span', { class: CLASE[f.moneda] }, f.nombre), h('b', { class: 'monto num' }, `${fmtMonto(esp[f.id] || 0, f.moneda)} ${NOMBRE_MONEDA[f.moneda]}`))))),
