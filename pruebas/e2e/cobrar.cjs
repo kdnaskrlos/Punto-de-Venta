@@ -43,7 +43,7 @@ casos('cobrar', [
     const btn = await p.$$eval('.forma', bs => bs.map(b => b.getBoundingClientRect().height));
     for (const hgt of btn) a.ok(hgt >= 48, `forma de ${hgt}px`);
     await p.click('#cobrar-final');
-    await p.waitForSelector('text=Venta guardada');
+    await p.waitForSelector('text=Venta exitosa');
     const href = await p.getAttribute('a.recibo', 'href');
     a.ok(href.startsWith('https://wa.me/584121234567?text='), href);
     a.strictEqual(await existencia(p, 'B-S'), 2);
@@ -60,7 +60,7 @@ casos('cobrar', [
     await p.click('.lado-carrito .cobrar');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.dblclick('#cobrar-final');
-    await p.waitForSelector('text=Venta guardada');
+    await p.waitForSelector('text=Venta exitosa');
     a.strictEqual((await ventas(p)).length, 1);
     a.strictEqual(await existencia(p, 'J-M'), 4);
   }],
@@ -89,7 +89,7 @@ casos('cobrar', [
     await p.click('#cobrar-final');
     await p.waitForSelector('text=Estás sin conexión y quedan pocas. Confirma con la tienda antes de cobrar.');
     await p.click('text=Cobrar igual');
-    await p.waitForSelector('text=Venta guardada');
+    await p.waitForSelector('text=Venta exitosa');
   }],
   ['Descuento: al quitar prendas no puede pasar el máximo sin autorización (revisión final)', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
@@ -172,7 +172,7 @@ casos('cobrar', [
     await p.waitForSelector('.cliente-resumen:has-text("Luis Mora")');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.click('#cobrar-final');
-    await p.waitForSelector('text=Venta guardada');
+    await p.waitForSelector('text=Venta exitosa');
     a.ok(await p.$('a.recibo'), 'el recibo es un botón opcional al final');
     const [v] = await ventas(p);
     a.deepStrictEqual(v.cliente, { nombre: 'Luis Mora', telefono: '584145551212' });

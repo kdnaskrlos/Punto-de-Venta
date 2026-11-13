@@ -113,14 +113,16 @@ function tarjeta(ctx, ap, filtro) {
   const n = ap.lineas.reduce((t, l) => t + l.cantidad, 0);
   const abonado = ap.total - ap.saldo;
   return h('button', { type: 'button', class: `apartado ap-${ap.estado}${viejo ? ' viejo' : ''}`, 'data-id': ap.id, onclick: () => abrirDetalle(ctx, ap) },
-    // Jerarquía: quién (nombre) → cuánto debe (monto grande a la derecha) → detalle en gris (prendas, fecha, abonado).
-    h('span', { class: 'ap-l1' }, h('b', { class: 'ap-nombre' }, nombre),
-      pendiente && filtro === 'pendiente' ? null : h('span', { class: `est ${pendiente ? 'r' : color}` }, pendiente ? 'Por cobrar' : etiqueta)),
-    h('span', { class: 'ap-l2' },
-      h('span', { class: 'ap-meta' }, `${n} ${n === 1 ? 'prenda' : 'prendas'} · ${diaCorto(ap.fecha)}`, viejo ? h('span', { class: 'ap-dias' }, ` · ${dias} días`) : null)),
-    h('span', { class: 'ap-l3' },
-      h('span', { class: 'ap-abono' }, 'Abonado ', h('b', { class: 'num' }, fmtCop(abonado))),
-      h('b', { class: 'ap-saldo num' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total))));
+    // Como la imagen de Carlos: a la izquierda quién (nombre) y qué (prendas · fecha, con íconos);
+    // a la derecha dos columnas separadas por líneas: Abonado y Saldo (en rojo si debe).
+    h('span', { class: 'ap-izq' },
+      h('b', { class: 'ap-nombre' }, nombre),
+      h('span', { class: 'ap-meta' },
+        h('span', { class: 'ap-dato' }, icono('franela'), `${n} ${n === 1 ? 'prenda' : 'prendas'}`),
+        h('span', { class: 'ap-dato' + (viejo ? ' viejo' : ''), title: viejo ? `${dias} días` : null }, icono('calendario'), diaCorto(ap.fecha)))),
+    h('span', { class: 'ap-col' }, h('span', { class: 'ap-et' }, 'Abonado'), h('b', { class: 'num' }, fmtCop(abonado))),
+    h('span', { class: 'ap-col' }, h('span', { class: 'ap-et' }, pendiente ? 'Saldo' : etiqueta),
+      h('b', { class: 'num ap-saldo' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total))));
 }
 
 // Detalle del apartado: saldo y abonado arriba, prendas, último abono (con historial) y acciones.

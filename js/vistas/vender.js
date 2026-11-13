@@ -157,7 +157,7 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
       // Sin descuento no hay fila: ya está el botón «Descuento» abajo.
       !r.descuento ? null : h('div', { class: 'fila-total desc' },
         h('span', { class: 'desc-et' }, icono('etiqueta'), 'Descuento'),
-        h('span', { class: 'num desc-monto' }, '−' + fmtCop(r.descuento), h('span', { class: 'moneda' }, 'COP'))),
+        h('span', { class: 'num desc-monto' }, '−' + fmtCop(r.descuento), h('span', { class: 'c-cop moneda' }, 'COP'))),
       h('div', { class: 'caja-total' },
         h('div', { class: 'et-total' }, 'Total'),
         h('div', { class: 'tc-der' },
@@ -190,7 +190,7 @@ function abrirDescuento(ctx) {
   };
   const segm = h('div', { class: 'segmentado' },
     ...[['COP', 'Pesos (COP)'], ['USD', 'Dólares (USD)']].map(([m, txt]) => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === moneda), disabled: m === 'USD' && !tasa,
-      onclick: e => { moneda = m; segm.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); valor.value = ''; err.textContent = ''; pintar(); valor.focus(); } }, txt)));
+      onclick: e => { moneda = m; segm.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); valor.value = ''; err.textContent = ''; pintar(); } }, txt)));
   valor.addEventListener('input', pintar);
   const nota = ctx.sesion.rol === 'vendedora' ? h('p', { class: 'nota' }, 'El descuento se aplica cuando lo autorice el administrador o la encargada.') : null;
   const aplicar = h('button', { class: 'btn primary' }, 'Aplicar');

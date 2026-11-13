@@ -8,7 +8,8 @@ import { comisionesVenta } from '../nucleo/comisiones.js';
 import { repartirDescuento } from '../nucleo/descuento.js';
 import { enlaceWhatsApp } from '../nucleo/recibo.js';
 import { ventanaCliente, telefonoLegible } from './cliente.js';
-import { fmtCop } from '../nucleo/dinero.js';
+import { fmtCop, fmtMonto } from '../nucleo/dinero.js';
+import { NOMBRE_MONEDA } from '../nucleo/formas.js';
 
 function nombreLinea(ctx, sku) {
   const p = ctx.productos[sku] || {};
@@ -114,19 +115,47 @@ export function abrirCobrar(ctx) {
       const enlace = enlaceWhatsApp(guardada, ctx.ajustes.tienda || { nombre: 'Comic Shop' }, ctx.ajustes.recibo);
       vaciarCarrito(ctx);
       window.dispatchEvent(new CustomEvent('pos:carrito'));
-      toast('Venta guardada');
-      v.el.querySelector('.cuerpo').replaceChildren(h('div', { class: 'listo' },
-        h('div', { class: 'listo-ic' }, icono('check')),
-        h('h2', {}, 'Venta guardada'),
-        h('p', { class: 'num total-cop' }, fmtCop(venta.total), ' ', h('span', { class: 'moneda c-cop' }, 'COP')),
-        res.offline ? h('p', { class: 'nota' }, 'Guardada en el teléfono. Se subirá al volver la conexión.') : null,
-        vuelto ? h('p', { class: 'nota' }, 'Recuerda entregar el vuelto.') : null,
-        enlace ? h('a', { class: 'btn grande recibo', href: enlace, target: '_blank', rel: 'noopener' }, icono('mensaje'), 'Enviar recibo por WhatsApp') : null,
-        h('button', { class: 'btn primary grande', onclick: () => v.cerrar() }, 'Nueva venta')));
+      v.el.querySelector('.cuerpo').replaceChildren(pantallaExito(ctx, venta, { enlace, offline: res.offline, cerrar: () => v.cerrar() }));
       v.el.querySelector('.pie')?.remove();
     } finally {
       guardando = false;
       if (!hecha) actualizar();
     }
   });
+}
+
+// Pantalla final: «Venta exitosa» con un check animado, el total en verde crema, cómo se pagó y el vuelto.
+// Se cierra sola a los 10 s (barra que se vacía); tocar la pantalla detiene la cuenta.
+const SEGUNDOS = 10;
+function pantallaExito(ctx, venta, { enlace, offline, cerrar }) {
+  const cliente = venta.cliente?.nombre;
+  const hora = new Date(venta.fecha).toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' }).replace(/\s?([ap])\.?\s?m\.?/i, ' $1m');
+  const barra = h('i', {});
+  const texto = h('span', {}, `Se cierra en ${SEGUNDOS} s`);
+  const cuenta = h('div', { class: 'exito-cuenta', role: 'timer' }, h('span', { class: 'exito-barra' }, barra), texto);
+  let resta = SEGUNDOS, reloj = null;
+  const parar = () => { if (!reloj) return; clearInterval(reloj); reloj = null; cuenta.classList.add('parada'); texto.textContent = 'Cierre automático detenido'; barra.getAnimations?.().forEach(a => a.pause()); };
+  const el = h('div', { class: 'listo exito', onpointerdown: e => { if (!e.target.closest('.btn')) parar(); } },
+    h('div', { class: 'exito-ic' }, h('span', { class: 'exito-onda' }), icono('check')),
+    h('h2', {}, 'Venta exitosa'),
+    h('p', { class: 'nota exito-sub' }, [cliente, hora].filter(Boolean).join(' · ')),
+    h('div', { class: 'exito-total' },
+      h('span', { class: 'et' }, 'Total cobrado'),
+      h('span', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(venta.total)) }, fmtCop(venta.total)), h('span', { class: 'moneda c-cop' }, 'COP')),
+      equivalentes(ctx, venta.total)),
+    venta.pagos?.length ? h('div', { class: 'exito-pagos' },
+      ...venta.pagos.map(p => h('div', { class: 'exito-fila' }, h('span', {}, p.nombre), h('b', { class: 'num' }, `${fmtMonto(p.monto, p.moneda)} `, h('span', { class: 'moneda' }, NOMBRE_MONEDA[p.moneda])))),
+      venta.vuelto ? h('div', { class: 'exito-fila vuelto' }, h('span', {}, 'Vuelto a entregar'), h('b', { class: 'num' }, `${fmtMonto(venta.vuelto.monto, venta.vuelto.moneda)} `, h('span', { class: 'moneda' }, NOMBRE_MONEDA[venta.vuelto.moneda]))) : null) : null,
+    offline ? h('p', { class: 'nota' }, 'Guardada en el teléfono. Se subirá al volver la conexión.') : null,
+    h('div', { class: 'exito-acc' },
+      enlace ? h('a', { class: 'btn grande recibo', href: enlace, target: '_blank', rel: 'noopener', onclick: parar }, icono('mensaje'), 'Enviar recibo por WhatsApp') : null,
+      h('button', { class: 'btn primary grande', onclick: cerrar }, 'Nueva venta')),
+    cuenta);
+  if (barra.animate) barra.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: SEGUNDOS * 1000, easing: 'linear', fill: 'forwards' });
+  reloj = setInterval(() => {
+    if (!el.isConnected) { clearInterval(reloj); return; }
+    resta -= 1; texto.textContent = `Se cierra en ${resta} s`;
+    if (resta <= 0) { clearInterval(reloj); reloj = null; cerrar(); }
+  }, 1000);
+  return el;
 }

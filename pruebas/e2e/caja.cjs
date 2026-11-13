@@ -86,7 +86,7 @@ casos('caja', [
     await p.fill('#cli-tel', '0414-555.12.12'); await p.fill('#cli-nombre', 'Luis'); await p.click('#cli-guardar');
     await p.click('.forma[data-forma="pago-movil"]');
     await p.click('#cobrar-final');
-    await p.waitForSelector('text=Venta guardada');
+    await p.waitForSelector('text=Venta exitosa');
     const c = await p.evaluate(() => [...window.__pos.ctx.almacen._estado('cajas').values()].map(x => ({ tipo: x.tipo, fondo: x.fondo, usuario: x.usuario })));
     a.deepStrictEqual(c, [{ tipo: 'personal', fondo: { COP: 0, USD: 0, BS: 0 }, usuario: 'encargada' }]);
   }],

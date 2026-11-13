@@ -327,3 +327,12 @@ Suite final: npm test 99/99 · e2e 59/59
 - Cierre de capas con el movimiento inverso al de apertura: la hoja del carrito baja completa (240 ms), la lateral sale por la derecha, las ventanas se desvanecen. Las hojas ahora entran completas desde su borde (280 ms).
 - Ajustes: aviso flotante discreto «Cambios sin guardar · Guardar» mientras haya cambios y el botón de abajo no se vea.
 - Ajustes → Pagos: nombre y moneda alineados a la derecha.
+
+## v1.56 — Tarjeta de apartado, cobro y «Venta exitosa»
+- Tarjeta de apartado como la imagen de Carlos: a la izquierda el nombre (hasta dos líneas) y «prendas · fecha» con íconos (fecha en rojo si pasó de 15 días); a la derecha dos columnas con línea divisoria: «Abonado» y «Saldo» (rojo). En Completados/Cancelados la segunda columna dice el estado y muestra el total. Columnas de ancho mínimo fijo para que los montos queden alineados en la lista.
+- Detalle de apartado: abonado y saldo del mismo tamaño (24px).
+- Ajustes → Pagos sin la descripción.
+- Carrito: el monto del descuento y su «COP» en rojo, con el mismo formato de moneda que el resto.
+- Teclado: en el teléfono ningún campo se enfoca solo (ventanas, entrada, cliente, caja, descuento). La ventana Descuento ya no salta al cambiar de moneda (la línea del equivalente siempre ocupa su lugar).
+- Cobrar: total en verde crema. Cada pago en tarjeta: ícono, nombre y «≈ pesos», recuadro con el monto y la moneda, y botón redondo − en la esquina. Al agregar un pago entra abriéndose; al quitarlo se cierra.
+- «Venta exitosa»: check animado con onda, total cobrado en verde crema con equivalentes, pagos y vuelto, botones de recibo y Nueva venta, y cierre automático a los 10 s con barra (tocar la pantalla o el recibo lo detiene).

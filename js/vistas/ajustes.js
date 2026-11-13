@@ -146,7 +146,7 @@ function pagos(ctx, alCambiar) {
     formas.push({ id, activa: true, ...d }); pintar(); alCambiar();
   }) }, icono('mas1'), 'Agregar forma de pago'));
   pintar();
-  const el = seccion(null, null, h('p', { class: 'nota' }, 'Toca una forma para activarla o apagarla. Las apagadas no salen al cobrar.'), rejilla);
+  const el = seccion(null, null, rejilla);
   const guardar = async () => {
     if (!formas.some(f => f.activa !== false)) { toast('Deja al menos una forma de pago activa', { malo: true }); return false; }
     return { formasPago: formas };

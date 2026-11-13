@@ -1,5 +1,5 @@
 // Pantalla de entrada (usuario + PIN de 4 números) y creación del primer administrador.
-import { h, icono, logo } from '../ui.js';
+import { h, icono, logo, esTelefono } from '../ui.js';
 import { APP_VERSION } from '../version.js';
 
 const MENSAJES = {
@@ -39,7 +39,8 @@ export function pantallaEntrada(raiz, ctx, { demo }) {
     if (!r.ok) { const [c, t] = MENSAJES[r.error] || MENSAJES.error; error(c, t); }
   });
   raiz.replaceChildren(h('div', { class: 'puerta' }, form));
-  setTimeout(() => form.querySelector('#entrar-usuario')?.focus(), 30);
+  // En el teléfono no se abre el teclado solo: la persona toca el campo cuando quiere escribir.
+  if (!esTelefono()) setTimeout(() => form.querySelector('#entrar-usuario')?.focus(), 30);
 }
 
 export function pantallaPrimerAdmin(raiz, ctx) {

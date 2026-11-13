@@ -34,8 +34,8 @@ export function camposCliente(ctx, alCambiar = () => {}, inicial = null) {
   // Qué le falta al cliente ('tel', 'nombre' o null) y marcarlo: error bajo el campo y foco en él.
   const falta = () => (nombre.value.trim().length < 2 ? 'nombre' : !telefonoInternacional(tel.value) ? 'tel' : null);
   const marcar = cual => {
-    if (cual === 'tel') { errTel.textContent = tel.value.trim() ? 'Teléfono no válido' : 'Escribe el teléfono del cliente'; tel.focus(); }
-    if (cual === 'nombre') { errNom.textContent = 'Escribe el nombre del cliente'; nombre.focus(); }
+    if (cual === 'tel') { errTel.textContent = tel.value.trim() ? 'Teléfono no válido' : 'Escribe el teléfono del cliente'; if (!esTelefono()) tel.focus(); }
+    if (cual === 'nombre') { errNom.textContent = 'Escribe el nombre del cliente'; if (!esTelefono()) nombre.focus(); }
   };
   return {
     el, quitar, falta, marcar,

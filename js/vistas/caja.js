@@ -1,5 +1,5 @@
 // Caja (§11): abrir con fondo, entradas y salidas, esperado por forma de pago, cierre con diferencias y reabrir (admin).
-import { h, icono, abrirVentana, toast, unaVez } from '../ui.js';
+import { h, icono, abrirVentana, toast, unaVez, esTelefono } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { esperadoCaja, diferenciasCierre } from '../nucleo/caja.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
@@ -171,7 +171,7 @@ function ventanaConteo(ctx, esperado, op) {
     acciones: h('div', { class: 'acciones' }, b) });
   b.addEventListener('click', async () => {
     const hayDif = calc.filas.some(f => f.nivel !== 'ok');
-    if (op.notaObligatoria && hayDif && !nota.value.trim()) { err.textContent = 'Escribe una nota sobre la diferencia'; nota.focus(); return; }
+    if (op.notaObligatoria && hayDif && !nota.value.trim()) { err.textContent = 'Escribe una nota sobre la diferencia'; if (!esTelefono()) nota.focus(); return; }
     b.disabled = true;
     const datos = { contado: Object.fromEntries(calc.filas.map(f => [f.forma, f.contado])), filas: calc.filas, totalEsperadoCop: calc.totalEsperadoCop, totalContadoCop: calc.totalContadoCop, totalCop: calc.totalCop, nota: nota.value.trim() };
     const fallo = await op.alConfirmar(datos);

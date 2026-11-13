@@ -43,26 +43,43 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       inp.addEventListener('focus', () => inp.select());
       inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') inp.blur(); });
       const eq = h('span', { class: 'nota num equiv' });
-      p.pintarEq = () => { const e = estado().pagos.find(x => x.forma === f.id); eq.textContent = f.moneda === 'COP' ? '' : (e?.equivalenteCop != null ? `= ${fmtCop(e.equivalenteCop)} COP` : 'Sin tasa'); };
+      p.pintarEq = () => { const e = estado().pagos.find(x => x.forma === f.id); eq.textContent = f.moneda === 'COP' ? '' : (e?.equivalenteCop != null ? `≈ ${fmtCop(e.equivalenteCop)} COP` : 'Sin tasa'); };
       p.pintarEq();
       if (enfocar === f.id && !esTelefono()) setTimeout(() => { inp.focus(); inp.select(); }, 20);
+      // Tarjeta de pago: ícono, nombre y equivalente en pesos; el monto en su recuadro con la moneda;
+      // un botón redondo − en la esquina para quitarlo.
       return h('div', { class: `pago m-${f.moneda.toLowerCase()}`, 'data-forma': f.id },
         h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
-        h('span', { class: 'pago-nombre' }, h('b', {}, f.nombre), eq),
-        h('span', { class: 'pago-monto' }, inp, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda])),
-        h('button', { class: 'ibtn chico peligro', 'aria-label': `Quitar ${f.nombre}`, onclick: () => { pagos.splice(pagos.indexOf(p), 1); pintar(); avisar(); } }, icono('x')));
+        h('span', { class: 'pago-nombre' }, h('b', {}, nombreCorto(f.nombre)), eq),
+        h('label', { class: 'pago-monto' }, inp, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda])),
+        h('button', { type: 'button', class: 'pago-quitar', 'aria-label': `Quitar ${f.nombre}`, onclick: () => quitarPago(p) }, icono('menos')));
     }));
+    // El pago recién elegido entra abriéndose (como los desplegables de Pedidos).
+    const nueva = enfocar && lista.querySelector(`.pago[data-forma="${enfocar}"]`);
+    if (nueva && nueva.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const alto = nueva.offsetHeight;
+      nueva.animate([{ height: '0px', opacity: 0, transform: 'translateY(-6px)', paddingTop: '0px', paddingBottom: '0px' }, { height: alto + 'px', opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.22,.9,.3,1)' });
+    }
     botones.replaceChildren(...formas.map(f => {
       const elegida = pagos.some(x => x.forma.id === f.id);
       const bloqueada = (f.moneda === 'BS' && !ctx.tasas.bsPorUsd) || (f.moneda !== 'COP' && !ctx.tasas.copPorUsd);
       return h('button', { type: 'button', class: `forma forma-tarjeta forma-cobro m-${f.moneda.toLowerCase()}` + (elegida ? ' activa' : ''), 'data-forma': f.id, 'data-forma-card': f.id, disabled: bloqueada, 'aria-pressed': String(elegida),
-        onclick: () => { if (elegida) { pagos.splice(pagos.findIndex(x => x.forma.id === f.id), 1); pintar(); } else agregar(f); } },
+        onclick: () => { if (elegida) quitarPago(pagos.find(x => x.forma.id === f.id)); else agregar(f); } },
         h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
         h('span', { class: 'forma-txt' }, h('b', {}, nombreCorto(f.nombre)),
           h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), bloqueada ? (f.moneda === 'BS' ? ' · Sin tasa de Bs' : ' · Sin tasa') : f.efectivo ? ' · efectivo' : '')));
     }));
     pintarBarra();
     avisar();
+  }
+
+  // Quitar un pago: la tarjeta se cierra (alto y opacidad) y luego se recalcula.
+  function quitarPago(p) {
+    const fila = lista.querySelector(`.pago[data-forma="${p.forma.id}"]`);
+    const fin = () => { const i = pagos.indexOf(p); if (i >= 0) pagos.splice(i, 1); pintar(); avisar(); };
+    if (!fila || !fila.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { fin(); return; }
+    fila.style.pointerEvents = 'none';
+    fila.animate([{ height: fila.offsetHeight + 'px', opacity: 1 }, { height: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px', marginTop: '-8px', borderWidth: '0px' }], { duration: 220, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).onfinish = fin;
   }
 
   function pintarBarra() {
