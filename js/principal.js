@@ -29,18 +29,26 @@ async function iniciar() {
   const raiz = document.getElementById('app');
   ctx.almacen = await crearAlmacen();
   if (DEMO_DIRECTO) await ctx.almacen.entrar(usuarioDemo(), '1234');
-  let anterior, pararDatos = null;
+  let anterior, pararDatos = null, turno = 0;
   ctx.almacen.alCambiarSesion(async s => {
     const clave = s ? s.uid + s.rol : null;
-    if (clave === anterior) { ctx.sesion = s; return; }
+    // Solo se omite si la pantalla que se ve ya corresponde (app con sesión o entrada sin ella).
+    const mostrando = s ? !!raiz.querySelector(':scope > .side') : !!raiz.querySelector('.puerta');
+    if (clave === anterior && mostrando) { ctx.sesion = s; return; }
+    const mio = ++turno;
     anterior = clave;
     ctx.sesion = s;
     while (hayCapas()) cerrarCapaSuperior();
     pararDatos && pararDatos(); pararDatos = null;
     ctx.carrito = null;
     if (s) { pararDatos = iniciarDatos(ctx); mostrarApp(); setTimeout(() => ofrecerRetomar(ctx), 700); }
-    else if (!MODO_DEMO && !(await ctx.almacen.sistemaIniciado())) pantallaPrimerAdmin(raiz, ctx);
-    else pantallaEntrada(raiz, ctx, { demo: MODO_DEMO });
+    else {
+      // La consulta a Firebase puede tardar: si mientras tanto alguien entró, su respuesta atrasada no debe
+      // tapar la app con la pantalla de entrada (antes pasaba y ya no se podía entrar sin recargar).
+      const iniciado = MODO_DEMO || await ctx.almacen.sistemaIniciado();
+      if (mio !== turno) return;
+      if (!iniciado) pantallaPrimerAdmin(raiz, ctx); else pantallaEntrada(raiz, ctx, { demo: MODO_DEMO });
+    }
     raiz.dataset.listo = '1';
   });
 }
