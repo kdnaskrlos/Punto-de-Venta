@@ -35,8 +35,8 @@ casos('gestion', [
     await p.waitForFunction(() => document.querySelector('.tile[data-k="ganancia"] .val')?.textContent === '99.000');
     await p.evaluate(() => window.__pos.ctx.almacen.aplicarImportacion({ nuevos: [], cambios: [{ sku: 'J-M', campos: { costo: 30000 } }], iguales: [], faltantes: [] }));
     await p.evaluate(() => { location.hash = '/reportes'; });
-    await p.waitForSelector('.tile[data-k="ganancia"]');
-    a.strictEqual(await texto(p, '.tile[data-k="ganancia"] .val'), '99.000');
+    await p.waitForSelector('.rep-kpi[data-k="ganancia"]');
+    a.strictEqual(await texto(p, '.rep-kpi[data-k="ganancia"] .val'), '99.000');
   }],
   ['Autorización: la pide la vendedora, la aprueba el admin; la encargada no la ve', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora' });
@@ -83,7 +83,8 @@ casos('gestion', [
     await p.evaluate(() => { location.hash = '/reportes'; });
     await p.waitForSelector('.mas-vendidos');
     a.ok((await texto(p, '.mas-vendidos')).includes('Jogger Texcol Negro'));
-    a.ok((await texto(p, '.bajas')).includes('Buzo Etanol Gris'));
+    await p.click('.rep-fila.bajas');
+    a.ok((await texto(p, '.bajas-det')).includes('Buzo Etanol Gris'));
   }],
   ['Ninguna pantalla muestra "null" ni "undefined"', async (env, a) => {
     for (const usuario of ['vendedora', 'encargada', 'admin']) {

@@ -839,3 +839,53 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .mini-tallas .mt{font-size:12px}
 .mini-tallas .mt b{font-size:13px}
 @media (min-width:761px){.lista-inv{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px}}
+
+/* v1.37 — Reportes: menos texto, más gráfica; cada sección abre su detalle */
+.rep{gap:10px}
+.rep .sec-t{font-size:14px;margin:0 0 10px}
+.rep-resumen{display:flex;flex-direction:column;gap:10px}
+.rep-kpis{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.rep-kpi{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rep-kpi .et{font-size:12.5px;font-weight:600;color:var(--muted)}
+.rep-kpi .val{font-size:22px;font-weight:800;line-height:1.1;white-space:nowrap}
+.rep-kpi.principal .val{font-size:30px}
+.rep-kpi:not(.principal){align-items:flex-end;text-align:right}
+.rep-kpi .sub{font-size:12px;font-weight:600;color:var(--muted)}
+.rep-mini{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;font-weight:600;color:var(--muted)}
+.rep-mini b{color:var(--ink)}
+.graf{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+.graf-barras{display:flex;align-items:flex-end;gap:3px;height:120px;padding-top:18px;border-bottom:1px solid var(--line)}
+.graf-col{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;position:relative}
+.graf-col i{display:block;width:100%;max-width:28px;border-radius:4px 4px 0 0;background:color-mix(in srgb,var(--ink) 22%,var(--surface))}
+.graf-col.max i{background:var(--ink)}
+.graf-tope{position:absolute;top:-18px;font-size:11.5px;font-weight:800;white-space:nowrap}
+.graf-col:first-child .graf-tope{left:0}
+.graf-col:last-child .graf-tope{right:0}
+.graf-ejes{display:flex;gap:3px}
+.graf-ejes span{flex:1;min-width:0;text-align:center;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;overflow:visible}
+.rep-dos{display:grid;grid-template-columns:1fr;gap:10px}
+@media (min-width:900px){.rep-dos{grid-template-columns:1fr 1fr}}
+.rep-pila{display:flex;height:14px;border-radius:7px;overflow:hidden;gap:2px;background:var(--surface-2)}
+.rep-pila i{display:block;height:100%;background:var(--c);opacity:var(--o,1)}
+.rep-leyenda{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:13px;font-weight:600}
+.rep-leyenda span{display:inline-flex;align-items:center;gap:6px}
+.rep-leyenda i{width:10px;height:10px;border-radius:3px;background:var(--c);opacity:var(--o,1)}
+.rep-top{display:flex;flex-direction:column;gap:8px}
+.rep-top-fila{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 28px;align-items:center;gap:10px;font-size:13px;font-weight:600}
+.rep-top-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rep-top-barra{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.rep-top-barra i{display:block;height:100%;background:var(--ink);border-radius:4px}
+.rep-top-fila b{text-align:right}
+.rep-ver{display:inline-flex;align-items:center;gap:2px;margin-top:10px;min-height:44px;padding:0;border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer}
+.rep-ver svg.i{width:16px;height:16px}
+.rep-filas{padding:4px 14px}
+.rep-fila{display:flex;align-items:center;gap:12px;width:100%;min-height:60px;padding:8px 0;border:0;border-bottom:1px solid var(--line);background:none;font:inherit;color:var(--ink);text-align:left;cursor:pointer}
+.rep-fila:last-child{border-bottom:0}
+.rep-fila-ic{flex:none;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--surface-2);color:var(--ink)}
+.rep-fila-ic svg.i{width:18px;height:18px}
+.rep-fila-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.rep-fila-t b{font-size:14px}
+.rep-fila-t .nota{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rep-fila > svg.i{flex:none;width:18px;height:18px;color:var(--muted)}
+.rep-det{display:flex;flex-direction:column}
+.rango .segmentado button{white-space:nowrap}
