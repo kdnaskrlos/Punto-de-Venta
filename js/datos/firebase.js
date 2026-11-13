@@ -11,7 +11,7 @@ import { subirFotoGitHub, CLAVE_TOKEN } from './github-fotos.js';
 import { claveFoto } from '../nucleo/fotos.js';
 
 const ahora = () => new Date().toISOString();
-const NO = error => ({ ok: false, error });
+const NO = (error, extra = {}) => ({ ok: false, error, ...extra });
 const SI = (extra = {}) => ({ ok: true, ...extra });
 const pinPass = pin => 'cs-' + pin;
 const correo = u => `${u}.${Math.random().toString(36).slice(2, 6)}@comicshop-pos.app`;
@@ -65,13 +65,15 @@ export function crearFirebase(config) {
   };
 
   // ---- sesión ----
+  let errorPerfil = null; // por qué no se pudo cargar el perfil (se muestra en la entrada)
   function publicarSesion(s) { sesion = s; for (const cb of oyentesSesion) cb(s ? { ...s } : null); }
   onAuthStateChanged(auth, user => {
     quitarPerfil && quitarPerfil(); quitarCaja && quitarCaja(); quitarPendientes && quitarPendientes(); miCaja = null; pendientesVentas = 0;
     if (!user) { publicarSesion(null); return; }
     quitarPerfil = onSnapshot(ref('usuarios', user.uid), snap => {
       const u = snap.data();
-      if (!u || !u.activo) { signOut(auth); return; }
+      if (!u || !u.activo) { errorPerfil = !u ? 'perfil-no-encontrado' : 'perfil-inactivo'; signOut(auth); return; }
+      errorPerfil = null;
       const nueva = { uid: user.uid, usuario: u.usuario, nombre: u.nombre, rol: u.rol };
       const cambio = !sesion || sesion.rol !== nueva.rol || sesion.uid !== nueva.uid;
       if (cambio) {
@@ -90,7 +92,7 @@ export function crearFirebase(config) {
         if (puede(u.rol, 'verReportesTodos') && navigator.onLine) completarNumeros().catch(() => {});
       }
       publicarSesion(nueva);
-    }, () => publicarSesion(null));
+    }, e => { console.warn('perfil', e); errorPerfil = e.code || e.message || 'perfil-error'; publicarSesion(null); });
   });
 
   async function completarNumeros() {
@@ -197,7 +199,9 @@ export function crearFirebase(config) {
         let perfil;
         try { perfil = await getDoc(ref('usuarios', cred.user.uid)); } catch { perfil = null; }
         if (!perfil || !perfil.exists() || !perfil.data().activo) { await signOut(auth); return NO('inactivo'); }
-        await new Promise(r => { const fin = () => { quitar(); r(); }; const quitar = api.alCambiarSesion(s => { if (s && s.uid === cred.user.uid) setTimeout(fin); }); setTimeout(fin, 4000); });
+        await new Promise(r => { const fin = () => { quitar(); r(); }; const quitar = api.alCambiarSesion(s => { if (s && s.uid === cred.user.uid) setTimeout(fin); }); setTimeout(fin, 8000); });
+        // La cuenta es correcta pero el perfil no llegó: se dice por qué en vez de quedarse callado.
+        if (!sesion) return NO('perfil', { detalle: errorPerfil || 'sin respuesta de Firebase' });
         return SI();
       } catch (e) {
         if (auth.currentUser && !sesion) signOut(auth).catch(() => {});
@@ -205,7 +209,7 @@ export function crearFirebase(config) {
         if (c === 'auth/wrong-password' || c === 'auth/invalid-credential') return NO('pin');
         if (c === 'auth/too-many-requests') return NO('intentos');
         if (c === 'auth/network-request-failed' || c === 'unavailable') return NO('red');
-        console.warn(e); return NO('error');
+        console.warn(e); return NO('error', { detalle: c || e.message });
       }
     },
     async salir() { await signOut(auth); return SI(); },

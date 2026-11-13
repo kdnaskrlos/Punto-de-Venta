@@ -353,3 +353,4 @@ Suite final: npm test 99/99 · e2e 59/59
 - Eliminar usuario: botón «Eliminar» en la tarjeta de los demás (no en la propia), con confirmación. El perfil queda apagado y marcado eliminado (sus ventas y cajas se conservan) y se borra su entrada de «logins»: ya no puede entrar y el nombre de usuario se puede volver a usar.
 - Ajustes en Firebase: guardarAjustes espera la respuesta del servidor (hasta 8 s) para avisar si las reglas lo rechazan, y quita los campos «undefined» (Firestore los rechaza). Si las tasas no se guardan, ahora sale un aviso con la causa (antes no decía nada).
 - Más: junto a la versión dice «conectado a Firebase» o «modo demostración».
+- v1.64: la entrada ya no se queda callada: si la cuenta es correcta pero el perfil no llega (reglas, perfil borrado o inactivo, sin respuesta), dice «no se pudo cargar tu perfil (causa)»; otros errores muestran su código. Verificado con un Firebase simulado (crear admin, salir, entrar, guardar tasas).

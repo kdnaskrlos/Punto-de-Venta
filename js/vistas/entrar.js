@@ -10,6 +10,7 @@ const MENSAJES = {
   intentos: ['pin', 'Demasiados intentos. Espera unos minutos.'],
   datos: ['pin', 'Revisa los datos'],
   error: ['pin', 'No se pudo entrar'],
+  perfil: ['pin', 'Tu usuario y PIN son correctos, pero no se pudo cargar tu perfil'],
 };
 
 function campo(id, etiqueta, attrs) {
@@ -36,7 +37,7 @@ export function pantallaEntrada(raiz, ctx, { demo }) {
     const b = form.querySelector('#entrar-btn'); b.disabled = true;
     const r = await ctx.almacen.entrar(usuario, pin);
     b.disabled = false;
-    if (!r.ok) { const [c, t] = MENSAJES[r.error] || MENSAJES.error; error(c, t); }
+    if (!r.ok) { const [c, t] = MENSAJES[r.error] || MENSAJES.error; error(c, r.detalle ? `${t} (${r.detalle})` : t); }
   });
   raiz.replaceChildren(h('div', { class: 'puerta' }, form));
   // En el teléfono no se abre el teclado solo: la persona toca el campo cuando quiere escribir.
