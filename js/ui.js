@@ -31,6 +31,8 @@ const ICONOS = {
   monedas: '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18M7 6h1v4M16.71 13.88l.7.71-2.82 2.82"/>',
   luna: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
   sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  borrador: '<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>',
+  tuerca: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
   reloj: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   billete: '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
   banco: '<path d="M3 22h18M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 2l8 5H4z"/>',
@@ -84,6 +86,16 @@ let ignorarPop = 0;
 // Si se abre una capa mientras el "atrás" de la que se cerró aún no termina, su entrada de historial
 // se agrega al terminar ese "atrás" (si no, el atrás se comería la nueva y luego se saldría de la app).
 let entradasPendientes = 0;
+// En cualquier campo de una sola línea, Enter = "Listo": oculta el teclado.
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (e.key === 'Enter' && !e.defaultPrevented && t instanceof HTMLInputElement && !['checkbox', 'radio', 'button', 'submit'].includes(t.type)) t.blur();
+});
+let trasAtras = [];
+// Ejecuta fn cuando termina el "atrás" de la capa que se acaba de cerrar (para navegar sin que ese atrás se lo coma).
+export function despuesDeCerrar(fn) {
+  if (ignorarPop > 0) trasAtras.push(fn); else fn();
+}
 function entrarHistorial() {
   if (ignorarPop > 0) entradasPendientes++;
   else history.pushState({ capa: pila.length }, '');
@@ -141,7 +153,10 @@ export function cerrarCapaSuperior() {
 window.addEventListener('popstate', e => {
   if (ignorarPop > 0) {
     ignorarPop--; e.stopImmediatePropagation();
-    if (!ignorarPop) for (; entradasPendientes > 0; entradasPendientes--) history.pushState({ capa: pila.length }, '');
+    if (!ignorarPop) {
+      for (; entradasPendientes > 0; entradasPendientes--) history.pushState({ capa: pila.length }, '');
+      const fns = trasAtras; trasAtras = []; fns.forEach(f => f());
+    }
     return;
   }
   const c = pila[pila.length - 1];
@@ -152,23 +167,23 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && pila.length) { e.preventDefault(); cerrarCapaSuperior(); }
 });
 
-function cabecera(titulo) {
-  return h('div', { class: 'cab' }, h('h2', {}, titulo), h('button', { class: 'ibtn cerrar', 'aria-label': 'Cerrar' }, icono('x')));
+function cabecera(titulo, extra) {
+  return h('div', { class: 'cab' }, h('h2', {}, titulo), extra || null, h('button', { class: 'ibtn cerrar', 'aria-label': 'Cerrar' }, icono('x')));
 }
 
-export function abrirVentana({ titulo, contenido, acciones, pantallaCompleta = false }) {
+export function abrirVentana({ titulo, contenido, acciones, pantallaCompleta = false, extraCab = null }) {
   const el = h('div', { class: 'capa ventana' + (pantallaCompleta ? ' completa' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': titulo },
     h('div', { class: 'fondo' }),
-    h('div', { class: 'caja' }, cabecera(titulo), h('div', { class: 'cuerpo' }, contenido), acciones ? h('div', { class: 'pie' }, acciones) : null));
+    h('div', { class: 'caja' }, cabecera(titulo, extraCab), h('div', { class: 'cuerpo' }, contenido), acciones ? h('div', { class: 'pie' }, acciones) : null));
   return abrirCapa(el);
 }
 
 // modal:false deja usar el resto de la pantalla mientras la hoja está abierta (sin fondo oscuro).
-export function abrirHoja({ titulo, contenido, lado, modal = true }) {
+export function abrirHoja({ titulo, contenido, lado, modal = true, extraCab = null }) {
   const l = lado || (matchMedia('(max-width:760px)').matches ? 'abajo' : 'derecha');
   const el = h('div', { class: `capa hoja ${l}${modal ? '' : ' no-modal'}`, role: 'dialog', 'aria-modal': String(modal), 'aria-label': titulo },
     modal ? h('div', { class: 'fondo' }) : null,
-    h('div', { class: 'caja' }, cabecera(titulo), h('div', { class: 'cuerpo' }, contenido)));
+    h('div', { class: 'caja' }, cabecera(titulo, extraCab), h('div', { class: 'cuerpo' }, contenido)));
   return abrirCapa(el);
 }
 

@@ -100,8 +100,14 @@ casos('gestion', [
     await p.click('#aj-guardar');
     await p.waitForFunction(() => document.querySelector('.topbar .tasas').textContent.includes('4.000'));
     await p.evaluate(() => { location.hash = '/usuarios'; });
-    await p.fill('#nu-usuario', 'maria'); await p.fill('#nu-nombre', 'María'); await p.selectOption('#nu-rol', 'vendedora'); await p.fill('#nu-pin', '5555');
+    await p.click('#nu-abrir');
+    await p.fill('#nu-nombre', 'María Gómez');
+    a.strictEqual(await p.inputValue('#nu-usuario'), 'maria', 'el usuario se llena solo');
+    a.match(await p.inputValue('#nu-pin'), /^\d{4}$/, 'PIN sugerido');
+    await p.click('#nu-rol [data-rol="vendedora"]'); await p.fill('#nu-pin', '5555');
     await p.click('#nu-crear');
+    await p.waitForSelector('pre.cred:has-text("PIN: 5555")');
+    await p.click('.capa button:has-text("Listo")');
     await p.waitForSelector('.usuario[data-usuario="maria"]');
     await cambiarA(p, 'maria', '5555');
     a.ok(await p.$('.side .nav[aria-label="Vender"]'));

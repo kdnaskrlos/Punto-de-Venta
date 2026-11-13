@@ -165,3 +165,11 @@ Suite final: npm test 99/99 · e2e 59/59
 - Calculadora: etiqueta con ícono y tasa a la derecha, caja con prefijo (COP, $, Bs.) y copiar; sin descripción al pie.
 - Más en tarjetas; Inicio con tarjetas como la app de Pedidos (chip con ícono, ícono de fondo, saludo según la hora y fecha). Las tarjetas de Inicio llevan a su pantalla.
 - Tasas del día: tarjetas por moneda con fuente y hora, y equivalencias en pastillas.
+
+## Diseño y detalles (v1.24)
+- Tasas del día: dos filas (ícono de color, fuente y hora, tasa grande), sin tarjetas ni pastillas. La tuerca junto a Cerrar abre Ajustes; antes el "atrás" de la ventana cerrada se comía la navegación (ahora se espera con despuesDeCerrar).
+- Usuarios como en Pedidos: botón crema "+ Nuevo usuario" que abre ventana con nombre, usuario automático, rol y PIN sugerido ("Otro"); al crear, "Datos de acceso" para copiar o compartir. Nuevo PIN y Desactivar alineados a la derecha.
+- Inicio: tarjetas blancas con borde de color a la izquierda, valor del color e ícono grande muy tenue arriba a la derecha.
+- Más: filas agrupadas (Negocio / Administración) con ícono de color, descripción y flecha.
+- Calculadora: sin "0" de ejemplo y con borrador junto a Cerrar que limpia todo.
+- En toda la app, Enter en un campo de una línea oculta el teclado.

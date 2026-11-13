@@ -1,5 +1,5 @@
 // Calculadora rápida COP / USD / Bs con las tasas del punto de venta (§12.2) y detalle de tasas (§12.1).
-import { h, icono, abrirHoja, abrirVentana, toast, esTelefono } from '../ui.js';
+import { h, icono, abrirHoja, abrirVentana, despuesDeCerrar, toast, esTelefono } from '../ui.js';
 import { navegar } from '../app.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { copPorBs } from '../nucleo/tasas.js';
@@ -48,7 +48,7 @@ export function abrirCalculadora(ctx) {
     for (const c of CAMPOS) {
       const inp = inputs[c.id];
       const sinTasa = (c.id === 'bs' && !t.bsPorUsd) || (c.id !== 'usd' && !t.copPorUsd);
-      inp.placeholder = sinTasa ? 'Sin tasa' : '0';
+      inp.placeholder = sinTasa ? 'Sin tasa' : '';
       inp.disabled = sinTasa;
       if (c.id !== fuente) inp.value = sinTasa ? '' : valores[c.id];
     }
@@ -60,7 +60,8 @@ export function abrirCalculadora(ctx) {
   window.addEventListener('pos:datos', alDatos);
   // En PC no tapa el carrito: se abre a su izquierda y sin bloquear la pantalla.
   const tel = esTelefono();
-  const hj = abrirHoja({ titulo: 'Calculadora', contenido: h('div', { class: 'pila calc' }, ...filas), modal: tel });
+  const borrar = h('button', { class: 'ibtn', id: 'calc-borrar', 'aria-label': 'Borrar todo', onclick: () => { usdBase = null; fuente = null; pintar(); } }, icono('borrador'));
+  const hj = abrirHoja({ titulo: 'Calculadora', contenido: h('div', { class: 'pila calc' }, ...filas), modal: tel, extraCab: borrar });
   const lado = document.querySelector('.lado-carrito');
   if (!tel && lado && lado.offsetParent) hj.el.querySelector('.caja').style.marginRight = `${hj.el.getBoundingClientRect().right - lado.getBoundingClientRect().left + 8}px`;
   hj.alCerrar = () => window.removeEventListener('pos:datos', alDatos);
@@ -72,24 +73,16 @@ const FUENTE = { binance: 'Binance P2P', bcv: 'BCV (oficial)', manual: 'Manual' 
 export function abrirDetalleTasas(ctx) {
   const t = ctx.tasas, aj = ctx.ajustesTasas || {};
   const cuando = iso => (iso ? fechaHora(iso) : 'sin fecha');
-  const cxb = copPorBs(t);
-  const tarjeta = (cls, color, ic, etiqueta, valor, moneda, fuente, fecha) => h('div', { class: 'tasa-tile ' + cls, style: `--c:${color}` },
-    h('span', { class: 'tile-ic', 'aria-hidden': 'true' }, icono(ic)),
-    h('span', { class: 'et' }, h('span', { class: 'chip-ic' }, icono(ic)), etiqueta),
-    h('span', { class: 'tasa-val num' }, valor ?? '—', valor != null ? h('small', {}, moneda) : null),
-    h('span', { class: 'tasa-meta' }, h('span', { class: 'tasa-fuente' }, fuente), h('span', { class: 'nota' }, icono('reloj'), cuando(fecha))));
-  const cont = h('div', { class: 'pila tasas-dia' },
-    h('div', { class: 'tasas-tiles' },
-      tarjeta('cop', 'var(--cop)', 'monedas', 'Pesos por dólar', t.copPorUsd ? fmtCop(t.copPorUsd) : null, 'COP', 'Manual', t.copActualizada),
-      tarjeta('bs', 'var(--bs)', 'banco', 'Bs por dólar', t.bsPorUsd ? fmtDec(t.bsPorUsd) : null, 'Bs',
-        `${FUENTE[t.fuenteBs] || t.fuenteBs || '—'}${t.fuenteBs === 'binance' && aj.bsRecargo ? ` + ${fmtDec(aj.bsRecargo)}` : ''}${t.ultimaConocida ? ' · última conocida' : ''}`, t.bsActualizada)),
-    h('div', { class: 'equivalencias' }, ...[
-      t.copPorUsd && ['c-usd', `1 USD = ${fmtCop(t.copPorUsd)} COP`],
-      t.bsPorUsd && ['c-usd', `1 USD = ${fmtDec(t.bsPorUsd)} Bs`],
-      cxb && ['c-bs', `1 Bs = ${fmtDec(cxb)} COP`],
-    ].filter(Boolean).map(([c, txt]) => h('span', { class: 'equiv num ' + c }, txt))),
+  const fila = (cls, ic, etiqueta, valor, moneda, fuente, fecha) => h('div', { class: 'tasa-fila ' + cls },
+    h('span', { class: 'tasa-ic' }, icono(ic)),
+    h('div', { class: 'tasa-txt' }, h('span', { class: 'tasa-et' }, etiqueta), h('span', { class: 'tasa-dato nota' }, h('b', {}, fuente), ' · ', cuando(fecha))),
+    h('span', { class: 'tasa-val num' }, valor ?? '—', valor != null ? h('small', {}, moneda) : null));
+  const cont = h('div', { class: 'tasas-dia' },
+    fila('cop', 'monedas', 'Pesos por dólar', t.copPorUsd ? fmtCop(t.copPorUsd) : null, 'COP', 'Manual', t.copActualizada),
+    fila('bs', 'banco', 'Bs por dólar', t.bsPorUsd ? fmtDec(t.bsPorUsd) : null, 'Bs',
+      `${FUENTE[t.fuenteBs] || t.fuenteBs || '—'}${t.fuenteBs === 'binance' && aj.bsRecargo ? ` + ${fmtDec(aj.bsRecargo)}` : ''}${t.ultimaConocida ? ' · última conocida' : ''}`, t.bsActualizada),
     !t.bsPorUsd ? h('div', { class: 'aviso' }, icono('alerta'), 'Sin tasa de Bs: los pagos en Bs quedan desactivados.') : null);
-  const acciones = ctx.puedeVer('cambiarTasas') ? h('div', { class: 'acciones' }, h('button', { class: 'btn', onclick: () => { v.cerrar(); setTimeout(() => navegar('/ajustes'), 0); } }, icono('ajustes'), 'Cambiar tasas')) : null;
-  const v = abrirVentana({ titulo: 'Tasas del día', contenido: cont, acciones });
+  const tuerca = ctx.puedeVer('cambiarTasas') ? h('button', { class: 'ibtn', id: 'tasas-ajustes', 'aria-label': 'Cambiar tasas', onclick: () => { v.cerrar(); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca')) : null;
+  const v = abrirVentana({ titulo: 'Tasas del día', contenido: cont, extraCab: tuerca });
   return v;
 }

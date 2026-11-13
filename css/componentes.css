@@ -504,3 +504,59 @@ textarea.plantilla{min-height:220px;line-height:1.45}
 .tasa-meta .nota svg.i{width:13px;height:13px}
 .equivalencias{display:flex;flex-wrap:wrap;gap:6px}
 .equiv{font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--surface-2);border-radius:99px;padding:5px 11px;white-space:nowrap}
+
+/* Usuarios como en Pedidos (v1.24) */
+.lista-usuarios{display:flex;flex-direction:column}
+.lista-usuarios .usuario{border-top:0;flex-wrap:nowrap;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;text-align:left;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.lista-usuarios .usuario:last-child{border-bottom:0}
+.lista-usuarios .usuario.off{opacity:.7}
+.u-cab{display:flex;align-items:center;gap:12px;min-width:0}
+.u-cab .u-info{flex:1;min-width:0}
+.u-acc{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px}
+.u-acc .btn{min-height:40px}
+.btn.crema{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
+.btn.crema:hover{border-color:var(--accent)}
+.nuevo-usuario{align-self:flex-start;min-height:44px;padding:10px 18px;font-size:15px}
+.fila-pin{display:flex;gap:8px}
+.fila-pin .inp{flex:1;letter-spacing:.2em;font-weight:800}
+pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px}
+
+/* Tasas del día en filas (v1.24) */
+.tasas-dia{display:flex;flex-direction:column}
+.tasa-fila{--c:var(--cop);display:flex;align-items:center;gap:12px;padding:14px 2px;border-bottom:1px solid var(--line)}
+.tasa-fila:last-of-type{border-bottom:0}
+.tasa-fila.bs{--c:var(--bs)}
+.tasa-ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;flex:none;color:#fff;background:var(--c)}
+.tasa-ic svg.i{width:22px;height:22px}
+.tasa-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tasa-et{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.tasa-dato{font-size:12px}
+.tasa-dato b{color:var(--c);font-weight:800;font-size:12px}
+.tasa-fila .tasa-val{font-size:26px;font-weight:800;color:var(--c);white-space:nowrap;line-height:1}
+.tasa-fila .tasa-val small{font-size:12px;margin-left:4px}
+
+/* Tarjetas de Inicio con borde de color a la izquierda (v1.24) */
+.tiles .tile{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:10px;padding:12px 14px 11px;gap:5px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.tiles .tile:hover{border-color:var(--line);border-left-color:var(--c);box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 14px rgba(16,24,40,.06)}
+.tiles .tile .et{text-transform:none;letter-spacing:0;font-size:13.5px;font-weight:600;color:var(--muted)}
+.tiles .tile .chip-ic{width:auto;height:auto;background:none;color:var(--muted)}
+.tiles .tile .chip-ic svg.i{width:17px;height:17px}
+.tiles .tile .val{font-size:24px;color:var(--c)}
+.tiles .tile .sub{font-size:11.5px;font-weight:600;color:var(--muted)}
+.tiles .tile .tile-ic{opacity:.06;right:-10px;top:-10px;width:72px;height:72px}
+
+/* Más en filas agrupadas (v1.24) */
+.mas-grupo{margin-bottom:18px}
+.mas-grupo-t{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px 4px}
+.mas-grupo .lista-mas{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;padding:0;margin:0;background:var(--surface);overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.mas-fila.fila-btn{display:flex;flex-direction:row;align-items:center;gap:14px;min-height:68px;padding:10px 12px 10px 14px;border-radius:0;background:var(--surface);border:0;border-bottom:1px solid var(--line)}
+.mas-fila.fila-btn:last-child{border-bottom:0}
+.mas-fila.fila-btn:hover,.mas-fila.fila-btn:active{background:var(--surface-2)}
+.mas-ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:none;color:#fff;background:var(--c);box-shadow:0 2px 6px color-mix(in srgb,var(--c) 35%,transparent)}
+.mas-ic svg.i{width:21px;height:21px}
+.mas-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.mas-fila .mas-t{font-size:15px;font-weight:800;margin:0;color:var(--ink)}
+.mas-sub{font-size:12.5px;font-weight:600;color:var(--muted)}
+.mas-flecha{color:var(--muted);display:grid;place-items:center}
+.mas-flecha svg.i{width:18px;height:18px}
+.mas-fila .mas-ic svg.i{color:#fff}
