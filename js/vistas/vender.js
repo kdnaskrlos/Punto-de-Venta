@@ -229,8 +229,9 @@ function abrirTallas(ctx, g) {
           h('button', { type: 'button', class: 'talla-menos', 'data-sku': p.sku, 'aria-label': `Quitar una talla ${nombre}`, disabled: !n,
             onclick: () => { cuentas[p.sku] = Math.max(0, n - 1); pintar(); } }, icono('menos')),
           h('span', { class: 'tf-cant num' + (n ? ' con' : ''), 'aria-live': 'polite' }, String(n)),
-          h('button', { type: 'button', class: 'talla-mas', 'data-talla': nombre, 'data-sku': p.sku, 'aria-label': `Agregar una talla ${nombre}`, disabled: agotada,
-            onclick: () => { if (n >= p.existencia) { toast('No hay más existencia'); return; } cuentas[p.sku] = n + 1; pintar(); } }, icono('mas1'))));
+          h('button', { type: 'button', class: 'talla-mas', 'data-talla': nombre, 'data-sku': p.sku, 'aria-label': `Agregar una talla ${nombre}`, disabled: agotada || n >= p.existencia,
+            onclick: () => { if (n >= p.existencia) return; cuentas[p.sku] = n + 1; pintar(); } }, icono('mas1'))),
+        !agotada && n > 0 && n >= p.existencia ? h('span', { class: 'tf-max' }, `Máximo ${p.existencia}`) : null);
     }));
     const total = Object.values(cuentas).reduce((x, y) => x + y, 0);
     const cambio = variantes.some(p => cuentas[p.sku] !== antes[p.sku]);

@@ -108,6 +108,22 @@ function venta(ctx) {
 function pagos(ctx, alCambiar) {
   let formas = ctx.ajustes.formasPago.map(f => ({ ...f }));
   const rejilla = h('div', { class: 'formas-aj' });
+  // Un solo botón ⋮ por tarjeta con «Editar» y «Eliminar» (menos íconos compitiendo en la pantalla).
+  const menuForma = f => {
+    const menu = h('div', { class: 'menu-acc', role: 'menu', hidden: true },
+      h('button', { type: 'button', role: 'menuitem', 'aria-label': `Editar ${f.nombre}`, onclick: () => { cerrarMenus(); editarForma(f, d => { Object.assign(f, d); pintar(); alCambiar(); }); } }, icono('lapiz'), 'Editar'),
+      h('button', { type: 'button', role: 'menuitem', class: 'peligro', 'aria-label': `Eliminar ${f.nombre}`, onclick: () => {
+        cerrarMenus();
+        const antes = formas;
+        formas = formas.filter(x => x !== f); pintar(); alCambiar();
+        toast(`${f.nombre} eliminada`, { deshacer: () => { formas = antes; pintar(); } });
+      } }, icono('borrar'), 'Eliminar'));
+    const boton = h('button', { type: 'button', class: 'ibtn chico', 'aria-label': `Opciones de ${f.nombre}`, 'aria-haspopup': 'menu', 'aria-expanded': 'false',
+      onclick: e => { e.stopPropagation(); const abrir = menu.hidden; cerrarMenus(); menu.hidden = !abrir; boton.setAttribute('aria-expanded', String(abrir)); } }, icono('puntos'));
+    return h('div', { class: 'forma-acc' }, boton, menu);
+  };
+  const cerrarMenus = () => rejilla.querySelectorAll('.menu-acc').forEach(m => { m.hidden = true; m.previousElementSibling?.setAttribute('aria-expanded', 'false'); });
+  document.addEventListener('click', e => { if (!e.target.closest('.forma-acc')) cerrarMenus(); });
   const pintar = () => rejilla.replaceChildren(...formas.map(f => {
     const activa = f.activa !== false;
     return h('div', { class: `forma-tarjeta m-${f.moneda.toLowerCase()}` + (activa ? ' activa' : ''), 'data-forma': f.id },
@@ -116,13 +132,7 @@ function pagos(ctx, alCambiar) {
         h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
         h('span', { class: 'forma-txt' }, h('b', {}, f.nombre),
           h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), f.efectivo ? ' · efectivo' : ''))),
-      h('div', { class: 'forma-acc' },
-        h('button', { type: 'button', class: 'ibtn chico', 'aria-label': `Editar ${f.nombre}`, onclick: () => editarForma(f, d => { Object.assign(f, d); pintar(); alCambiar(); }) }, icono('lapiz')),
-        h('button', { type: 'button', class: 'ibtn chico peligro', 'aria-label': `Eliminar ${f.nombre}`, onclick: () => {
-          const antes = formas;
-          formas = formas.filter(x => x !== f); pintar(); alCambiar();
-          toast(`${f.nombre} eliminada`, { deshacer: () => { formas = antes; pintar(); } });
-        } }, icono('borrar'))));
+      menuForma(f));
   }), h('button', { type: 'button', class: 'forma-nueva', id: 'aj-forma-nueva', onclick: () => editarForma(null, d => {
     let id = d.nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'forma';
     while (formas.some(x => x.id === id)) id += '-2';
@@ -209,6 +219,8 @@ registrarVista('/ajustes', {
     for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button, button[aria-pressed], .modo-bs')) cambio(); }); }
     boton.addEventListener('click', e => unaVez(e.currentTarget, async () => {
       let listo = false;
+      boton.replaceChildren(icono('check'), 'Guardando…');
+      try {
       if (!(await t.guardar())) return;
       const partes = [await ve.guardar(), await pa.guardar(), await re.guardar()];
       if (partes.some(x => !x)) return;
@@ -216,6 +228,7 @@ registrarVista('/ajustes', {
       if (!r.ok) { toast('No se pudo guardar', { malo: true }); return; }
       listo = true; document.activeElement?.blur(); toast('Cambios guardados');
       setTimeout(() => { if (listo) boton.disabled = true; });
+      } finally { boton.replaceChildren(icono('check'), 'Guardar cambios'); }
     })());
     const pest = h('div', { class: 'segmentado pestanas-aj', role: 'tablist' });
     const mostrar = id => {

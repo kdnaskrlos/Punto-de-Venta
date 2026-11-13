@@ -84,3 +84,26 @@
 .tf-max{display:block;font-size:12px;font-weight:700;color:var(--y-tx)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.btn.cargando::before{animation:none}}
 .tasa-entrada{gap:8px;padding:0 16px}
+
+/* Menú ⋮ de las formas de pago */
+.forma-acc{display:block}
+.menu-acc{position:absolute;right:0;top:44px;z-index:5;min-width:160px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--sombra-2);display:flex;flex-direction:column}
+.menu-acc[hidden]{display:none}
+.menu-acc button{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 12px;border:0;border-radius:8px;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--ink);text-align:left;cursor:pointer}
+.menu-acc button svg.i{width:18px;height:18px;color:var(--muted)}
+.menu-acc button.peligro,.menu-acc button.peligro svg.i{color:var(--r-tx)}
+@media (hover:hover){.menu-acc button:hover{background:var(--surface-2)}}
+.forma-acc .ibtn{color:var(--muted)}
+/* Inicio: «Ventas de hoy» manda; las cifras en cero se apagan */
+.tiles .tile.principal{grid-column:1/-1}
+.tiles .tile.principal .val{font-size:32px!important}
+.tiles .tile.cero{border-color:var(--line)!important;background:var(--surface)!important}
+.tiles .tile.cero .val,.tiles .tile.cero .et,.tiles .tile.cero .sub{color:var(--muted)!important}
+.tiles .tile.cero .tile-ic{opacity:.05}
+/* Comisiones: barra con texto */
+.com-prog{display:flex;flex-direction:column;gap:4px;margin:8px 0 4px}
+.com-prog .com-barra{margin:0}
+.talla-fila-v{flex-wrap:wrap}
+.talla-fila-v .tf-max{flex-basis:100%;text-align:right;margin-top:-4px}
+.tiles:has(.principal) .tile:last-child:nth-child(odd){grid-column:auto}
+.tiles:has(.principal) .tile:last-child:nth-child(even){grid-column:1/-1}

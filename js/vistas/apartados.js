@@ -109,7 +109,7 @@ const resumenPrendas = ap => {
 
 const diaCorto = iso => { const t = fechaHora(iso).split(' · ')[0].split(' '); return `${t[0].slice(0, 3)}. ${t[1]} ${t[2]}.`; };
 // Tarjeta compacta: a la izquierda quién y qué; a la derecha cuánto falta y el estado.
-function tarjeta(ctx, ap) {
+function tarjeta(ctx, ap, filtro) {
   const [color, etiqueta] = ESTADO[ap.estado] || ESTADO.pendiente;
   const pendiente = ap.estado === 'pendiente';
   const dias = diasDesde(ap.fecha);
@@ -121,7 +121,7 @@ function tarjeta(ctx, ap) {
       h('span', { class: 'ap-l2' }, resumenPrendas(ap)),
       h('span', { class: 'ap-l3' }, diaCorto(ap.fecha), viejo ? h('span', { class: 'ap-dias' }, ` · ${dias} días`) : null)),
     h('span', { class: 'ap-der' },
-      h('span', { class: `est ${pendiente ? 'r' : color}` }, pendiente ? 'Por cobrar' : etiqueta),
+      pendiente && filtro === 'pendiente' ? null : h('span', { class: `est ${pendiente ? 'r' : color}` }, pendiente ? 'Por cobrar' : etiqueta),
       h('b', { class: 'ap-saldo num' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total))),
     icono('der'));
 }
@@ -160,7 +160,7 @@ function abrirDetalle(ctx, ap) {
       abonos.length ? h('button', { type: 'button', class: 'enlace-ver', id: 'ap-historial', onclick: historial }, `Ver historial de abonos (${abonos.length})`, icono('der')) : null) : null,
     h('p', { class: 'nota ap-det-meta' }, icono('calendario'), `Apartado el ${fechaHora(ap.fecha).replace(/^\S+ /, '')} · @${ap.usuario}`));
   const acciones = pendiente ? h('div', { class: 'acciones ap-acc' },
-    ctx.puedeVer('cancelarApartado') ? h('button', { class: 'btn danger', id: 'ap-cancelar', onclick: () => ir(async () => {
+    ctx.puedeVer('cancelarApartado') ? h('button', { class: 'btn texto peligro', id: 'ap-cancelar', onclick: () => ir(async () => {
       const motivo = await pedirMotivo({ titulo: 'Cancelar apartado', boton: 'Cancelar apartado', peligro: true });
       if (!motivo) return;
       const r = await ctx.almacen.cancelarApartado(ap.id, motivo);
@@ -194,7 +194,7 @@ registrarVista('/apartados', {
       const q = norm(busqueda);
       const vis = lista.filter(a => (filtro === 'todos' || a.estado === filtro) && (!q || norm(`${a.cliente?.nombre} ${a.cliente?.telefono}`).includes(q)))
         .sort((a, b) => b.fecha.localeCompare(a.fecha));
-      caja.replaceChildren(...(vis.length ? vis.map(a => tarjeta(ctx, a)) : [h('div', { class: 'vacio' }, icono('apartado'), h('p', {}, busqueda ? 'Ningún apartado coincide' : lista.length ? (filtro === 'pendiente' ? 'No hay apartados pendientes' : 'No hay apartados aquí') : 'Todavía no hay apartados'),
+      caja.replaceChildren(...(vis.length ? vis.map(a => tarjeta(ctx, a, filtro)) : [h('div', { class: 'vacio' }, icono('apartado'), h('p', {}, busqueda ? 'Ningún apartado coincide' : lista.length ? (filtro === 'pendiente' ? 'No hay apartados pendientes' : 'No hay apartados aquí') : 'Todavía no hay apartados'),
         !lista.length ? h('p', { class: 'nota' }, 'Se crean desde el carrito con «Apartar»: las prendas quedan reservadas para el cliente.') : null)]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });

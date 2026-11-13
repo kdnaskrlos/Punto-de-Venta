@@ -4,7 +4,8 @@ export function unaVez(boton, accion) {
   return async (...args) => {
     if (corriendo) return undefined;
     corriendo = true; boton.disabled = true;
+    boton.classList?.add('cargando'); boton.setAttribute?.('aria-busy', 'true');
     try { return await accion(...args); }
-    finally { corriendo = false; boton.disabled = false; }
+    finally { corriendo = false; boton.disabled = false; boton.classList?.remove('cargando'); boton.removeAttribute?.('aria-busy'); }
   };
 }

@@ -77,7 +77,11 @@ casos('vender', [
   }],
   ['No deja agregar más de lo que hay', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
-    await agregar(p, 'Buzo Etanol Gris', 'L', 3);
+    await p.click(GRUPO('Buzo Etanol Gris'));
+    await p.click('.capa .talla-mas[data-talla="L"]');
+    a.strictEqual(await p.isDisabled('.capa .talla-mas[data-talla="L"]'), true);
+    a.strictEqual(await texto(p, '.capa .talla-fila-v[data-sku="B-L"] .tf-max'), 'Máximo 1');
+    await p.click('#tallas-agregar');
     a.strictEqual(await texto(p, '.linea[data-sku="B-L"] .cant'), '1');
     a.deepStrictEqual(p.errores, []);
   }],

@@ -225,7 +225,7 @@ registrarVista('/inventario', {
               h('span', {}, `${g.variantes.length} ${g.variantes.length === 1 ? 'talla' : 'tallas'}`)),
             h('span', { class: 'gi-salud', 'aria-hidden': 'true' }, ...g.variantes.map(p => h('i', { class: colorExistencia(p) })))),
           h('span', { class: 'gi-total' }, h('b', { class: 'num' }, String(total)), h('span', {}, total === 1 ? 'unidad' : 'unidades'),
-            h('span', { class: `est ${est[0]}` }, est[1])));
+            est[0] === 'g' ? null : h('span', { class: `est ${est[0]}` }, est[1])));
       }) : [h('div', { class: 'vacio' }, busqueda || filtro || categoria ? 'No hay prendas con ese filtro' : 'Todavía no hay productos')]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });

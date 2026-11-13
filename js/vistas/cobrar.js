@@ -61,7 +61,12 @@ export function abrirCobrar(ctx) {
   const idVenta = ctx.almacen.nuevoId();
   let guardando = false, hecha = false;
   const final = h('button', { class: 'btn primary grande', id: 'cobrar-final' }, `Cobrar ${fmtCop(r0.total)}`);
-  const actualizar = () => { final.disabled = guardando || !panel.estado().cuadra; };
+  const textoFinal = `Cobrar ${fmtCop(r0.total)}`;
+  const actualizar = () => {
+    final.disabled = guardando || !panel.estado().cuadra;
+    final.classList.toggle('cargando', guardando);
+    final.textContent = guardando ? 'Cobrando…' : textoFinal;
+  };
   const panel = crearPanelPagos(ctx, { total: r0.total, alCambiar: () => actualizar() });
   const cliente = resumenCliente(ctx);
   const cuerpo = h('div', { class: 'cobro' },

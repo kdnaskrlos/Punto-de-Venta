@@ -31,6 +31,16 @@ function selectorRango(alCambiar, inicial = 'hoy') {
 
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 const COLOR_MONEDA = { COP: 'var(--cop)', USD: 'var(--usd)', BS: 'var(--bs)', Bs: 'var(--bs)' };
+// Cada forma de pago con un tono propio dentro del color de su moneda (claro → oscuro), para no repetir colores.
+function tonosPorForma(ids, monedaDe) {
+  const MEZCLA = ['', '#ffffff 45%', '#0f172a 35%', '#ffffff 70%', '#0f172a 60%'];
+  const vistos = {}, r = {};
+  for (const id of ids) {
+    const m = monedaDe(id), base = COLOR_MONEDA[m] || 'var(--muted)', k = vistos[m] = (vistos[m] ?? -1) + 1;
+    r[id] = k ? `color-mix(in srgb,${base},${MEZCLA[k % MEZCLA.length]})` : base;
+  }
+  return r;
+}
 
 // Gráfica de barras de ventas (por hora o por día). La barra más alta lleva su monto.
 function graficaVentas(p) {
@@ -59,6 +69,7 @@ registrarVista('/reportes', {
       const nombreForma = id => formas.find(x => x.id === id) || { nombre: id, moneda: 'COP' };
       const enPesos = Object.entries(cobrosEnPesos(datos.ventas, formas)).filter(([, m]) => m > 0).sort((a, b) => b[1] - a[1]);
       const sumaPesos = enPesos.reduce((s, [, m]) => s + m, 0);
+      const tono = tonosPorForma(enPesos.map(([id]) => id), id => nombreForma(id).moneda);
       const top = masVendidos(datos.ventas, ctx.productos, 50);
       const bajas = gestion ? inventarioBajo(productos) : [];
       const validas = datos.ventas.filter(v => v.estado !== 'anulada').length;
@@ -77,9 +88,9 @@ registrarVista('/reportes', {
 
       const pagos = h('div', { class: 'tarjeta rep-pagos' }, h('h2', { class: 'sec-t' }, 'Cobros'),
         sumaPesos ? h('div', { class: 'rep-pila', role: 'img', 'aria-label': 'Reparto de cobros por forma de pago' },
-          ...enPesos.map(([id, m], i) => h('i', { style: `width:${(m / sumaPesos) * 100}%;--c:${COLOR_MONEDA[nombreForma(id).moneda] || 'var(--muted)'};--o:${1 - (i % 3) * 0.28}`, title: nombreForma(id).nombre }))) : null,
-        sumaPesos ? h('div', { class: 'rep-leyenda' }, ...enPesos.slice(0, 4).map(([id, m], i) => h('span', {},
-          h('i', { style: `--c:${COLOR_MONEDA[nombreForma(id).moneda] || 'var(--muted)'};--o:${1 - (i % 3) * 0.28}` }), nombreForma(id).nombre, h('b', { class: 'num' }, ` ${pct(m, sumaPesos)}%`)))) : h('p', { class: 'nota' }, 'Sin cobros.'),
+          ...enPesos.map(([id, m]) => h('i', { style: `width:${(m / sumaPesos) * 100}%;--c:${tono[id]};--o:1`, title: nombreForma(id).nombre }))) : null,
+        sumaPesos ? h('div', { class: 'rep-leyenda' }, ...enPesos.map(([id, m]) => h('span', {},
+          h('i', { style: `--c:${tono[id]};--o:1` }), nombreForma(id).nombre, h('b', { class: 'num' }, ` ${pct(m, sumaPesos)}%`)))) : h('p', { class: 'nota' }, 'Sin cobros.'),
         sumaPesos ? h('button', { type: 'button', class: 'rep-ver', onclick: () => abrirVentana({ titulo: 'Cobros por forma de pago', contenido: h('div', { class: 'rep-det' },
           ...Object.entries(r.porForma).map(([id, m]) => { const f = nombreForma(id); return h('div', { class: 'fila-rep' }, h('span', {}, f.nombre), h('b', { class: 'num' }, `${fmtMonto(m, f.moneda)} ${NOMBRE_MONEDA[f.moneda]}`)); })) }) }, 'Ver montos', icono('der')) : null);
 
@@ -136,7 +147,7 @@ registrarVista('/comisiones', {
           h('span', { class: 'et' }, r.pendiente > 0 ? `Por pagar a ${quien?.nombre || vendedor}` : `${quien?.nombre || vendedor} · comisiones`),
           h('b', { class: 'num com-monto', id: 'com-pendiente' }, fmtCop(r.pendiente > 0 ? r.pendiente : r.total)),
           h('span', { class: 'nota' }, r.total ? (r.pendiente > 0 ? `de ${fmtCop(r.total)} ganados en el período` : 'Todo pagado') : 'Sin comisiones en el período'),
-          r.total ? h('div', { class: 'ap-barra com-barra', role: 'progressbar', 'aria-label': 'Pagado', 'aria-valuenow': String(pagadoPct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: `width:${pagadoPct}%` })) : null,
+          r.total ? h('div', { class: 'com-prog' }, h('div', { class: 'ap-barra com-barra', role: 'progressbar', 'aria-label': 'Pagado', 'aria-valuenow': String(pagadoPct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: `width:${pagadoPct}%` })), h('span', { class: 'nota' }, `${pagadoPct} % pagado`)) : null,
           r.pendiente > 0 ? h('button', { class: 'btn primary grande', id: 'com-pagar', onclick: e => unaVez(e.currentTarget, async () => {
             const x = await ctx.almacen.pagarComisiones({ vendedor, desde, hasta, monto: r.pendiente, ventas: r.idsPendientes });
             toast(x.ok ? 'Comisiones pagadas' : 'No se pudo guardar', { malo: !x.ok });

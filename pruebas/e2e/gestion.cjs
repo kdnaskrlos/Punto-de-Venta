@@ -235,6 +235,7 @@ casos('gestion', [
     const cols = await p.$$eval('.formas-aj .forma-tarjeta', e => new Set(e.map(x => Math.round(x.getBoundingClientRect().left))).size);
     a.strictEqual(cols, 2, 'formas de pago en dos columnas');
     a.ok(!(await texto(p, '.formas-aj')).match(/Activa|Apagada/), 'sin texto de activa/apagada');
+    await p.click('.forma-tarjeta[data-forma="usdt"] [aria-label^="Opciones"]');
     await p.click('.forma-tarjeta[data-forma="usdt"] [aria-label^="Eliminar"]');
     a.strictEqual(await p.$('.forma-tarjeta[data-forma="usdt"]'), null);
     await p.click('#aj-forma-nueva');
