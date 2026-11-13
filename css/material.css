@@ -239,7 +239,7 @@
 
 /* v1.56 — Pagos en Cobrar (imagen 4): ícono · nombre y ≈ pesos · recuadro con el monto; − redondo en la esquina */
 .pagos{gap:12px!important;padding-top:8px}
-.pagos .pago{position:relative;display:grid!important;grid-template-columns:40px minmax(0,1fr) minmax(128px,46%)!important;grid-template-areas:"ic nombre monto"!important;align-items:center;gap:12px!important;padding:12px!important;border:1px solid var(--line)!important;border-radius:16px!important;background:var(--surface)!important;box-shadow:var(--sombra-1);overflow:visible}
+.pagos .pago{position:relative;display:grid!important;grid-template-columns:40px minmax(0,1fr) minmax(128px,46%)!important;grid-template-areas:"ic nombre monto"!important;align-items:center;gap:12px!important;border-radius:16px!important;background:var(--surface)!important;box-shadow:var(--sombra-1);overflow:visible}
 .pagos .pago .forma-ic{width:40px!important;height:40px!important;border-radius:12px!important;align-self:center!important}
 .pagos .pago .forma-ic svg.i{width:20px!important;height:20px!important}
 .pagos .pago-nombre{flex-direction:column!important;align-items:flex-start!important;gap:2px!important}
@@ -331,3 +331,12 @@
 .apartado .ap-saldo.cerrado{color:var(--ink)}
 .apartado .ap-linea{grid-column:3;grid-row:2/4;align-self:stretch;border-left:1px solid var(--line)}
 @media (min-width:600px){.apartado{grid-template-columns:minmax(0,1fr) 120px 120px!important}.apartado .ap-abono,.apartado .ap-saldo{font-size:20px!important}}
+/* Pagos: el espacio entre tarjetas va en cada tarjeta (margen) y no en el contenedor, para que al quitar la última no haya salto */
+.pagos{gap:0!important;padding-top:0!important}
+.pagos .pago{margin-top:12px}
+.panel-pagos{gap:0!important}
+.panel-pagos .pagos:empty{display:block!important}
+.panel-pagos > .sec-m{margin:16px 0 8px}
+
+/* Relleno y borde sin !important: así la animación al quitar un pago puede cerrarlos (las reglas !important no se animan) */
+.panel-pagos .pagos .pago,.pagos .pago.pago{padding:12px;border:1px solid var(--line)}

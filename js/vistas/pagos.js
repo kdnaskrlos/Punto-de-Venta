@@ -58,7 +58,12 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     const nueva = enfocar && lista.querySelector(`.pago[data-forma="${enfocar}"]`);
     if (nueva && nueva.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const alto = nueva.offsetHeight;
-      nueva.animate([{ height: '0px', opacity: 0, transform: 'translateY(-6px)', paddingTop: '0px', paddingBottom: '0px' }, { height: alto + 'px', opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.22,.9,.3,1)' });
+      const cs = getComputedStyle(nueva);
+      nueva.style.overflow = 'hidden';
+      nueva.animate([{ height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', opacity: 0, transform: 'scale(.97)' },
+        { height: alto + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, opacity: 0, transform: 'scale(.97)', offset: .5 },
+        { height: alto + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, opacity: 1, transform: 'none' }], { duration: 340, easing: 'cubic-bezier(.22,.9,.3,1)' })
+        .onfinish = () => { nueva.style.overflow = ''; };
     }
     botones.replaceChildren(...formas.map(f => {
       const elegida = pagos.some(x => x.forma.id === f.id);
@@ -78,8 +83,13 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     const fila = lista.querySelector(`.pago[data-forma="${p.forma.id}"]`);
     const fin = () => { const i = pagos.indexOf(p); if (i >= 0) pagos.splice(i, 1); pintar(); avisar(); };
     if (!fila || !fila.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { fin(); return; }
-    fila.style.pointerEvents = 'none';
-    fila.animate([{ height: fila.offsetHeight + 'px', opacity: 1 }, { height: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px', marginTop: '-8px', borderWidth: '0px' }], { duration: 220, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).onfinish = fin;
+    // Dos tiempos, sin saltos: primero se desvanece en su lugar; luego su espacio (alto, relleno y margen) se cierra.
+    const cs = getComputedStyle(fila);
+    fila.style.pointerEvents = 'none'; fila.style.overflow = 'hidden';
+    const desde = { height: fila.offsetHeight + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth };
+    const cero = { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', borderTopWidth: '0px', borderBottomWidth: '0px' };
+    fila.animate([{ ...desde, opacity: 1, transform: 'none' }, { ...desde, opacity: 0, transform: 'scale(.97)', offset: .4 }, { ...cero, opacity: 0, transform: 'scale(.97)' }],
+      { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = fin;
   }
 
   function pintarBarra() {

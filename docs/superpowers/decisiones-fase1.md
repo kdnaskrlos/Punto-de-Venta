@@ -340,3 +340,4 @@ Suite final: npm test 99/99 · e2e 59/59
 ## v1.57 — Tarjeta de apartado en tres líneas (boceto aprobado)
 - 1) nombre a todo el ancho, sin cortarse; 2) «Hace N días» (rojo desde 15) en línea con «Abonado» y «Saldo»; 3) fecha con ícono en la misma línea base que los montos. Sin cantidad de prendas. Una sola línea divisoria, continua, entre Abonado y Saldo.
 - Formas de pago (Cobrar y Ajustes): «· efectivo» solo aparece si el nombre no lo dice ya («Efectivo / COP» en lugar de «Efectivo / COP · efectivo»).
+- v1.58: quitar un pago en Cobrar es fluido en dos tiempos (se desvanece y luego su espacio se cierra, 340 ms) sin el salto final: el relleno y el borde de la tarjeta tenían !important y no se animaban; el espacio entre pagos pasó a ser margen de cada tarjeta. Al agregar, el movimiento inverso.
