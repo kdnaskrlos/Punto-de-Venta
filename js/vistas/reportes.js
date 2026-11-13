@@ -75,7 +75,8 @@ registrarVista('/reportes', {
       const validas = datos.ventas.filter(v => v.estado !== 'anulada').length;
 
       const resumen = h('div', { class: 'tarjeta rep-resumen' },
-        h('div', { class: 'rep-kpis' },
+        // Ventas y Ganancia con el mismo tamaño; si alguno es largo, bajan los dos un paso de la escala.
+        h('div', { class: 'rep-kpis', 'data-largo': largo(fmtCop(Math.max(r.total || 0, Math.abs(r.ganancia || 0)))) },
           h('div', { class: 'rep-kpi principal', 'data-k': 'total' }, h('span', { class: 'et' }, 'Ventas'), h('b', { class: 'val num' }, fmtCop(r.total))),
           gestion ? h('div', { class: 'rep-kpi', 'data-k': 'ganancia' }, h('span', { class: 'et' }, 'Ganancia'),
             h('b', { class: 'val num' }, r.ganancia == null ? '—' : fmtCop(r.ganancia)),

@@ -342,3 +342,7 @@
 .panel-pagos .pagos .pago,.pagos .pago.pago{padding:12px;border:1px solid var(--line)}
 /* Sin «anclaje de desplazamiento» del navegador en Cobrar: evitaba que el contenido se acomodara solo y daba saltos */
 .capa .cuerpo,.panel-pagos{overflow-anchor:none}
+/* Reportes: Ventas y Ganancia del mismo tamaño (32; 24 o 20 si son largos) */
+.rep-kpis .rep-kpi .val{font-size:32px!important}
+.rep-kpis[data-largo=l] .rep-kpi .val{font-size:24px!important}
+.rep-kpis[data-largo=xl] .rep-kpi .val{font-size:20px!important}
