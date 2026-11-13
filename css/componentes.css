@@ -903,3 +903,45 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .com-fila:last-of-type{border-bottom:0}
 .com-fila small{font-weight:600}
 .u-com{margin:2px 0 0 46px;min-height:36px}
+
+/* v1.37 — Menos verde: el verde queda solo para acciones principales (Cobrar, Guardar, Listo, carrito) y estados de éxito.
+   Lo seleccionado (pestañas, filtros, chips, menú, calendario, opciones) pasa a gris oscuro. */
+.nav[aria-current="true"]{color:var(--sel-neu);background:var(--sel-neu-bg)}
+.nav.centro[aria-current="true"]{background:none}
+.segmentado button[aria-pressed="true"]{background:var(--sel-neu);color:#fff}
+.segmentado button[aria-pressed="true"] .cuenta{background:rgba(255,255,255,.2);color:#fff}
+.segmentado button:focus-visible{outline-color:var(--sel-neu)}
+.chip.activo{background:var(--sel-neu);border-color:var(--sel-neu);color:#fff}
+.sec-t svg.i{color:var(--muted)}
+.avatar{background:var(--sel-neu-bg);color:var(--ink)}
+.saludo span{color:inherit}
+.enlace{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.rango-btn svg.i{color:var(--muted)}
+.dia.hoy{border-color:var(--sel-neu)}
+.dia.en-rango{background:var(--sel-neu-bg);color:var(--ink)}
+.dia.borde{background:var(--sel-neu);color:#fff}
+.interruptor input{accent-color:var(--sel-neu)}
+.switch.on{background:var(--sel-neu)}
+.iconos-forma .ibtn[aria-pressed="true"]{background:var(--sel-neu);color:#fff;border-color:var(--sel-neu)}
+.modo-bs.activo{border-color:var(--sel-neu);background:var(--sel-neu-bg)}
+.modo-bs.activo .radio{border-color:var(--sel-neu)}
+.modo-bs.activo .radio::after{background:var(--sel-neu)}
+.btn.punteado,.forma-nueva,.cliente-registrar{border-color:var(--sel-neu-bd);color:var(--ink)}
+.cli-ic{background:var(--sel-neu-bg);color:var(--ink)}
+.cliente-resumen > svg.i,.sug-cli svg.i{color:var(--muted)}
+.btn.crema,.btn.recibo{background:var(--surface);border-color:var(--line);color:var(--ink)}
+.btn.crema:hover{border-color:var(--ink)}
+.linea .tramo{color:var(--muted)}
+.ap-barra i{background:var(--ink)}
+.inp:focus,.calc-caja:focus-within,.tasa-entrada:focus-within{border-color:var(--sel-neu);box-shadow:0 0 0 3px color-mix(in srgb,var(--sel-neu) 12%,transparent)}
+:focus-visible{outline-color:var(--sel-neu)}
+.venta-curso{border-color:var(--line)}
+.forma.agregada{background:var(--sel-neu-bg);border-color:var(--sel-neu-bd);color:var(--ink)}
+.zona-fotos{border-color:var(--sel-neu-bd)}
+.zona-fotos.encima{background:var(--sel-neu-bg)}
+/* Agotada: se atenúa la imagen, no el texto (contraste) */
+.tarjeta-prenda.agotada{opacity:1}
+.tarjeta-prenda.agotada .foto{opacity:.45}
+.tarjeta-prenda.agotada .info b{color:var(--muted)}
+.tp-tallas span.sin{opacity:1}
+.u-com{min-height:44px}

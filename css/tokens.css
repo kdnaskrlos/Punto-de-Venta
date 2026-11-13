@@ -1,5 +1,5 @@
 /* Sistema de diseño Comic Shop (skill comicshop-interfaz) + colores propios del punto de venta. */
-:root{--tono-ambar:#b45309;--tono-naranja:#c2410c;--tono-gris:#475569;--sel:#3b82f6;--wa-fondo:#efe7dd;--wa-burbuja-tx:#111b21;--tono-turquesa:#0891b2;--tono-verde:#15803d;--tono-rojo:#dc2626;--tono-azul:#2563eb;--tono-violeta:#7c3aed;--tono-rosa:#db2777;
+:root{--sel-neu:#111827;--sel-neu-bg:#eef1f4;--sel-neu-bd:#c9d0d8;--tono-ambar:#b45309;--tono-naranja:#c2410c;--tono-gris:#475569;--sel:#3b82f6;--wa-fondo:#efe7dd;--wa-burbuja-tx:#111b21;--tono-turquesa:#0891b2;--tono-verde:#15803d;--tono-rojo:#dc2626;--tono-azul:#2563eb;--tono-violeta:#7c3aed;--tono-rosa:#db2777;
   --bg:#ffffff; --surface:#ffffff; --surface-2:#f6f8fa; --line:#e5e9ee;
   --ink:#111827; --muted:#6b7280;
   --accent:#15803d; --accent-ink:#ffffff; --accent-soft:#dcfce7;
