@@ -777,3 +777,65 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .ap-det-fila:last-child{border-bottom:0}
 .ap-det-fila .num{white-space:nowrap}
 .ap-det-meta{font-size:12px;margin:0}
+
+/* v1.37 — Vender: tarjetas compactas con imagen cuadrada (foto o ícono gris del tipo de prenda) */
+.rejilla{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+@media (max-width:760px){.rejilla{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tarjeta-prenda{flex-direction:row;align-items:center;gap:10px;padding:8px;border-radius:12px;box-shadow:none;background:var(--surface);min-width:0}
+.tarjeta-prenda .foto,.miniatura{flex:none;width:64px;height:64px;aspect-ratio:1;border-radius:9px;background:var(--surface-2);display:grid;place-items:center;color:var(--muted);overflow:hidden;position:static}
+.tarjeta-prenda .foto img,.miniatura img{width:100%;height:100%;object-fit:cover}
+.tarjeta-prenda .foto > svg.i,.miniatura > svg.i{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:1.6}
+.tarjeta-prenda .info{padding:0;gap:2px;flex:1;min-width:0}
+.tarjeta-prenda .info b{font-size:13.5px;line-height:1.25;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tp-linea{display:flex;gap:6px;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;overflow:hidden;min-width:0}
+.tp-linea > span:first-child:not(.tp-tallas)::after{content:" ·"}
+.tp-tallas{display:inline;margin:0;overflow:hidden;text-overflow:ellipsis}
+.tp-tallas span{display:inline;padding:0;border:0;background:none;font-size:12px;font-weight:600;color:var(--muted);margin-right:4px}
+.tp-tallas span.sin{text-decoration:line-through;opacity:.75}
+.tarjeta-prenda .precio-fila{margin-top:1px;justify-content:flex-start;gap:8px}
+.tarjeta-prenda .precio{font-size:15px;font-weight:800}
+.tp-estado{font-size:12px;font-weight:700;color:var(--muted)}
+.tarjeta-prenda.agotada{opacity:.6}
+.tarjeta-prenda.agotada .foto{opacity:1;filter:none}
+.tarjeta-prenda.elegida{background:color-mix(in srgb,var(--sel) 6%,var(--surface));border-color:color-mix(in srgb,var(--sel) 40%,var(--line))}
+.tarjeta-prenda.elegida .foto{background:color-mix(in srgb,var(--sel) 8%,var(--surface-2))}
+.tarjeta-prenda.elegida .foto svg.i{color:var(--muted)}
+.tarjeta-prenda .en-carrito{position:absolute;top:6px;right:6px;min-width:22px;height:22px;padding:0 6px;border-radius:99px;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--sel);color:#fff;border:0}
+@media (hover:hover){.tarjeta-prenda:hover{box-shadow:none;border-color:var(--ink)}}
+.tarjeta-prenda{display:grid;grid-template-columns:56px minmax(0,1fr);grid-template-areas:"foto info" "linea linea";column-gap:10px;row-gap:6px;align-items:center}
+.tarjeta-prenda .foto{grid-area:foto;width:56px;height:56px}
+.tarjeta-prenda .foto > svg.i{width:28px;height:28px}
+.tarjeta-prenda .info{grid-area:info;padding-right:14px}
+.tp-linea{grid-area:linea;padding-top:6px;border-top:1px solid var(--line)}
+.tp-linea > span:first-child:not(.tp-tallas)::after{content:none}
+.tp-color{flex:none}
+.tp-color::after{content:" ·"}
+.tp-tallas{flex:1;min-width:0;text-overflow:ellipsis}
+
+/* v1.37 — Inventario: filas compactas con imagen cuadrada, tallas en texto y total a la derecha */
+.lista-inv{gap:6px}
+.grupo-inv{gap:12px;padding:8px 12px 8px 8px;width:100%;font:inherit}
+.grupo-inv .miniatura{width:52px;height:52px}
+.grupo-inv .miniatura > svg.i{width:26px;height:26px}
+.gi-info{flex:1;gap:2px}
+.gi-info b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gi-linea{display:flex;gap:6px;font-size:12px;font-weight:600;color:var(--muted);min-width:0;white-space:nowrap;overflow:hidden}
+.gi-color{flex:none}
+.gi-color::after{content:" ·"}
+.mini-tallas{display:inline;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.mini-tallas .mt{margin-right:8px}
+.mini-tallas .mt b{color:var(--ink);font-weight:800}
+.mini-tallas .mt.y b{color:var(--y-tx)}
+.mini-tallas .mt.r b{color:var(--r-tx)}
+.gi-aviso{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--y-tx)}
+.gi-aviso svg.i{width:12px;height:12px}
+.gi-total{flex:none;display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}
+.gi-total b{font-size:18px;font-weight:800}
+.gi-total span{font-size:11.5px;font-weight:600;color:var(--muted)}
+.gi-linea{white-space:normal;flex-wrap:wrap;row-gap:0}
+.mini-tallas{display:flex;flex-wrap:wrap;column-gap:8px;row-gap:0;overflow:visible}
+.mini-tallas .mt{margin-right:0;white-space:nowrap}
+.cab-vista:has(> .acciones:empty){display:none}
+.mini-tallas .mt{font-size:12px}
+.mini-tallas .mt b{font-size:13px}
+@media (min-width:761px){.lista-inv{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px}}

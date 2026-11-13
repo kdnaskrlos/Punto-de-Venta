@@ -59,7 +59,7 @@ casos('inventario', [
     await p.click('#oferta-final');
     await p.waitForFunction(() => window.__pos.ctx.productos['J-M'].oferta?.activa === true);
     await p.evaluate(() => { location.hash = '/vender'; });
-    await p.waitForSelector('.tarjeta-prenda[data-grupo="Jogger Texcol Negro"] .est.y');
+    await p.waitForSelector('.tarjeta-prenda[data-grupo="Jogger Texcol Negro"] .tp-estado');
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }] }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
     a.strictEqual(await texto(p, '.carrito .total-cop'), '37.800');
   }],
@@ -89,10 +89,10 @@ casos('inventario', [
     // Sin precio propio, el tramo 49+ muestra el que se cobra (el de 24–48), nunca «—»
     a.deepStrictEqual(await p.$$eval('.detalle-grupo .precio-tramo:not(.costo) b', e => e.map(x => x.textContent)), ['25.000', '24.000', '22.500', '20.000', '20.000']);
   }],
-  ['Las tallas de la lista se leen claras: «Talla 4: 12»', async (env, a) => {
+  ['Las tallas de la lista se leen claras y compactas: «4: 12»', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inventario' });
-    const t = await p.$$eval('.grupo-inv[data-grupo="Franela AS Niño Blanco"] .mini-tallas .est', e => e.map(x => x.textContent));
-    a.deepStrictEqual(t, ['Talla 4: 12', 'Talla 6: 12', 'Talla 8: 12', 'Talla 10: 12']);
+    const t = await p.$$eval('.grupo-inv[data-grupo="Franela AS Niño Blanco"] .mini-tallas .mt', e => e.map(x => x.textContent));
+    a.deepStrictEqual(t, ['4: 12', '6: 12', '8: 12', '10: 12']);
   }],
   ['El historial muestra la existencia inicial', async (env, a) => {
     const p = await env.pagina({ ruta: '/inventario' });

@@ -1,8 +1,8 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
 import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas } from '../ui.js';
 import { abrirCajaVentana } from './caja.js';
-import { colorPrenda } from '../nucleo/colores.js';
 import { registrarVista, navegar } from '../app.js';
+import { tipoPrenda } from '../nucleo/tipo-prenda.js';
 import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
 import { aplicarDescuento, requiereAutorizacion } from '../nucleo/descuento.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
@@ -171,26 +171,28 @@ function abrirTallas(ctx, g) {
   listo.onclick = () => v.cerrar();
 }
 
-// Tarjeta de prenda: sin foto, la silueta lleva el color real de la prenda; abajo las tallas a la vista.
+// Tarjeta de prenda compacta: imagen cuadrada a la izquierda (foto o ícono gris según el tipo de prenda) y al lado nombre, tallas y precio.
+export function miniatura(g, clase = 'miniatura') {
+  return h('span', { class: clase }, g.foto ? h('img', { src: g.foto, alt: '', loading: 'lazy', width: 64, height: 64 }) : icono(tipoPrenda(g.producto, g.categoria)));
+}
+
 function tarjeta(ctx, g) {
   const existencia = g.variantes.reduce((s, p) => s + Math.max(p.existencia, 0), 0);
   const agotada = existencia <= 0;
-  const pocas = !agotada && g.variantes.some(p => p.existencia > 0 && p.existencia <= p.minimo);
   const precio = Math.min(...g.variantes.map(p => p.precios?.[0] || Infinity));
   const oferta = g.variantes.some(p => p.oferta?.activa);
   const elegidas = g.variantes.reduce((s, p) => s + enCarrito(ctx, p.sku), 0);
-  const color = colorPrenda(g.color);
   const tallas = [...g.variantes].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
   return h('button', { class: 'tarjeta-prenda' + (agotada ? ' agotada' : '') + (elegidas ? ' elegida' : ''), 'data-grupo': g.grupo, onclick: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) },
-    h('div', { class: 'foto' + (g.foto ? '' : ' silueta') + (color ? '' : ' sin-color'), style: color ? `--pc:${color}` : '' },
-      g.foto ? h('img', { src: g.foto, alt: '', loading: 'lazy' }) : icono('franela'),
-      elegidas ? h('span', { class: 'en-carrito', 'aria-label': `${elegidas} en el carrito` }, icono('check'), String(elegidas)) : null),
-    h('div', { class: 'info' },
+    miniatura(g, 'foto'),
+    h('span', { class: 'info' },
       h('b', {}, g.producto),
-      h('div', { class: 'nota' }, g.color || '', pocas ? h('span', { class: 'pocas' }, ' · pocas') : null),
-      h('div', { class: 'tp-tallas' }, ...tallas.map(p => h('span', { class: p.existencia > 0 ? '' : 'sin' }, p.talla || p.sku))),
-      h('div', { class: 'precio-fila' }, h('span', { class: 'num precio' }, Number.isFinite(precio) ? fmtCop(precio) : '—'),
-        agotada ? h('span', { class: 'est r' }, 'Agotada') : oferta ? h('span', { class: 'est y' }, 'Oferta') : null)));
+      h('span', { class: 'precio-fila' },
+        agotada ? h('span', { class: 'tp-estado' }, 'Agotada') : h('span', { class: 'num precio' }, Number.isFinite(precio) ? fmtCop(precio) : '—'),
+        !agotada && oferta ? h('span', { class: 'tp-estado' }, 'oferta') : null)),
+    h('span', { class: 'tp-linea' }, g.color ? h('span', { class: 'tp-color' }, g.color) : null,
+      h('span', { class: 'tp-tallas' }, ...tallas.map(p => h('span', { class: p.existencia > 0 ? '' : 'sin' }, p.talla || p.sku)))),
+    elegidas ? h('span', { class: 'en-carrito', 'aria-label': `${elegidas} en el carrito` }, String(elegidas)) : null);
 }
 
 registrarVista('/vender', {

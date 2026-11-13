@@ -1,11 +1,11 @@
 // Inventario (§7): consulta, ajustes con motivo, ofertas, importar desde la Carga Masiva y fotos masivas.
 import { h, icono, abrirVentana, toast, esTelefono, pedirMotivo, sin } from '../ui.js';
 import { registrarVista } from '../app.js';
+import { miniatura } from './vender.js';
 import { etiquetaTramo, precioDeTramo } from '../nucleo/tramos.js';
 import { leerInventario, planImportacion } from '../nucleo/importar.js';
 import { emparejarFotos } from '../nucleo/fotos.js';
 import { fmtCop } from '../nucleo/dinero.js';
-import { colorPrenda } from '../nucleo/colores.js';
 import { fechaHora } from '../nucleo/fechas.js';
 import { comprimirFoto, CLAVE_TOKEN } from '../datos/github-fotos.js';
 
@@ -201,11 +201,14 @@ registrarVista('/inventario', {
       lista.replaceChildren(...(gs.length ? gs.map(g => {
         const total = g.variantes.reduce((s, p) => s + p.existencia, 0);
         const pocas = g.variantes.some(p => colorExistencia(p) === 'y');
-        const color = colorPrenda(g.color);
+        const agotadas = g.variantes.some(p => colorExistencia(p) === 'r');
         return h('button', { class: 'grupo-inv', 'data-grupo': g.grupo, onclick: () => abrirGrupo(ctx, g, costos) },
-          h('div', { class: 'mini-foto' + (g.foto ? '' : ' silueta') + (color ? '' : ' sin-color'), style: color ? `--pc:${color}` : '' }, g.foto ? h('img', { src: g.foto, alt: '' }) : icono('franela')),
-          h('div', { class: 'gi-info' }, h('b', {}, g.producto), h('div', { class: 'nota' }, [g.color, plural(total, 'unidad', 'unidades')].filter(Boolean).join(' · '), pocas ? h('span', { class: 'pocas' }, ' · pocas') : null),
-            h('div', { class: 'mini-tallas' }, ...g.variantes.map(p => { const c = colorExistencia(p); return h('span', { class: `est ${c}` }, c === 'y' ? icono('alerta') : null, `Talla ${p.talla || p.sku}: ${p.existencia}`); }))));
+          miniatura(g, 'miniatura'),
+          h('span', { class: 'gi-info' }, h('b', {}, g.producto),
+            h('span', { class: 'gi-linea' }, g.color ? h('span', { class: 'gi-color' }, g.color) : null,
+              h('span', { class: 'mini-tallas' }, ...g.variantes.map(p => { const c = colorExistencia(p); return h('span', { class: `mt ${c}` }, `${p.talla || p.sku}: `, h('b', { class: 'num' }, String(p.existencia))); }))),
+            pocas || agotadas ? h('span', { class: 'gi-aviso' }, icono('alerta'), [agotadas ? 'tallas agotadas' : '', pocas ? 'pocas' : ''].filter(Boolean).join(' · ')) : null),
+          h('span', { class: 'gi-total' }, h('b', { class: 'num' }, String(total)), h('span', {}, total === 1 ? 'unidad' : 'unidades')));
       }) : [h('div', { class: 'vacio' }, busqueda ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos')]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });

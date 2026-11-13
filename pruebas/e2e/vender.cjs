@@ -39,7 +39,7 @@ casos('vender', [
   }],
   ['Agotada: pastilla roja y tallas sin elegir', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
-    a.strictEqual(await texto(p, `${GRUPO('Franela Rockdreams Gris')} .est.r`), 'Agotada');
+    a.strictEqual(await texto(p, `${GRUPO('Franela Rockdreams Gris')} .tp-estado`), 'Agotada');
     await p.click(GRUPO('Franela Rockdreams Gris'));
     a.strictEqual(await p.$eval('.capa .talla[data-talla="M"]', b => b.disabled), true);
   }],
