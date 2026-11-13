@@ -263,3 +263,6 @@ Suite final: npm test 99/99 · e2e 59/59
 
 ## v1.41 — Detalle de prenda más sencillo
 - Se quitan las barras, márgenes y cifras sueltas: total de unidades, una casilla por talla (talla y cantidad; ámbar «pocas», rojo «agotada»), y precios en filas simples con el costo al final. Tocar una talla muestra su código, Historial y Ajustar.
+
+## v1.42 — Detalle de prenda vuelve al de la v1.38
+- A pedido de Carlos, la ventana de detalle del inventario vuelve a la de la v1.38 (precios en recuadros, filas por talla con Historial/Ajustar). Se conserva el orden natural de tallas. La tarjeta de la lista sigue como en la v1.40.

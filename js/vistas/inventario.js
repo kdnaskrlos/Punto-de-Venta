@@ -82,58 +82,32 @@ function abrirOferta(ctx, g) {
 
 const mismos = (xs, f) => xs.every(x => JSON.stringify(f(x)) === JSON.stringify(f(xs[0])));
 
-// Precios por cantidad: una fila sencilla por tramo (el precio que realmente se cobra) y el costo al final.
 function bloquePrecios(ctx, p, costo, verCostos) {
-  return h('div', { class: 'precios' },
-    ...p.precios.map((_, i) => { const pr = precioDeTramo(p.precios, i); return h('div', { class: 'precio-tramo' }, h('span', {}, `${etiquetaTramo(i, ctx.ajustes.tramos)} prendas`), h('b', { class: 'num' }, pr ? fmtCop(pr) : '—')); }),
-    verCostos ? h('div', { class: 'precio-tramo costo' }, h('span', {}, 'Costo'), h('b', { class: 'num' }, costo != null ? fmtCop(costo) : '—')) : null);
+  // El precio que realmente se cobra en cada tramo (si falta, el del tramo anterior con valor)
+  return h('div', { class: 'precios' }, ...p.precios.map((_, i) => { const pr = precioDeTramo(p.precios, i); return h('div', { class: 'precio-tramo' }, h('span', { class: 'nota' }, etiquetaTramo(i, ctx.ajustes.tramos)), h('b', { class: 'num' }, pr ? fmtCop(pr) : '—')); }),
+    verCostos ? h('div', { class: 'precio-tramo costo' }, h('span', { class: 'nota' }, 'Costo'), h('b', { class: 'num' }, costo != null ? fmtCop(costo) : '—')) : null);
 }
 
-// Detalle de una prenda, sencillo: cuántas hay, una casilla por talla con su cantidad y los precios.
-// Al tocar una talla se ven su código y, si hay permiso, Historial y Ajustar.
+// Detalle de una prenda: precios una sola vez (si son iguales en todas las tallas) y una fila por talla.
 function abrirGrupo(ctx, g, costos) {
   const verCostos = ctx.puedeVer('verCostos');
-  const ajustar = puedeAdmin(ctx, 'ajustarInventario');
   const vs = g.variantes.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || compararTallas(a.talla, b.talla) || a.sku.localeCompare(b.sku, 'es', { numeric: true }));
   const iguales = mismos(vs, p => [p.precios, costos[p.sku]?.costo ?? null]);
   const oferta = vs.find(p => p.oferta?.activa)?.oferta;
-  const color = colorPrenda(g.color);
-  let elegida = null;
-  const casillas = h('div', { class: 'casillas-talla', role: 'group', 'aria-label': 'Existencias por talla' });
-  const panel = h('div', { class: 'talla-panel' });
-  const resumen = h('div', { class: 'dg-total' });
-  const pintar = () => {
-    const total = vs.reduce((t, p) => t + p.existencia, 0);
-    resumen.replaceChildren(h('b', { class: 'num' }, String(total)), h('span', {}, total === 1 ? 'unidad en total' : 'unidades en total'));
-    casillas.replaceChildren(...vs.map(p => { const c = colorExistencia(p); return h('button', { type: 'button', class: `barra-talla ${c}` + (elegida === p ? ' elegida' : ''), 'data-sku': p.sku, 'aria-pressed': String(elegida === p),
-      'aria-label': `Talla ${p.talla || p.sku}: ${p.existencia} disponibles`, onclick: () => { elegida = elegida === p ? null : p; pintar(); } },
-      h('span', { class: 'bt-talla' }, p.talla || p.sku),
-      h('span', { class: 'bt-num num' }, String(p.existencia)),
-      c !== 'g' ? h('span', { class: 'bt-est' }, c === 'r' ? 'agotada' : 'pocas') : null); }));
-    panel.replaceChildren(...(elegida ? [h('div', { class: 'talla-fila', 'data-sku': elegida.sku },
-      h('div', { class: 'tp-cab' }, h('b', {}, `Talla ${elegida.talla || '—'}`), elegida.codigo ? h('span', { class: 'nota num' }, `Código ${elegida.codigo}`) : null),
-      iguales ? null : bloquePrecios(ctx, elegida, costos[elegida.sku]?.costo, verCostos),
-      verCostos || ajustar ? h('div', { class: 'acciones' },
-        verCostos ? h('button', { class: 'btn', id: 'talla-historial', 'aria-label': `Historial talla ${elegida.talla}`, onclick: () => abrirHistorial(ctx, elegida) }, icono('historial'), 'Historial') : null,
-        ajustar ? h('button', { class: 'btn', id: 'talla-ajustar', onclick: () => abrirAjuste(ctx, elegida) }, icono('caja'), 'Ajustar') : null) : null)] : []));
-  };
-  pintar();
-  const cont = h('div', { class: 'detalle-grupo' },
-    h('div', { class: 'dg-cab' }, miniatura(g, 'miniatura grande'), h('button', { class: 'ibtn cerrar dg-x', 'aria-label': 'Cerrar' }, icono('x')),
-      h('div', { class: 'dg-tit' }, h('b', {}, g.producto),
-        h('span', { class: 'nota dg-color' }, g.color ? h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }) : null, g.color || ''),
-        oferta ? h('span', { class: 'est y' }, `Oferta ${oferta.pct}%`) : null)),
-    resumen,
-    h('h3', { class: 'dg-t' }, 'Tallas'),
-    casillas, panel,
-    iguales ? h('h3', { class: 'dg-t' }, 'Precios') : null,
-    iguales ? bloquePrecios(ctx, vs[0], costos[vs[0].sku]?.costo, verCostos) : null);
+  const cont = h('div', { class: 'pila detalle-grupo' },
+    oferta ? h('span', { class: 'est y' }, `Oferta ${oferta.pct}%`) : null,
+    iguales ? h('div', { class: 'pila' }, h('div', { class: 'sec-m' }, 'Precio por cantidad'), bloquePrecios(ctx, vs[0], costos[vs[0].sku]?.costo, verCostos)) : null,
+    h('div', { class: 'sec-m' }, 'TALLAS'),
+    vs.map(p => h('div', { class: 'talla-fila', 'data-sku': p.sku },
+      h('div', { class: 'tf-info' },
+        h('div', { class: 'var-cab' }, h('b', {}, `Talla ${p.talla || '—'}`), h('span', { class: `est ${colorExistencia(p)}` }, `${p.existencia} disp.`)),
+        h('span', { class: 'nota' }, p.codigo ? `Código ${p.codigo}` : p.sku),
+        iguales ? null : bloquePrecios(ctx, p, costos[p.sku]?.costo, verCostos)),
+      verCostos || puedeAdmin(ctx, 'ajustarInventario') ? h('div', { class: 'acciones' },
+        verCostos ? h('button', { class: 'btn', 'aria-label': `Historial talla ${p.talla}`, onclick: () => abrirHistorial(ctx, p) }, icono('historial'), 'Historial') : null,
+        puedeAdmin(ctx, 'ajustarInventario') ? h('button', { class: 'btn', onclick: () => abrirAjuste(ctx, p) }, icono('caja'), 'Ajustar') : null) : null)));
   const acciones = puedeAdmin(ctx, 'ofertas') ? h('div', { class: 'acciones' }, h('button', { class: 'btn', onclick: () => abrirOferta(ctx, g) }, icono('etiqueta'), 'Oferta')) : null;
-  const v = abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: cont, acciones, clase: 'ventana-grupo', sinCabecera: true });
-  // Tras un ajuste, la existencia cambia: volver a pintar con los datos nuevos
-  const alDatos = e => { if (e.detail.que === 'productos') { vs.forEach((p, i) => { vs[i] = ctx.productos[p.sku] || p; }); if (elegida) elegida = ctx.productos[elegida.sku] || elegida; pintar(); } };
-  window.addEventListener('pos:datos', alDatos);
-  v.alCerrar = () => window.removeEventListener('pos:datos', alDatos);
+  abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: cont, acciones });
 }
 
 async function abrirImportar(ctx, costos) {
