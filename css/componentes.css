@@ -945,3 +945,60 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .tarjeta-prenda.agotada .info b{color:var(--muted)}
 .tp-tallas span.sin{opacity:1}
 .u-com{min-height:44px}
+
+/* v1.38 — Tallas: una fila por talla con − cantidad + separados (sin toques por error) */
+.tallas-lista{display:flex;flex-direction:column}
+.talla-fila-v{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 4px;border-bottom:1px solid var(--line)}
+.talla-fila-v:last-child{border-bottom:0}
+.talla-fila-v.con{background:color-mix(in srgb,var(--sel) 6%,var(--surface));margin:0 -8px;padding:10px 12px;border-radius:12px;border-bottom-color:transparent}
+.talla-fila-v.agotada .tf-info b{color:var(--muted);text-decoration:line-through}
+.tf-info{display:flex;flex-direction:column;gap:1px;min-width:0}
+.tf-info b{font-size:18px;font-weight:800;line-height:1.2}
+.tf-info .nota{font-size:12.5px}
+.tf-info .nota.pocas{color:var(--y-tx);font-weight:700}
+.tf-paso{display:flex;align-items:center;gap:6px;flex:none}
+.tf-paso button{width:48px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer}
+.tf-paso button svg.i{width:20px;height:20px}
+.tf-paso .talla-mas{background:var(--sel-neu);border-color:var(--sel-neu);color:#fff}
+.tf-paso .talla-menos{position:static;color:var(--r-tx);border-color:var(--r-bd);background:var(--surface)}
+.tf-paso .talla-menos::before{content:none}
+.tf-paso button:disabled{opacity:.35;cursor:default}
+.tf-cant{min-width:36px;text-align:center;font-size:20px;font-weight:800;color:var(--muted)}
+.tf-cant.con{color:var(--sel)}
+@media (hover:hover){.tf-paso button:not(:disabled):hover{filter:brightness(.95)}}
+/* v1.38 — Carrito: total alineado a la derecha */
+.totales .et-total,.totales .equivalentes{text-align:right}
+.totales .total{display:flex;justify-content:flex-end;align-items:baseline;gap:6px}
+
+/* v1.38 — Cobrar: total en tarjeta y formas de pago como las tarjetas de Ajustes → Pagos, con el monto dentro */
+.total-cobro.tarjeta{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:12px 14px}
+.total-cobro .et{font-size:13px;font-weight:700;color:var(--muted);padding-top:6px}
+.tc-der{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
+.tc-der .total{display:flex;align-items:baseline;gap:6px}
+.formas-cobro{display:flex;flex-direction:column;gap:8px}
+.forma-cobro{background:var(--surface)}
+.forma-cobro .forma-toque{display:flex;align-items:center;gap:12px;width:100%;min-height:60px;padding:8px 12px;border:0;border-radius:12px;background:none;font:inherit;color:var(--ink);text-align:left;cursor:pointer}
+.forma-cobro .forma-toque:disabled{opacity:.5;cursor:default}
+.forma-cobro .forma-ic{color:var(--c);background:color-mix(in srgb,var(--c) 10%,var(--surface));border-color:color-mix(in srgb,var(--c) 25%,var(--line))}
+.forma-cobro .forma-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.forma-cobro .forma-txt b{font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.forma-cobro .forma-pie{font-size:12.5px;font-weight:600;color:var(--muted)}
+.forma-cobro .forma-pie .moneda{color:var(--c);font-weight:800}
+.forma-mas{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:var(--muted);border:1px solid var(--line)}
+.forma-mas svg.i{width:16px;height:16px}
+.forma-cobro.activa{box-shadow:none}
+.forma-cobro.activa .forma-ic{background:var(--c);color:#fff;border-color:var(--c)}
+.forma-cobro .pago{display:grid;grid-template-columns:minmax(0,1fr) auto 44px;grid-template-areas:"monto eq quitar";align-items:center;gap:8px;border-top:1px solid color-mix(in srgb,var(--c) 25%,var(--line));padding:8px 8px 8px 12px;margin:0}
+.forma-cobro .pago-monto{grid-area:monto;display:flex;align-items:center;gap:6px}
+.forma-cobro .pago-monto .inp{flex:1;min-width:0;background:var(--surface);font-size:16px;text-align:right}
+.forma-cobro .pago-monto .moneda{font-weight:800;color:var(--c);min-width:30px}
+.forma-cobro .equiv{grid-area:eq;font-size:12px;white-space:nowrap}
+.forma-cobro .pago .ibtn{grid-area:quitar}
+@media (max-width:420px){.forma-cobro .pago{grid-template-columns:minmax(0,1fr) 44px;grid-template-areas:"monto quitar" "eq eq"}.forma-cobro .equiv{text-align:right;padding-right:52px}}
+@media (hover:hover){.forma-cobro:not(.activa):hover{border-color:color-mix(in srgb,var(--c) 45%,var(--line))}}
+.forma-cobro:not(.activa){opacity:1;filter:none}
+.forma-cobro .forma-toque span{overflow:visible;text-overflow:clip}
+.forma-cobro .forma-ic,.forma-cobro .forma-mas{display:grid;place-items:center}
+.forma-cobro .forma-txt{display:flex}
+.forma-cobro .forma-pie{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.forma-cobro .forma-pie span{display:inline}

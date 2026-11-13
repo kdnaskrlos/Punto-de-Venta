@@ -81,7 +81,7 @@ casos('caja', [
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'encargada', ruta: '/vender' });
     a.strictEqual(await p.isVisible('.sin-caja'), false);
     await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
-    await p.click('.capa .talla[data-talla="S"]'); await p.click('.capa button:has-text("Listo")');
+    await p.click('.capa .talla-mas[data-talla="S"]'); await p.click('.capa button:has-text("Listo")');
     await p.click('.barra-carrito'); await p.click('.capa .cobrar');
     await p.fill('#cli-tel', '0414-555.12.12'); await p.fill('#cli-nombre', 'Luis'); await p.click('#cli-guardar');
     await p.click('.forma[data-forma="pago-movil"]');

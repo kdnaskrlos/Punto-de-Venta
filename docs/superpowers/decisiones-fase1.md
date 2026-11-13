@@ -240,3 +240,8 @@ Suite final: npm test 99/99 · e2e 59/59
 - Reportes: tarjeta resumen (ventas, ganancia y %), gráfica de barras por hora (un día) o por día (rango), cobros en una barra apilada por forma (equivalente en pesos), top 5 con barras; Ventas, Existencias bajas y Valor del inventario se abren en una ventana.
 - Comisiones: «Por pagar» primero, detalle debajo y comisión por venta en ventana. Solo ganan quienes tengan «Gana comisión» en Usuarios (campo ganaComision; si no se marcó, solo la vendedora).
 - Verde solo en acciones principales y estados de éxito; pestañas, filtros, chips, menú, calendario y opciones elegidas en gris oscuro (--sel-neu). Las tarjetas de color de Inicio y los íconos de Más se mantienen (tonos elegidos por Carlos).
+
+## v1.38 — Tallas, total del carrito y pantalla de Cobrar
+- Tallas: una fila por talla con − cantidad + (botones de 48px, separados); el − se ve siempre y se apaga en 0; la fila elegida se resalta en azul suave. Ya no hay círculo − en la esquina.
+- Carrito: «Total», el monto y sus equivalentes alineados a la derecha.
+- Cobrar: total en tarjeta (alineado a la derecha, con USD y Bs). Las formas de pago son tarjetas como las de Ajustes → Pagos (ícono del color de la moneda, nombre, moneda); al tocar una se resalta y el monto aparece dentro de esa tarjeta, con su equivalencia y la X para quitarla.

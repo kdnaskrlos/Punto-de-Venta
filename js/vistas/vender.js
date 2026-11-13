@@ -84,7 +84,7 @@ function lineaCarrito(ctx, l, aj) {
         h('button', { 'aria-label': 'Quitar', class: 'quitar', onclick: () => agregarAlCarrito(ctx, l.sku, -l.cantidad) }, icono('borrar')))));
 }
 
-function equivalentes(ctx, cop) {
+export function equivalentes(ctx, cop) {
   // Redondeado hacia arriba, igual que lo que sugerirá Cobrar
   const usd = desdeCop(cop, 'USD', ctx.tasas, { haciaArriba: true }), bs = desdeCop(cop, 'BS', ctx.tasas, { haciaArriba: true });
   return h('div', { class: 'equivalentes num' },
@@ -154,20 +154,28 @@ function abrirDescuento(ctx) {
   });
 }
 
+// Tallas: una fila por talla con − cantidad + bien separados, para no tocar otra talla por error.
 function abrirTallas(ctx, g) {
-  const cont = h('div', { class: 'tallas' });
-  const pintar = () => cont.replaceChildren(...g.variantes.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0)).map(p => {
+  const cont = h('div', { class: 'tallas-lista' });
+  const pintar = () => cont.replaceChildren(...[...g.variantes].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0)).map(p => {
     const en = enCarrito(ctx, p.sku);
     const disp = p.existencia - en;
-    const talla = h('button', { class: 'talla' + (en ? ' con' : '') + (p.existencia <= p.minimo && p.existencia > 0 ? ' pocas' : ''), 'data-talla': p.talla || p.sku, 'data-sku': p.sku, disabled: p.existencia <= 0 && !en,
-      onclick: () => { if (disp <= 0) { toast('No hay más existencia'); return; } agregarAlCarrito(ctx, p.sku, 1); pintar(); } },
-    h('b', {}, p.talla || p.nombre), h('span', { class: 'nota' }, p.existencia <= 0 ? 'Agotada' : `${p.existencia} disp.`), en ? h('span', { class: 'en-carrito' }, String(en)) : null);
-    return h('div', { class: 'talla-caja' }, talla,
-      en ? h('button', { class: 'talla-menos', 'aria-label': `Quitar una talla ${p.talla || p.nombre}`, 'data-sku': p.sku, onclick: () => { agregarAlCarrito(ctx, p.sku, -1); pintar(); } }, '−') : null);
+    const nombre = p.talla || p.nombre;
+    const agotada = p.existencia <= 0;
+    const pocas = !agotada && p.existencia <= p.minimo;
+    return h('div', { class: 'talla-fila-v' + (en ? ' con' : '') + (agotada ? ' agotada' : ''), 'data-sku': p.sku },
+      h('span', { class: 'tf-info' }, h('b', {}, nombre),
+        h('span', { class: 'nota' + (pocas ? ' pocas' : '') }, agotada ? 'Agotada' : `${p.existencia} disp.`)),
+      h('span', { class: 'tf-paso' },
+        h('button', { type: 'button', class: 'talla-menos', 'data-sku': p.sku, 'aria-label': `Quitar una talla ${nombre}`, disabled: !en,
+          onclick: () => { agregarAlCarrito(ctx, p.sku, -1); pintar(); } }, icono('menos')),
+        h('span', { class: 'tf-cant num' + (en ? ' con' : ''), 'aria-live': 'polite' }, String(en)),
+        h('button', { type: 'button', class: 'talla-mas', 'data-talla': nombre, 'data-sku': p.sku, 'aria-label': `Agregar una talla ${nombre}`, disabled: agotada && !en,
+          onclick: () => { if (disp <= 0) { toast('No hay más existencia'); return; } agregarAlCarrito(ctx, p.sku, 1); pintar(); } }, icono('mas1'))));
   }));
   pintar();
   const listo = h('button', { class: 'btn primary grande' }, icono('check'), 'Listo');
-  const v = abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: h('div', { class: 'pila' }, h('p', { class: 'nota' }, 'Toca la talla para sumar una prenda y − para quitarla.'), cont), acciones: listo });
+  const v = abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: cont, acciones: listo });
   listo.onclick = () => v.cerrar();
 }
 

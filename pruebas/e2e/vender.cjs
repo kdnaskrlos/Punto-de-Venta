@@ -4,7 +4,7 @@ const { casos } = require('./_servidor.cjs');
 const GRUPO = g => `.tarjeta-prenda[data-grupo="${g}"]`;
 async function agregar(p, grupo, talla, veces = 1) {
   await p.click(GRUPO(grupo));
-  for (let i = 0; i < veces; i++) await p.click(`.capa .talla[data-talla="${talla}"]`);
+  for (let i = 0; i < veces; i++) await p.click(`.capa .talla-mas[data-talla="${talla}"]`);
   await p.click('.capa .cerrar');
 }
 const texto = (p, s) => p.$eval(s, e => e.textContent.replace(/\s+/g, ' ').trim());
@@ -19,11 +19,11 @@ casos('vender', [
   ['Tallas como botones ≥ 44 px con su existencia; dos toques suman 2', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await p.click(GRUPO('Buzo Etanol Gris'));
-    const tallas = await p.$$eval('.capa .talla', bs => bs.map(b => { const r = b.getBoundingClientRect(); return { t: b.dataset.talla, w: r.width, h: r.height, x: b.textContent }; }));
+    const tallas = await p.$$eval('.capa .talla-mas', bs => bs.map(b => { const r = b.getBoundingClientRect(); return { t: b.dataset.talla, w: r.width, h: r.height, x: b.closest('.talla-fila-v').textContent }; }));
     a.deepStrictEqual(tallas.map(t => t.t), ['S', 'M', 'L']);
     for (const t of tallas) a.ok(t.w >= 44 && t.h >= 44, JSON.stringify(t));
     a.ok(tallas[1].x.includes('2'), tallas[1].x);
-    await p.click('.capa .talla[data-talla="M"]'); await p.click('.capa .talla[data-talla="M"]');
+    await p.click('.capa .talla-mas[data-talla="M"]'); await p.click('.capa .talla-mas[data-talla="M"]');
     await p.click('.capa .cerrar');
     a.strictEqual(await texto(p, '.linea[data-sku="B-M"] .cant'), '2');
   }],
@@ -41,7 +41,7 @@ casos('vender', [
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     a.strictEqual(await texto(p, `${GRUPO('Franela Rockdreams Gris')} .tp-estado`), 'Agotada');
     await p.click(GRUPO('Franela Rockdreams Gris'));
-    a.strictEqual(await p.$eval('.capa .talla[data-talla="M"]', b => b.disabled), true);
+    a.strictEqual(await p.$eval('.capa .talla-mas[data-talla="M"]', b => b.disabled), true);
   }],
   ['Quitar con − hasta 0 borra la línea', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
@@ -96,7 +96,7 @@ casos('vender', [
   ['Tallas: se pueden sumar varias y "Listo" cierra', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/vender', caja: true });
     await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
-    await p.click('.capa .talla[data-talla="S"]'); await p.click('.capa .talla[data-talla="M"]');
+    await p.click('.capa .talla-mas[data-talla="S"]'); await p.click('.capa .talla-mas[data-talla="M"]');
     a.ok(await p.isVisible('.capa'));
     await p.click('.capa button:has-text("Listo")');
     await p.waitForSelector('.capa', { state: 'detached' });
@@ -106,30 +106,33 @@ casos('vender', [
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', caja: true, ruta: '/vender' });
     const g = '.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]';
     await p.click(g);
-    await p.click('.capa .talla[data-talla="S"]'); await p.click('.capa .talla[data-talla="S"]'); await p.click('.capa .talla[data-talla="M"]');
-    a.strictEqual(await p.innerText('.capa .talla[data-talla="S"] .en-carrito'), '2');
+    await p.click('.capa .talla-mas[data-talla="S"]'); await p.click('.capa .talla-mas[data-talla="S"]'); await p.click('.capa .talla-mas[data-talla="M"]');
+    a.strictEqual(await p.innerText('.capa .talla-fila-v[data-sku="B-S"] .tf-cant'), '2');
     await p.click('.capa .talla-menos[data-sku="B-S"]');
-    a.strictEqual(await p.innerText('.capa .talla[data-talla="S"] .en-carrito'), '1');
+    a.strictEqual(await p.innerText('.capa .talla-fila-v[data-sku="B-S"] .tf-cant'), '1');
     await p.click('.capa .talla-menos[data-sku="B-S"]');
-    a.strictEqual(await p.$('.capa .talla[data-talla="S"] .en-carrito'), null);
-    a.strictEqual(await p.$('.capa .talla-menos[data-sku="B-S"]'), null, 'sin prendas no hay −');
+    a.strictEqual(await p.innerText('.capa .talla-fila-v[data-sku="B-S"] .tf-cant'), '0');
+    a.strictEqual(await p.$eval('.capa .talla-menos[data-sku="B-S"]', b => b.disabled), true, 'sin prendas el − no actúa');
     await p.click('.capa button:has-text("Listo")');
     a.ok(await p.$(g + '.elegida'));
     a.strictEqual(await p.innerText(g + ' .en-carrito'), '1');
     a.strictEqual(await p.$('.tarjeta-prenda.elegida:not([data-grupo="Buzo Etanol Gris"])'), null);
   }],
-  ['"−" en rojo crema, del mismo tamaño que la cantidad', async (env, a) => {
+  ['Tallas: − y + de 48 px, separados y sin encimarse con otra talla', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', caja: true, ruta: '/vender' });
     await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
-    await p.click('.capa .talla[data-talla="S"]');
-    const [menos, num] = await Promise.all(['.capa .talla-menos', '.capa .talla .en-carrito'].map(s => p.$eval(s, e => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), getComputedStyle(e).backgroundColor]; })));
-    a.deepStrictEqual(menos.slice(0, 2), num.slice(0, 2));
-    a.notStrictEqual(menos[2], num[2]);
+    await p.click('.capa .talla-mas[data-talla="S"]');
+    const cajas = await p.$$eval('.capa .tf-paso button', bs => bs.map(b => { const r = b.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }));
+    for (const c of cajas) a.ok(c.w >= 44 && c.h >= 44, JSON.stringify(c));
+    for (let i = 0; i < cajas.length; i++) for (let j = i + 1; j < cajas.length; j++) {
+      const [m, n] = [cajas[i], cajas[j]];
+      a.ok(m.x + m.w <= n.x || n.x + n.w <= m.x || m.y + m.h <= n.y || n.y + n.h <= m.y, 'botones encimados');
+    }
   }],
   ['Venta en curso: si la app se cierra, al volver ofrece continuarla', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', caja: true, ruta: '/vender' });
     await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
-    await p.click('.capa .talla[data-talla="S"]'); await p.click('.capa .talla[data-talla="M"]');
+    await p.click('.capa .talla-mas[data-talla="S"]'); await p.click('.capa .talla-mas[data-talla="M"]');
     await p.click('.capa button:has-text("Listo")');
     await p.evaluate(() => localStorage.setItem('pos-demo-usuario', 'vendedora')); // la demo recuerda quién entró
     await p.reload();

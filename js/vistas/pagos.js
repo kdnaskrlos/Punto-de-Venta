@@ -2,7 +2,7 @@
 import { h, icono, esTelefono } from '../ui.js';
 import { estadoCobro, montoSugerido, vueltoEn } from '../nucleo/cobro.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
-import { formaEfectivo, NOMBRE_MONEDA } from '../nucleo/formas.js';
+import { formaEfectivo, NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
 
 // En los botones el grupo ya dice la moneda: "Efectivo pesos" → "Efectivo", "Transferencia / Nequi / …" → "Transferencia".
 export const nombreCorto = n => (n.split('/')[0].replace(/\(.*?\)/g, '').replace(/\b(pesos|d[oó]lares|bol[ií]vares)\b/gi, '').replace(/\s+/g, ' ').trim()) || n;
@@ -15,7 +15,6 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   const pagos = [];
   let botones = null;
   let monedaVuelto = 'COP';
-  const lista = h('div', { class: 'pagos' });
   const barra = h('div', { class: 'barra-falta', role: 'status' });
   const red = ctx.ajustes.redondeo || 100;
   let listo = false; // no avisar cambios mientras se construye el panel
@@ -32,24 +31,33 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     pintar(forma.id);
   }
 
+  // Cada forma es una tarjeta (como en Ajustes → Pagos). Al tocarla se activa y muestra su monto dentro.
   function pintar(enfocar) {
-    lista.replaceChildren(...pagos.map(p => {
+    botones.replaceChildren(...formas.map(f => {
+      const p = pagos.find(x => x.forma.id === f.id);
+      const bloqueada = (f.moneda === 'BS' && !ctx.tasas.bsPorUsd) || (f.moneda !== 'COP' && !ctx.tasas.copPorUsd);
+      const toque = h('button', { type: 'button', class: 'forma forma-toque', 'data-forma': f.id, disabled: bloqueada, 'aria-pressed': String(!!p), onclick: () => agregar(f) },
+        h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
+        h('span', { class: 'forma-txt' }, h('b', {}, f.nombre),
+          h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), f.efectivo ? ' · efectivo' : '', bloqueada ? (f.moneda === 'BS' ? ' · Sin tasa de Bs' : ' · Sin tasa') : '')),
+        p ? null : h('span', { class: 'forma-mas', 'aria-hidden': 'true' }, icono('mas1')));
+      if (!p) return h('div', { class: `forma-tarjeta forma-cobro m-${f.moneda.toLowerCase()}`, 'data-forma-card': f.id }, toque);
       const inp = h('input', { class: 'inp num', inputmode: 'decimal', value: p.monto ? fmtMonto(p.monto, p.forma.moneda) : '', 'aria-label': `Monto en ${p.forma.nombre}` });
       inp.addEventListener('input', () => { p.monto = parseMonto(inp.value, p.forma.moneda) || 0; pintarBarra(); avisar(); });
       inp.addEventListener('blur', () => { inp.value = p.monto ? fmtMonto(p.monto, p.forma.moneda) : ''; });
       inp.addEventListener('focus', () => inp.select());
+      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') inp.blur(); });
       const eq = h('span', { class: 'nota num equiv' });
       p.pintarEq = () => { const e = estado().pagos.find(x => x.forma === p.forma.id); eq.textContent = p.forma.moneda === 'COP' ? '' : (e?.equivalenteCop != null ? `= ${fmtCop(e.equivalenteCop)} COP` : 'Sin tasa'); };
       p.pintarEq();
-      const fila = h('div', { class: 'pago', 'data-forma': p.forma.id },
-        h('div', { class: 'pago-nombre' }, h('b', {}, p.forma.nombre), eq),
-        h('div', { class: 'pago-monto' }, inp, h('span', { class: `moneda ${GRUPOS.find(g => g[0] === p.forma.moneda)[2]}` }, NOMBRE_MONEDA[p.forma.moneda])),
-        h('button', { class: 'ibtn', 'aria-label': `Quitar ${p.forma.nombre}`, onclick: () => { pagos.splice(pagos.indexOf(p), 1); pintar(); avisar(); } }, icono('borrar')));
       if (enfocar === p.forma.id && !esTelefono()) setTimeout(() => { inp.focus(); inp.select(); }, 20);
-      return fila;
+      return h('div', { class: `forma-tarjeta forma-cobro activa m-${f.moneda.toLowerCase()}`, 'data-forma-card': f.id },
+        toque,
+        h('div', { class: 'pago', 'data-forma': p.forma.id },
+          h('div', { class: 'pago-monto' }, inp, h('span', { class: 'moneda' }, NOMBRE_MONEDA[p.forma.moneda])),
+          eq,
+          h('button', { class: 'ibtn chico peligro', 'aria-label': `Quitar ${p.forma.nombre}`, onclick: () => { pagos.splice(pagos.indexOf(p), 1); pintar(); avisar(); } }, icono('x'))));
     }));
-    // ✓ en los botones de las formas que ya están en la lista
-    botones?.querySelectorAll('.forma').forEach(b => b.classList.toggle('agregada', pagos.some(p => p.forma.id === b.dataset.forma)));
     pintarBarra();
     avisar();
   }
@@ -71,18 +79,8 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     }
   }
 
-  const sinBs = !ctx.tasas.bsPorUsd;
-  botones = h('div', { class: 'formas' }, ...GRUPOS.map(([moneda, titulo, clase]) => {
-    const fs = formas.filter(f => f.moneda === moneda);
-    if (!fs.length) return null;
-    const bloqueada = (moneda === 'BS' && sinBs) || (moneda !== 'COP' && !ctx.tasas.copPorUsd);
-    return h('div', { class: 'grupo-formas' },
-      h('div', { class: `sec-m ${clase}` }, titulo, bloqueada ? h('span', { class: 'nota' }, moneda === 'BS' ? ' · Sin tasa de Bs' : ' · Sin tasa') : null),
-      h('div', { class: 'formas-rejilla' }, ...fs.map(f => h('button', { type: 'button', class: `forma ${clase}`, 'data-forma': f.id, title: f.nombre, disabled: bloqueada, onclick: () => agregar(f) }, h('span', {}, nombreCorto(f.nombre))))));
-  }));
-
-  // Los pagos agregados van arriba, a la vista; debajo, los botones para agregar otro.
-  const el = h('div', { class: 'panel-pagos' }, lista, botones);
+  botones = h('div', { class: 'formas-cobro' });
+  const el = h('div', { class: 'panel-pagos' }, h('div', { class: 'sec-m' }, 'Forma de pago'), botones);
   pintar();
   listo = true;
   return {

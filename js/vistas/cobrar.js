@@ -2,7 +2,7 @@
 import { h, icono, abrirVentana, toast } from '../ui.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
-import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
+import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento, equivalentes } from './vender.js';
 import { crearPanelPagos } from './pagos.js';
 import { comisionesVenta } from '../nucleo/comisiones.js';
 import { repartirDescuento } from '../nucleo/descuento.js';
@@ -66,7 +66,8 @@ export function abrirCobrar(ctx) {
   const cliente = resumenCliente(ctx);
   const cuerpo = h('div', { class: 'cobro' },
     cliente.el,
-    h('div', { class: 'total-cobro' }, h('span', { class: 'total-cop num' }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')),
+    h('div', { class: 'total-cobro tarjeta' }, h('span', { class: 'et' }, 'Total a cobrar'),
+      h('span', { class: 'tc-der' }, h('span', { class: 'total' }, h('span', { class: 'total-cop num' }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')), equivalentes(ctx, r0.total))),
     panel.el);
   const v = abrirVentana({ titulo: 'Cobrar', contenido: cuerpo, acciones: h('div', { class: 'pie-cobro' }, panel.barra, final), pantallaCompleta: true });
   v.alCerrar = () => cliente.quitar();

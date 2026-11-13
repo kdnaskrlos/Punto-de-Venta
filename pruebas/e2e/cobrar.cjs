@@ -123,7 +123,7 @@ casos('cobrar', [
     a.ok(await p.$('.lado-carrito .linea[data-sku="B-L"]'));
     a.deepStrictEqual(p.errores, []);
   }],
-  ['Teléfono: Cobrar no abre el teclado solo; el pago agregado queda arriba y el botón Cobrar a la vista', async (env, a) => {
+  ['Teléfono: Cobrar no abre el teclado solo; el monto aparece dentro de la tarjeta tocada y el botón Cobrar a la vista', async (env, a) => {
     const p = await preparar(env, { movil: true });
     await p.click('.barra-carrito'); await p.click('.capa .cobrar');
     await p.waitForSelector('#cobrar-final');
@@ -133,12 +133,11 @@ casos('cobrar', [
     a.notStrictEqual(await p.evaluate(() => document.activeElement.tagName), 'INPUT');
     const pos = await p.evaluate(() => {
       const r = s => document.querySelector(s).getBoundingClientRect();
-      return { pago: r('.pago[data-forma="efectivo-cop"]'), formas: r('.formas'), final: r('#cobrar-final'), alto: innerHeight };
+      return { pago: r('.pago[data-forma="efectivo-cop"]'), tarjeta: r('[data-forma-card="efectivo-cop"]'), final: r('#cobrar-final'), alto: innerHeight };
     });
-    a.ok(pos.pago.top < pos.formas.top, 'los pagos deben ir antes que los botones de formas');
+    a.ok(pos.pago.top >= pos.tarjeta.top && pos.pago.bottom <= pos.tarjeta.bottom, 'el monto va dentro de su tarjeta');
     a.ok(pos.pago.bottom <= pos.alto, 'el pago agregado debe verse sin desplazarse');
     a.ok(pos.final.bottom <= pos.alto, 'el botón Cobrar debe verse');
-    a.ok(pos.formas.height < 330, `las formas de pago ocupan ${Math.round(pos.formas.height)} px`);
   }],
   ['El ejemplo de teléfono no parece un dato escrito', async (env, a) => {
     const p = await preparar(env, { ancho: 360, alto: 780, sinCliente: true });
@@ -177,11 +176,11 @@ casos('cobrar', [
     const [v] = await ventas(p);
     a.deepStrictEqual(v.cliente, { nombre: 'Luis Mora', telefono: '584145551212' });
   }],
-  ['Las formas ya agregadas se marcan con ✓ y ningún botón queda marcado por el foco', async (env, a) => {
+  ['Las formas ya agregadas quedan resaltadas y ningún botón queda marcado por el foco', async (env, a) => {
     const p = await preparar(env, { movil: true });
     await p.click('.barra-carrito'); await p.click('.capa .cobrar');
     await p.click('.forma[data-forma="efectivo-usd"]');
-    a.deepStrictEqual(await p.$$eval('.forma.agregada', e => e.map(x => x.dataset.forma)), ['efectivo-usd']);
+    a.deepStrictEqual(await p.$$eval('.forma-cobro.activa', e => e.map(x => x.dataset.formaCard)), ['efectivo-usd']);
     a.strictEqual(await p.evaluate(() => document.activeElement.classList.contains('forma')), false);
   }],
   ['El carrito muestra en dólares y bolívares lo mismo que se cobrará (redondeado hacia arriba)', async (env, a) => {
