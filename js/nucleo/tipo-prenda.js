@@ -15,3 +15,19 @@ export function tipoPrenda(...textos) {
   for (const [tipo, re] of REGLAS) if (re.test(t)) return tipo;
   return 'franela';
 }
+
+// Orden natural de tallas: meses de bebé, números y letras (XS … XXXL). Lo desconocido va al final, en orden alfabético.
+const LETRAS = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', 'XXXL', '3XL'];
+export function claveTalla(t) {
+  const s = String(t ?? '').trim().toUpperCase();
+  let m;
+  if ((m = s.match(/^(\d+)\s*M$/))) return [0, Number(m[1])];
+  if ((m = s.match(/^\d+(\.\d+)?$/))) return [1, Number(s)];
+  const i = LETRAS.indexOf(s);
+  if (i >= 0) return [2, i];
+  return [3, s];
+}
+export function compararTallas(a, b) {
+  const [x, y] = [claveTalla(a), claveTalla(b)];
+  return x[0] - y[0] || (x[1] < y[1] ? -1 : x[1] > y[1] ? 1 : 0);
+}

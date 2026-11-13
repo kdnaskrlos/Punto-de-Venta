@@ -255,3 +255,8 @@ Suite final: npm test 99/99 · e2e 59/59
 - Carrito: cada línea en tarjeta con imagen, pastillas de color/talla y tarifa, quitar y monto a la derecha, cantidad abajo; fila de descuento; total en caja verde suave con equivalencias.
 - Cobrar: formas en dos columnas, sin «+»; tocar elige o quita; los pagos elegidos se suman debajo del total.
 - Usuarios: tarjetas compactas que se despliegan (comisión, Nuevo PIN, Desactivar adentro).
+
+## v1.40 — Inventario más claro y detalle gráfico
+- Tarjeta del inventario sin tallas: imagen, nombre, punto de color, «N tallas», una barrita por talla (gris = bien, ámbar = en el mínimo, rojo = agotada), total de unidades y estado (En stock / Stock bajo / Agotado).
+- Detalle de prenda sin cabecera repetida: imagen y nombre con la X, tres cifras (unidades, tallas, en el mínimo), barras de existencia por talla con línea punteada del mínimo; al tocar una talla aparece su código, Historial y Ajustar. Precio por cantidad como barras con el margen sobre el costo y el costo en violeta.
+- Tallas en orden natural (meses, números, S–XXL) con compararTallas (nucleo/tipo-prenda.js).

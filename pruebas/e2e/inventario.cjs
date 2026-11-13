@@ -16,6 +16,7 @@ casos('inventario', [
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', ruta: '/inventario' });
     await p.fill('#buscar-inv', 'jogger');
     await p.click('.grupo-inv[data-grupo="Jogger Texcol Negro"]');
+    await p.click('.barra-talla[data-sku="J-M"]');
     const t = await texto(p, '.capa');
     for (const x of ['Talla M', '5', '42.000', '40.000', '38.000', '36.000', '34.000', '49+']) a.ok(t.includes(x), `falta ${x}`);
     a.ok(!t.includes('Costo'), 'la vendedora no ve costos');
@@ -43,12 +44,14 @@ casos('inventario', [
   ['Admin: ajuste +3 "Llegó del taller" y queda en el historial', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
     await p.click('.grupo-inv[data-grupo="Jogger Texcol Negro"]');
-    await p.click('.talla-fila[data-sku="J-M"] button:has-text("Ajustar")');
+    await p.click('.barra-talla[data-sku="J-M"]');
+    await p.click('#talla-ajustar');
     await p.fill('#ajuste-cantidad', '3');
     await p.selectOption('#ajuste-motivo', 'Llegó del taller');
     await p.click('#ajuste-final');
     await p.waitForFunction(() => window.__pos.ctx.productos['J-M'].existencia === 8);
-    await p.click('.talla-fila[data-sku="J-M"] button:has-text("Historial")');
+    await p.waitForFunction(() => document.querySelector('.barra-talla[data-sku="J-M"] .bt-num')?.textContent === '8');
+    await p.click('#talla-historial');
     a.ok((await texto(p, '.capa:last-of-type')).includes('Llegó del taller'));
   }],
   ['Admin: oferta del 10% cambia el precio en Vender', async (env, a) => {
@@ -85,19 +88,22 @@ casos('inventario', [
     await p.click('.grupo-inv[data-grupo="Franela AS Niño Blanco"]');
     await p.waitForSelector('.detalle-grupo');
     a.strictEqual(await p.$$eval('.detalle-grupo .precio-tramo:not(.costo)', e => e.length), 5);
-    a.strictEqual(await p.$$eval('.detalle-grupo .talla-fila', e => e.length), 4);
+    a.strictEqual(await p.$$eval('.detalle-grupo .barra-talla', e => e.length), 4);
     // Sin precio propio, el tramo 49+ muestra el que se cobra (el de 24–48), nunca «—»
     a.deepStrictEqual(await p.$$eval('.detalle-grupo .precio-tramo:not(.costo) b', e => e.map(x => x.textContent)), ['25.000', '24.000', '22.500', '20.000', '20.000']);
   }],
-  ['Las tallas de la lista se leen claras y compactas: «4: 12»', async (env, a) => {
+  ['La tarjeta del inventario no lista tallas: total, estado y cuántas tallas', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inventario' });
-    const t = await p.$$eval('.grupo-inv[data-grupo="Franela AS Niño Blanco"] .mini-tallas .mt', e => e.map(x => x.textContent));
-    a.deepStrictEqual(t, ['4: 12', '6: 12', '8: 12', '10: 12']);
+    const t = await texto(p, '.grupo-inv[data-grupo="Buzo Etanol Gris"]');
+    a.ok(/3 tallas/.test(t) && /Stock bajo/.test(t), t);
+    a.strictEqual(await p.$('.grupo-inv .mini-tallas'), null);
+    a.strictEqual(await p.$$eval('.grupo-inv[data-grupo="Buzo Etanol Gris"] .gi-salud i', e => e.length), 3);
   }],
   ['El historial muestra la existencia inicial', async (env, a) => {
     const p = await env.pagina({ ruta: '/inventario' });
     await p.click('.grupo-inv[data-grupo="Franela AS Niño Blanco"]');
-    await p.click('.talla-fila[data-sku="F-B-4"] button:has-text("Historial")');
+    await p.click('.barra-talla[data-sku="F-B-4"]');
+    await p.click('#talla-historial');
     await p.waitForSelector('.mov');
     a.match(await p.innerText('.capa:last-of-type'), /Existencia inicial/);
   }],

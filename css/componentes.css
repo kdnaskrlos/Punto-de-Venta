@@ -1230,3 +1230,69 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 @media (hover:hover){.lista-usuarios .u-cab:hover{background:var(--surface-2)}}
 @media (prefers-reduced-motion:reduce){.lista-usuarios .u-cab > svg.i{transition:none}.lista-usuarios .u-cuerpo{animation:none}}
 .ap-l3 .ap-dias{margin-left:4px}
+
+/* v1.40 — Inventario: tarjeta sin tallas (color, cuántas tallas, barrita de estado por talla, total y estado) */
+.grupo-inv{align-items:center;padding:10px 12px 10px 10px}
+.gi-linea{flex-wrap:nowrap;white-space:nowrap;gap:0}
+.gi-linea > span + span::before{content:"·";margin:0 6px;color:var(--line)}
+.gi-color{display:inline-flex;align-items:center;gap:6px}
+.gi-color::after{content:none}
+.gi-salud{display:flex;gap:3px;margin-top:4px;max-width:160px}
+.gi-salud i{flex:1;height:5px;border-radius:3px;background:color-mix(in srgb,var(--ink) 25%,var(--surface))}
+.gi-salud i.y{background:#f59e0b}
+.gi-salud i.r{background:var(--err)}
+.gi-total{gap:2px}
+.gi-total b{font-size:22px}
+.gi-total .est{margin-top:3px;font-size:11px}
+.gi-total .est.g{background:var(--surface-2);border-color:var(--line);color:var(--muted)}
+
+/* Detalle de prenda: cifras, barras por talla y precios en barras */
+.ventana-grupo .caja{max-width:520px}
+.detalle-grupo{display:flex;flex-direction:column;gap:14px}
+.dg-cab{display:flex;align-items:center;gap:14px}
+.miniatura.grande{width:72px;height:72px;border-radius:14px}
+.miniatura.grande > svg.i{width:36px;height:36px}
+.dg-tit{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+.dg-tit b{font-size:18px}
+.dg-color{display:inline-flex;align-items:center;gap:6px;font-size:13.5px}
+.ventana-grupo .cab h2{font-size:15px;color:var(--muted)}
+.dg-cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px}
+.dg-cifras > div{display:flex;flex-direction:column;gap:1px;padding:10px 12px;border-radius:12px;background:var(--surface-2)}
+.dg-cifras b{font-size:20px;font-weight:800;line-height:1.1;white-space:nowrap}
+.dg-cifras span{font-size:12px;font-weight:600;color:var(--muted)}
+.dg-cifras .alerta b{color:var(--y-tx)}
+.dg-t{font-size:14px;font-weight:800;margin:4px 0 -4px}
+.barras-tallas{display:flex;gap:6px;align-items:stretch;padding:4px 0 0;overflow-x:auto;scrollbar-width:none}
+.barra-talla{flex:1;min-width:44px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px 6px;border:1px solid transparent;border-radius:12px;background:none;font:inherit;color:var(--ink);cursor:pointer}
+.barra-talla.elegida{border-color:var(--sel-neu-bd);background:var(--sel-neu-bg)}
+.bt-num{font-size:13px;font-weight:800}
+.bt-col{position:relative;width:26px;height:110px;border-radius:6px;background:var(--surface-2);display:flex;align-items:flex-end;overflow:visible}
+.bt-col i{display:block;width:100%;border-radius:6px;background:var(--ink)}
+.barra-talla.y .bt-col i{background:#f59e0b}
+.barra-talla.y .bt-num{color:var(--y-tx)}
+.barra-talla.r .bt-num{color:var(--r-tx)}
+.bt-min{position:absolute;left:-5px;right:-5px;height:0;border-top:2px dashed var(--err);opacity:.7}
+.bt-talla{font-size:13px;font-weight:800;color:var(--muted)}
+.barra-talla.elegida .bt-talla{color:var(--ink)}
+.talla-panel .talla-fila{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.tp-cab{display:flex;align-items:center;gap:8px}
+.tp-cab b{font-size:16px}
+.tp-cod{display:inline-flex;align-items:center;gap:6px}
+.tp-cod svg.i{width:16px;height:16px}
+.talla-panel .acciones{justify-content:flex-start}
+.tp-ayuda{margin:-4px 0 0;font-size:12.5px}
+.precios{display:flex;flex-direction:column;gap:6px}
+.precios .precio-tramo{display:grid;grid-template-columns:52px minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:0;background:none;border:0}
+.pt-et{font-size:12.5px;font-weight:700;color:var(--muted)}
+.pt-barra{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}
+.pt-barra i{display:block;height:100%;border-radius:5px;background:color-mix(in srgb,var(--ink) 75%,var(--surface))}
+.precio-tramo b{font-size:14px;text-align:right;white-space:nowrap}
+.pt-margen{font-size:11.5px;font-weight:800;color:var(--g-tx);background:var(--g-bg);border-radius:99px;padding:2px 7px}
+.precio-tramo:not(:has(.pt-margen))::after{content:""}
+.precio-tramo.costo .pt-barra i{background:var(--bs)}
+.precio-tramo.costo .pt-et,.precio-tramo.costo b{color:var(--bs)}
+.dg-cab{position:relative;padding-right:40px}
+.dg-x{position:absolute;top:-6px;right:-8px}
+.ventana-grupo .cuerpo{padding-top:18px}
+.dg-cifras{grid-template-columns:repeat(3,minmax(0,1fr))}
+.talla-panel .talla-fila{align-items:flex-start;text-align:left}

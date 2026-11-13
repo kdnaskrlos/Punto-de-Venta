@@ -2,7 +2,7 @@
 import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas } from '../ui.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
-import { tipoPrenda } from '../nucleo/tipo-prenda.js';
+import { tipoPrenda, compararTallas } from '../nucleo/tipo-prenda.js';
 import { colorPrenda } from '../nucleo/colores.js';
 import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
 import { aplicarDescuento, requiereAutorizacion } from '../nucleo/descuento.js';
@@ -166,7 +166,7 @@ function abrirDescuento(ctx) {
 // Tallas: se eligen las cantidades con − y + (bien separados) y se pasan al carrito con «Agregar al carrito».
 // Cerrar con la X no cambia el carrito.
 function abrirTallas(ctx, g) {
-  const variantes = [...g.variantes].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  const variantes = [...g.variantes].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || compararTallas(a.talla, b.talla));
   const cuentas = Object.fromEntries(variantes.map(p => [p.sku, enCarrito(ctx, p.sku)]));
   const antes = { ...cuentas };
   const color = colorPrenda(g.color);
@@ -218,7 +218,7 @@ function tarjeta(ctx, g) {
   const precio = Math.min(...g.variantes.map(p => p.precios?.[0] || Infinity));
   const oferta = g.variantes.some(p => p.oferta?.activa);
   const elegidas = g.variantes.reduce((s, p) => s + enCarrito(ctx, p.sku), 0);
-  const tallas = [...g.variantes].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  const tallas = [...g.variantes].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || compararTallas(a.talla, b.talla));
   const color = colorPrenda(g.color);
   return h('button', { class: 'tarjeta-prenda' + (agotada ? ' agotada' : '') + (elegidas ? ' elegida' : ''), 'data-grupo': g.grupo, onclick: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) },
     h('span', { class: 'tp-img' }, miniatura(g, 'foto'), elegidas ? h('span', { class: 'en-carrito', 'aria-label': `${elegidas} en el carrito` }, String(elegidas)) : null),

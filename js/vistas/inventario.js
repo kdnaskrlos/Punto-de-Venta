@@ -2,6 +2,8 @@
 import { h, icono, abrirVentana, toast, esTelefono, pedirMotivo, sin } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { miniatura } from './vender.js';
+import { colorPrenda } from '../nucleo/colores.js';
+import { compararTallas } from '../nucleo/tipo-prenda.js';
 import { etiquetaTramo, precioDeTramo } from '../nucleo/tramos.js';
 import { leerInventario, planImportacion } from '../nucleo/importar.js';
 import { emparejarFotos } from '../nucleo/fotos.js';
@@ -80,32 +82,72 @@ function abrirOferta(ctx, g) {
 
 const mismos = (xs, f) => xs.every(x => JSON.stringify(f(x)) === JSON.stringify(f(xs[0])));
 
+// Precios por cantidad como barras (el precio que realmente se cobra en cada tramo) y el costo como referencia.
 function bloquePrecios(ctx, p, costo, verCostos) {
-  // El precio que realmente se cobra en cada tramo (si falta, el del tramo anterior con valor)
-  return h('div', { class: 'precios' }, ...p.precios.map((_, i) => { const pr = precioDeTramo(p.precios, i); return h('div', { class: 'precio-tramo' }, h('span', { class: 'nota' }, etiquetaTramo(i, ctx.ajustes.tramos)), h('b', { class: 'num' }, pr ? fmtCop(pr) : '—')); }),
-    verCostos ? h('div', { class: 'precio-tramo costo' }, h('span', { class: 'nota' }, 'Costo'), h('b', { class: 'num' }, costo != null ? fmtCop(costo) : '—')) : null);
+  const precios = p.precios.map((_, i) => precioDeTramo(p.precios, i));
+  const max = Math.max(...precios.filter(Boolean), costo || 0, 1);
+  const barra = (cls, et, valor, extra) => h('div', { class: 'precio-tramo ' + cls },
+    h('span', { class: 'pt-et' }, et),
+    h('span', { class: 'pt-barra' }, h('i', { style: `width:${valor ? Math.max(6, (valor / max) * 100) : 0}%` })),
+    h('b', { class: 'num' }, valor ? fmtCop(valor) : '—'), extra || null);
+  return h('div', { class: 'precios' },
+    ...precios.map((pr, i) => barra('', etiquetaTramo(i, ctx.ajustes.tramos), pr,
+      verCostos && costo && pr ? h('span', { class: 'pt-margen' }, `${Math.round(((pr - costo) / pr) * 100)}%`) : null)),
+    verCostos ? barra('costo', 'Costo', costo) : null);
 }
 
-// Detalle de una prenda: precios una sola vez (si son iguales en todas las tallas) y una fila por talla.
+// Detalle de una prenda: cifras arriba, existencias por talla en barras (tocar una talla muestra sus acciones) y precios.
 function abrirGrupo(ctx, g, costos) {
   const verCostos = ctx.puedeVer('verCostos');
-  const vs = g.variantes.sort((a, b) => a.sku.localeCompare(b.sku, 'es', { numeric: true }));
+  const ajustar = puedeAdmin(ctx, 'ajustarInventario');
+  const vs = g.variantes.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || compararTallas(a.talla, b.talla) || a.sku.localeCompare(b.sku, 'es', { numeric: true }));
   const iguales = mismos(vs, p => [p.precios, costos[p.sku]?.costo ?? null]);
   const oferta = vs.find(p => p.oferta?.activa)?.oferta;
-  const cont = h('div', { class: 'pila detalle-grupo' },
-    oferta ? h('span', { class: 'est y' }, `Oferta ${oferta.pct}%`) : null,
-    iguales ? h('div', { class: 'pila' }, h('div', { class: 'sec-m' }, 'Precio por cantidad'), bloquePrecios(ctx, vs[0], costos[vs[0].sku]?.costo, verCostos)) : null,
-    h('div', { class: 'sec-m' }, 'TALLAS'),
-    vs.map(p => h('div', { class: 'talla-fila', 'data-sku': p.sku },
-      h('div', { class: 'tf-info' },
-        h('div', { class: 'var-cab' }, h('b', {}, `Talla ${p.talla || '—'}`), h('span', { class: `est ${colorExistencia(p)}` }, `${p.existencia} disp.`)),
-        h('span', { class: 'nota' }, p.codigo ? `Código ${p.codigo}` : p.sku),
-        iguales ? null : bloquePrecios(ctx, p, costos[p.sku]?.costo, verCostos)),
-      verCostos || puedeAdmin(ctx, 'ajustarInventario') ? h('div', { class: 'acciones' },
-        verCostos ? h('button', { class: 'btn', 'aria-label': `Historial talla ${p.talla}`, onclick: () => abrirHistorial(ctx, p) }, icono('historial'), 'Historial') : null,
-        puedeAdmin(ctx, 'ajustarInventario') ? h('button', { class: 'btn', onclick: () => abrirAjuste(ctx, p) }, icono('caja'), 'Ajustar') : null) : null)));
+  const total = vs.reduce((t, p) => t + p.existencia, 0);
+  const bajas = vs.filter(p => colorExistencia(p) !== 'g').length;
+  const max = Math.max(...vs.map(p => Math.max(p.existencia, p.minimo || 0)), 1);
+  const color = colorPrenda(g.color);
+  let elegida = null;
+  const panel = h('div', { class: 'talla-panel' });
+  const barras = h('div', { class: 'barras-tallas', role: 'group', 'aria-label': 'Existencias por talla' });
+  const pintar = () => {
+    barras.replaceChildren(...vs.map(p => h('button', { type: 'button', class: `barra-talla ${colorExistencia(p)}` + (elegida === p ? ' elegida' : ''), 'data-sku': p.sku, 'aria-pressed': String(elegida === p),
+      'aria-label': `Talla ${p.talla || p.sku}: ${p.existencia} disponibles`, onclick: () => { elegida = elegida === p ? null : p; pintar(); } },
+      h('span', { class: 'bt-num num' }, String(p.existencia)),
+      h('span', { class: 'bt-col' }, h('i', { style: `height:${Math.max(p.existencia > 0 ? 4 : 0, (p.existencia / max) * 100)}%` }),
+        p.minimo ? h('span', { class: 'bt-min', style: `bottom:${(p.minimo / max) * 100}%`, title: `Mínimo ${p.minimo}` }) : null),
+      h('span', { class: 'bt-talla' }, p.talla || p.sku))));
+    panel.replaceChildren(...(elegida ? [h('div', { class: 'talla-fila', 'data-sku': elegida.sku },
+      h('div', { class: 'tp-cab' }, h('b', {}, `Talla ${elegida.talla || '—'}`), h('span', { class: `est ${colorExistencia(elegida)}` }, `${elegida.existencia} disp.`),
+        elegida.minimo ? h('span', { class: 'nota' }, `mín. ${elegida.minimo}`) : null),
+      elegida.codigo ? h('span', { class: 'nota num tp-cod' }, icono('escanear'), elegida.codigo) : null,
+      iguales ? null : bloquePrecios(ctx, elegida, costos[elegida.sku]?.costo, verCostos),
+      verCostos || ajustar ? h('div', { class: 'acciones' },
+        verCostos ? h('button', { class: 'btn', id: 'talla-historial', 'aria-label': `Historial talla ${elegida.talla}`, onclick: () => abrirHistorial(ctx, elegida) }, icono('historial'), 'Historial') : null,
+        ajustar ? h('button', { class: 'btn', id: 'talla-ajustar', onclick: () => abrirAjuste(ctx, elegida) }, icono('caja'), 'Ajustar') : null) : null)]
+      : [h('p', { class: 'nota tp-ayuda' }, 'Toca una talla para ver su código e historial.')]));
+  };
+  pintar();
+  const cont = h('div', { class: 'detalle-grupo' },
+    h('div', { class: 'dg-cab' }, miniatura(g, 'miniatura grande'), h('button', { class: 'ibtn cerrar dg-x', 'aria-label': 'Cerrar' }, icono('x')),
+      h('div', { class: 'dg-tit' }, h('b', {}, g.producto),
+        h('span', { class: 'nota dg-color' }, g.color ? h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }) : null, g.color || ''),
+        oferta ? h('span', { class: 'est y' }, `Oferta ${oferta.pct}%`) : null)),
+    h('div', { class: 'dg-cifras' },
+      h('div', {}, h('b', { class: 'num' }, String(total)), h('span', {}, total === 1 ? 'unidad' : 'unidades')),
+      h('div', {}, h('b', { class: 'num' }, String(vs.length)), h('span', {}, vs.length === 1 ? 'talla' : 'tallas')),
+      h('div', { class: bajas ? 'alerta' : '' }, h('b', { class: 'num' }, String(bajas)), h('span', {}, 'en el mínimo')),
+    ),
+    h('h3', { class: 'dg-t' }, 'Existencias por talla'),
+    barras, panel,
+    iguales ? h('h3', { class: 'dg-t' }, 'Precio por cantidad') : null,
+    iguales ? bloquePrecios(ctx, vs[0], costos[vs[0].sku]?.costo, verCostos) : null);
   const acciones = puedeAdmin(ctx, 'ofertas') ? h('div', { class: 'acciones' }, h('button', { class: 'btn', onclick: () => abrirOferta(ctx, g) }, icono('etiqueta'), 'Oferta')) : null;
-  abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: cont, acciones });
+  const v = abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: cont, acciones, clase: 'ventana-grupo', sinCabecera: true });
+  // Tras un ajuste, la existencia cambia: volver a pintar con los datos nuevos
+  const alDatos = e => { if (e.detail.que === 'productos') { vs.forEach((p, i) => { vs[i] = ctx.productos[p.sku] || p; }); if (elegida) elegida = ctx.productos[elegida.sku] || elegida; pintar(); } };
+  window.addEventListener('pos:datos', alDatos);
+  v.alCerrar = () => window.removeEventListener('pos:datos', alDatos);
 }
 
 async function abrirImportar(ctx, costos) {
@@ -214,13 +256,16 @@ registrarVista('/inventario', {
         const total = g.variantes.reduce((s, p) => s + p.existencia, 0);
         const pocas = g.variantes.some(p => colorExistencia(p) === 'y');
         const agotadas = g.variantes.some(p => colorExistencia(p) === 'r');
+        const est = agotadas && total <= 0 ? ['r', 'Agotado'] : agotadas || pocas ? ['y', 'Stock bajo'] : ['g', 'En stock'];
+        const color = colorPrenda(g.color);
         return h('button', { class: 'grupo-inv', 'data-grupo': g.grupo, onclick: () => abrirGrupo(ctx, g, costos) },
           miniatura(g, 'miniatura'),
           h('span', { class: 'gi-info' }, h('b', {}, g.producto),
-            h('span', { class: 'gi-linea' }, g.color ? h('span', { class: 'gi-color' }, g.color) : null,
-              h('span', { class: 'mini-tallas' }, ...g.variantes.map(p => { const c = colorExistencia(p); return h('span', { class: `mt ${c}` }, `${p.talla || p.sku}: `, h('b', { class: 'num' }, String(p.existencia))); }))),
-            agotadas ? h('span', { class: 'gi-aviso r' }, icono('alerta'), total <= 0 ? 'Agotado' : 'Tallas agotadas') : pocas ? h('span', { class: 'gi-aviso' }, icono('alerta'), 'Stock bajo') : null),
-          h('span', { class: 'gi-total' }, h('b', { class: 'num' }, String(total)), h('span', {}, total === 1 ? 'unidad' : 'unidades')));
+            h('span', { class: 'gi-linea' }, g.color ? h('span', { class: 'gi-color' }, h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }), g.color) : null,
+              h('span', {}, `${g.variantes.length} ${g.variantes.length === 1 ? 'talla' : 'tallas'}`)),
+            h('span', { class: 'gi-salud', 'aria-hidden': 'true' }, ...g.variantes.map(p => h('i', { class: colorExistencia(p) })))),
+          h('span', { class: 'gi-total' }, h('b', { class: 'num' }, String(total)), h('span', {}, total === 1 ? 'unidad' : 'unidades'),
+            h('span', { class: `est ${est[0]}` }, est[1])));
       }) : [h('div', { class: 'vacio' }, busqueda || filtro || categoria ? 'No hay prendas con ese filtro' : 'Todavía no hay productos')]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
