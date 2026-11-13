@@ -107,3 +107,7 @@
 .talla-fila-v .tf-max{flex-basis:100%;text-align:right;margin-top:-4px}
 .tiles:has(.principal) .tile:last-child:nth-child(odd){grid-column:auto}
 .tiles:has(.principal) .tile:last-child:nth-child(even){grid-column:1/-1}
+/* Tarjetas de lista más compactas (≈ 84–88 px): interlineado de lista, no de párrafo */
+.ap-main{line-height:1.3}
+.ap-main .pastilla{line-height:1.2}
+.grupo-inv{line-height:1.3}
