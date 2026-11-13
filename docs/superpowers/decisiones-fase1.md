@@ -223,3 +223,13 @@ Suite final: npm test 99/99 · e2e 59/59
 - Mejora 5 (26b58a4): tarjetas de Vender con la silueta en el color real de la prenda (nucleo/colores.js), tallas a la vista (agotadas tachadas) y precio destacado.
 - Mejora 6 (802ef6f): Inicio con "Últimas ventas" (5) y "Ver las N"; la última tarjeta impar ocupa todo el ancho; formas de pago llenan su fila; Reportes con más vendidos legibles.
 - Para revertir una: `git revert <commit>` y subir la versión.
+
+## v1.36 — Correcciones de la auditoría UI (ui-ux-audit, 47/100)
+- C1: las cifras de las tarjetas se achican según su largo (mín. 17px) y la tarjeta ocupa la fila si son muy largas. El contenedor de medida es la rejilla `.tiles` (no la tarjeta) para no romper el subgrid.
+- C2/W7: nombre accesible en la tasa Bs manual, el recargo y los tres buscadores.
+- W1: foco visible por dentro de los botones segmentados. W4: toques de 44px (chips, botones chicos, Modo prueba, rango).
+- W2: el área del − crece solo hacia su talla; tallas separadas 14px. W3: filtros de Apartados en 2 × 2 en el teléfono.
+- W5/W6/P6: "pocas" con texto e ícono en Inventario; tallas agotadas legibles; siluetas de color en Inventario.
+- W8: tarjetas en 2 columnas (4 en ≥1100px) sin sueltas; datos de Comisiones igual.
+- P1–P5: hora sin partir, títulos de Más alineados, filas de tarjetas con subgrid, hover en laptop, contraste en Comisiones.
+- Cada grupo está en su propio commit para poder revertirlo.

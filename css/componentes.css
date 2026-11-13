@@ -679,8 +679,9 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 
 /* Auditoría UI v1.36 */
 /* C1: la cifra se achica según su largo y el ancho de la tarjeta (mín. 17px); si es muy larga, la tarjeta ocupa toda la fila */
-.tile{container-type:inline-size}
-.tiles .tile .val,.tile .val{font-size:clamp(17px,calc(100cqi / (var(--n,6) * .6)),26px)}
+/* El contenedor es la rejilla (no la tarjeta) para no bloquear el subgrid de P3; --cols = columnas actuales */
+.tiles{container-type:inline-size;--cols:2}
+.tiles .tile .val{font-size:clamp(17px,calc(((100cqi - (var(--cols) - 1) * 12px) / var(--cols) - 30px) / (var(--n,6) * .6)),26px)}
 .tiles .tile.ancha{grid-column:1/-1}
 /* W1: el foco se dibuja por dentro (el contenedor segmentado recorta lo que sale) */
 .segmentado button:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
@@ -708,10 +709,10 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 /* W8: las tarjetas siempre llenan filas completas (2 columnas; 4 en pantallas anchas) */
 .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media (min-width:1100px){
-  .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
-  .tiles:has(> .tile:nth-child(3):last-child){grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tiles{grid-template-columns:repeat(4,minmax(0,1fr));--cols:4}
+  .tiles:has(> .tile:nth-child(3):last-child){grid-template-columns:repeat(3,minmax(0,1fr));--cols:3}
   .tiles:has(> .tile:nth-child(3):last-child) > .tile:last-child{grid-column:auto}
-  .tiles:has(> .tile:nth-child(2):last-child){grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tiles:has(> .tile:nth-child(2):last-child){grid-template-columns:repeat(2,minmax(0,1fr));--cols:2}
 }
 .datos{grid-template-columns:repeat(2,minmax(0,1fr))}
 .datos .dato:last-child:nth-child(odd){grid-column:1/-1}
