@@ -233,3 +233,10 @@ Suite final: npm test 99/99 · e2e 59/59
 - W8: tarjetas en 2 columnas (4 en ≥1100px) sin sueltas; datos de Comisiones igual.
 - P1–P5: hora sin partir, títulos de Más alineados, filas de tarjetas con subgrid, hover en laptop, contraste en Comisiones.
 - Cada grupo está en su propio commit para poder revertirlo.
+
+## v1.37 — Rediseño de Apartados, Vender/Inventario, Reportes, Comisiones y menos verde
+- Apartados: tarjeta compacta como en Pedidos (nombre, saldo, resumen de prendas, fecha, aviso +15 días); al tocar abre el detalle con pago, prendas, abonos y acciones. Resumen arriba en una sola tarjeta neutra.
+- Vender: tarjetas compactas de 2 por fila en el teléfono, imagen cuadrada; sin foto, ícono gris según el tipo de prenda (nucleo/tipo-prenda.js). Sin pastillas: tallas y color en texto. Inventario: filas compactas con la misma miniatura, tallas «4: 12» y total a la derecha.
+- Reportes: tarjeta resumen (ventas, ganancia y %), gráfica de barras por hora (un día) o por día (rango), cobros en una barra apilada por forma (equivalente en pesos), top 5 con barras; Ventas, Existencias bajas y Valor del inventario se abren en una ventana.
+- Comisiones: «Por pagar» primero, detalle debajo y comisión por venta en ventana. Solo ganan quienes tengan «Gana comisión» en Usuarios (campo ganaComision; si no se marcó, solo la vendedora).
+- Verde solo en acciones principales y estados de éxito; pestañas, filtros, chips, menú, calendario y opciones elegidas en gris oscuro (--sel-neu). Las tarjetas de color de Inicio y los íconos de Más se mantienen (tonos elegidos por Carlos).
