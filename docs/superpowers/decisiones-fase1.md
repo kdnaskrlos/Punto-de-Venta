@@ -186,3 +186,6 @@ Suite final: npm test 99/99 · e2e 59/59
 
 ## Tasas en Ajustes (v1.27)
 - Como la Calculadora de Tasas: "1 USD = [ ] COP" para el peso; para Bs, tres tarjetas con radio (Binance P2P con su tasa base, hora y total con recargo; BCV oficial; Manual con "1 USD = [ ] Bs."). El recargo solo se ve con Binance elegido; escribir la tasa manual elige Manual. Se mantiene "Guardar cambios" abajo (no se copiaron Listo/Restablecer).
+
+## Tonos (v1.28)
+- Tonos de la app de Pedidos (verde #15803d, rojo #dc2626, azul #2563eb, violeta #7c3aed, rosa #db2777) en tarjetas de Inicio (ventas verde, ganancia violeta, caja azul, cobrado rosa, existencias bajas rojo) y en íconos de Más (Caja verde, Reportes azul, Comisiones violeta, Usuarios rosa, Ajustes rojo). El diseño de las tarjetas no cambia.

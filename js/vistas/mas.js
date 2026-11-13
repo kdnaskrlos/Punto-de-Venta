@@ -13,12 +13,12 @@ registrarVista('/mas', {
     const grupo = (titulo, ...filas) => (filas.some(Boolean) ? h('section', { class: 'mas-grupo' }, h('h2', { class: 'mas-grupo-t' }, titulo), h('div', { class: 'lista-mas' }, ...filas)) : null);
     cont.append(...[
       grupo('Negocio',
-        ir('/caja', 'cartera', 'var(--accent)', 'Caja', ctx.puedeVer('cajaPersonal') ? 'Cobrado hoy y cajas de la tienda' : 'Abrir, contar y cerrar'),
-        ir('/reportes', 'grafica', 'var(--t-info)', 'Reportes', 'Ventas, ganancia y más vendidos'),
-        ctx.puedeVer('pagarComisiones') ? ir('/comisiones', 'porcentaje', 'var(--kpi-ganancia)', 'Comisiones', 'Lo que se le debe a la vendedora') : null),
+        ir('/caja', 'cartera', 'var(--tono-verde)', 'Caja', ctx.puedeVer('cajaPersonal') ? 'Cobrado hoy y cajas de la tienda' : 'Abrir, contar y cerrar'),
+        ir('/reportes', 'grafica', 'var(--tono-azul)', 'Reportes', 'Ventas, ganancia y más vendidos'),
+        ctx.puedeVer('pagarComisiones') ? ir('/comisiones', 'porcentaje', 'var(--tono-violeta)', 'Comisiones', 'Lo que se le debe a la vendedora') : null),
       grupo(admin ? 'Administración' : 'Cuenta',
-        admin ? ir('/usuarios', 'usuarios', 'var(--t-violet)', 'Usuarios', 'Equipo, PIN y mi cuenta') : ir('/usuarios', 'usuario', 'var(--t-violet)', 'Mi cuenta', 'Cambiar PIN y salir'),
-        admin ? ir('/ajustes', 'ajustes', 'var(--kpi-neutro)', 'Ajustes', 'Tasas, pagos y recibo') : null),
+        admin ? ir('/usuarios', 'usuarios', 'var(--tono-rosa)', 'Usuarios', 'Equipo, PIN y mi cuenta') : ir('/usuarios', 'usuario', 'var(--tono-rosa)', 'Mi cuenta', 'Cambiar PIN y salir'),
+        admin ? ir('/ajustes', 'ajustes', 'var(--tono-rojo)', 'Ajustes', 'Tasas, pagos y recibo') : null),
     ].filter(Boolean));
   },
 });
