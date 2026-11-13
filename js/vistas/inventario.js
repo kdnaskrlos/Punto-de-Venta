@@ -5,6 +5,7 @@ import { etiquetaTramo, precioDeTramo } from '../nucleo/tramos.js';
 import { leerInventario, planImportacion } from '../nucleo/importar.js';
 import { emparejarFotos } from '../nucleo/fotos.js';
 import { fmtCop } from '../nucleo/dinero.js';
+import { colorPrenda } from '../nucleo/colores.js';
 import { fechaHora } from '../nucleo/fechas.js';
 import { comprimirFoto, CLAVE_TOKEN } from '../datos/github-fotos.js';
 
@@ -199,10 +200,12 @@ registrarVista('/inventario', {
       const gs = grupos(ctx.productos).filter(g => !q || g.variantes.some(p => norm(`${p.grupo} ${p.sku} ${p.codigo} ${p.marca}`).includes(q)));
       lista.replaceChildren(...(gs.length ? gs.map(g => {
         const total = g.variantes.reduce((s, p) => s + p.existencia, 0);
+        const pocas = g.variantes.some(p => colorExistencia(p) === 'y');
+        const color = colorPrenda(g.color);
         return h('button', { class: 'grupo-inv', 'data-grupo': g.grupo, onclick: () => abrirGrupo(ctx, g, costos) },
-          h('div', { class: 'mini-foto' }, g.foto ? h('img', { src: g.foto, alt: '' }) : icono('franela')),
-          h('div', { class: 'gi-info' }, h('b', {}, g.producto), h('div', { class: 'nota' }, [g.color, plural(total, 'unidad', 'unidades')].filter(Boolean).join(' · ')),
-            h('div', { class: 'mini-tallas' }, ...g.variantes.map(p => h('span', { class: `est ${colorExistencia(p)}` }, `Talla ${p.talla || p.sku}: ${p.existencia}`)))));
+          h('div', { class: 'mini-foto' + (g.foto ? '' : ' silueta') + (color ? '' : ' sin-color'), style: color ? `--pc:${color}` : '' }, g.foto ? h('img', { src: g.foto, alt: '' }) : icono('franela')),
+          h('div', { class: 'gi-info' }, h('b', {}, g.producto), h('div', { class: 'nota' }, [g.color, plural(total, 'unidad', 'unidades')].filter(Boolean).join(' · '), pocas ? h('span', { class: 'pocas' }, ' · pocas') : null),
+            h('div', { class: 'mini-tallas' }, ...g.variantes.map(p => { const c = colorExistencia(p); return h('span', { class: `est ${c}` }, c === 'y' ? icono('alerta') : null, `Talla ${p.talla || p.sku}: ${p.existencia}`); }))));
       }) : [h('div', { class: 'vacio' }, busqueda ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos')]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });

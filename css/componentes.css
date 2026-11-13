@@ -697,3 +697,11 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
   .filtro-ap button:nth-child(2n){border-right:0}
   .filtro-ap button:nth-last-child(-n+2){border-bottom:0}
 }
+/* W5: "pocas" también con texto e ícono, no solo con color */
+.mini-tallas .est svg.i{width:12px;height:12px}
+/* W6: tallas agotadas legibles (el tachado ya dice que no hay) */
+.tp-tallas span.sin{opacity:1;color:var(--muted)}
+/* P6: Inventario con la misma silueta de color que Vender */
+.mini-foto.silueta{background:color-mix(in srgb,var(--pc,#9ca3af) 14%,var(--surface-2))}
+.mini-foto.silueta > svg.i{width:30px;height:30px;fill:var(--pc);stroke:color-mix(in srgb,var(--pc) 55%,#1f2937);stroke-width:1.5}
+.mini-foto.silueta.sin-color > svg.i{fill:none;stroke:var(--muted)}
