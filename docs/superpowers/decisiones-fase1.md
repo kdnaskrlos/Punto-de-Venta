@@ -312,3 +312,4 @@ Suite final: npm test 99/99 · e2e 59/59
 - Contador igual con 1 o con varias unidades: el bote tiene el mismo fondo gris que − y +, solo el ícono es rojo.
 - «Tarifa 1–5» en pastilla neutra y el recuadro del total en gris (el verde queda solo para Cobrar).
 - Sin descuento no se muestra la fila «Descuento 0 COP» (ya está el botón Descuento).
+- v1.52: cabecera de ventanas y hojas (Carrito, Calculadora, etc.) de 72 a 56px de alto.
