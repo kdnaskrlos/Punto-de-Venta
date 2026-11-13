@@ -344,3 +344,6 @@ Suite final: npm test 99/99 · e2e 59/59
 - v1.59: aviso amarillo de tramos: al aparecer primero se abre su espacio y luego se desvanece hacia adentro (480 ms, sin salto del espacio entre bloques); al cambiar el número se renueva con un fundido corto; al irse, una copia se desvanece y cierra su espacio (380 ms).
 - v1.60: pagos en Cobrar: al quitar, un solo movimiento continuo (se encoge y se desvanece a la vez, 300 ms) y la forma de pago se desmarca al instante; al agregar, se abre y aparece a la vez y el botón − entra al final; sin anclaje de desplazamiento del navegador; sin «≈ 0 COP» cuando el monto está vacío.
 - v1.61: Reportes: Ventas y Ganancia con el mismo tamaño (32px; bajan juntos a 24 o 20 si alguno es largo).
+
+## v1.62 — Conexión a Firebase
+- config.js con el proyecto «punto-de-venta-comic-shop». Sin ?demo la app usa Firebase (Authentication por usuario y PIN, Firestore con las reglas de firestore.rules). El modo demostración sigue disponible con ?demo.
