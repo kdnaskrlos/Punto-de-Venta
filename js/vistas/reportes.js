@@ -55,7 +55,7 @@ function graficaVentas(p) {
 
 // Fila de sección que abre el detalle.
 const filaSeccion = (cls, ic, titulo, resumen, alAbrir) => h('button', { type: 'button', class: 'rep-fila ' + cls, onclick: alAbrir },
-  h('span', { class: 'rep-fila-ic' }, icono(ic)), h('span', { class: 'rep-fila-t' }, h('b', {}, titulo), resumen ? h('span', { class: 'nota' }, resumen) : null), icono('der'));
+  h('span', { class: 'rep-fila-ic' }, icono(ic)), h('span', { class: 'rep-fila-t' }, h('b', {}, titulo), resumen ? h('span', { class: 'nota' }, ...[].concat(resumen)) : null), icono('der'));
 
 registrarVista('/reportes', {
   montar(cont, ctx) {
@@ -107,7 +107,7 @@ registrarVista('/reportes', {
           filaSeccion('rep-ventas', 'historial', 'Ventas', `${validas} en este período`, () => abrirVentana({ titulo: 'Ventas', contenido: listaVentas(ctx, datos.ventas, 200) })),
           gestion ? filaSeccion('bajas', 'alerta', 'Existencias bajas', bajas.length ? `${bajas.length} ${bajas.length === 1 ? 'talla' : 'tallas'} en el mínimo o menos` : 'Todo en orden', () => abrirVentana({ titulo: 'Existencias bajas', contenido: h('div', { class: 'rep-det bajas-det' },
             ...(bajas.length ? bajas.slice(0, 100).map(p => h('div', { class: 'fila-rep' }, h('span', {}, `${p.grupo} · Talla ${p.talla || p.sku}`), h('b', { class: 'num ' + (p.existencia <= 0 ? 'neg' : '') }, `${p.existencia} / mín. ${p.minimo || 0}`))) : [h('p', { class: 'nota' }, 'Ninguna talla está en el mínimo.')])) })) : null,
-          gestion ? filaSeccion('rep-inv', 'caja', 'Valor del inventario', `${fmtCop(inv.aCosto)} a costo · ${fmtCop(inv.aPrecio)} a precio`, () => abrirVentana({ titulo: 'Valor del inventario', contenido: h('div', { class: 'rep-det' },
+          gestion ? filaSeccion('rep-inv', 'caja', 'Valor del inventario', [`${fmtCop(inv.aCosto)} a costo`, h('br'), `${fmtCop(inv.aPrecio)} a precio`], () => abrirVentana({ titulo: 'Valor del inventario', contenido: h('div', { class: 'rep-det' },
             h('div', { class: 'fila-rep' }, h('span', {}, 'A costo'), h('b', { class: 'num' }, fmtCop(inv.aCosto))),
             h('div', { class: 'fila-rep' }, h('span', {}, 'A precio detal'), h('b', { class: 'num' }, fmtCop(inv.aPrecio))),
             h('div', { class: 'fila-rep' }, h('span', {}, 'Diferencia'), h('b', { class: 'num' }, fmtCop(inv.aPrecio - inv.aCosto)))) })) : null)));
@@ -145,7 +145,7 @@ registrarVista('/comisiones', {
       res.replaceChildren(
         h('div', { class: 'tarjeta com-hero' },
           h('span', { class: 'et' }, r.pendiente > 0 ? `Por pagar a ${quien?.nombre || vendedor}` : `${quien?.nombre || vendedor} · comisiones`),
-          h('b', { class: 'num com-monto', id: 'com-pendiente' }, fmtCop(r.pendiente > 0 ? r.pendiente : r.total)),
+          h('b', { class: 'num com-monto', id: 'com-pendiente', style: `--n:${fmtCop(r.pendiente > 0 ? r.pendiente : r.total).length}` }, fmtCop(r.pendiente > 0 ? r.pendiente : r.total)),
           h('span', { class: 'nota' }, r.total ? (r.pendiente > 0 ? `de ${fmtCop(r.total)} ganados en el período` : 'Todo pagado') : 'Sin comisiones en el período'),
           r.total ? h('div', { class: 'com-prog' }, h('div', { class: 'ap-barra com-barra', role: 'progressbar', 'aria-label': 'Pagado', 'aria-valuenow': String(pagadoPct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: `width:${pagadoPct}%` })), h('span', { class: 'nota' }, `${pagadoPct} % pagado`)) : null,
           r.pendiente > 0 ? h('button', { class: 'btn primary grande', id: 'com-pagar', onclick: e => unaVez(e.currentTarget, async () => {

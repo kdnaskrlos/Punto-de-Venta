@@ -193,7 +193,7 @@ export function abrirVentana({ titulo, contenido, acciones, pantallaCompleta = f
 
 // modal:false deja usar el resto de la pantalla mientras la hoja está abierta (sin fondo oscuro).
 export function abrirHoja({ titulo, contenido, lado, modal = true, extraCab = null }) {
-  const l = lado || (matchMedia('(max-width:760px)').matches ? 'abajo' : 'derecha');
+  const l = lado || (matchMedia('(max-width:839px)').matches ? 'abajo' : 'derecha');
   const el = h('div', { class: `capa hoja ${l}${modal ? '' : ' no-modal'}`, role: 'dialog', 'aria-modal': String(modal), 'aria-label': titulo },
     modal ? h('div', { class: 'fondo' }) : null,
     h('div', { class: 'caja' }, cabecera(titulo, extraCab), h('div', { class: 'cuerpo' }, contenido)));
@@ -210,7 +210,7 @@ export function toast(texto, { deshacer, malo } = {}) {
   toastT = setTimeout(() => t.remove(), deshacer ? 5000 : 2600);
 }
 
-export function esTelefono() { return matchMedia('(max-width:760px)').matches; }
+export function esTelefono() { return matchMedia('(max-width:839px)').matches; }
 
 // Pide un texto obligatorio (motivo de anulación, cancelación, ajuste). Devuelve el texto o null.
 export function pedirMotivo({ titulo, etiqueta = 'Motivo', boton = 'Confirmar', peligro = false }) {

@@ -45,8 +45,8 @@ function tasas(ctx) {
     onclick: e => { if (modo.value !== v) { modo.value = v; pintar(); if (!e.target.closest('input')) e.currentTarget.dispatchEvent(new Event('change', { bubbles: true })); } } },
     h('div', { class: 'modo-cab' }, h('span', { class: 'radio' }), h('div', { class: 'modo-txt' }, h('b', {}, titulo), h('span', { class: 'nota' }, desc)), valor),
     extra);
-  const cBin = tarjeta('binance', 'Binance P2P', `Binance ${base ? fmtDec(base) : '—'} · ${haceTiempo(remota.updated_at)}`, valBin, h('div', { class: 'modo-extra' }, h('div', { class: 'fila-usd' }, h('span', { class: 'usd-eq' }, 'Recargo: +'), recargo)));
-  const cBcv = tarjeta('bcv', 'BCV oficial', `Dólar oficial del Banco Central · ${haceTiempo(remota.bcv?.updated_at)}`, valBcv, null);
+  const cBin = tarjeta('binance', 'Binance P2P', base ? `Binance ${fmtDec(base)} · ${haceTiempo(remota.updated_at)}` : 'Todavía sin datos', valBin, h('div', { class: 'modo-extra' }, h('div', { class: 'fila-usd' }, h('span', { class: 'usd-eq' }, 'Recargo: +'), recargo)));
+  const cBcv = tarjeta('bcv', 'BCV oficial', remota.bcv?.updated_at ? `Banco Central · ${haceTiempo(remota.bcv.updated_at)}` : 'Banco Central · sin datos', valBcv, null);
   const cMan = tarjeta('manual', 'Manual', 'Escribe tú la tasa: cuántos Bs. equivalen a 1 USD', valMan, h('div', { class: 'modo-extra' }, filaUsd(manual)));
   const grupo = h('div', { class: 'modos-bs', id: 'aj-bs-modo', role: 'radiogroup', 'aria-label': 'Bs por dólar' }, cBin, cBcv, cMan);
   function pintar() {

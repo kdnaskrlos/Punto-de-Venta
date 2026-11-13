@@ -51,7 +51,7 @@
 @keyframes sube{from{transform:translateY(14px)}to{transform:none}}
 @keyframes desliza{from{transform:translateX(30px)}to{transform:none}}
 @keyframes subeh{from{transform:translateY(36px)}to{transform:none}}
-@media (max-width:760px){
+@media (max-width:839px){
   .capa.ventana.completa{padding:0}
   .ventana.completa .caja{max-width:none;height:100%;max-height:none;border-radius:0}
 }
@@ -59,7 +59,7 @@
 /* Toast */
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:12px;font-weight:700;z-index:300;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:92vw;font-size:13px;white-space:nowrap;display:flex;gap:16px;align-items:center}
 .toast button{border:0;border-radius:8px;padding:8px 12px;font-weight:700;background:color-mix(in srgb,var(--bg) 16%,transparent);color:var(--g-bd)}
-@media (max-width:760px){.toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
+@media (max-width:839px){.toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 
 /* Recuadros KPI */
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
@@ -92,7 +92,7 @@
 .fila-btn.peligro,.fila-btn.peligro svg.i{color:var(--err)}
 .lista-mas{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);padding:4px;margin-bottom:16px;background:var(--surface)}
 .cuenta-btn{width:52px;height:52px;border-radius:12px}
-@media (max-width:760px){.cuenta-btn{display:none}}
+@media (max-width:839px){.cuenta-btn{display:none}}
 
 /* Vender */
 .vista.vender{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start;padding:0 0 0 16px}
@@ -172,7 +172,7 @@
 .segmentado button:last-child{border-right:0}
 .segmentado button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 [hidden]{display:none!important}
-@media (max-width:760px){
+@media (max-width:839px){
   .vista.vender{display:block;padding:0 12px}
   .vista.vender .vender-main{padding:12px 0}
   .lado-carrito{display:none}
@@ -229,7 +229,7 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .listo h2{font-size:20px;font-weight:800}
 .listo .btn{width:100%;max-width:360px}
 .btn.recibo{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
-@media (max-width:760px){.cliente{grid-template-columns:1fr}.pago{grid-template-columns:minmax(0,1fr) 140px 44px}}
+@media (max-width:839px){.cliente{grid-template-columns:1fr}.pago{grid-template-columns:minmax(0,1fr) 140px 44px}}
 .forma span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pie-cobro{display:flex;flex-direction:column;gap:8px;max-width:560px;margin:0 auto;width:100%}
 
@@ -264,7 +264,7 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .caja-cerrada{display:flex;align-items:center;gap:12px;justify-content:space-between;border-top:1px solid var(--line);padding:8px 0}
 .caja-cerrada>div{flex:1;min-width:0}
 .ok-aviso{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
-@media (max-width:760px){.fondos{grid-template-columns:1fr}.fila-cierre{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}.fila-cierre.cab{display:none}}
+@media (max-width:839px){.fondos{grid-template-columns:1fr}.fila-cierre{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}.fila-cierre.cab{display:none}}
 
 /* Inventario */
 .vista[data-ruta="/inventario"]{display:flex;flex-direction:column;gap:12px}
@@ -296,7 +296,7 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .saludo{font-size:24px;font-weight:800;margin:0}
 .fecha-hoy{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--muted)}
 .fecha-hoy svg.i{width:15px;height:15px}
-@media (max-width:760px){.saludo{font-size:20px}.tiles{grid-template-columns:1fr 1fr}}
+@media (max-width:839px){.saludo{font-size:20px}.tiles{grid-template-columns:1fr 1fr}}
 .saludo span{color:var(--accent)}
 .vista[data-ruta="/inicio"]>*+*{margin-top:16px}
 .tile .tile-ic{position:absolute;right:-6px;top:-6px;width:64px;height:64px;opacity:.12;color:var(--c);pointer-events:none}
@@ -330,10 +330,10 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .dos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .usuario{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:8px}
 .usuario .u-info{flex:1;min-width:140px}
-@media (max-width:760px){.ajustes{grid-template-columns:1fr}.rango .segmentado{min-width:0;width:100%}}
+@media (max-width:839px){.ajustes{grid-template-columns:1fr}.rango .segmentado{min-width:0;width:100%}}
 
 /* Teclado abierto en el teléfono: fuera la barra inferior y la barra del carrito */
-@media (max-width:760px){
+@media (max-width:839px){
   body.teclado .side,body.teclado .barra-carrito{display:none!important}
   body.teclado .main{padding-bottom:0}
 }
@@ -376,14 +376,14 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .talla-fila{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px}
 .tf-info{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
 /* Inventario en el teléfono: valores en una fila compacta */
-@media (max-width:760px){
+@media (max-width:839px){
         .filtros{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -12px;padding:0 12px}
   .filtros::-webkit-scrollbar{display:none}
   .filtros .chip{flex:none}
 }
 
 /* Ajustes: formas de pago con el nombre completo a lo ancho */
-@media (max-width:760px){
+@media (max-width:839px){
   .forma-aj{grid-template-columns:minmax(0,1fr) auto;row-gap:2px}
   .forma-aj .inp{grid-column:1/-1}
 }
@@ -400,7 +400,7 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 .dia.hoy::after{content:'';position:absolute;left:50%;bottom:5px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:currentColor}
 /* Barra fija para guardar los cambios de Ajustes */
 .guardar-ajustes{display:flex;justify-content:flex-end;margin-top:12px}
-@media (max-width:760px){.guardar-ajustes .btn{width:100%;min-height:52px}}
+@media (max-width:839px){.guardar-ajustes .btn{width:100%;min-height:52px}}
 
 /* Ajustes en 5 apartados (v1.21) */
 .pestanas-aj{margin:4px 0 12px;overflow-x:auto}
@@ -488,7 +488,7 @@ textarea.plantilla{min-height:220px;line-height:1.45}
 .calc-caja .ibtn{color:var(--muted)}
 
 /* Tasas del día (v1.23) */
-@media (max-width:760px){.tasa-meta{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px}}
+@media (max-width:839px){.tasa-meta{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px}}
 .tasa-val{font-size:24px;font-weight:800;line-height:1.05;color:var(--c);white-space:nowrap}
 .tasa-val small{font-size:13px;font-weight:800;margin-left:4px}
 .tasa-meta{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
@@ -664,7 +664,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .tp-tallas span{font-size:12px;font-weight:700;line-height:1;padding:4px 4px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink)}
 .tp-tallas span.sin{color:var(--muted);text-decoration:line-through;opacity:.7}
 .tarjeta-prenda .precio{font-size:16px;font-weight:800}
-@media (max-width:760px){.tarjeta-prenda .foto{height:80px}.tarjeta-prenda .foto.silueta > svg.i{width:40px;height:40px}}
+@media (max-width:839px){.tarjeta-prenda .foto{height:80px}.tarjeta-prenda .foto.silueta > svg.i{width:40px;height:40px}}
 
 /* Inicio y Cobrar ordenados (v1.35) */
 .tiles .tile:last-child:nth-child(odd){grid-column:1/-1}
@@ -780,7 +780,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 
 /* v1.37 — Vender: tarjetas compactas con imagen cuadrada (foto o ícono gris del tipo de prenda) */
 .rejilla{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
-@media (max-width:760px){.rejilla{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:839px){.rejilla{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .tarjeta-prenda{flex-direction:row;align-items:center;gap:12px;padding:8px;border-radius:12px;box-shadow:none;background:var(--surface);min-width:0}
 .tarjeta-prenda .foto,.miniatura{flex:none;width:64px;height:64px;aspect-ratio:1;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;color:var(--muted);overflow:hidden;position:static}
 .tarjeta-prenda .foto img,.miniatura img{width:100%;height:100%;object-fit:cover}
@@ -838,7 +838,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .cab-vista:has(> .acciones:empty){display:none}
 .mini-tallas .mt{font-size:12px}
 .mini-tallas .mt b{font-size:13px}
-@media (min-width:761px){.lista-inv{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px}}
+@media (min-width:840px){.lista-inv{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px}}
 
 /* v1.37 — Reportes: menos texto, más gráfica; cada sección abre su detalle */
 .rep{gap:12px}
@@ -1008,7 +1008,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .capa.ventana.desplegable .fondo{background:rgba(15,23,42,.18)}
 .capa.ventana.desplegable .caja{max-width:440px;border-radius:16px;box-shadow:0 18px 44px rgba(15,23,42,.18);transform-origin:top center;animation:baja .26s cubic-bezier(.22,.9,.3,1)}
 .capa.ventana.desplegable .cuerpo{padding:4px 16px 8px}
-@media (min-width:761px){.capa.ventana.desplegable{justify-content:flex-end;padding-right:70px}}
+@media (min-width:840px){.capa.ventana.desplegable{justify-content:flex-end;padding-right:70px}}
 @keyframes baja{from{opacity:0;transform:translateY(-14px) scaleY(.92)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.capa.ventana.desplegable .caja{animation:none}}
 .desplegable .tasa-fila{padding:16px 0}
@@ -1082,7 +1082,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 
 /* v1.39 — Vender: filas de prenda (imagen, nombre, color y tallas; disponibles y precio a la derecha) */
 .rejilla{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:8px}
-@media (max-width:760px){.rejilla{grid-template-columns:1fr}}
+@media (max-width:839px){.rejilla{grid-template-columns:1fr}}
 .tarjeta-prenda{display:flex;flex-direction:row;align-items:center;grid-template-areas:none;gap:12px;padding:12px 12px 12px 12px;border-radius:12px}
 .tp-img{position:relative;flex:none}
 .tarjeta-prenda .foto{width:56px;height:56px;border-radius:12px}

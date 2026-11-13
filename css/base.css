@@ -43,7 +43,7 @@ button.pill>span{border:1px solid var(--line);background:var(--surface-2);border
 .ver-pie{margin:16px 0 4px;text-align:center;font-size:12px;font-weight:600;color:var(--muted)}
 
 /* Teléfono */
-@media (max-width:760px){
+@media (max-width:839px){
   .side{inset:auto 0 0 0;width:auto;height:auto;flex-direction:row;justify-content:space-around;align-items:center;padding:8px max(4px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(4px,env(safe-area-inset-left,0px));border-right:0;border-top:1px solid var(--line)}
   .side .logo,.side .grow,.side .ver{display:none}
   .nav{width:auto;min-width:56px;flex:1;max-width:84px;padding:4px 2px;font-size:12px}

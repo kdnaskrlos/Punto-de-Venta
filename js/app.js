@@ -132,7 +132,7 @@ export function mostrarApp() {
     escuchando = true;
     window.addEventListener('hashchange', () => { if (ctx.sesion) montar(); });
     window.addEventListener('pos:datos', e => { if (ctx.sesion && ['tasas', 'conexion'].includes(e.detail.que) && cabecera) pintarCabecera(); });
-    matchMedia('(max-width:760px)').addEventListener('change', () => { if (ctx.sesion) pintarNav(); });
+    matchMedia('(max-width:839px)').addEventListener('change', () => { if (ctx.sesion) pintarNav(); });
     addEventListener('online', () => ctx.sesion && pintarCabecera()); addEventListener('offline', () => ctx.sesion && pintarCabecera());
   }
   raiz.dataset.listo = '1';

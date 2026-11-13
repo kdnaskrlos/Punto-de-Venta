@@ -161,7 +161,7 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
       h('div', { class: 'caja-total' },
         h('div', { class: 'et-total' }, 'Total'),
         h('div', { class: 'tc-der' },
-          h('div', { class: 'total' }, h('span', { class: 'total-cop num' }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
+          h('div', { class: 'total' }, h('span', { class: 'total-cop num', style: `--n:${fmtCop(r.total).length}` }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
           h('div', { class: 'tc-eq' }, equivalentes(ctx, r.total))))),
     h('div', { class: 'acciones-carrito' },
       h('button', { class: 'btn', onclick: () => abrirDescuento(ctx) }, icono('porcentaje'), 'Descuento'),
@@ -271,7 +271,9 @@ function tarjeta(ctx, g) {
       h('b', {}, g.producto),
       h('span', { class: 'tp-linea' },
         g.color ? h('span', { class: 'tp-color' }, h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }), g.color) : null,
-        h('span', { class: 'tp-tallas' }, h('span', { class: 'tp-pal' }, 'Tallas: '), ...tallas.flatMap((p, i) => [i ? ' · ' : '', h('span', { class: p.existencia > 0 ? '' : 'sin' }, p.talla || p.sku)])))),
+        h('span', { class: 'tp-tallas' }, h('span', { class: 'tp-pal' }, 'Tallas: '), ...tallas.slice(0, 5).flatMap((p, i) => [i ? ' · ' : '', h('span', { class: p.existencia > 0 ? '' : 'sin' }, p.talla || p.sku)]),
+          // Con muchas tallas, las 5 primeras y «+N»: la fila nunca se parte en dos líneas.
+          tallas.length > 5 ? h('span', { class: 'tp-mas', 'aria-label': `y ${tallas.length - 5} tallas más` }, ` +${tallas.length - 5}`) : null))),
     h('span', { class: 'tp-der' },
       agotada ? h('span', { class: 'est r tp-estado' }, icono('alerta'), 'Agotada')
         : h('span', { class: 'est tp-disp ' + (pocas ? 'y' : 'g') }, `${existencia} disp.`),

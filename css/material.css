@@ -111,3 +111,15 @@
 .ap-main{line-height:1.3}
 .ap-main .pastilla{line-height:1.2}
 .grupo-inv{line-height:1.3}
+.ap-det-fila.prenda{grid-template-columns:minmax(0,1fr) auto}
+.ap-det-pn{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+.rep-fila-t .nota{white-space:normal}
+/* Montos que se encogen solos: hasta 9 caracteres («1.234.567») conservan su tamaño;
+   más largos se reducen en proporción para no partirse ni salirse de la tarjeta. */
+.total-cop[style*="--n"]{font-size:max(16px,calc(24px * 9 / max(var(--n), 9)))}
+.caja-total .total-cop[style*="--n"],.com-monto[style*="--n"],.ap-det-cifras b.grande[style*="--n"]{font-size:max(18px,calc(32px * 9 / max(var(--n), 9)))}
+.tp-mas{color:var(--muted);font-weight:700}
+/* Ventanas adaptables (Material 3): compacto < 600, mediano 600–839, expandido ≥ 840.
+   Vender: una columna en el teléfono, dos en la tableta, rejilla libre en la computadora. */
+@media (min-width:600px) and (max-width:839px){.rejilla{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:600px) and (max-width:839px){.tp-tallas .tp-pal{display:none}}

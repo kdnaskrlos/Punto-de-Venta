@@ -274,3 +274,12 @@ Suite final: npm test 99/99 · e2e 59/59
 - Apartados: sin el círculo con la inicial; la pastilla de estado a la altura del nombre y el monto a la altura de la fecha.
 - Carrito: contador arriba a la derecha (con 1 unidad el − es un bote), sin línea vertical ni bote aparte, sin el ícono ⇄. Con más de 2 prendas las líneas se compactan y se abren al tocarlas, con transiciones de altura como en Pedidos (ponerCarrito). El aviso amarillo de tramos entra deslizándose y late dos veces.
 - Vender: tallas abajo a la altura del precio y sin línea vertical.
+
+## v1.44 — Principios de Material Design 3 con la identidad de Comic Shop
+- Se conservan fuente, colores, verde de acción y tonos crema; se adaptan las reglas de Material 3. Tres desviaciones deliberadas: campos de 48px (M3 usa 56), botones de 48px (M3 usa 40 con área de toque de 48) y ventanas con radio de 16px (M3 usa 28).
+- Escala de 4/8: espacios, radios (4·8·12·16) y tamaños de letra normalizados en componentes.css y base.css; peso 800 solo en cifras.
+- css/material.css: botones 40/48/56, deshabilitado gris de M3, botón de texto, campos unificados (fondo blanco, borde #c4cad3, foco con borde de 2px), un solo estilo de cerrar, títulos de sección iguales, tarjetas sin sombra y dos niveles de elevación, áreas de toque de 48px con ::after, capas de estado al pasar y presionar, foco visible, botón «cargando» con ruedita y movimiento reducido.
+- Jerarquía y estados: «Ventas de hoy» ocupa todo el ancho en Inicio y las cifras en cero se apagan; formas de pago con un menú ⋮ (Editar/Eliminar); en Cobros cada forma tiene su tono dentro del color de su moneda; el botón final dice «Cobrando…» y Ajustes «Guardando…»; en tallas el + se apaga al llegar a la existencia y aparece «Máximo N».
+- Tarjetas de lista compactas: Apartados 89px e Inventario 78px, todas iguales (la pastilla de aviso toma el lugar de «unidades»).
+- Detalles: talla bajo el nombre en el detalle del apartado; «Valor del inventario» en dos líneas; descripciones cortas en Binance/BCV; montos grandes que se encogen solos según su largo (--n); en Vender máximo 5 tallas y «+N».
+- Ventanas adaptables de M3: teléfono y tableta hasta 839px (barra abajo), computadora desde 840px; Vender en una columna < 600px, dos columnas de 600 a 839px y rejilla libre desde 840px.
