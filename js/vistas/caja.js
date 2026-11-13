@@ -18,14 +18,16 @@ function campoMonto(id, etiqueta, moneda) {
 function formasCaja(ctx) { return ctx.ajustes.formasPago || []; }
 
 // Campos del fondo inicial. Los que quedan vacíos cuentan como 0.
-function camposFondo() {
-  const fondos = h('div', { class: 'fondos' }, campoMonto('fondo-cop', 'Pesos (COP)', 'COP'), campoMonto('fondo-usd', 'Dólares (USD)', 'USD'), campoMonto('fondo-bs', 'Bs', 'BS'));
+// Solo las monedas que tienen efectivo en las formas de pago (ya no hay efectivo en Bs).
+function camposFondo(ctx) {
+  const hay = m => !ctx || (ctx.ajustes.formasPago || []).some(f => f.efectivo && f.moneda === m && f.activa !== false);
+  const fondos = h('div', { class: 'fondos' }, campoMonto('fondo-cop', 'Pesos (COP)', 'COP'), campoMonto('fondo-usd', 'Dólares (USD)', 'USD'), hay('BS') ? campoMonto('fondo-bs', 'Bs', 'BS') : null);
   fondos.querySelectorAll('input').forEach(i => { i.placeholder = '0'; });
   return fondos;
 }
 
 async function confirmarApertura(ctx, raiz, boton) {
-  const v = (id, m) => parseMonto(raiz.querySelector('#' + id).value, m) || 0;
+  const v = (id, m) => parseMonto(raiz.querySelector('#' + id)?.value, m) || 0;
   boton.disabled = true;
   const r = await ctx.almacen.abrirCaja({ COP: v('fondo-cop', 'COP'), USD: v('fondo-usd', 'USD'), BS: v('fondo-bs', 'BS') });
   boton.disabled = false;
@@ -40,7 +42,7 @@ function abrirFormulario(ctx, cont) {
   const form = h('div', { class: 'tarjeta abrir-caja pila' },
     h('h2', { class: 'sec-t' }, icono('cartera'), 'Abrir caja'),
     h('p', { class: 'nota' }, 'Cuenta el efectivo con el que empiezas. Deja en blanco lo que no tengas.'),
-    camposFondo(), b);
+    camposFondo(ctx), b);
   b.addEventListener('click', () => confirmarApertura(ctx, form, b));
   cont.replaceChildren(form);
 }
@@ -66,7 +68,7 @@ export function abrirCajaVentana(ctx, alAbrir) {
   const pendiente = (ctx.porArquear || []).find(c => c.usuario === ctx.sesion.usuario);
   if (pendiente) { arquearYAbrir(ctx, pendiente, alAbrir); return; }
   const b = h('button', { class: 'btn primary grande', id: 'abrir-caja' }, icono('cartera'), 'Abrir caja');
-  const cuerpo = h('div', { class: 'pila' }, h('p', { class: 'nota' }, 'Cuenta el efectivo con el que empiezas. Deja en blanco lo que no tengas.'), camposFondo());
+  const cuerpo = h('div', { class: 'pila' }, h('p', { class: 'nota' }, 'Cuenta el efectivo con el que empiezas. Deja en blanco lo que no tengas.'), camposFondo(ctx));
   const v = abrirVentana({ titulo: 'Abrir caja', contenido: cuerpo, acciones: b });
   b.addEventListener('click', async () => { if (await confirmarApertura(ctx, cuerpo, b)) { v.cerrar(); alAbrir && alAbrir(); } });
 }

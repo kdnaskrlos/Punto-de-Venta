@@ -72,7 +72,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       const v = vueltoEn(e.vueltoCop, monedaVuelto, ctx.tasas, red);
       barra.className = 'barra-falta vuelto';
       barra.replaceChildren(h('span', {}, 'Vuelto'), ' ', h('span', { class: 'monto num' }, v == null ? 'Sin tasa' : `${fmtMonto(v, monedaVuelto)} ${NOMBRE_MONEDA[monedaVuelto]}`),
-        h('div', { class: 'vuelto-moneda segmentado' }, ...GRUPOS.map(([m]) => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === monedaVuelto), disabled: vueltoEn(e.vueltoCop, m, ctx.tasas, red) == null, onclick: () => { monedaVuelto = m; pintarBarra(); avisar(); } }, NOMBRE_MONEDA[m]))));
+        h('div', { class: 'vuelto-moneda segmentado' }, ...GRUPOS.filter(([m]) => formaEfectivo(formas, m)).map(([m]) => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === monedaVuelto), disabled: vueltoEn(e.vueltoCop, m, ctx.tasas, red) == null, onclick: () => { monedaVuelto = m; pintarBarra(); avisar(); } }, NOMBRE_MONEDA[m]))));
     } else if (e.cuadra || (permitirMenos && e.faltaCop < total)) {
       barra.className = 'barra-falta ok';
       barra.replaceChildren(h('span', {}, permitirMenos && !e.cuadra ? 'Saldo' : 'Falta'), ' ', h('span', { class: 'monto num' }, fmtCop(e.cuadra ? 0 : e.faltaCop)));

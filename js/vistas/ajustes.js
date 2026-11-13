@@ -78,21 +78,26 @@ function venta(ctx) {
   const aj = ctx.ajustes;
   const tramos = [...aj.tramos];
   const coms = aj.comisiones.map(c => (c ? { ...c } : null));
+  // Tramos y comisión: tarjetas que se despliegan (como Usuarios).
+  const desplegable = (id, ic, titulo, desc, ...cuerpo) => {
+    const det = h('details', { class: 'despl', id }, h('summary', {}, h('span', { class: 'despl-ic' }, icono(ic)),
+      h('span', { class: 'despl-t' }, h('b', {}, titulo), h('span', { class: 'nota' }, desc)), icono('abajo')), h('div', { class: 'despl-cuerpo' }, ...cuerpo));
+    return det;
+  };
   const el = seccion(null, null,
-    h('div', { class: 'rejilla-aj' }, campo('aj-tienda', 'Nombre de la tienda', { value: aj.tienda?.nombre || '' }), campo('aj-redondeo', 'Redondeo del vuelto (COP)', { inputmode: 'numeric', value: String(aj.redondeo) }), campo('aj-desc-max', 'Descuento máximo de la vendedora (%)', { inputmode: 'decimal', value: String(aj.descuentoMaxVendedora) })),
-    h('h3', { class: 'sub-t' }, 'Tramos (desde cuántas prendas)'),
-    h('div', { class: 'rejilla-aj' }, ...tramos.map((t, i) => h('div', { class: 'campo' }, h('label', {}, `Tramo ${i + 1}`), h('input', { class: 'inp num', inputmode: 'numeric', value: String(t), disabled: i === 0, oninput: e => { tramos[i] = Number(e.target.value) || tramos[i]; } })))),
-    h('h3', { class: 'sub-t' }, 'Comisión por prenda (si el producto no trae la suya)'),
-    h('div', { class: 'rejilla-aj' }, ...coms.map((c, i) => h('div', { class: 'campo' }, h('label', {}, `${etiquetaTramo(i, tramos)}: normal / reducida`),
-      h('div', { class: 'dos' }, montoCom(`aj-com-${i}-normal`, c ? c.valor : null, i ? `Igual que ${etiquetaTramo(i - 1, tramos)}` : '', n => { coms[i] = n == null ? null : { ...(coms[i] || { tipo: 'Fijo' }), valor: n, reducida: coms[i]?.reducida ?? n }; }),
-        montoCom(`aj-com-${i}-reducida`, c ? c.reducida : null, i ? `Igual que ${etiquetaTramo(i - 1, tramos)}` : '', n => { if (coms[i]) coms[i].reducida = n ?? coms[i].valor; }))))),
+    h('div', { class: 'rejilla-aj' }, campo('aj-redondeo', 'Redondeo del vuelto (COP)', { inputmode: 'numeric', value: String(aj.redondeo) })),
+    desplegable('aj-tramos', 'etiqueta', 'Tramos de precio', 'Desde cuántas prendas cambia el precio',
+      h('div', { class: 'rejilla-aj' }, ...tramos.map((t, i) => h('div', { class: 'campo' }, h('label', {}, `Tramo ${i + 1}`), h('input', { class: 'inp num', inputmode: 'numeric', value: String(t), disabled: i === 0, oninput: e => { tramos[i] = Number(e.target.value) || tramos[i]; } }))))),
+    desplegable('aj-comision', 'cartera', 'Comisión por prenda', 'Si el producto no trae la suya; normal y reducida (descuento u oferta)',
+      h('div', { class: 'rejilla-aj' }, ...coms.map((c, i) => h('div', { class: 'campo' }, h('label', {}, `${etiquetaTramo(i, tramos)}: normal / reducida`),
+        h('div', { class: 'dos' }, montoCom(`aj-com-${i}-normal`, c ? c.valor : null, i ? `Igual que ${etiquetaTramo(i - 1, tramos)}` : '', n => { coms[i] = n == null ? null : { ...(coms[i] || { tipo: 'Fijo' }), valor: n, reducida: coms[i]?.reducida ?? n }; }),
+          montoCom(`aj-com-${i}-reducida`, c ? c.reducida : null, i ? `Igual que ${etiquetaTramo(i - 1, tramos)}` : '', n => { if (coms[i]) coms[i].reducida = n ?? coms[i].valor; })))))),
   );
   const guardar = async () => {
     for (let i = 1; i < tramos.length; i++) if (tramos[i] <= tramos[i - 1]) { toast('Cada tramo debe empezar después del anterior', { malo: true }); return false; }
     const v = id => el.querySelector('#' + id).value;
     return {
-      tienda: { ...(aj.tienda || {}), nombre: v('aj-tienda').trim() || 'Comic Shop' },
-      redondeo: parseMonto(v('aj-redondeo'), 'COP') || 100, descuentoMaxVendedora: Number(String(v('aj-desc-max')).replace(',', '.')) || 0,
+      redondeo: parseMonto(v('aj-redondeo'), 'COP') || 100,
       tramos, comisiones: coms,
     };
   };
@@ -110,7 +115,7 @@ function pagos(ctx, alCambiar) {
         onclick: () => { f.activa = !activa; pintar(); alCambiar(); } },
         h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
         h('span', { class: 'forma-txt' }, h('b', {}, f.nombre),
-          h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), f.efectivo ? ' · efectivo' : '', ' · ', h('span', { class: 'forma-est' }, activa ? 'Activa' : 'Apagada')))),
+          h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), f.efectivo ? ' · efectivo' : ''))),
       h('div', { class: 'forma-acc' },
         h('button', { type: 'button', class: 'ibtn chico', 'aria-label': `Editar ${f.nombre}`, onclick: () => editarForma(f, d => { Object.assign(f, d); pintar(); alCambiar(); }) }, icono('lapiz')),
         h('button', { type: 'button', class: 'ibtn chico peligro', 'aria-label': `Eliminar ${f.nombre}`, onclick: () => {

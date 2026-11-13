@@ -1248,3 +1248,83 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 
 
 
+
+/* v1.43 — Ajustes → Pagos en dos columnas: ícono y acciones arriba, nombre y moneda abajo (el color dice si está activa) */
+.formas-aj{grid-template-columns:repeat(2,minmax(0,1fr))}
+.formas-aj .forma-nueva{grid-column:1/-1}
+.formas-aj .forma-toque{flex-direction:column;align-items:flex-start;gap:8px;min-height:0;padding:10px 12px 12px}
+.formas-aj .forma-ic{width:38px;height:38px}
+.formas-aj .forma-txt{width:100%}
+.formas-aj .forma-toque b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.formas-aj .forma-acc{top:6px;right:4px;transform:none}
+
+/* v1.43 — Pastillas más compactas (Vender, Inventario, Apartados) y con el contorno completo */
+.chip{min-height:34px;padding:0 13px;font-size:13px}
+.filtros,.filtro-ap,.filtro-inv{padding-top:2px;padding-bottom:2px}
+.filtro-ap .chip,.filtro-inv .chip{border:1px solid var(--line)}
+.filtro-ap .chip.activo,.filtro-inv .chip.activo{border-color:var(--sel-neu)}
+.filtro-ap .cuenta,.filtro-inv .cuenta{min-width:18px;height:18px;font-size:11px}
+/* Tarjeta de apartado: la pastilla arriba (a la altura del nombre) y el monto abajo (a la altura de la fecha) */
+.apartado{align-items:stretch}
+.apartado .avatar,.apartado > svg.i{align-self:center}
+.ap-der{justify-content:space-between;gap:6px;padding:1px 0}
+.ap-der .est{line-height:1.3}
+/* Ajustes → Venta: tramos y comisión en tarjetas desplegables */
+.despl{border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.despl > summary{display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 12px;cursor:pointer;list-style:none;border-radius:14px}
+.despl > summary::-webkit-details-marker{display:none}
+.despl-ic{flex:none;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--surface-2);color:var(--ink)}
+.despl-ic svg.i{width:19px;height:19px}
+.despl-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.despl-t b{font-size:15px}
+.despl-t .nota{font-size:12.5px;font-weight:400}
+.despl > summary > svg.i{flex:none;width:18px;height:18px;color:var(--muted);transition:transform .2s}
+.despl[open] > summary > svg.i{transform:rotate(180deg)}
+.despl-cuerpo{padding:4px 12px 14px;border-top:1px solid var(--line);margin:0 12px;padding-left:0;padding-right:0}
+.despl-cuerpo .rejilla-aj{margin-top:10px}
+.despl-cuerpo label{font-weight:400}
+@media (hover:hover){.despl > summary:hover{background:var(--surface-2)}}
+
+/* v1.43 — Carrito: contador arriba a la derecha (con 1 unidad el − es un bote de basura), sin línea vertical;
+   con más de 2 prendas las líneas se compactan y se abren al tocarlas (como en Pedidos) */
+.linea{grid-template-columns:60px minmax(0,1fr) auto;grid-template-areas:"foto info der";row-gap:0}
+.linea-der{border-left:0;padding-left:0;justify-content:space-between;align-items:flex-end}
+.linea-pie{display:none}
+.lc-cont{gap:2px;border:1px solid var(--line);border-radius:10px;padding:2px;background:var(--surface)}
+.lc-cont button{width:32px;height:32px;border:0;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;color:var(--ink)}
+.lc-cont button svg.i{width:16px;height:16px}
+.lc-cont .quitar{color:var(--err);background:var(--r-bg)}
+.lc-cont .cant{min-width:24px;text-align:center;font-weight:800}
+.lc-pie{display:flex;flex-direction:column;align-items:flex-end;gap:0}
+.lc-pie .lc-cu{margin:0;font-size:11.5px}
+.linea-info b{display:flex;align-items:center;gap:4px}
+.lc-plegar{margin:-8px 0 -8px -2px;color:var(--muted)}
+.lc-plegar svg.i{width:16px;height:16px}
+.linea.mini{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;grid-template-areas:none}
+.lc-q{flex:none;min-width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:14px;background:var(--surface-2)}
+.lc-t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14.5px}
+.lc-t b{font-weight:800}
+.lc-t small{font-size:12.5px;font-weight:600;color:var(--muted)}
+.linea.mini .lc-monto .monto{font-size:15px}
+.linea.mini > svg.i{flex:none;width:18px;height:18px;color:var(--muted)}
+@media (hover:hover){.linea.mini:hover{background:var(--surface-2)}}
+.lineas.compactas{gap:8px}
+/* Aviso de tramos: entra deslizándose y late un par de veces (como el aviso nuevo de Pedidos) */
+.aviso-tramo.anim{animation:anpulso 1.4s ease-in-out 2 both}
+.aviso-tramo.anim svg.i{animation:anmueve 1.4s ease-in-out 2 both}
+@keyframes anpulso{0%,100%{box-shadow:0 0 0 0 rgba(234,179,8,0);transform:scale(1)}35%{box-shadow:0 0 0 6px rgba(234,179,8,.28);transform:scale(1.015)}}
+@keyframes anmueve{0%,100%{transform:rotate(0)}15%{transform:rotate(-14deg)}30%{transform:rotate(12deg)}45%{transform:rotate(-8deg)}60%{transform:rotate(0)}}
+@media (prefers-reduced-motion:reduce){.aviso-tramo.anim,.aviso-tramo.anim svg.i{animation:none}}
+.tc-eq{gap:0}
+
+/* Vender: tallas abajo a la altura del precio y sin línea vertical */
+.tarjeta-prenda{align-items:stretch}
+.tarjeta-prenda .tp-img{align-self:center}
+.tarjeta-prenda .info{justify-content:space-between;padding:2px 0}
+.tp-der{border-left:0;padding-left:0;justify-content:space-between;padding:2px 0}
+.tp-der .precio{line-height:1.1}
+.tarjeta-prenda .tp-linea{line-height:1.1}
+/* Apartados sin el círculo con la inicial */
+.apartado{padding-left:14px}
+.linea.abierta{cursor:pointer}
+#aj-tramos .rejilla-aj{grid-template-columns:repeat(3,minmax(0,1fr))}

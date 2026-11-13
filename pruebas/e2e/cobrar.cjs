@@ -64,14 +64,15 @@ casos('cobrar', [
     a.strictEqual((await ventas(p)).length, 1);
     a.strictEqual(await existencia(p, 'J-M'), 4);
   }],
-  ['Vuelto en Bs con 40 USD: 11.025,64', async (env, a) => {
+  ['Vuelto: solo en monedas con efectivo (ya no hay efectivo en Bs)', async (env, a) => {
     const p = await preparar(env);
     await p.click('.lado-carrito .cobrar');
     await p.click('.forma[data-forma="efectivo-usd"]');
     await p.fill('.pago[data-forma="efectivo-usd"] input', '40');
     a.ok((await texto(p, '.barra-falta')).startsWith('Vuelto'));
-    await p.click('.vuelto-moneda [data-moneda="BS"]');
-    a.strictEqual(await texto(p, '.barra-falta .monto'), '11.025,64 Bs');
+    a.strictEqual(await p.$('.vuelto-moneda [data-moneda="BS"]'), null);
+    a.ok(await p.$('.vuelto-moneda [data-moneda="USD"]'));
+    a.strictEqual(await p.$('.forma[data-forma="efectivo-bs"], .forma[data-forma="punto"]'), null);
   }],
   ['Sin tasa de Bs: botones de bolívares desactivados', async (env, a) => {
     const p = await preparar(env);
@@ -93,7 +94,7 @@ casos('cobrar', [
   ['Descuento: al quitar prendas no puede pasar el máximo sin autorización (revisión final)', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'B-S', cantidad: 2 }, { sku: 'F-B-6', cantidad: 2 }], descuento: { tipo: 'monto', valor: 7000 }, autorizacion: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
-    await p.click('.linea[data-sku="B-S"] [aria-label="Quitar"]');
+    await p.click('.linea[data-sku="B-S"] [aria-label="Menos"]');
     await p.waitForSelector('text=Se quitó el descuento');
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.descuento), null);
   }],
@@ -189,6 +190,7 @@ casos('cobrar', [
   }],
   ['El texto del tramo en el carrito se lee (12 px o más)', async (env, a) => {
     const p = await preparar(env);
+    await p.click('.lado-carrito .linea.mini');
     const tam = await p.$eval('.lado-carrito .linea .tramo', e => parseFloat(getComputedStyle(e).fontSize));
     a.ok(tam >= 12, `${tam}px`);
   }],

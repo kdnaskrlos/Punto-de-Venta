@@ -266,3 +266,11 @@ Suite final: npm test 99/99 · e2e 59/59
 
 ## v1.42 — Detalle de prenda vuelve al de la v1.38
 - A pedido de Carlos, la ventana de detalle del inventario vuelve a la de la v1.38 (precios en recuadros, filas por talla con Historial/Ajustar). Se conserva el orden natural de tallas. La tarjeta de la lista sigue como en la v1.40.
+
+## v1.43 — Ajustes, pagos, pastillas y carrito
+- Ajustes → Venta: sin «Nombre de la tienda» ni «Descuento máximo de la vendedora» (todo descuento de la vendedora pide autorización: máximo 0). Tramos y comisión por prenda en tarjetas desplegables; descripciones sin negrita.
+- Pagos: dos columnas, sin «Activa/Apagada» (lo dice el color). La transferencia en pesos se llama «Nequi»; se quitan «Efectivo Bs» y «Punto de venta» (también de ajustes ya guardados, con normalizarFormas). Sin efectivo en Bs no hay fondo en Bs ni vuelto en Bs.
+- Pastillas de filtros más bajas (34px) y con su contorno completo en Vender, Inventario y Apartados.
+- Apartados: sin el círculo con la inicial; la pastilla de estado a la altura del nombre y el monto a la altura de la fecha.
+- Carrito: contador arriba a la derecha (con 1 unidad el − es un bote), sin línea vertical ni bote aparte, sin el ícono ⇄. Con más de 2 prendas las líneas se compactan y se abren al tocarlas, con transiciones de altura como en Pedidos (ponerCarrito). El aviso amarillo de tramos entra deslizándose y late dos veces.
+- Vender: tallas abajo a la altura del precio y sin línea vertical.

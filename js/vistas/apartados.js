@@ -116,14 +116,13 @@ function tarjeta(ctx, ap) {
   const nombre = ap.cliente?.nombre || '—';
   const viejo = pendiente && dias >= 15;
   return h('button', { type: 'button', class: `apartado ap-${ap.estado}${viejo ? ' viejo' : ''}`, 'data-id': ap.id, onclick: () => abrirDetalle(ctx, ap) },
-    h('span', { class: 'avatar' }, nombre.slice(0, 1).toUpperCase()),
     h('span', { class: 'ap-main' },
       h('b', { class: 'ap-nombre' }, nombre),
       h('span', { class: 'ap-l2' }, resumenPrendas(ap)),
       h('span', { class: 'ap-l3' }, diaCorto(ap.fecha), viejo ? h('span', { class: 'ap-dias' }, ` · ${dias} días`) : null)),
     h('span', { class: 'ap-der' },
-      h('b', { class: 'ap-saldo num' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total)),
-      h('span', { class: `est ${pendiente ? 'r' : color}` }, pendiente ? 'Por cobrar' : etiqueta)),
+      h('span', { class: `est ${pendiente ? 'r' : color}` }, pendiente ? 'Por cobrar' : etiqueta),
+      h('b', { class: 'ap-saldo num' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total))),
     icono('der'));
 }
 

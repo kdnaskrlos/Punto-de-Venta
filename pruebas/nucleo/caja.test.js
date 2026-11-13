@@ -1,14 +1,27 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { esperadoCaja, diferenciasCierre } from '../../js/nucleo/caja.js';
-import { FORMAS_PAGO_DEFECTO as FORMAS } from '../../js/nucleo/formas.js';
+import { FORMAS_PAGO_DEFECTO, normalizarFormas } from '../../js/nucleo/formas.js';
+
+// Para probar la lógica de caja con las tres monedas en efectivo y una forma más en Bs.
+const FORMAS = [...FORMAS_PAGO_DEFECTO,
+  { id: 'efectivo-bs', nombre: 'Efectivo Bs', moneda: 'BS', efectivo: true, activa: true },
+  { id: 'punto', nombre: 'Punto de venta', moneda: 'BS', efectivo: false, activa: true }];
 
 const t = { copPorUsd: 3900, bsPorUsd: 1075 };
 const caja = { fondo: { COP: 50000, USD: 20, BS: 500 }, movimientos: [{ tipo: 'salida', forma: 'efectivo-cop', monto: 10000, motivo: 'gasto' }] };
 
-test('formas de pago por defecto (§9.1)', () => {
-  assert.deepEqual(FORMAS.map(f => f.id), ['efectivo-cop', 'transferencia-cop', 'efectivo-usd', 'zelle', 'usdt', 'efectivo-bs', 'pago-movil', 'punto']);
-  assert.deepEqual(FORMAS.filter(f => f.efectivo).map(f => f.id), ['efectivo-cop', 'efectivo-usd', 'efectivo-bs']);
+test('formas de pago por defecto: sin efectivo Bs ni punto; la transferencia en pesos es Nequi', () => {
+  assert.deepEqual(FORMAS_PAGO_DEFECTO.map(f => f.id), ['efectivo-cop', 'transferencia-cop', 'efectivo-usd', 'zelle', 'usdt', 'pago-movil']);
+  assert.equal(FORMAS_PAGO_DEFECTO.find(f => f.id === 'transferencia-cop').nombre, 'Nequi');
+});
+
+test('normalizarFormas: los ajustes viejos pierden efectivo Bs y punto, y la transferencia pasa a «Nequi»', () => {
+  const viejas = [{ id: 'transferencia-cop', nombre: 'Transferencia / Nequi / Bancolombia', moneda: 'COP' }, ...FORMAS.slice(2)];
+  const r = normalizarFormas(viejas);
+  assert.equal(r[0].nombre, 'Nequi');
+  assert.ok(!r.some(f => f.id === 'efectivo-bs' || f.id === 'punto'));
+  assert.equal(normalizarFormas([{ id: 'transferencia-cop', nombre: 'Bancolombia', moneda: 'COP' }])[0].nombre, 'Bancolombia', 'un nombre elegido por Carlos se respeta');
 });
 
 test('esperado = fondo + cobros − vuelto − salidas + entradas + abonos', () => {

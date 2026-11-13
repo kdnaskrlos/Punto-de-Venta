@@ -186,6 +186,10 @@ casos('gestion', [
   ['Ajustes: comisiones con punto de miles y nombres de formas de pago completos', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });
     await p.click('#aj-tab-venta');
+    a.strictEqual(await p.$('#aj-tienda'), null, 'sin nombre de la tienda');
+    a.strictEqual(await p.$('#aj-desc-max'), null, 'sin descuento máximo de la vendedora');
+    a.strictEqual(await p.isVisible('#aj-com-0-normal'), false, 'la comisión va plegada');
+    await p.click('#aj-comision summary');
     a.strictEqual(await p.inputValue('#aj-com-0-normal'), '4.000');
     a.match(await p.getAttribute('#aj-com-4-normal', 'placeholder'), /Igual que 24–48/);
     const cortados = await p.$$eval('.forma-aj input.inp', els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.value));
@@ -228,20 +232,21 @@ casos('gestion', [
     await p.click(zelle + ' .forma-toque');
     a.strictEqual(await p.$(zelle + '.activa'), null);
     a.strictEqual(await p.$eval(zelle, e => getComputedStyle(e).opacity), '0.5');
-    const caja = await p.$eval(zelle, e => { const i = e.querySelector('.forma-ic').getBoundingClientRect(), b = e.querySelector('b').getBoundingClientRect(); return { alto: e.offsetHeight, derecha: b.left > i.right }; });
-    a.ok(caja.derecha, 'nombre a la derecha del ícono'); a.ok(caja.alto <= 72, `tarjeta baja (${caja.alto}px)`);
-    await p.click('.forma-tarjeta[data-forma="punto"] [aria-label^="Eliminar"]');
-    a.strictEqual(await p.$('.forma-tarjeta[data-forma="punto"]'), null);
+    const cols = await p.$$eval('.formas-aj .forma-tarjeta', e => new Set(e.map(x => Math.round(x.getBoundingClientRect().left))).size);
+    a.strictEqual(cols, 2, 'formas de pago en dos columnas');
+    a.ok(!(await texto(p, '.formas-aj')).match(/Activa|Apagada/), 'sin texto de activa/apagada');
+    await p.click('.forma-tarjeta[data-forma="usdt"] [aria-label^="Eliminar"]');
+    a.strictEqual(await p.$('.forma-tarjeta[data-forma="usdt"]'), null);
     await p.click('#aj-forma-nueva');
-    await p.fill('#fp-nombre', 'Nequi'); await p.click('#fp-moneda [data-moneda="COP"]'); await p.click('.iconos-forma [data-icono="movil"]');
+    await p.fill('#fp-nombre', 'Bancolombia'); await p.click('#fp-moneda [data-moneda="COP"]'); await p.click('.iconos-forma [data-icono="movil"]');
     await p.click('#fp-guardar');
-    a.ok(await p.$('.forma-tarjeta[data-forma="nequi"].activa'));
+    a.ok(await p.$('.forma-tarjeta[data-forma="bancolombia"].activa'));
     await p.click('#aj-guardar');
-    await p.waitForFunction(() => window.__pos.ctx.ajustes.formasPago.some(f => f.id === 'nequi'));
+    await p.waitForFunction(() => window.__pos.ctx.ajustes.formasPago.some(f => f.id === 'bancolombia'));
     const f = await p.evaluate(() => window.__pos.ctx.ajustes.formasPago.map(x => [x.id, x.activa !== false]));
-    a.ok(!f.some(x => x[0] === 'punto'));
+    a.ok(!f.some(x => x[0] === 'usdt'));
     a.deepStrictEqual(f.find(x => x[0] === 'zelle'), ['zelle', false]);
-    a.deepStrictEqual(f.find(x => x[0] === 'nequi'), ['nequi', true]);
+    a.deepStrictEqual(f.find(x => x[0] === 'bancolombia'), ['bancolombia', true]);
   }],
   ['Ajustes: el recibo se edita con vista previa arriba y variables, y se usa al vender', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/ajustes' });

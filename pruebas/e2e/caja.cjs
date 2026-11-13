@@ -4,7 +4,7 @@ const { cambiarA } = require('./_servidor.cjs');
 const texto = (p, s) => p.$eval(s, e => e.textContent.replace(/\s+/g, ' ').trim());
 
 async function abrirConFondo(p) {
-  await p.fill('#fondo-cop', '50.000'); await p.fill('#fondo-usd', '20'); await p.fill('#fondo-bs', '500');
+  await p.fill('#fondo-cop', '50.000'); await p.fill('#fondo-usd', '20');
   await p.click('#abrir-caja');
   await p.waitForSelector('.esperado[data-forma="efectivo-cop"]');
 }
@@ -40,7 +40,7 @@ casos('caja', [
     await p.click('button:has-text("Cerrar caja")');
     await p.fill('#contado-efectivo-cop', '164.500');
     a.ok(await p.$('.fila-cierre[data-forma="efectivo-cop"].leve'));
-    await p.fill('#contado-efectivo-usd', '20'); await p.fill('#contado-efectivo-bs', '500');
+    await p.fill('#contado-efectivo-usd', '20');
     await p.click('#cierre-final');
     await p.waitForSelector('text=Escribe una nota sobre la diferencia');
     await p.fill('#contado-efectivo-cop', '160.000');
@@ -55,7 +55,7 @@ casos('caja', [
     const p = await env.pagina({ usuario: 'vendedora', ruta: '/caja' });
     await abrirConFondo(p);
     await p.click('button:has-text("Cerrar caja")');
-    await p.fill('#contado-efectivo-cop', '50.000'); await p.fill('#contado-efectivo-usd', '20'); await p.fill('#contado-efectivo-bs', '500');
+    await p.fill('#contado-efectivo-cop', '50.000'); await p.fill('#contado-efectivo-usd', '20');
     await p.click('#cierre-final');
     await p.waitForSelector('text=Caja cerrada');
     await cambiarA(p, 'admin');
@@ -113,10 +113,10 @@ casos('caja', [
     await p.evaluate(() => { location.hash = '/vender'; });
     await p.click('.sin-caja button:has-text("Abrir caja")');
     await p.waitForSelector('.capa:has-text("se cerró sola")');
-    await p.fill('#contado-efectivo-cop', '50.000'); await p.fill('#contado-efectivo-usd', '20'); await p.fill('#contado-efectivo-bs', '500');
+    await p.fill('#contado-efectivo-cop', '50.000'); await p.fill('#contado-efectivo-usd', '20');
     await p.click('#arqueo-final');
     await p.waitForSelector('.capa', { state: 'detached' });
     const r = await p.evaluate(() => { const cs = [...window.__pos.ctx.almacen._estado('cajas').values()]; return { vieja: cs[0].cierre.porArquear, nueva: cs[1]?.fondo, abierta: cs[1]?.estado }; });
-    a.deepStrictEqual(r, { vieja: false, nueva: { COP: 50000, USD: 20, BS: 500 }, abierta: 'abierta' });
+    a.deepStrictEqual(r, { vieja: false, nueva: { COP: 50000, USD: 20, BS: 0 }, abierta: 'abierta' });
   }],
 ]);

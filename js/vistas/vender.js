@@ -33,7 +33,7 @@ export function revisarDescuento(ctx) {
   const sub = calcularCarrito(c.lineas, ctx.productos, { limites: ctx.ajustes.tramos, redondeo: ctx.ajustes.redondeo }).subtotal;
   const pct = c.descuento.tipo === 'pct' ? c.descuento.valor : (sub ? c.descuento.valor * 100 / sub : 100);
   const invalido = c.autorizacion ? c.autorizacion.subtotal !== sub
-    : (requiereAutorizacion(ctx.sesion?.rol, pct, ctx.ajustes.descuentoMaxVendedora) || pct >= 100);
+    : (requiereAutorizacion(ctx.sesion?.rol, pct, 0) || pct >= 100);
   if (!invalido) return true;
   c.descuento = null; c.autorizacion = null;
   if (c.lineas.length) toast('Se quitó el descuento: el carrito cambió');
@@ -69,25 +69,69 @@ function grupos(ctx) {
   return Object.values(g).sort((a, b) => a.grupo.localeCompare(b.grupo, 'es'));
 }
 
-// Línea del carrito en tarjeta: imagen, nombre, color y talla, tarifa; a la derecha quitar, cantidad y monto.
-function lineaCarrito(ctx, l, aj) {
+// Línea del carrito en tarjeta: imagen, nombre, color y talla, tarifa; arriba a la derecha el contador
+// (con una sola unidad, el − es un bote de basura) y abajo el monto.
+// Con más de 2 prendas distintas las líneas se compactan (como en Pedidos): solo se abre la que se toca.
+const MAX_ABIERTAS = 2;
+function contador(ctx, l) {
+  return h('div', { class: 'stepper lc-cont' },
+    l.cantidad === 1
+      ? h('button', { 'aria-label': 'Quitar', class: 'quitar', onclick: e => { e.stopPropagation(); agregarAlCarrito(ctx, l.sku, -1); } }, icono('borrar'))
+      : h('button', { 'aria-label': 'Menos', onclick: e => { e.stopPropagation(); agregarAlCarrito(ctx, l.sku, -1); } }, icono('menos')),
+    h('span', { class: 'cant num' }, String(l.cantidad)),
+    h('button', { 'aria-label': 'Más', onclick: e => { e.stopPropagation(); agregarAlCarrito(ctx, l.sku, 1); } }, icono('mas1')));
+}
+function lineaCarrito(ctx, l, aj, compacta) {
   const p = ctx.productos[l.sku];
   const g = { producto: p.producto || p.nombre, categoria: p.categoria, foto: p.foto };
-  return h('div', { class: 'linea', 'data-sku': l.sku },
+  const variante = [p.color, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku;
+  const alternar = () => { const c = carrito(ctx); c.abierta = c.abierta === l.sku ? null : l.sku; window.dispatchEvent(new CustomEvent('pos:carrito')); };
+  if (compacta) return h('div', { class: 'linea mini', 'data-sku': l.sku, role: 'button', tabindex: '0', 'aria-expanded': 'false', onclick: alternar, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } } },
+    h('span', { class: 'lc-q num' }, String(l.cantidad)),
+    h('span', { class: 'lc-t' }, h('b', {}, g.producto), h('small', {}, ` · ${variante}`)),
+    h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal))),
+    icono('abajo'));
+  const plegable = carrito(ctx).lineas.length > MAX_ABIERTAS;
+  return h('div', { class: 'linea' + (plegable ? ' abierta' : ''), 'data-sku': l.sku, onclick: plegable ? alternar : null, 'aria-expanded': plegable ? 'true' : null },
     miniatura(g, 'foto'),
     h('div', { class: 'linea-info' },
       h('b', {}, g.producto),
-      h('span', { class: 'lc-chip' }, [p.color, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku),
+      h('span', { class: 'lc-chip' }, variante),
       h('span', { class: 'lc-chip tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Precio de oferta' : `Tarifa ${etiquetaTramo(l.tramo, aj.tramos)}`)),
     h('div', { class: 'linea-der' },
-      h('button', { 'aria-label': 'Quitar', class: 'quitar ibtn chico peligro', onclick: () => agregarAlCarrito(ctx, l.sku, -l.cantidad) }, icono('borrar')),
-      h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal)), h('span', { class: 'c-cop moneda' }, 'COP'))),
-    h('div', { class: 'linea-pie' },
-      h('div', { class: 'stepper' },
-        h('button', { 'aria-label': 'Menos', onclick: () => agregarAlCarrito(ctx, l.sku, -1) }, icono('menos')),
-        h('span', { class: 'cant num' }, String(l.cantidad)),
-        h('button', { 'aria-label': 'Más', onclick: () => agregarAlCarrito(ctx, l.sku, 1) }, icono('mas1'))),
-      h('span', { class: 'nota num lc-cu' }, `${fmtCop(l.precioUnit)} c/u`)));
+      contador(ctx, l),
+      h('span', { class: 'lc-pie' },
+        h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal)), h('span', { class: 'c-cop moneda' }, 'COP')),
+        l.cantidad > 1 ? h('span', { class: 'nota num lc-cu' }, `${fmtCop(l.precioUnit)} c/u`) : null)));
+}
+
+// Cambia el carrito con transiciones suaves (como en Pedidos): las líneas cambian de alto, las nuevas
+// aparecen, y el aviso amarillo de tramos entra deslizándose.
+const MENOS_MOV = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+export function ponerCarrito(cont, nuevo) {
+  if (MENOS_MOV() || !cont.animate) { cont.replaceChildren(nuevo); return; }
+  const antes = new Map([...cont.querySelectorAll('.linea[data-sku]')].map(el => [el.dataset.sku, { h: el.getBoundingClientRect().height, mini: el.classList.contains('mini') }]));
+  const avisoAntes = cont.querySelector('.aviso-tramo')?.textContent || null;
+  const habia = antes.size > 0 || cont.querySelector('.carrito');
+  cont.replaceChildren(nuevo);
+  if (!habia) return;
+  cont.querySelectorAll('.linea[data-sku]').forEach(el => {
+    const a = antes.get(el.dataset.sku), h1 = el.getBoundingClientRect().height, h0 = a ? a.h : 0;
+    if (Math.abs(h1 - h0) < 2) return;
+    el.style.overflow = 'hidden';
+    const an = el.animate(a ? [{ height: `${h0}px` }, { height: `${h1}px` }] : [{ height: '0px', opacity: 0 }, { height: `${h1}px`, opacity: 1 }], { duration: 280, easing: 'cubic-bezier(.22,.9,.3,1)' });
+    if (!el.classList.contains('mini') && (!a || a.mini)) [...el.children].forEach((c, k) => c.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 240, delay: 40 + k * 35, easing: 'ease-out', fill: 'backwards' }));
+    an.onfinish = an.oncancel = () => { el.style.overflow = ''; };
+  });
+  const aviso = cont.querySelector('.aviso-tramo');
+  if (aviso && aviso.textContent !== avisoAntes) {
+    if (!avisoAntes) {
+      const h1 = aviso.getBoundingClientRect().height;
+      aviso.style.overflow = 'hidden';
+      const an = aviso.animate([{ height: '0px', opacity: 0, transform: 'translateY(-6px)', paddingTop: '0px', paddingBottom: '0px' }, { height: `${h1}px`, opacity: 1, transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.22,.9,.3,1)' });
+      an.onfinish = an.oncancel = () => { aviso.style.overflow = ''; aviso.classList.add('anim'); };
+    } else aviso.classList.add('anim');
+  }
 }
 
 export function equivalentes(ctx, cop) {
@@ -106,7 +150,7 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
   if (!r.lineas.length) return h('div', { class: 'carrito vacio-carrito' }, h('div', { class: 'sec-t' }, icono('carrito'), 'Carrito'), h('p', { class: 'nota' }, 'Toca una prenda para agregarla.'));
   return h('div', { class: 'carrito' + (enHoja ? ' en-hoja' : '') },
     enHoja ? null : h('div', { class: 'sec-t' }, icono('carrito'), `Carrito · ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`),
-    h('div', { class: 'lineas' }, r.lineas.map(l => lineaCarrito(ctx, l, aj))),
+    h('div', { class: 'lineas' + (r.lineas.length > MAX_ABIERTAS ? ' compactas' : '') }, r.lineas.map(l => lineaCarrito(ctx, l, aj, r.lineas.length > MAX_ABIERTAS && c.abierta !== l.sku))),
     r.aviso ? h('div', { class: 'aviso aviso-tramo' }, icono('etiqueta'), `Con ${r.aviso.faltan} ${r.aviso.faltan === 1 ? 'prenda' : 'prendas'} más pasan a precio ${r.aviso.etiqueta}`) : null,
     h('div', { class: 'totales' },
       r.descuento ? h('div', { class: 'fila-total' }, h('span', {}, 'Subtotal'), h('span', { class: 'num' }, fmtCop(r.subtotal), h('span', { class: 'c-cop moneda' }, 'COP'))) : null,
@@ -118,7 +162,7 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
         h('div', { class: 'et-total' }, 'Total'),
         h('div', { class: 'tc-der' },
           h('div', { class: 'total' }, h('span', { class: 'total-cop num' }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
-          h('div', { class: 'tc-eq' }, icono('cambio'), '≈ ', equivalentes(ctx, r.total))))),
+          h('div', { class: 'tc-eq' }, equivalentes(ctx, r.total))))),
     h('div', { class: 'acciones-carrito' },
       h('button', { class: 'btn', onclick: () => abrirDescuento(ctx) }, icono('porcentaje'), 'Descuento'),
       h('button', { class: 'btn', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'),
@@ -128,13 +172,13 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
 function abrirDescuento(ctx) {
   const c = carrito(ctx);
   const r = resumenCarrito(ctx);
-  const max = ctx.ajustes.descuentoMaxVendedora;
+  const max = 0; // la vendedora no da descuentos por su cuenta: todo descuento suyo necesita autorización
   let tipo = c.descuento?.tipo || 'pct';
   const valor = h('input', { class: 'inp', id: 'desc-valor', inputmode: 'decimal', value: c.descuento?.valor ?? '' });
   const err = h('span', { class: 'error' });
   const segm = h('div', { class: 'segmentado' },
     ...[['pct', '%'], ['monto', 'Monto COP']].map(([t, txt]) => h('button', { type: 'button', 'aria-pressed': String(t === tipo), onclick: e => { tipo = t; segm.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); } }, txt)));
-  const nota = ctx.sesion.rol === 'vendedora' ? h('p', { class: 'nota' }, `Puedes dar hasta ${max}% sin autorización.`) : null;
+  const nota = ctx.sesion.rol === 'vendedora' ? h('p', { class: 'nota' }, 'El descuento se aplica cuando lo autorice el administrador o la encargada.') : null;
   const aplicar = h('button', { class: 'btn primary' }, 'Aplicar');
   const v = abrirVentana({ titulo: 'Descuento', contenido: h('div', { class: 'pila' }, segm, h('div', { class: 'campo' }, h('label', { for: 'desc-valor' }, 'Valor'), valor, err), nota), acciones: h('div', { class: 'acciones' }, aplicar) });
   aplicar.addEventListener('click', async () => {
@@ -243,7 +287,7 @@ registrarVista('/vender', {
     const lado = h('aside', { class: 'lado-carrito' });
     const barra = h('button', { class: 'barra-carrito', onclick: () => {
       const hj = abrirHoja({ titulo: 'Carrito', contenido: h('div', { class: 'hoja-carrito' }), lado: 'abajo' });
-      const repintar = () => { hj.el.querySelector('.hoja-carrito').replaceChildren(panelCarrito(ctx, { enHoja: true })); if (!carrito(ctx).lineas.length) hj.cerrar(); };
+      const repintar = () => { ponerCarrito(hj.el.querySelector('.hoja-carrito'), panelCarrito(ctx, { enHoja: true })); if (!carrito(ctx).lineas.length) hj.cerrar(); };
       repintar();
       window.addEventListener('pos:carrito', repintar);
       hj.alCerrar = () => window.removeEventListener('pos:carrito', repintar);
@@ -273,7 +317,7 @@ registrarVista('/vender', {
     function pintarCarrito() {
       const porGrupo = new Map(grupos(ctx).map(g => [g.grupo, g]));
       rejilla.querySelectorAll('.tarjeta-prenda').forEach(el => { const g = porGrupo.get(el.dataset.grupo); if (g) el.replaceWith(tarjeta(ctx, g)); });
-      lado.replaceChildren(panelCarrito(ctx));
+      ponerCarrito(lado, panelCarrito(ctx));
       const r = resumenCarrito(ctx);
       barra.hidden = !r.unidades;
       barra.replaceChildren(h('span', {}, `${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`), h('span', { class: 'num' }, `${fmtCop(r.total)} · Ver`));

@@ -33,7 +33,11 @@ casos('vender', [
     await agregar(p, 'Franela AS Niño Blanco', '6', 2);
     a.ok((await texto(p, '.aviso-tramo')).includes('Con 2 prendas más pasan a precio 6–11'));
     await agregar(p, 'Franela AS Niño Blanco', '8', 2);
-    for (const sku of ['B-M', 'F-B-6', 'F-B-8']) a.ok((await texto(p, `.linea[data-sku="${sku}"] .tramo`)).includes('6–11'), sku);
+    a.strictEqual(await p.$$eval('.lado-carrito .linea.mini', e => e.length), 3, 'con más de 2 prendas el carrito se compacta');
+    for (const sku of ['B-M', 'F-B-6', 'F-B-8']) {
+      await p.click(`.lado-carrito .linea[data-sku="${sku}"].mini`);
+      a.ok((await texto(p, `.lado-carrito .linea[data-sku="${sku}"] .tramo`)).includes('6–11'), sku);
+    }
     a.strictEqual(await texto(p, '.carrito .total-cop'), '186.000');
     a.ok((await texto(p, '.carrito .equivalentes')).includes('47,70'));
   }],
@@ -46,7 +50,8 @@ casos('vender', [
   ['Quitar con − hasta 0 borra la línea', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await agregar(p, 'Jogger Texcol Negro', 'M', 1);
-    await p.click('.linea[data-sku="J-M"] [aria-label="Menos"]');
+    a.strictEqual(await p.$('.linea[data-sku="J-M"] [aria-label="Menos"]'), null, 'con una unidad el − es un bote de basura');
+    await p.click('.linea[data-sku="J-M"] [aria-label="Quitar"]');
     a.strictEqual(await p.$('.linea[data-sku="J-M"]'), null);
   }],
   ['Teléfono: barra verde abre el carrito', async (env, a) => {
