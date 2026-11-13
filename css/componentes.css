@@ -123,7 +123,7 @@
 .talla .nota{font-size:11.5px}
 .talla-caja{position:relative;display:grid}
 .talla.con{border-color:var(--accent);background:var(--g-bg);box-shadow:0 0 0 1px var(--accent)}
-.talla-menos{position:absolute;top:-7px;left:-7px;width:22px;height:22px;border-radius:11px;border:1px solid var(--r-bd);background:var(--r-bg);color:var(--r-tx);font-size:16px;font-weight:800;line-height:1;display:grid;place-items:center;padding:0}
+.talla-menos{position:absolute;bottom:-7px;left:-7px;width:22px;height:22px;border-radius:11px;border:1px solid var(--r-bd);background:var(--r-bg);color:var(--r-tx);font-size:16px;font-weight:800;line-height:1;display:grid;place-items:center;padding:0}
 .talla-menos::before{content:"";position:absolute;inset:-11px}
 .tarjeta-prenda{position:relative}
 /* Elección de prenda: acento violeta (distinto del verde de las acciones) */
