@@ -705,3 +705,14 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .mini-foto.silueta{background:color-mix(in srgb,var(--pc,#9ca3af) 14%,var(--surface-2))}
 .mini-foto.silueta > svg.i{width:30px;height:30px;fill:var(--pc);stroke:color-mix(in srgb,var(--pc) 55%,#1f2937);stroke-width:1.5}
 .mini-foto.silueta.sin-color > svg.i{fill:none;stroke:var(--muted)}
+/* W8: las tarjetas siempre llenan filas completas (2 columnas; 4 en pantallas anchas) */
+.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (min-width:1100px){
+  .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .tiles:has(> .tile:nth-child(3):last-child){grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tiles:has(> .tile:nth-child(3):last-child) > .tile:last-child{grid-column:auto}
+  .tiles:has(> .tile:nth-child(2):last-child){grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+.datos{grid-template-columns:repeat(2,minmax(0,1fr))}
+.datos .dato:last-child:nth-child(odd){grid-column:1/-1}
+@media (min-width:1100px){.datos{grid-template-columns:repeat(4,minmax(0,1fr))}.datos .dato:last-child:nth-child(odd){grid-column:auto}}
