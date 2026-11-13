@@ -1,5 +1,5 @@
 // Permite instalar la app y abrirla sin internet. Las ventas las guarda Firebase (con su propia caché).
-const CACHE = 'pos-v1.66';
+const CACHE = 'pos-v1.67';
 const LIBS = 'libs-v1'; // Firebase y la fuente: archivos con versión fija
 const FOTOS = 'fotos-v1';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icono-192.png', './icono-512.png', './logo-carrito.png',
@@ -23,7 +23,8 @@ self.addEventListener('fetch', e => {
   }
   // Datos (.json): primero la red, si falla la última copia
   if (u.pathname.endsWith('.json')) {
-    e.respondWith(fetch(r).then(res => { if (res.ok) caches.open(CACHE).then(c => c.put(r, res.clone())); return res; }).catch(() => caches.match(r, { ignoreSearch: true })));
+    // La copia se saca en el momento (antes de entregar la respuesta): luego ya estaría leída y no se podría copiar.
+    e.respondWith(fetch(r).then(res => { if (res.ok) { const copia = res.clone(); caches.open(CACHE).then(c => c.put(r, copia)); } return res; }).catch(() => caches.match(r, { ignoreSearch: true })));
     return;
   }
   if (u.origin !== location.origin) return;
