@@ -72,17 +72,18 @@ const FUENTE = { binance: 'Binance P2P', bcv: 'BCV (oficial)', manual: 'Manual' 
 
 export function abrirDetalleTasas(ctx) {
   const t = ctx.tasas, aj = ctx.ajustesTasas || {};
-  const cuando = iso => { if (!iso) return 'sin fecha'; const [dia, hora] = fechaHora(iso).split(' · '); return [h('span', { class: 'sin-corte' }, dia), ' · ', h('span', { class: 'sin-corte' }, hora)]; };
+  const cuando = iso => (iso ? fechaHora(iso) : 'sin fecha');
   const fila = (cls, ic, etiqueta, valor, moneda, fuente, fecha) => h('div', { class: 'tasa-fila ' + cls },
     h('span', { class: 'tasa-ic' }, icono(ic)),
     h('div', { class: 'tasa-txt' }, h('span', { class: 'tasa-et' }, etiqueta), h('span', { class: 'tasa-dato nota' }, fuente ? h('b', {}, fuente) : null, fuente ? ' · ' : null, cuando(fecha))),
     h('span', { class: 'tasa-val num' }, valor ?? '—', valor != null ? h('small', {}, moneda) : null));
+  const tuerca = ctx.puedeVer('cambiarTasas') ? h('button', { class: 'tasas-ajustar', id: 'tasas-ajustes', onclick: () => { v.cerrar(); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca'), 'Cambiar tasas') : null;
   const cont = h('div', { class: 'tasas-dia' },
     fila('cop', 'monedas', 'Pesos por dólar', t.copPorUsd ? fmtCop(t.copPorUsd) : null, 'COP', '', t.copActualizada),
     fila('bs', 'banco', 'Bs por dólar', t.bsPorUsd ? fmtDec(t.bsPorUsd) : null, 'Bs',
       t.fuenteBs === 'manual' ? (t.ultimaConocida ? 'Última conocida' : '') : `${FUENTE[t.fuenteBs] || t.fuenteBs || ''}${t.fuenteBs === 'binance' && aj.bsRecargo ? ` + ${fmtDec(aj.bsRecargo)}` : ''}${t.ultimaConocida ? ' · última conocida' : ''}`, t.bsActualizada),
-    !t.bsPorUsd ? h('div', { class: 'aviso' }, icono('alerta'), 'Sin tasa de Bs: los pagos en Bs quedan desactivados.') : null);
-  const tuerca = ctx.puedeVer('cambiarTasas') ? h('button', { class: 'ibtn', id: 'tasas-ajustes', 'aria-label': 'Cambiar tasas', onclick: () => { v.cerrar(); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca')) : null;
-  const v = abrirVentana({ titulo: 'Tasas del día', contenido: cont, extraCab: tuerca });
+    !t.bsPorUsd ? h('div', { class: 'aviso' }, icono('alerta'), 'Sin tasa de Bs: los pagos en Bs quedan desactivados.') : null,
+    tuerca);
+  const v = abrirVentana({ titulo: 'Tasas del día', contenido: cont, clase: 'desplegable', sinCabecera: true });
   return v;
 }

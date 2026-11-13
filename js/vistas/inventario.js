@@ -21,7 +21,7 @@ function grupos(productos) {
   const g = {};
   for (const p of Object.values(productos)) {
     if (p.activo === false) continue;
-    (g[p.grupo || p.sku] ||= { grupo: p.grupo || p.sku, producto: p.producto || p.nombre, color: p.color, foto: p.foto, variantes: [] }).variantes.push(p);
+    (g[p.grupo || p.sku] ||= { grupo: p.grupo || p.sku, producto: p.producto || p.nombre, color: p.color, categoria: p.categoria, foto: p.foto, variantes: [] }).variantes.push(p);
   }
   return Object.values(g).sort((a, b) => a.grupo.localeCompare(b.grupo, 'es'));
 }
@@ -192,12 +192,24 @@ function abrirFotos(ctx) {
 
 registrarVista('/inventario', {
   montar(cont, ctx) {
-    let busqueda = '', costos = {};
+    let busqueda = '', costos = {}, filtro = '', categoria = '';
+    const ESTADOS = [['', 'Todos'], ['bajo', 'Stock bajo'], ['agotado', 'Agotados']];
+    const filtros = h('div', { class: 'filtros filtro-inv', role: 'group', 'aria-label': 'Filtrar inventario' });
     const buscar = h('input', { class: 'inp', id: 'buscar-inv', type: 'search', 'aria-label': 'Buscar prenda o código', placeholder: 'Buscar prenda o código', autocomplete: 'off' });
     const lista = h('div', { class: 'lista-inv' });
     const pintar = () => {
       const q = norm(busqueda);
-      const gs = grupos(ctx.productos).filter(g => !q || g.variantes.some(p => norm(`${p.grupo} ${p.sku} ${p.codigo} ${p.marca}`).includes(q)));
+      const todos = grupos(ctx.productos);
+      const estadoDe = g => (g.variantes.some(p => colorExistencia(p) === 'r') ? 'agotado' : g.variantes.some(p => colorExistencia(p) === 'y') ? 'bajo' : '');
+      const cats = [...new Set(todos.map(g => g.categoria).filter(Boolean))].sort();
+      const cuenta = k => todos.filter(g => (k === 'bajo' ? estadoDe(g) !== '' : estadoDe(g) === k)).length;
+      filtros.replaceChildren(
+        ...ESTADOS.map(([k, t]) => h('button', { type: 'button', class: 'chip' + (k === filtro ? ' activo' : ''), 'data-filtro': k || 'todos', 'aria-pressed': String(k === filtro), onclick: () => { filtro = k; pintar(); } }, t, k ? h('span', { class: 'cuenta' }, String(cuenta(k))) : null)),
+        cats.length > 1 ? h('span', { class: 'filtros-sep', 'aria-hidden': 'true' }) : null,
+        ...(cats.length > 1 ? cats.map(c => h('button', { type: 'button', class: 'chip' + (c === categoria ? ' activo' : ''), 'aria-pressed': String(c === categoria), onclick: () => { categoria = c === categoria ? '' : c; pintar(); } }, c)) : []));
+      const gs = todos.filter(g => (!q || g.variantes.some(p => norm(`${p.grupo} ${p.sku} ${p.codigo} ${p.marca}`).includes(q)))
+        && (!filtro || (filtro === 'bajo' ? estadoDe(g) !== '' : estadoDe(g) === filtro))
+        && (!categoria || g.categoria === categoria));
       lista.replaceChildren(...(gs.length ? gs.map(g => {
         const total = g.variantes.reduce((s, p) => s + p.existencia, 0);
         const pocas = g.variantes.some(p => colorExistencia(p) === 'y');
@@ -207,9 +219,9 @@ registrarVista('/inventario', {
           h('span', { class: 'gi-info' }, h('b', {}, g.producto),
             h('span', { class: 'gi-linea' }, g.color ? h('span', { class: 'gi-color' }, g.color) : null,
               h('span', { class: 'mini-tallas' }, ...g.variantes.map(p => { const c = colorExistencia(p); return h('span', { class: `mt ${c}` }, `${p.talla || p.sku}: `, h('b', { class: 'num' }, String(p.existencia))); }))),
-            pocas || agotadas ? h('span', { class: 'gi-aviso' }, icono('alerta'), [agotadas ? 'tallas agotadas' : '', pocas ? 'pocas' : ''].filter(Boolean).join(' · ')) : null),
+            agotadas ? h('span', { class: 'gi-aviso r' }, icono('alerta'), total <= 0 ? 'Agotado' : 'Tallas agotadas') : pocas ? h('span', { class: 'gi-aviso' }, icono('alerta'), 'Stock bajo') : null),
           h('span', { class: 'gi-total' }, h('b', { class: 'num' }, String(total)), h('span', {}, total === 1 ? 'unidad' : 'unidades')));
-      }) : [h('div', { class: 'vacio' }, busqueda ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos')]));
+      }) : [h('div', { class: 'vacio' }, busqueda || filtro || categoria ? 'No hay prendas con ese filtro' : 'Todavía no hay productos')]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
     const quitar = ctx.almacen.escuchar('costos', l => { costos = Object.fromEntries(l.map(c => [c.sku, c])); pintar(); });
@@ -221,6 +233,7 @@ registrarVista('/inventario', {
           puedeAdmin(ctx, 'fotosMasivas') ? h('button', { class: 'btn', onclick: () => abrirFotos(ctx) }, icono('imagen'), 'Fotos') : null,
           puedeAdmin(ctx, 'importar') ? h('button', { class: 'btn primary', onclick: () => abrirImportar(ctx, costos) }, icono('subir'), 'Importar') : null)),
       h('div', { class: 'buscar-caja' }, icono('buscar'), buscar),
+      filtros,
       lista));
     pintar();
     return () => { quitar(); window.removeEventListener('pos:datos', alDatos); };

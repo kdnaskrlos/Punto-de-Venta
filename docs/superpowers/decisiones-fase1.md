@@ -245,3 +245,13 @@ Suite final: npm test 99/99 · e2e 59/59
 - Tallas: una fila por talla con − cantidad + (botones de 48px, separados); el − se ve siempre y se apaga en 0; la fila elegida se resalta en azul suave. Ya no hay círculo − en la esquina.
 - Carrito: «Total», el monto y sus equivalentes alineados a la derecha.
 - Cobrar: total en tarjeta (alineado a la derecha, con USD y Bs). Las formas de pago son tarjetas como las de Ajustes → Pagos (ícono del color de la moneda, nombre, moneda); al tocar una se resalta y el monto aparece dentro de esa tarjeta, con su equivalencia y la X para quitarla.
+
+## v1.39 — Diez ajustes según las referencias de Carlos
+- Apartados: tarjeta con monto y pastilla «Por cobrar» a la derecha; filtros como pastillas deslizables; detalle con cabecera propia (nombre, teléfono, estado, X), saldo pendiente | total abonado, prendas con talla en pastilla, «Último abono» con historial y fecha del apartado al pie.
+- Tasas: panel sin cabecera que baja desde la barra superior (animación «baja»); fecha y hora en una línea; «Cambiar tasas» abajo para quien puede.
+- Inventario: filtros Todos / Stock bajo / Agotados (con cuenta) y categorías; aviso «Stock bajo» o «Agotado».
+- Vender: filas (imagen, nombre, punto de color, tallas; a la derecha disponibles en pastilla y precio). La imagen 8 se tomó como referencia de Vender porque muestra precio y categorías.
+- Tallas: tarjetas por talla (talla · disponibles · − cantidad +); los cambios se pasan con «Agregar al carrito» (o «Actualizar carrito»); la X no cambia el carrito.
+- Carrito: cada línea en tarjeta con imagen, pastillas de color/talla y tarifa, quitar y monto a la derecha, cantidad abajo; fila de descuento; total en caja verde suave con equivalencias.
+- Cobrar: formas en dos columnas, sin «+»; tocar elige o quita; los pagos elegidos se suman debajo del total.
+- Usuarios: tarjetas compactas que se despliegan (comisión, Nuevo PIN, Desactivar adentro).

@@ -65,7 +65,7 @@ casos('calculadora', [
     await p.click('.topbar .tasas');
     a.strictEqual(await p.$('.capa .tasa-tile, .capa .equiv'), null);
     a.strictEqual(await p.$('.capa .pie'), null, 'sin botón abajo');
-    await p.click('.capa .cab #tasas-ajustes');
+    await p.click('.capa #tasas-ajustes');
     await p.waitForTimeout(500);
     a.strictEqual(await p.evaluate(() => location.hash), '#/ajustes');
     a.strictEqual(await p.$('.capa'), null);

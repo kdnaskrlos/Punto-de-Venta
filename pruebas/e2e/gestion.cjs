@@ -116,6 +116,7 @@ casos('gestion', [
     a.ok(await p.$('.side .nav[aria-label="Vender"]'));
     await cambiarA(p, 'admin');
     await p.evaluate(() => { location.hash = '/usuarios'; });
+    await p.click('.usuario[data-usuario="maria"] .u-cab');
     await p.click('.usuario[data-usuario="maria"] button:has-text("Desactivar")');
     await p.waitForSelector('.usuario[data-usuario="maria"] .est.n');
     await p.evaluate(() => window.__pos.ctx.almacen.salir());
@@ -146,6 +147,7 @@ casos('gestion', [
     await p.evaluate(() => { location.hash = '/usuarios'; });
     a.strictEqual(await p.$eval('[data-comision="encargada"]', e => e.checked), false);
     a.strictEqual(await p.$eval('[data-comision="vendedora"]', e => e.checked), true);
+    await p.click('.usuario[data-usuario="encargada"] .u-cab');
     await p.click('[data-comision="encargada"]');
     await p.evaluate(() => { location.hash = '/comisiones'; });
     await p.waitForSelector('#com-vendedor:not([hidden]) [data-usuario="encargada"]');

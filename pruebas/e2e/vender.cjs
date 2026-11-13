@@ -5,7 +5,7 @@ const GRUPO = g => `.tarjeta-prenda[data-grupo="${g}"]`;
 async function agregar(p, grupo, talla, veces = 1) {
   await p.click(GRUPO(grupo));
   for (let i = 0; i < veces; i++) await p.click(`.capa .talla-mas[data-talla="${talla}"]`);
-  await p.click('.capa .cerrar');
+  await p.click('#tallas-agregar');
 }
 const texto = (p, s) => p.$eval(s, e => e.textContent.replace(/\s+/g, ' ').trim());
 
@@ -24,7 +24,7 @@ casos('vender', [
     for (const t of tallas) a.ok(t.w >= 44 && t.h >= 44, JSON.stringify(t));
     a.ok(tallas[1].x.includes('2'), tallas[1].x);
     await p.click('.capa .talla-mas[data-talla="M"]'); await p.click('.capa .talla-mas[data-talla="M"]');
-    await p.click('.capa .cerrar');
+    await p.click('#tallas-agregar');
     a.strictEqual(await texto(p, '.linea[data-sku="B-M"] .cant'), '2');
   }],
   ['El mix pasa ambas líneas al precio 6–11 con el total correcto', async (env, a) => {
@@ -93,12 +93,16 @@ casos('vender', [
     const tops = await p.$$eval('.filtros .chip', e => [...new Set(e.map(x => Math.round(x.getBoundingClientRect().top)))]);
     a.strictEqual(tops.length, 1, `en ${tops.length} filas`);
   }],
-  ['Tallas: se pueden sumar varias y "Listo" cierra', async (env, a) => {
+  ['Tallas: se pueden sumar varias y «Agregar al carrito» las pasa y cierra; la X no cambia nada', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/vender', caja: true });
+    await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
+    await p.click('.capa .talla-mas[data-talla="S"]');
+    await p.click('.capa .cerrar'); await p.waitForSelector('.capa', { state: 'detached' });
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.length), 0, 'la X descarta');
     await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
     await p.click('.capa .talla-mas[data-talla="S"]'); await p.click('.capa .talla-mas[data-talla="M"]');
     a.ok(await p.isVisible('.capa'));
-    await p.click('.capa button:has-text("Listo")');
+    await p.click('#tallas-agregar');
     await p.waitForSelector('.capa', { state: 'detached' });
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.length), 2);
   }],
@@ -113,9 +117,10 @@ casos('vender', [
     await p.click('.capa .talla-menos[data-sku="B-S"]');
     a.strictEqual(await p.innerText('.capa .talla-fila-v[data-sku="B-S"] .tf-cant'), '0');
     a.strictEqual(await p.$eval('.capa .talla-menos[data-sku="B-S"]', b => b.disabled), true, 'sin prendas el − no actúa');
-    await p.click('.capa button:has-text("Listo")');
+    await p.click('.capa .talla-mas[data-talla="S"]');
+    await p.click('#tallas-agregar');
     a.ok(await p.$(g + '.elegida'));
-    a.strictEqual(await p.innerText(g + ' .en-carrito'), '1');
+    a.strictEqual(await p.innerText(g + ' .en-carrito'), '2');
     a.strictEqual(await p.$('.tarjeta-prenda.elegida:not([data-grupo="Buzo Etanol Gris"])'), null);
   }],
   ['Tallas: − y + de 48 px, separados y sin encimarse con otra talla', async (env, a) => {
@@ -133,7 +138,7 @@ casos('vender', [
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', caja: true, ruta: '/vender' });
     await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
     await p.click('.capa .talla-mas[data-talla="S"]'); await p.click('.capa .talla-mas[data-talla="M"]');
-    await p.click('.capa button:has-text("Listo")');
+    await p.click('#tallas-agregar');
     await p.evaluate(() => localStorage.setItem('pos-demo-usuario', 'vendedora')); // la demo recuerda quién entró
     await p.reload();
     await p.waitForSelector('.capa:has-text("¿Continuar venta?")');

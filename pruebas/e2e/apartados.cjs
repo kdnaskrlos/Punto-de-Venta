@@ -28,7 +28,7 @@ casos('apartados', [
     for (const x of ['Ana Pérez', '84.000', '2 prendas · Jogger']) a.ok(t.includes(x), `falta ${x} en ${t}`);
     await p.click('.apartado');
     const d = await texto(p, '.ap-det');
-    for (const x of ['Pendiente', 'Saldo', '84.000', 'Prendas']) a.ok(d.includes(x), `falta ${x} en el detalle: ${d}`);
+    for (const x of ['Pendiente', 'Saldo pendiente', '84.000', 'Prendas']) a.ok(d.includes(x), `falta ${x} en el detalle: ${d}`);
   }],
   ['Abonar suma y Completar crea la venta sin volver a descontar', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
@@ -40,7 +40,7 @@ casos('apartados', [
     await p.fill('.pago[data-forma="efectivo-cop"] input', '4.000');
     await p.click('#abono-final');
     await p.waitForFunction(() => document.querySelector('.apartado')?.textContent.includes('60.000'));
-    await p.click('.apartado'); a.ok((await texto(p, '.ap-det')).includes('Abonos'), 'historial de abonos');
+    await p.click('.apartado'); a.ok((await texto(p, '.ap-det')).includes('Último abono'), 'último abono');
     await p.click('#ap-completar');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.click('#completar-final');

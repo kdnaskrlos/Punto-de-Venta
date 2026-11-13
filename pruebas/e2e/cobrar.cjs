@@ -123,7 +123,7 @@ casos('cobrar', [
     a.ok(await p.$('.lado-carrito .linea[data-sku="B-L"]'));
     a.deepStrictEqual(p.errores, []);
   }],
-  ['Teléfono: Cobrar no abre el teclado solo; el monto aparece dentro de la tarjeta tocada y el botón Cobrar a la vista', async (env, a) => {
+  ['Teléfono: Cobrar no abre el teclado solo; el pago elegido aparece debajo del total y el botón Cobrar a la vista', async (env, a) => {
     const p = await preparar(env, { movil: true });
     await p.click('.barra-carrito'); await p.click('.capa .cobrar');
     await p.waitForSelector('#cobrar-final');
@@ -133,9 +133,9 @@ casos('cobrar', [
     a.notStrictEqual(await p.evaluate(() => document.activeElement.tagName), 'INPUT');
     const pos = await p.evaluate(() => {
       const r = s => document.querySelector(s).getBoundingClientRect();
-      return { pago: r('.pago[data-forma="efectivo-cop"]'), tarjeta: r('[data-forma-card="efectivo-cop"]'), final: r('#cobrar-final'), alto: innerHeight };
+      return { pago: r('.pago[data-forma="efectivo-cop"]'), total: r('.total-cobro'), formas: r('.formas-cobro'), final: r('#cobrar-final'), alto: innerHeight };
     });
-    a.ok(pos.pago.top >= pos.tarjeta.top && pos.pago.bottom <= pos.tarjeta.bottom, 'el monto va dentro de su tarjeta');
+    a.ok(pos.pago.top > pos.total.bottom && pos.pago.bottom < pos.formas.top, 'el pago va entre el total y las formas');
     a.ok(pos.pago.bottom <= pos.alto, 'el pago agregado debe verse sin desplazarse');
     a.ok(pos.final.bottom <= pos.alto, 'el botón Cobrar debe verse');
   }],

@@ -3,6 +3,7 @@ import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas } from '
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
 import { tipoPrenda } from '../nucleo/tipo-prenda.js';
+import { colorPrenda } from '../nucleo/colores.js';
 import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
 import { aplicarDescuento, requiereAutorizacion } from '../nucleo/descuento.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
@@ -68,20 +69,25 @@ function grupos(ctx) {
   return Object.values(g).sort((a, b) => a.grupo.localeCompare(b.grupo, 'es'));
 }
 
+// Línea del carrito en tarjeta: imagen, nombre, color y talla, tarifa; a la derecha quitar, cantidad y monto.
 function lineaCarrito(ctx, l, aj) {
   const p = ctx.productos[l.sku];
+  const g = { producto: p.producto || p.nombre, categoria: p.categoria, foto: p.foto };
   return h('div', { class: 'linea', 'data-sku': l.sku },
+    miniatura(g, 'foto'),
     h('div', { class: 'linea-info' },
-      h('b', {}, p.producto || p.nombre),
-      h('div', { class: 'nota' }, [p.color, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ')),
-      h('div', { class: 'tramo' + (l.oferta ? ' oferta' : '') }, h('span', { class: 'num' }, fmtCop(l.precioUnit)), ' c/u', h('span', { class: 'tramo-n' }, l.oferta ? ' (oferta)' : ` (${etiquetaTramo(l.tramo, aj.tramos)} prendas)`))),
+      h('b', {}, g.producto),
+      h('span', { class: 'lc-chip' }, [p.color, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku),
+      h('span', { class: 'lc-chip tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Precio de oferta' : `Tarifa ${etiquetaTramo(l.tramo, aj.tramos)}`)),
     h('div', { class: 'linea-der' },
-      h('span', { class: 'num monto' }, fmtCop(l.subtotal)),
+      h('button', { 'aria-label': 'Quitar', class: 'quitar ibtn chico peligro', onclick: () => agregarAlCarrito(ctx, l.sku, -l.cantidad) }, icono('borrar')),
+      h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal)), h('span', { class: 'c-cop moneda' }, 'COP'))),
+    h('div', { class: 'linea-pie' },
       h('div', { class: 'stepper' },
         h('button', { 'aria-label': 'Menos', onclick: () => agregarAlCarrito(ctx, l.sku, -1) }, icono('menos')),
         h('span', { class: 'cant num' }, String(l.cantidad)),
-        h('button', { 'aria-label': 'Más', onclick: () => agregarAlCarrito(ctx, l.sku, 1) }, icono('mas1')),
-        h('button', { 'aria-label': 'Quitar', class: 'quitar', onclick: () => agregarAlCarrito(ctx, l.sku, -l.cantidad) }, icono('borrar')))));
+        h('button', { 'aria-label': 'Más', onclick: () => agregarAlCarrito(ctx, l.sku, 1) }, icono('mas1'))),
+      h('span', { class: 'nota num lc-cu' }, `${fmtCop(l.precioUnit)} c/u`)));
 }
 
 export function equivalentes(ctx, cop) {
@@ -103,13 +109,16 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
     h('div', { class: 'lineas' }, r.lineas.map(l => lineaCarrito(ctx, l, aj))),
     r.aviso ? h('div', { class: 'aviso aviso-tramo' }, icono('etiqueta'), `Con ${r.aviso.faltan} ${r.aviso.faltan === 1 ? 'prenda' : 'prendas'} más pasan a precio ${r.aviso.etiqueta}`) : null,
     h('div', { class: 'totales' },
-      r.descuento ? h('div', { class: 'fila-total' }, h('span', {}, 'Subtotal'), h('span', { class: 'num' }, fmtCop(r.subtotal))) : null,
-      r.descuento ? h('div', { class: 'fila-total desc' },
-        h('span', { class: 'desc-et' }, 'Descuento', h('button', { class: 'ibtn chico', 'aria-label': 'Quitar descuento', onclick: () => { c.descuento = null; c.autorizacion = null; window.dispatchEvent(new CustomEvent('pos:carrito')); } }, icono('x'))),
-        h('span', { class: 'num' }, '-' + fmtCop(r.descuento))) : null,
-      h('div', { class: 'et-total' }, 'Total'),
-      h('div', { class: 'total' }, h('span', { class: 'total-cop num' }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
-      equivalentes(ctx, r.total)),
+      r.descuento ? h('div', { class: 'fila-total' }, h('span', {}, 'Subtotal'), h('span', { class: 'num' }, fmtCop(r.subtotal), h('span', { class: 'c-cop moneda' }, 'COP'))) : null,
+      h('div', { class: 'fila-total desc' },
+        h('span', { class: 'desc-et' }, icono('etiqueta'), 'Descuento',
+          r.descuento ? h('button', { class: 'ibtn chico', 'aria-label': 'Quitar descuento', onclick: () => { c.descuento = null; c.autorizacion = null; window.dispatchEvent(new CustomEvent('pos:carrito')); } }, icono('x')) : null),
+        h('span', { class: 'num' }, r.descuento ? '-' + fmtCop(r.descuento) : '0', h('span', { class: 'c-cop moneda' }, 'COP'))),
+      h('div', { class: 'caja-total' },
+        h('div', { class: 'et-total' }, 'Total'),
+        h('div', { class: 'tc-der' },
+          h('div', { class: 'total' }, h('span', { class: 'total-cop num' }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
+          h('div', { class: 'tc-eq' }, icono('cambio'), '≈ ', equivalentes(ctx, r.total))))),
     h('div', { class: 'acciones-carrito' },
       h('button', { class: 'btn', onclick: () => abrirDescuento(ctx) }, icono('porcentaje'), 'Descuento'),
       h('button', { class: 'btn', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'),
@@ -154,29 +163,46 @@ function abrirDescuento(ctx) {
   });
 }
 
-// Tallas: una fila por talla con − cantidad + bien separados, para no tocar otra talla por error.
+// Tallas: se eligen las cantidades con − y + (bien separados) y se pasan al carrito con «Agregar al carrito».
+// Cerrar con la X no cambia el carrito.
 function abrirTallas(ctx, g) {
-  const cont = h('div', { class: 'tallas-lista' });
-  const pintar = () => cont.replaceChildren(...[...g.variantes].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0)).map(p => {
-    const en = enCarrito(ctx, p.sku);
-    const disp = p.existencia - en;
-    const nombre = p.talla || p.nombre;
-    const agotada = p.existencia <= 0;
-    const pocas = !agotada && p.existencia <= p.minimo;
-    return h('div', { class: 'talla-fila-v' + (en ? ' con' : '') + (agotada ? ' agotada' : ''), 'data-sku': p.sku },
-      h('span', { class: 'tf-info' }, h('b', {}, nombre),
-        h('span', { class: 'nota' + (pocas ? ' pocas' : '') }, agotada ? 'Agotada' : `${p.existencia} disp.`)),
-      h('span', { class: 'tf-paso' },
-        h('button', { type: 'button', class: 'talla-menos', 'data-sku': p.sku, 'aria-label': `Quitar una talla ${nombre}`, disabled: !en,
-          onclick: () => { agregarAlCarrito(ctx, p.sku, -1); pintar(); } }, icono('menos')),
-        h('span', { class: 'tf-cant num' + (en ? ' con' : ''), 'aria-live': 'polite' }, String(en)),
-        h('button', { type: 'button', class: 'talla-mas', 'data-talla': nombre, 'data-sku': p.sku, 'aria-label': `Agregar una talla ${nombre}`, disabled: agotada && !en,
-          onclick: () => { if (disp <= 0) { toast('No hay más existencia'); return; } agregarAlCarrito(ctx, p.sku, 1); pintar(); } }, icono('mas1'))));
-  }));
+  const variantes = [...g.variantes].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  const cuentas = Object.fromEntries(variantes.map(p => [p.sku, enCarrito(ctx, p.sku)]));
+  const antes = { ...cuentas };
+  const color = colorPrenda(g.color);
+  const lista = h('div', { class: 'tallas-lista' });
+  const agregar = h('button', { class: 'btn primary grande', id: 'tallas-agregar' });
+  const pintar = () => {
+    lista.replaceChildren(...variantes.map(p => {
+      const n = cuentas[p.sku];
+      const nombre = p.talla || p.nombre;
+      const agotada = p.existencia <= 0;
+      const pocas = !agotada && p.existencia <= p.minimo;
+      return h('div', { class: 'talla-fila-v' + (n ? ' con' : '') + (agotada ? ' agotada' : ''), 'data-sku': p.sku },
+        h('span', { class: 'tf-talla' }, nombre),
+        h('span', { class: 'tf-disp' + (pocas ? ' pocas' : '') }, agotada ? 'Agotada' : [`${p.existencia} `, h('span', { class: 'largo' }, p.existencia === 1 ? 'disponible' : 'disponibles'), h('span', { class: 'corto' }, 'disp.')]),
+        h('span', { class: 'tf-paso' },
+          h('button', { type: 'button', class: 'talla-menos', 'data-sku': p.sku, 'aria-label': `Quitar una talla ${nombre}`, disabled: !n,
+            onclick: () => { cuentas[p.sku] = Math.max(0, n - 1); pintar(); } }, icono('menos')),
+          h('span', { class: 'tf-cant num' + (n ? ' con' : ''), 'aria-live': 'polite' }, String(n)),
+          h('button', { type: 'button', class: 'talla-mas', 'data-talla': nombre, 'data-sku': p.sku, 'aria-label': `Agregar una talla ${nombre}`, disabled: agotada,
+            onclick: () => { if (n >= p.existencia) { toast('No hay más existencia'); return; } cuentas[p.sku] = n + 1; pintar(); } }, icono('mas1'))));
+    }));
+    const total = Object.values(cuentas).reduce((x, y) => x + y, 0);
+    const cambio = variantes.some(p => cuentas[p.sku] !== antes[p.sku]);
+    const habia = Object.values(antes).some(Boolean);
+    agregar.replaceChildren(icono('carrito'), habia ? 'Actualizar carrito' : 'Agregar al carrito', total ? h('span', { class: 'tf-total' }, ` · ${total}`) : null);
+    agregar.disabled = !cambio;
+  };
   pintar();
-  const listo = h('button', { class: 'btn primary grande' }, icono('check'), 'Listo');
-  const v = abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: cont, acciones: listo });
-  listo.onclick = () => v.cerrar();
+  const cont = h('div', { class: 'tallas-v' },
+    h('p', { class: 'tallas-sub' }, g.color ? h('i', { class: 'punto-color grande', style: color ? `--pc:${color}` : '' }) : null, [g.color, 'Selecciona las tallas'].filter(Boolean).join(' · ')),
+    lista);
+  const v = abrirVentana({ titulo: g.producto, contenido: cont, acciones: agregar, clase: 'ventana-tallas' });
+  agregar.onclick = () => {
+    for (const p of variantes) { const d = cuentas[p.sku] - enCarrito(ctx, p.sku); if (d) agregarAlCarrito(ctx, p.sku, d); }
+    v.cerrar();
+  };
 }
 
 // Tarjeta de prenda compacta: imagen cuadrada a la izquierda (foto o ícono gris según el tipo de prenda) y al lado nombre, tallas y precio.
@@ -184,23 +210,28 @@ export function miniatura(g, clase = 'miniatura') {
   return h('span', { class: clase }, g.foto ? h('img', { src: g.foto, alt: '', loading: 'lazy', width: 64, height: 64 }) : icono(tipoPrenda(g.producto, g.categoria)));
 }
 
+// Fila de prenda: imagen cuadrada, nombre, color y tallas; a la derecha disponibles y precio.
 function tarjeta(ctx, g) {
   const existencia = g.variantes.reduce((s, p) => s + Math.max(p.existencia, 0), 0);
   const agotada = existencia <= 0;
+  const pocas = !agotada && g.variantes.some(p => p.existencia > 0 && p.existencia <= p.minimo);
   const precio = Math.min(...g.variantes.map(p => p.precios?.[0] || Infinity));
   const oferta = g.variantes.some(p => p.oferta?.activa);
   const elegidas = g.variantes.reduce((s, p) => s + enCarrito(ctx, p.sku), 0);
   const tallas = [...g.variantes].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  const color = colorPrenda(g.color);
   return h('button', { class: 'tarjeta-prenda' + (agotada ? ' agotada' : '') + (elegidas ? ' elegida' : ''), 'data-grupo': g.grupo, onclick: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) },
-    miniatura(g, 'foto'),
+    h('span', { class: 'tp-img' }, miniatura(g, 'foto'), elegidas ? h('span', { class: 'en-carrito', 'aria-label': `${elegidas} en el carrito` }, String(elegidas)) : null),
     h('span', { class: 'info' },
       h('b', {}, g.producto),
-      h('span', { class: 'precio-fila' },
-        agotada ? h('span', { class: 'tp-estado' }, 'Agotada') : h('span', { class: 'num precio' }, Number.isFinite(precio) ? fmtCop(precio) : '—'),
-        !agotada && oferta ? h('span', { class: 'tp-estado' }, 'oferta') : null)),
-    h('span', { class: 'tp-linea' }, g.color ? h('span', { class: 'tp-color' }, g.color) : null,
-      h('span', { class: 'tp-tallas' }, ...tallas.map(p => h('span', { class: p.existencia > 0 ? '' : 'sin' }, p.talla || p.sku)))),
-    elegidas ? h('span', { class: 'en-carrito', 'aria-label': `${elegidas} en el carrito` }, String(elegidas)) : null);
+      h('span', { class: 'tp-linea' },
+        g.color ? h('span', { class: 'tp-color' }, h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }), g.color) : null,
+        h('span', { class: 'tp-tallas' }, h('span', { class: 'tp-pal' }, 'Tallas: '), ...tallas.flatMap((p, i) => [i ? ' · ' : '', h('span', { class: p.existencia > 0 ? '' : 'sin' }, p.talla || p.sku)])))),
+    h('span', { class: 'tp-der' },
+      agotada ? h('span', { class: 'est r tp-estado' }, icono('alerta'), 'Agotada')
+        : h('span', { class: 'est tp-disp ' + (pocas ? 'y' : 'g') }, `${existencia} disp.`),
+      agotada ? null : h('span', { class: 'num precio' }, Number.isFinite(precio) ? fmtCop(precio) : '—'),
+      !agotada && oferta ? h('span', { class: 'tp-estado tp-oferta' }, 'oferta') : null));
 }
 
 registrarVista('/vender', {

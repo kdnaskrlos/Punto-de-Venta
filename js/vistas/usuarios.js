@@ -66,21 +66,36 @@ function nuevoUsuario(ctx) {
   })();
 }
 
+const ROL_EST = { admin: 'g', encargada: 'b', vendedora: 'y' };
+
+// Usuarios como en Pedidos: tarjetas compactas (avatar, nombre, @usuario, rol) que se despliegan al tocarlas.
 function usuarios(ctx) {
   const lista = h('div', { class: 'lista-usuarios' });
+  const abiertos = new Set();
+  let ultimos = [];
   const el = seccion('Usuarios', 'usuarios', lista,
     h('button', { class: 'forma-nueva nuevo-usuario', id: 'nu-abrir', onclick: () => nuevoUsuario(ctx) }, icono('mas1'), 'Nuevo usuario'));
-  const quitar = ctx.almacen.escuchar('usuarios', l => {
-    lista.replaceChildren(...l.filter(u => !u.reemplazadoPor).sort((a, b) => (a.rol === 'admin' ? -1 : 1) - (b.rol === 'admin' ? -1 : 1) || a.usuario.localeCompare(b.usuario)).map(u => h('div', { class: 'usuario' + (u.activo ? '' : ' off'), 'data-usuario': u.usuario },
-      h('div', { class: 'u-cab' },
+  const pintar = () => lista.replaceChildren(...ultimos.map(u => {
+    const abierto = abiertos.has(u.usuario);
+    const yo = u.uid === ctx.sesion.uid;
+    const idCuerpo = `u-cuerpo-${u.usuario}`;
+    return h('div', { class: 'usuario' + (u.activo ? '' : ' off') + (abierto ? ' abierto' : ''), 'data-usuario': u.usuario },
+      h('button', { type: 'button', class: 'u-cab', 'aria-expanded': String(abierto), 'aria-controls': idCuerpo, onclick: () => { abierto ? abiertos.delete(u.usuario) : abiertos.add(u.usuario); pintar(); } },
         h('span', { class: 'avatar' }, (u.nombre || u.usuario).slice(0, 1).toUpperCase()),
-        h('div', { class: 'u-info' }, h('b', {}, u.nombre), h('div', { class: 'nota' }, `@${u.usuario} · ${NOMBRE_ROL[u.rol] || u.rol}`)),
-        h('span', { class: 'est ' + (u.activo ? 'g' : 'n') }, u.activo ? 'Activo' : 'Inactivo')),
-      h('label', { class: 'interruptor u-com' }, h('input', { type: 'checkbox', 'data-comision': u.usuario, checked: ganaComision(u),
-        onchange: async e => { const r = await ctx.almacen.marcarComision(u.uid, e.target.checked); if (!r.ok) { e.target.checked = !e.target.checked; guardado(r); } else toast(e.target.checked ? `${u.nombre} gana comisión` : `${u.nombre} ya no gana comisión`); } }), 'Gana comisión por prenda vendida'),
-      u.uid === ctx.sesion.uid ? null : h('div', { class: 'u-acc' },
-        h('button', { class: 'btn', onclick: async () => { const pin = await pedirPin(`Nuevo PIN para ${u.nombre}`); if (pin) guardado(await ctx.almacen.cambiarPin(u.uid, pin)); } }, icono('llave'), 'Nuevo PIN'),
-        h('button', { class: 'btn ' + (u.activo ? 'danger' : ''), onclick: async () => guardado(await ctx.almacen.activarUsuario(u.uid, !u.activo)) }, u.activo ? 'Desactivar' : 'Activar')))));
+        h('span', { class: 'u-info' }, h('b', {}, u.nombre, yo ? h('span', { class: 'nota' }, ' (tú)') : null), h('span', { class: 'nota' }, `@${u.usuario}`)),
+        u.activo ? null : h('span', { class: 'est n' }, 'Inactivo'),
+        h('span', { class: `est ${ROL_EST[u.rol] || 'n'}` }, NOMBRE_ROL[u.rol] || u.rol),
+        icono('abajo')),
+      h('div', { class: 'u-cuerpo', id: idCuerpo, hidden: !abierto },
+        h('label', { class: 'interruptor u-com' }, h('input', { type: 'checkbox', 'data-comision': u.usuario, checked: ganaComision(u),
+          onchange: async e => { const r = await ctx.almacen.marcarComision(u.uid, e.target.checked); if (!r.ok) { e.target.checked = !e.target.checked; guardado(r); } else toast(e.target.checked ? `${u.nombre} gana comisión` : `${u.nombre} ya no gana comisión`); } }), 'Gana comisión por prenda vendida'),
+        yo ? h('p', { class: 'nota' }, 'Tu PIN se cambia en «Mi cuenta», más abajo.') : h('div', { class: 'u-acc' },
+          h('button', { class: 'btn', onclick: async () => { const pin = await pedirPin(`Nuevo PIN para ${u.nombre}`); if (pin) guardado(await ctx.almacen.cambiarPin(u.uid, pin)); } }, icono('llave'), 'Nuevo PIN'),
+          h('button', { class: 'btn ' + (u.activo ? 'danger' : ''), onclick: async () => guardado(await ctx.almacen.activarUsuario(u.uid, !u.activo)) }, u.activo ? 'Desactivar' : 'Activar'))));
+  }));
+  const quitar = ctx.almacen.escuchar('usuarios', l => {
+    ultimos = l.filter(u => !u.reemplazadoPor).sort((a, b) => (a.rol === 'admin' ? -1 : 1) - (b.rol === 'admin' ? -1 : 1) || a.usuario.localeCompare(b.usuario));
+    pintar();
   });
   return { el, quitar };
 }

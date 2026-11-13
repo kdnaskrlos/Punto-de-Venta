@@ -21,6 +21,8 @@ const ICONOS = {
   vestido: '<path d="M9 2v3L7 9l2.5 1L5 22h14l-4.5-12L17 9l-2-4V2"/><path d="M9 5h6"/>',
   gorra: '<path d="M3.5 15a8.5 7 0 0 1 17 0z"/><path d="M12 8V6.5"/><path d="M3.5 15c4 1.6 10 1.8 15 .2l2.5 1.3"/>',
   camisa: '<path d="M20.4 6.6 16 3h-2l-2 3-2-3H8L3.6 6.6a1 1 0 0 0-.2 1.2L5 11h2v10h10V11h2l1.6-3.2a1 1 0 0 0-.2-1.2z"/><path d="M12 6v6"/>',
+  cambio: '<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>',
+  telefono: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
   franela: '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>',
   mas1: '<path d="M5 12h14"/><path d="M12 5v14"/>',
   menos: '<path d="M5 12h14"/>',
@@ -180,10 +182,11 @@ function cabecera(titulo, extra) {
   return h('div', { class: 'cab' }, h('h2', {}, titulo), extra || null, h('button', { class: 'ibtn cerrar', 'aria-label': 'Cerrar' }, icono('x')));
 }
 
-export function abrirVentana({ titulo, contenido, acciones, pantallaCompleta = false, extraCab = null }) {
-  const el = h('div', { class: 'capa ventana' + (pantallaCompleta ? ' completa' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': titulo },
+// clase: variante visual ('desplegable' baja desde la barra superior). sinCabecera: sin título ni X (se cierra tocando fuera o con Esc).
+export function abrirVentana({ titulo, contenido, acciones, pantallaCompleta = false, extraCab = null, clase = '', sinCabecera = false }) {
+  const el = h('div', { class: 'capa ventana' + (pantallaCompleta ? ' completa' : '') + (clase ? ' ' + clase : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': titulo },
     h('div', { class: 'fondo' }),
-    h('div', { class: 'caja' }, cabecera(titulo, extraCab), h('div', { class: 'cuerpo' }, contenido), acciones ? h('div', { class: 'pie' }, acciones) : null));
+    h('div', { class: 'caja' }, sinCabecera ? null : cabecera(titulo, extraCab), h('div', { class: 'cuerpo' }, contenido), acciones ? h('div', { class: 'pie' }, acciones) : null));
   return abrirCapa(el);
 }
 
