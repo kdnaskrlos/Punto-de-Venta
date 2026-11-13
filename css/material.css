@@ -1,0 +1,86 @@
+/* Material Design 3 adaptado a la identidad de Comic Shop (v1.44).
+   Colores, fuente y verde de acción no cambian; aquí van componentes, toques de 48, estados y sombras.
+   Archivo aparte para poder revertirlo de una vez. */
+
+:root{
+  --toque:48px;
+  --sombra-1:0 1px 2px rgba(16,24,40,.06),0 2px 6px rgba(16,24,40,.06);
+  --sombra-2:0 8px 28px rgba(16,24,40,.18);
+  --capa-encima:rgba(17,24,39,.08);   /* hover */
+  --capa-presion:rgba(17,24,39,.12);  /* pressed / focus */
+}
+
+/* ---------- 5. Componentes ---------- */
+/* Botones: 48 normal, 56 acción final; deshabilitado gris neutro (no verde pálido) */
+.btn{min-height:48px;border-radius:12px;padding:0 16px;font-size:14px;gap:8px}
+.btn svg.i{width:18px;height:18px}
+.btn.grande{min-height:56px;font-size:16px;border-radius:12px}
+.btn.chico{min-height:40px;padding:0 12px;font-size:13px;position:relative}
+.btn:disabled,.btn[disabled]{background:rgba(17,24,39,.12)!important;border-color:transparent!important;color:rgba(17,24,39,.38)!important;box-shadow:none!important;cursor:not-allowed;opacity:1}
+.btn:disabled svg.i{color:inherit}
+/* Botón de texto (acciones terciarias o peligrosas que no deben competir) */
+.btn.texto{background:none;border-color:transparent;padding:0 12px}
+.btn.texto.peligro{color:var(--r-tx)}
+
+/* Campos: un solo estilo — blanco, borde 1px, 48 de alto, radio 12; foco con borde de 2px gris oscuro */
+.inp{background:var(--surface);border:1px solid #c4cad3;border-radius:12px;min-height:48px;padding:8px 12px;font-size:16px}
+.inp::placeholder{color:#8b93a1}
+.inp:focus{border-color:var(--sel-neu);box-shadow:inset 0 0 0 1px var(--sel-neu);outline:0}
+.inp.num,.pago-monto .inp,.tasa-entrada .inp{text-align:right}
+.tasa-entrada,.calc-caja{background:var(--surface);border:1px solid #c4cad3;border-radius:12px;min-height:48px}
+.tasa-entrada:focus-within,.calc-caja:focus-within{border-color:var(--sel-neu);box-shadow:inset 0 0 0 1px var(--sel-neu)}
+.calc-caja .inp,.tasa-entrada .inp{border:0;box-shadow:none!important}
+
+/* Una sola X para cerrar: sin círculo, 48 de toque */
+.cerrar,.hoja .cab .cerrar{width:48px;height:48px;border-radius:50%;background:none;color:var(--muted)}
+.cab{min-height:64px}
+.cab h2{font-size:20px;font-weight:800}
+
+/* Títulos de sección: un solo estilo (15/16 px, sin mayúsculas, ícono opcional en gris) */
+.sec-t,.ap-det-t,.dg-t,.rep .sec-t{font-size:16px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--ink)}
+.sec-m,.sub-t{font-size:14px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--ink)}
+.sec-t svg.i,.ap-det-t svg.i{width:20px;height:20px;color:var(--muted)}
+
+/* Superficies: tarjetas con borde, radio 12 y sin sombra; ventanas y hojas con sombra nivel 2; barra del carrito nivel 1 */
+.tarjeta{box-shadow:none;border-radius:12px}
+.ventana .caja,.hoja .caja,.capa.ventana.desplegable .caja{box-shadow:var(--sombra-2)}
+.ventana .caja{border-radius:16px}
+.barra-carrito,.pie-fijo,#aj-guardar{box-shadow:var(--sombra-1)}
+.forma-tarjeta.activa{box-shadow:none}
+
+/* Opción elegida (Tasas → Manual y similares): borde de 2 px y fondo suave, no negro grueso */
+.modo-bs.activo{border:2px solid var(--sel-neu);background:var(--sel-neu-bg)}
+
+/* Avatares en gris: el color queda solo en la pastilla del rol */
+.avatar,.lista-usuarios .u-cab .avatar{background:var(--surface-2);color:var(--ink)}
+
+/* ---------- 3. Toques de 48 × 48 sin cambiar cómo se ven ---------- */
+.chip,.lc-cont button,.forma-acc .ibtn,.rep-ver,.enlace-ver,.tasas-ajustar,.btn.chico,.ibtn.chico,.tf-paso button,.linea-der .quitar{position:relative}
+.chip::after,.lc-cont button::after,.forma-acc .ibtn::after,.rep-ver::after,.enlace-ver::after,.tasas-ajustar::after,.btn.chico::after,.ibtn.chico::after{
+  content:"";position:absolute;left:50%;top:50%;width:max(100%,var(--toque));height:max(100%,var(--toque));transform:translate(-50%,-50%)}
+.ibtn{width:48px;height:48px}
+.ibtn.chico{width:40px;height:40px}
+.lc-cont{gap:8px}
+.tf-paso{gap:8px}
+.ventana-tallas .tf-paso button{width:48px;height:48px}
+
+/* ---------- 4. Estados de interacción (capas de Material: 8 % encima, 12 % al presionar) ---------- */
+.btn,.chip,.tarjeta-prenda,.apartado,.grupo-inv,.forma-cobro,.forma-toque,.mas-fila,.rep-fila,.u-cab,.linea.mini,.venta-hoy,.barra-talla,.talla-mas,.talla-menos,.lc-cont button,.ibtn,.despl > summary,.tile[data-k],.segmentado button,.rep-ver,.enlace-ver,.tasas-ajustar,.nav{
+  transition:background-color .15s,box-shadow .15s,transform .1s}
+@media (hover:hover){
+  .btn:not(:disabled):hover,.chip:hover,.tarjeta-prenda:hover,.apartado:hover,.grupo-inv:hover,.forma-cobro:not(:disabled):hover,.forma-toque:hover,.mas-fila:hover,.rep-fila:hover,.u-cab:hover,.linea.mini:hover,.venta-hoy:hover,.barra-talla:hover,.ibtn:not(:disabled):hover,.despl > summary:hover,.tile[data-k]:hover,.segmentado button:not([aria-pressed="true"]):hover,.nav:hover{
+    background-image:linear-gradient(var(--capa-encima),var(--capa-encima))}
+  .tarjeta-prenda:hover,.grupo-inv:hover{border-color:var(--line)}
+}
+.btn:not(:disabled):active,.chip:active,.tarjeta-prenda:active,.apartado:active,.grupo-inv:active,.forma-cobro:not(:disabled):active,.forma-toque:active,.mas-fila:active,.rep-fila:active,.u-cab:active,.linea.mini:active,.venta-hoy:active,.barra-talla:active,.ibtn:not(:disabled):active,.lc-cont button:active,.tf-paso button:not(:disabled):active,.despl > summary:active,.tile[data-k]:active,.nav:active{
+  background-image:linear-gradient(var(--capa-presion),var(--capa-presion));transform:scale(.99)}
+.btn:not(:disabled):active,.ibtn:active,.lc-cont button:active,.tf-paso button:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--sel-neu);outline-offset:2px}
+/* Botones trabajando: «Guardando…», «Cobrando…» con indicador y sin doble toque */
+.btn.cargando{pointer-events:none;position:relative}
+.btn.cargando::before{content:"";width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:gira .7s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+/* Límite de existencia en tallas */
+.tf-max{display:block;font-size:12px;font-weight:700;color:var(--y-tx)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.btn.cargando::before{animation:none}}
+.tasa-entrada{gap:8px;padding:0 16px}

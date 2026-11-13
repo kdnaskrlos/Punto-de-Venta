@@ -3,7 +3,7 @@ const CACHE = 'pos-v1.44';
 const LIBS = 'libs-v1'; // Firebase y la fuente: archivos con versión fija
 const FOTOS = 'fotos-v1';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icono-192.png', './icono-512.png', './logo-carrito.png',
-  './css/tokens.css', './css/base.css', './css/componentes.css',
+  './css/tokens.css', './css/base.css', './css/componentes.css', './css/material.css',
   './js/principal.js', './js/app.js', './js/ui.js', './js/version.js'];
 
 self.addEventListener('install', e => {
