@@ -18,7 +18,7 @@ registrarVista('/mas', {
         ctx.puedeVer('pagarComisiones') ? ir('/comisiones', 'porcentaje', 'var(--tono-violeta)', 'Comisiones', 'Lo que se le debe a la vendedora') : null),
       grupo(admin ? 'Administración' : 'Cuenta',
         admin ? ir('/usuarios', 'usuarios', 'var(--tono-rosa)', 'Usuarios', 'Equipo, PIN y mi cuenta') : ir('/usuarios', 'usuario', 'var(--tono-rosa)', 'Mi cuenta', 'Cambiar PIN y salir'),
-        admin ? ir('/ajustes', 'ajustes', 'var(--tono-rojo)', 'Ajustes', 'Tasas, pagos y recibo') : null),
+        admin ? ir('/ajustes', 'ajustes', 'var(--tono-turquesa)', 'Ajustes', 'Tasas, pagos y recibo') : null),
     ].filter(Boolean));
   },
 });

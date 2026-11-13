@@ -123,8 +123,8 @@
 .talla .nota{font-size:11.5px}
 .talla-caja{position:relative;display:grid}
 .talla.con{border-color:var(--accent);background:var(--g-bg);box-shadow:0 0 0 1px var(--accent)}
-.talla-menos{position:absolute;top:-9px;left:-9px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:20px;font-weight:800;line-height:1;display:grid;place-items:center;box-shadow:0 1px 4px rgba(16,24,40,.15);padding:0}
-.talla-menos::before{content:"";position:absolute;inset:-8px}
+.talla-menos{position:absolute;top:-7px;left:-7px;width:22px;height:22px;border-radius:11px;border:1px solid var(--r-bd);background:var(--r-bg);color:var(--r-tx);font-size:16px;font-weight:800;line-height:1;display:grid;place-items:center;padding:0}
+.talla-menos::before{content:"";position:absolute;inset:-11px}
 .tarjeta-prenda{position:relative}
 .tarjeta-prenda.elegida{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent)}
 .tarjeta-prenda .foto{position:relative}
@@ -591,3 +591,9 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .modo-val{font:800 16px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;flex:none}
 .modo-bs:not(.activo) .modo-extra:has(#aj-recargo){display:none}
 .modo-extra{padding-left:34px}
+
+/* Venta en curso (v1.30) */
+.venta-curso{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:12px;background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 9%,var(--surface)),var(--surface) 75%);--c:var(--accent)}
+.venta-curso .chip-ic{width:36px;height:36px;border-radius:10px}
+.venta-curso b{display:block;font-weight:800}
+.venta-curso small{color:var(--muted);font-weight:600;font-size:12.5px}

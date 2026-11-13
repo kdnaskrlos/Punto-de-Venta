@@ -4,7 +4,6 @@ import { registrarVista } from '../app.js';
 import { etiquetaTramo, precioDeTramo } from '../nucleo/tramos.js';
 import { leerInventario, planImportacion } from '../nucleo/importar.js';
 import { emparejarFotos } from '../nucleo/fotos.js';
-import { valorInventario } from '../nucleo/reportes.js';
 import { fmtCop } from '../nucleo/dinero.js';
 import { fechaHora } from '../nucleo/fechas.js';
 import { comprimirFoto, CLAVE_TOKEN } from '../datos/github-fotos.js';
@@ -195,7 +194,6 @@ registrarVista('/inventario', {
     let busqueda = '', costos = {};
     const buscar = h('input', { class: 'inp', id: 'buscar-inv', type: 'search', placeholder: 'Buscar prenda o código', autocomplete: 'off' });
     const lista = h('div', { class: 'lista-inv' });
-    const valor = h('div', { class: 'valor-inv' });
     const pintar = () => {
       const q = norm(busqueda);
       const gs = grupos(ctx.productos).filter(g => !q || g.variantes.some(p => norm(`${p.grupo} ${p.sku} ${p.codigo} ${p.marca}`).includes(q)));
@@ -206,11 +204,6 @@ registrarVista('/inventario', {
           h('div', { class: 'gi-info' }, h('b', {}, g.producto), h('div', { class: 'nota' }, [g.color, plural(total, 'unidad', 'unidades')].filter(Boolean).join(' · ')),
             h('div', { class: 'mini-tallas' }, ...g.variantes.map(p => h('span', { class: `est ${colorExistencia(p)}` }, `T${p.talla || p.sku} · ${p.existencia}`)))));
       }) : [h('div', { class: 'vacio' }, busqueda ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos')]));
-      if (ctx.puedeVer('verCostos')) {
-        const v = valorInventario(Object.values(ctx.productos), costos);
-        valor.replaceChildren(h('div', { class: 'tile', style: '--c:var(--kpi-neutro)' }, h('div', { class: 'et' }, 'Valor a costo'), h('div', { class: 'val num' }, fmtCop(v.aCosto))),
-          h('div', { class: 'tile', style: '--c:var(--accent)' }, h('div', { class: 'et' }, 'Valor a precio detal'), h('div', { class: 'val num' }, fmtCop(v.aPrecio))));
-      }
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
     const quitar = ctx.almacen.escuchar('costos', l => { costos = Object.fromEntries(l.map(c => [c.sku, c])); pintar(); });
@@ -221,7 +214,6 @@ registrarVista('/inventario', {
         h('div', { class: 'acciones' },
           puedeAdmin(ctx, 'fotosMasivas') ? h('button', { class: 'btn', onclick: () => abrirFotos(ctx) }, icono('imagen'), 'Fotos') : null,
           puedeAdmin(ctx, 'importar') ? h('button', { class: 'btn primary', onclick: () => abrirImportar(ctx, costos) }, icono('subir'), 'Importar') : null)),
-      ctx.puedeVer('verCostos') ? valor : null,
       h('div', { class: 'buscar-caja' }, icono('buscar'), buscar),
       lista));
     pintar();

@@ -193,3 +193,9 @@ Suite final: npm test 99/99 · e2e 59/59
 ## Guardar fijo y actualizaciones (v1.29)
 - "Guardar cambios" de Ajustes fijo al final del contenido (no flotante), siempre visible y activo solo cuando hay cambios. Tasas, Venta y Pagos sin título.
 - Actualizaciones: al quitar el botón de recargar, la app ya no buscaba versiones nuevas (solo al cargar). Ahora busca al volver a la app y cada 10 minutos; si no hay nada a medias se actualiza sola, si no muestra "Hay una versión nueva · Actualizar". Los archivos se revalidan con el servidor (no-cache) para no servir copias viejas del navegador. No se puede probar en las pruebas automáticas (corren sin https): verificar en el teléfono.
+
+## Venta en curso y detalles (v1.30)
+- Venta en curso como en Pedidos: el carrito (prendas, descuento, cliente) se guarda en el aparato por usuario; si la app se cierra, al entrar pregunta "¿Continuar venta?" (Cancelar la descarta). Vale 24 h; al terminar la venta se borra.
+- El "−" de las tallas en rojo crema y del mismo tamaño que la cantidad.
+- Inventario sin tarjetas de valor arriba.
+- Existencias bajas (Inicio) y el ícono de Ajustes (Más) en azul turquesa (#0891b2).

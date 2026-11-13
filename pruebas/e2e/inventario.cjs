@@ -74,9 +74,8 @@ casos('inventario', [
     await p.waitForFunction(() => !!window.__pos.ctx.productos['J-M'].foto);
     a.deepStrictEqual(p.errores, []);
   }],
-  ['Encargada: ve costos y valor del inventario, sin importar, fotos, ajustes ni ofertas', async (env, a) => {
+  ['Encargada: ve costos, sin importar, fotos, ajustes ni ofertas', async (env, a) => {
     const p = await env.pagina({ usuario: 'encargada', ruta: '/inventario' });
-    a.ok((await texto(p, '.valor-inv')).includes('Valor a costo'));
     await p.click('.grupo-inv[data-grupo="Jogger Texcol Negro"]');
     a.ok((await texto(p, '.capa')).includes('Costo'));
     for (const b of ['Importar', 'Fotos', 'Ajustar', 'Oferta']) a.strictEqual(await p.$(`button:has-text("${b}")`), null, b);
@@ -102,9 +101,9 @@ casos('inventario', [
     await p.waitForSelector('.mov');
     a.match(await p.innerText('.capa:last-of-type'), /Existencia inicial/);
   }],
-  ['Teléfono: los valores del inventario van en una fila compacta', async (env, a) => {
+  ['Inventario sin tarjetas de valor arriba', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inventario' });
-    const alto = await p.$eval('.valor-inv', e => e.getBoundingClientRect().height);
-    a.ok(alto <= 90, `ocupan ${alto} px`);
+    await p.waitForSelector('.grupo-inv');
+    a.strictEqual(await p.$('.valor-inv, .vista .tile'), null);
   }],
 ]);

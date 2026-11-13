@@ -118,4 +118,28 @@ casos('vender', [
     a.strictEqual(await p.innerText(g + ' .en-carrito'), '1');
     a.strictEqual(await p.$('.tarjeta-prenda.elegida:not([data-grupo="Buzo Etanol Gris"])'), null);
   }],
+  ['"−" en rojo crema, del mismo tamaño que la cantidad', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
+    await p.click('.capa .talla[data-talla="S"]');
+    const [menos, num] = await Promise.all(['.capa .talla-menos', '.capa .talla .en-carrito'].map(s => p.$eval(s, e => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), getComputedStyle(e).backgroundColor]; })));
+    a.deepStrictEqual(menos.slice(0, 2), num.slice(0, 2));
+    a.notStrictEqual(menos[2], num[2]);
+  }],
+  ['Venta en curso: si la app se cierra, al volver ofrece continuarla', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.click('.tarjeta-prenda[data-grupo="Buzo Etanol Gris"]');
+    await p.click('.capa .talla[data-talla="S"]'); await p.click('.capa .talla[data-talla="M"]');
+    await p.click('.capa button:has-text("Listo")');
+    await p.evaluate(() => localStorage.setItem('pos-demo-usuario', 'vendedora')); // la demo recuerda quién entró
+    await p.reload();
+    await p.waitForSelector('.capa:has-text("¿Continuar venta?")');
+    a.match(await p.innerText('.venta-curso'), /2 prendas/);
+    await p.click('#retomar-si');
+    await p.waitForFunction(() => window.__pos.ctx.carrito?.lineas?.length === 2);
+    a.strictEqual(await p.evaluate(() => location.hash), '#/vender');
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.reload(); await p.waitForTimeout(1200);
+    a.strictEqual(await p.$('.capa:has-text("¿Continuar venta?")'), null, 'carrito vacío: no pregunta');
+  }],
 ]);

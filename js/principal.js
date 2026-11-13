@@ -1,5 +1,6 @@
 // Punto de entrada: crea el almacén, muestra la entrada o la app según la sesión y registra el service worker.
 import { ctx, mostrarApp, definirCalculadora } from './app.js';
+import { vigilarVentaEnCurso, ofrecerRetomar } from './vistas/venta-en-curso.js';
 import { h, cerrarCapaSuperior, hayCapas } from './ui.js';
 import { crearAlmacen, MODO_DEMO, DEMO_DIRECTO, usuarioDemo } from './datos/index.js';
 import { iniciarDatos } from './datos/vivos.js';
@@ -37,12 +38,13 @@ async function iniciar() {
     while (hayCapas()) cerrarCapaSuperior();
     pararDatos && pararDatos(); pararDatos = null;
     ctx.carrito = null;
-    if (s) { pararDatos = iniciarDatos(ctx); mostrarApp(); }
+    if (s) { pararDatos = iniciarDatos(ctx); mostrarApp(); setTimeout(() => ofrecerRetomar(ctx), 700); }
     else if (!MODO_DEMO && !(await ctx.almacen.sistemaIniciado())) pantallaPrimerAdmin(raiz, ctx);
     else pantallaEntrada(raiz, ctx, { demo: MODO_DEMO });
     raiz.dataset.listo = '1';
   });
 }
+vigilarVentaEnCurso(ctx);
 iniciar();
 
 // Actualizaciones: se buscan al volver a la app y cada 10 minutos (antes solo al recargar con el botón que se quitó).

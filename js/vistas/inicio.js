@@ -79,7 +79,7 @@ registrarVista('/inicio', {
           tile('ganancia', 'var(--tono-violeta)', 'Ganancia', r.ganancia == null ? '—' : fmtCop(r.ganancia), r.gananciaParcial ? 'Calculando costos…' : 'Total menos costo', 'grafica'),
           tile('caja', 'var(--tono-azul)', 'En cajas abiertas', fmtCop(enCaja), abiertas.length === 1 ? '1 abierta, en pesos' : `${abiertas.length} abiertas, en pesos`, 'cartera'),
           tile('cobrado', 'var(--tono-rosa)', 'Cobrado por mí hoy', fmtCop(cobrado), 'solo informativo', 'monedas'),
-          tile('bajas', 'var(--tono-rojo)', 'Existencias bajas', String(bajas.length), 'en el mínimo o menos', 'caja'));
+          tile('bajas', 'var(--tono-turquesa)', 'Existencias bajas', String(bajas.length), 'en el mínimo o menos', 'caja'));
       } else {
         const mia = ctx.miCaja;
         porCaja.actualizar(mia ? [mia] : []);
