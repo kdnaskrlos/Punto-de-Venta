@@ -40,6 +40,8 @@ export function pantallaEntrada(raiz, ctx, { demo }) {
     if (!r.ok) { const [c, t] = MENSAJES[r.error] || MENSAJES.error; error(c, r.detalle ? `${t} (${r.detalle})` : t); }
   });
   raiz.replaceChildren(h('div', { class: 'puerta' }, form));
+  const motivo = ctx.almacen.motivoSalida?.();
+  if (motivo) error('pin', `Se cerró la sesión: no se pudo cargar tu perfil (${motivo})`);
   // En el teléfono no se abre el teclado solo: la persona toca el campo cuando quiere escribir.
   if (!esTelefono()) setTimeout(() => form.querySelector('#entrar-usuario')?.focus(), 30);
 }

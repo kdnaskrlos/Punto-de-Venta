@@ -355,3 +355,4 @@ Suite final: npm test 99/99 · e2e 59/59
 - Más: junto a la versión dice «conectado a Firebase» o «modo demostración».
 - v1.64: la entrada ya no se queda callada: si la cuenta es correcta pero el perfil no llega (reglas, perfil borrado o inactivo, sin respuesta), dice «no se pudo cargar tu perfil (causa)»; otros errores muestran su código. Verificado con un Firebase simulado (crear admin, salir, entrar, guardar tasas).
 - v1.65: crear el administrador espera la respuesta de Firestore (hasta 15 s); si falla, muestra la causa y borra la cuenta de Authentication recién creada para no dejarla a medias.
+- v1.66: al volver a entrar, la sesión ya no se cierra sola con la copia vacía del perfil que queda en el teléfono tras cerrar sesión: solo se decide con la respuesta del servidor. Si la sesión se cierra sola, la entrada muestra la causa.

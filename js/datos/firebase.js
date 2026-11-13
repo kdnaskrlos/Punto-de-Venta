@@ -70,7 +70,10 @@ export function crearFirebase(config) {
   onAuthStateChanged(auth, user => {
     quitarPerfil && quitarPerfil(); quitarCaja && quitarCaja(); quitarPendientes && quitarPendientes(); miCaja = null; pendientesVentas = 0;
     if (!user) { publicarSesion(null); return; }
-    quitarPerfil = onSnapshot(ref('usuarios', user.uid), snap => {
+    quitarPerfil = onSnapshot(ref('usuarios', user.uid), { includeMetadataChanges: true }, snap => {
+      // La copia del teléfono puede venir vacía justo después de cerrar sesión: solo se decide con la respuesta
+      // del servidor. Antes se cerraba la sesión en silencio con esa copia vacía y no se podía volver a entrar.
+      if (!snap.exists() && snap.metadata.fromCache) return;
       const u = snap.data();
       if (!u || !u.activo) { errorPerfil = !u ? 'perfil-no-encontrado' : 'perfil-inactivo'; signOut(auth); return; }
       errorPerfil = null;
@@ -220,7 +223,9 @@ export function crearFirebase(config) {
         console.warn(e); return NO('error', { detalle: c || e.message });
       }
     },
-    async salir() { await signOut(auth); return SI(); },
+    async salir() { errorPerfil = null; await signOut(auth); return SI(); },
+    // Por qué se cerró la sesión sola (perfil no encontrado, inactivo o sin permiso); la entrada lo muestra.
+    motivoSalida() { const m = errorPerfil; errorPerfil = null; return m; },
     alCambiarSesion(cb) { oyentesSesion.add(cb); cb(sesion ? { ...sesion } : null); return () => oyentesSesion.delete(cb); },
     async crearUsuario({ usuario, nombre, rol, pin }) {
       const e = exigir('ajustes'); if (e) return NO(e);
