@@ -123,3 +123,7 @@
    Vender: una columna en el teléfono, dos en la tableta, rejilla libre en la computadora. */
 @media (min-width:600px) and (max-width:839px){.rejilla{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:600px) and (max-width:839px){.tp-tallas .tp-pal{display:none}}
+/* Apartados: sin flecha; pastilla y monto pegados al borde derecho, el monto siempre a la altura de la fecha */
+.apartado{align-items:stretch}
+.ap-der{align-self:stretch;align-items:flex-end;text-align:right}
+.ap-der .ap-saldo{margin-top:auto}

@@ -283,3 +283,4 @@ Suite final: npm test 99/99 · e2e 59/59
 - Tarjetas de lista compactas: Apartados 89px e Inventario 78px, todas iguales (la pastilla de aviso toma el lugar de «unidades»).
 - Detalles: talla bajo el nombre en el detalle del apartado; «Valor del inventario» en dos líneas; descripciones cortas en Binance/BCV; montos grandes que se encogen solos según su largo (--n); en Vender máximo 5 tallas y «+N».
 - Ventanas adaptables de M3: teléfono y tableta hasta 839px (barra abajo), computadora desde 840px; Vender en una columna < 600px, dos columnas de 600 a 839px y rejilla libre desde 840px.
+- Apartados (a pedido de Carlos): sin la flecha › en las tarjetas; la pastilla y el monto quedan pegados al borde derecho y el monto siempre a la altura de la fecha.

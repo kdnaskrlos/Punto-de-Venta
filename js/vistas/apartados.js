@@ -122,8 +122,7 @@ function tarjeta(ctx, ap, filtro) {
       h('span', { class: 'ap-l3' }, diaCorto(ap.fecha), viejo ? h('span', { class: 'ap-dias' }, ` · ${dias} días`) : null)),
     h('span', { class: 'ap-der' },
       pendiente && filtro === 'pendiente' ? null : h('span', { class: `est ${pendiente ? 'r' : color}` }, pendiente ? 'Por cobrar' : etiqueta),
-      h('b', { class: 'ap-saldo num' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total))),
-    icono('der'));
+      h('b', { class: 'ap-saldo num' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total))));
 }
 
 // Detalle del apartado: saldo y abonado arriba, prendas, último abono (con historial) y acciones.
