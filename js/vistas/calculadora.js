@@ -72,7 +72,8 @@ const FUENTE = { binance: 'Binance P2P', bcv: 'BCV (oficial)', manual: 'Manual' 
 
 export function abrirDetalleTasas(ctx) {
   const t = ctx.tasas, aj = ctx.ajustesTasas || {};
-  const cuando = iso => (iso ? fechaHora(iso) : 'sin fecha');
+  // Sin el día de la semana: «12 nov · 8:00 am».
+  const cuando = iso => (iso ? fechaHora(iso).replace(/^\S+ /, '') : 'sin fecha');
   const fila = (cls, ic, etiqueta, valor, moneda, fuente, fecha) => h('div', { class: 'tasa-fila ' + cls },
     h('span', { class: 'tasa-ic' }, icono(ic)),
     h('div', { class: 'tasa-txt' }, h('span', { class: 'tasa-et' }, etiqueta), h('span', { class: 'tasa-dato nota' }, fuente ? h('b', {}, fuente) : null, fuente ? ' · ' : null, cuando(fecha))),

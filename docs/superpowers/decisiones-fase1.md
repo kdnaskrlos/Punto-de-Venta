@@ -294,3 +294,6 @@ Suite final: npm test 99/99 · e2e 59/59
 - Espacio de 12px entre las pastillas de filtro y el primer elemento en Vender, Apartados, Inventario, Reportes y Comisiones (antes 24 en varias). La pastilla de fecha mide lo que se ve (36) con área de toque de 48.
 - Tasas del día: monto a 18px (20 desde 400px) alineado arriba con el título.
 - Tarjeta de apartado: nombre y estado en la primera línea; fecha y monto en la última sobre la misma línea base (antes el monto se alineaba al fondo de la tarjeta y quedaba más bajo que la fecha).
+
+## v1.47 — Tasas del día
+- La fecha va sin el día de la semana («12 nov · 8:00 am») y el monto se apoya en la misma línea base que la fecha y hora.
