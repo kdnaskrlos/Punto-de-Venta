@@ -1,5 +1,5 @@
 // Inicio por rol (§13.4): recuadros del día, autorizaciones (admin), alertas y ventas de hoy.
-import { h, icono, toast, sin, unaVez } from '../ui.js';
+import { h, icono, toast, sin, unaVez, largo } from '../ui.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
 import { resumenDia, inventarioBajo } from '../nucleo/reportes.js';
@@ -15,7 +15,7 @@ const DESTINO = { ventas: '/reportes', ganancia: '/reportes', caja: '/caja', cob
 const tile = (k, color, etiqueta, valor, sub, ic) => h('button', { type: 'button', class: 'tile' + (String(valor).length >= 13 ? ' ancha' : '') + (k === 'ventas' || k === 'mis-ventas' ? ' principal' : '') + (String(valor) === '0' ? ' cero' : ''), 'data-k': k, style: `--c:${color}`, onclick: () => DESTINO[k] && navegar(DESTINO[k]) },
   ic ? h('span', { class: 'tile-ic', 'aria-hidden': 'true' }, icono(ic)) : null,
   h('span', { class: 'et' }, ic ? h('span', { class: 'chip-ic' }, icono(ic)) : null, etiqueta),
-  h('span', { class: 'val num', style: `--n:${String(valor).length}` }, valor), sub ? h('span', { class: 'sub' }, sub) : null);
+  h('span', { class: 'val num', 'data-largo': largo(String(valor)) }, valor), sub ? h('span', { class: 'sub' }, sub) : null);
 
 const DIAS_L = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const MESES_L = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];

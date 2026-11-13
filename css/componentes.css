@@ -681,7 +681,6 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 /* C1: la cifra se achica según su largo y el ancho de la tarjeta (mín. 17px); si es muy larga, la tarjeta ocupa toda la fila */
 /* El contenedor es la rejilla (no la tarjeta) para no bloquear el subgrid de P3; --cols = columnas actuales */
 .tiles{container-type:inline-size;--cols:2}
-.tiles .tile .val{font-size:clamp(16px,calc(((100cqi - (var(--cols) - 1) * 12px) / var(--cols) - 32px) / (var(--n,6) * .6)),24px)}
 .tiles .tile.ancha{grid-column:1/-1}
 /* W1: el foco se dibuja por dentro (el contenedor segmentado recorta lo que sale) */
 .segmentado button:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
@@ -1017,7 +1016,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .desplegable .tasa-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .desplegable .tasa-et{font-size:16px;font-weight:700;color:var(--ink)}
 .desplegable .tasa-dato{font-size:13px;white-space:nowrap}
-.desplegable .tasa-fila .tasa-val{font-size:clamp(20px,6vw,24px)}
+
 .desplegable .tasa-fila:has(+ .tasas-ajustar),.desplegable .tasa-fila:last-of-type{border-bottom:1px solid var(--line)}
 .tasas-ajustar{display:inline-flex;align-items:center;gap:8px;align-self:flex-end;min-height:44px;padding:0 4px;border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}
 .tasas-ajustar svg.i{width:16px;height:16px}

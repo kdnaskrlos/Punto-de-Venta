@@ -235,3 +235,7 @@ export { unaVez } from './nucleo/una-vez.js';
 const ES_CAMPO = el => el && (el.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea'));
 document.addEventListener('focusin', e => { if (ES_CAMPO(e.target)) document.body.classList.add('teclado'); });
 document.addEventListener('focusout', () => setTimeout(() => { if (!ES_CAMPO(document.activeElement)) document.body.classList.remove('teclado'); }, 60));
+
+// Montos largos bajan un paso de la escala de letra (sin tamaños intermedios):
+// hasta 9 caracteres normal, 10–11 «l», 12 o más «xl».
+export const largo = t => { const n = String(t).length; return n >= 12 ? 'xl' : n >= 10 ? 'l' : null; };

@@ -301,3 +301,8 @@ Suite final: npm test 99/99 · e2e 59/59
 ## v1.48 — Título de la tasa en Bs
 - En Tasas del día, el título de la fila de Bs es la fuente elegida en Ajustes («Binance P2P» con su recargo, «BCV oficial» o «Tasa manual»); abajo solo queda la fecha y hora.
 - v1.49: el título «Binance P2P» va sin el recargo.
+
+## v1.50 — Solo tamaños de la escala
+- Monto de Tasas del día a 20px (estaba en 18, fuera de la escala).
+- Se quitan los tamaños continuos (clamp/calc) de los recuadros de Inicio y de los montos que se encogían: ahora un monto largo baja un paso de la escala (24→20→16; 32→24→20) según su largo (data-largo, función largo() en ui.js).
+- Verificado en todas las pantallas a 360 y 1280px: solo 12·13·14·16·20·24·32.

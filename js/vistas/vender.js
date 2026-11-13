@@ -1,5 +1,5 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
-import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas } from '../ui.js';
+import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo } from '../ui.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
 import { tipoPrenda, compararTallas } from '../nucleo/tipo-prenda.js';
@@ -161,7 +161,7 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
       h('div', { class: 'caja-total' },
         h('div', { class: 'et-total' }, 'Total'),
         h('div', { class: 'tc-der' },
-          h('div', { class: 'total' }, h('span', { class: 'total-cop num', style: `--n:${fmtCop(r.total).length}` }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
+          h('div', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
           h('div', { class: 'tc-eq' }, equivalentes(ctx, r.total))))),
     h('div', { class: 'acciones-carrito' },
       h('button', { class: 'btn', onclick: () => abrirDescuento(ctx) }, icono('porcentaje'), 'Descuento'),

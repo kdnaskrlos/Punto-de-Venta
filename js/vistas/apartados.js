@@ -1,5 +1,5 @@
 // Apartados (§10): apartar desde el carrito, abonar, completar y cancelar.
-import { h, icono, abrirVentana, toast, pedirMotivo, despuesDeCerrar } from '../ui.js';
+import { h, icono, abrirVentana, toast, pedirMotivo, despuesDeCerrar, largo } from '../ui.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { registrarVista } from '../app.js';
@@ -144,7 +144,7 @@ function abrirDetalle(ctx, ap) {
       h('span', { class: 'ap-det-cab-der' }, h('span', { class: `est ${color}` }, etiqueta), h('button', { class: 'ibtn cerrar', 'aria-label': 'Cerrar' }, icono('x')))),
     h('div', { class: 'ap-det-pago' },
       h('div', { class: 'ap-det-cifras' },
-        h('div', {}, h('span', { class: 'nota' }, pendiente ? 'Saldo pendiente' : 'Total'), h('b', { class: 'num grande' + (pendiente ? ' rojo' : ''), style: `--n:${fmtCop(pendiente ? ap.saldo : ap.total).length}` }, fmtCop(pendiente ? ap.saldo : ap.total))),
+        h('div', {}, h('span', { class: 'nota' }, pendiente ? 'Saldo pendiente' : 'Total'), h('b', { class: 'num grande' + (pendiente ? ' rojo' : ''), 'data-largo': largo(fmtCop(pendiente ? ap.saldo : ap.total)) }, fmtCop(pendiente ? ap.saldo : ap.total))),
         h('div', { class: 'sep' }),
         h('div', {}, h('span', { class: 'nota' }, 'Total abonado'), h('b', { class: 'num' }, fmtCop(abonado)), h('small', {}, `de ${fmtCop(ap.total)}`))),
       h('div', { class: 'ap-barra', role: 'progressbar', 'aria-label': 'Pagado', 'aria-valuenow': String(pct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: `width:${pct}%` }))),

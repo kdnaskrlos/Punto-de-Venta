@@ -1,5 +1,5 @@
 // Ventana Cobrar (§9.2): el cliente se registra antes, en su propia pantalla; pagos mixtos, vuelto, guardar la venta y recibo por WhatsApp.
-import { h, icono, abrirVentana, toast } from '../ui.js';
+import { h, icono, abrirVentana, toast, largo } from '../ui.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento, equivalentes } from './vender.js';
@@ -72,7 +72,7 @@ export function abrirCobrar(ctx) {
   const cuerpo = h('div', { class: 'cobro' },
     cliente.el,
     h('div', { class: 'total-cobro tarjeta' }, h('span', { class: 'et' }, 'Total a cobrar'),
-      h('span', { class: 'tc-der' }, h('span', { class: 'total' }, h('span', { class: 'total-cop num', style: `--n:${fmtCop(r0.total).length}` }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')), equivalentes(ctx, r0.total))),
+      h('span', { class: 'tc-der' }, h('span', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r0.total)) }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')), equivalentes(ctx, r0.total))),
     panel.el);
   const v = abrirVentana({ titulo: 'Cobrar', contenido: cuerpo, acciones: h('div', { class: 'pie-cobro' }, panel.barra, final), pantallaCompleta: true });
   v.alCerrar = () => cliente.quitar();

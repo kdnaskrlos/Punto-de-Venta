@@ -1,5 +1,5 @@
 // Reportes (§15) y comisiones (§14).
-import { h, icono, toast, sin, unaVez, abrirVentana } from '../ui.js';
+import { h, icono, toast, sin, unaVez, abrirVentana, largo } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { resumenDia, masVendidos, inventarioBajo, valorInventario, ventasPorPeriodo, cobrosEnPesos } from '../nucleo/reportes.js';
 import { resumenComisiones, ganaComision } from '../nucleo/comisiones.js';
@@ -145,7 +145,7 @@ registrarVista('/comisiones', {
       res.replaceChildren(
         h('div', { class: 'tarjeta com-hero' },
           h('span', { class: 'et' }, r.pendiente > 0 ? `Por pagar a ${quien?.nombre || vendedor}` : `${quien?.nombre || vendedor} · comisiones`),
-          h('b', { class: 'num com-monto', id: 'com-pendiente', style: `--n:${fmtCop(r.pendiente > 0 ? r.pendiente : r.total).length}` }, fmtCop(r.pendiente > 0 ? r.pendiente : r.total)),
+          h('b', { class: 'num com-monto', id: 'com-pendiente', 'data-largo': largo(fmtCop(r.pendiente > 0 ? r.pendiente : r.total)) }, fmtCop(r.pendiente > 0 ? r.pendiente : r.total)),
           h('span', { class: 'nota' }, r.total ? (r.pendiente > 0 ? `de ${fmtCop(r.total)} ganados en el período` : 'Todo pagado') : 'Sin comisiones en el período'),
           r.total ? h('div', { class: 'com-prog' }, h('div', { class: 'ap-barra com-barra', role: 'progressbar', 'aria-label': 'Pagado', 'aria-valuenow': String(pagadoPct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: `width:${pagadoPct}%` })), h('span', { class: 'nota' }, `${pagadoPct} % pagado`)) : null,
           r.pendiente > 0 ? h('button', { class: 'btn primary grande', id: 'com-pagar', onclick: e => unaVez(e.currentTarget, async () => {

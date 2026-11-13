@@ -114,10 +114,11 @@
 .ap-det-fila.prenda{grid-template-columns:minmax(0,1fr) auto}
 .ap-det-pn{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
 .rep-fila-t .nota{white-space:normal}
-/* Montos que se encogen solos: hasta 9 caracteres («1.234.567») conservan su tamaño;
-   más largos se reducen en proporción para no partirse ni salirse de la tarjeta. */
-.total-cop[style*="--n"]{font-size:max(16px,calc(24px * 9 / max(var(--n), 9)))}
-.caja-total .total-cop[style*="--n"],.com-monto[style*="--n"],.ap-det-cifras b.grande[style*="--n"]{font-size:max(18px,calc(32px * 9 / max(var(--n), 9)))}
+/* Montos largos: bajan un paso en la escala de letra (24→20→16 y 32→24→20), nunca tamaños intermedios */
+.total-cop[data-largo=l],.tiles .tile .val[data-largo=l]{font-size:20px!important}
+.total-cop[data-largo=xl],.tiles .tile .val[data-largo=xl]{font-size:16px!important}
+.caja-total .total-cop[data-largo=l],.com-monto[data-largo=l],.ap-det-cifras b.grande[data-largo=l],.tiles .tile.principal .val[data-largo=l]{font-size:24px!important}
+.caja-total .total-cop[data-largo=xl],.com-monto[data-largo=xl],.ap-det-cifras b.grande[data-largo=xl],.tiles .tile.principal .val[data-largo=xl]{font-size:20px!important}
 .tp-mas{color:var(--muted);font-weight:700}
 /* Ventanas adaptables (Material 3): compacto < 600, mediano 600–839, expandido ≥ 840.
    Vender: una columna en el teléfono, dos en la tableta, rejilla libre en la computadora. */
@@ -152,8 +153,7 @@
 .cab-vista:has(.rango){margin-bottom:-4px}
 /* Tasas del día: monto más pequeño y alineado arriba con el título */
 .desplegable .tasa-fila{align-items:flex-start}
-.desplegable .tasa-fila .tasa-val{font-size:18px;line-height:23px}
-@media (min-width:400px){.desplegable .tasa-fila .tasa-val{font-size:20px}}
+.desplegable .tasa-fila .tasa-val{font-size:20px!important}
 /* Apartados: nombre y estado en la primera línea; fecha y monto en la última, sobre la misma línea base */
 .apartado .ap-l1{display:flex;align-items:center;gap:8px}
 .apartado .ap-l1 .est{flex:none;line-height:1.2}
@@ -173,3 +173,6 @@
 .desplegable .tasa-fila .tasa-et{grid-row:1;grid-column:2/4}
 .desplegable .tasa-fila .tasa-dato{grid-row:2;grid-column:2;align-self:baseline}
 .desplegable .tasa-fila .tasa-val{grid-row:2;grid-column:3;align-self:baseline;line-height:1.2}
+
+/* Valores de recuadros en Inicio: tamaños fijos de la escala (24; «Ventas de hoy» 32) */
+.tiles .tile .val{font-size:24px}
