@@ -1,5 +1,6 @@
 // Inventario (§7): consulta, ajustes con motivo, ofertas, importar desde la Carga Masiva y fotos masivas.
 import { h, icono, abrirVentana, toast, esTelefono, pedirMotivo, sin } from '../ui.js';
+import { titulo, grupoDe, detalle, textoBusqueda } from '../nucleo/producto.js';
 import { registrarVista } from '../app.js';
 import { miniatura } from './vender.js';
 import { colorPrenda } from '../nucleo/colores.js';
@@ -23,9 +24,12 @@ function grupos(productos) {
   const g = {};
   for (const p of Object.values(productos)) {
     if (p.activo === false) continue;
-    (g[p.grupo || p.sku] ||= { grupo: p.grupo || p.sku, producto: p.producto || p.nombre, color: p.color, categoria: p.categoria, foto: p.foto, variantes: [] }).variantes.push(p);
+    const k = grupoDe(p);
+    const t = (g[k] ||= { grupo: k, titulo: titulo(p), tipo: p.tipo, tela: p.tela, color: p.color, genero: p.genero, foto: null, variantes: [] });
+    t.foto ||= p.foto; // la foto se busca por sku: la tarjeta usa la de cualquiera de sus tallas
+    t.variantes.push(p);
   }
-  return Object.values(g).sort((a, b) => a.grupo.localeCompare(b.grupo, 'es'));
+  return Object.values(g).sort((a, b) => a.titulo.localeCompare(b.titulo, 'es') || (a.color || '').localeCompare(b.color || '', 'es') || (a.tela || '').localeCompare(b.tela || '', 'es'));
 }
 
 const puedeAdmin = (ctx, accion) => ctx.puedeVer(accion) && !esTelefono();
@@ -36,7 +40,7 @@ function abrirAjuste(ctx, p) {
   const nota = h('input', { class: 'inp', id: 'ajuste-nota', placeholder: 'Opcional' });
   const err = h('span', { class: 'error' });
   const b = h('button', { class: 'btn primary', id: 'ajuste-final' }, 'Guardar ajuste');
-  const v = abrirVentana({ titulo: `Ajustar · ${p.grupo} · Talla ${p.talla || '—'}`, contenido: h('div', { class: 'pila' },
+  const v = abrirVentana({ titulo: `Ajustar · ${titulo(p)}${detalle(p) ? ' · ' + detalle(p) : ''} · ${p.talla ? 'Talla ' + p.talla : 'Talla única'}`, contenido: h('div', { class: 'pila' },
     h('p', { class: 'nota' }, `Existencia actual: ${p.existencia}. Escribe cuánto sumar (o restar con -).`),
     h('div', { class: 'campo' }, h('label', { for: 'ajuste-cantidad' }, 'Cantidad'), cant),
     h('div', { class: 'campo' }, h('label', { for: 'ajuste-motivo' }, 'Motivo'), motivo),
@@ -52,7 +56,7 @@ function abrirAjuste(ctx, p) {
 
 function abrirHistorial(ctx, p) {
   const caja = h('div', { class: 'pila' }, h('p', { class: 'nota' }, 'Cargando…'));
-  const v = abrirVentana({ titulo: `Historial · Talla ${p.talla || p.sku}`, contenido: caja });
+  const v = abrirVentana({ titulo: `Historial · ${p.talla ? 'Talla ' + p.talla : 'Talla única'}`, contenido: caja });
   const quitar = ctx.almacen.escuchar('movimientos', l => {
     const lista = l.sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 60);
     caja.replaceChildren(...(lista.length ? lista.map(m => h('div', { class: 'mov' },
@@ -68,7 +72,7 @@ function abrirOferta(ctx, g) {
   const err = h('span', { class: 'error' });
   const b = h('button', { class: 'btn primary', id: 'oferta-final' }, 'Activar oferta');
   const quitarBtn = actual?.activa ? h('button', { class: 'btn danger', onclick: async () => { await ctx.almacen.guardarOferta(g.grupo, { pct: 0, activa: false }); v.cerrar(); toast('Oferta quitada'); } }, 'Quitar oferta') : null;
-  const v = abrirVentana({ titulo: `Oferta · ${g.grupo}`, contenido: h('div', { class: 'pila' },
+  const v = abrirVentana({ titulo: `Oferta · ${g.titulo}${detalle(g) ? ' · ' + detalle(g) : ''}`, contenido: h('div', { class: 'pila' },
     h('p', { class: 'nota' }, 'Descuento sobre el precio de cada tramo. En estas prendas la vendedora gana la comisión reducida.'),
     h('div', { class: 'campo' }, h('label', { for: 'oferta-pct' }, 'Porcentaje'), pct, err)), acciones: h('div', { class: 'acciones' }, quitarBtn, b) });
   b.addEventListener('click', async () => {
@@ -100,14 +104,14 @@ function abrirGrupo(ctx, g, costos) {
     h('div', { class: 'sec-m' }, 'TALLAS'),
     vs.map(p => h('div', { class: 'talla-fila', 'data-sku': p.sku },
       h('div', { class: 'tf-info' },
-        h('div', { class: 'var-cab' }, h('b', {}, `Talla ${p.talla || '—'}`), h('span', { class: `est ${colorExistencia(p)}` }, `${p.existencia} disp.`)),
+        h('div', { class: 'var-cab' }, h('b', {}, p.talla ? `Talla ${p.talla}` : 'Talla única'), h('span', { class: `est ${colorExistencia(p)}` }, `${p.existencia} disp.`)),
         h('span', { class: 'nota' }, p.codigo ? `Código ${p.codigo}` : p.sku),
         iguales ? null : bloquePrecios(ctx, p, costos[p.sku]?.costo, verCostos)),
       verCostos || puedeAdmin(ctx, 'ajustarInventario') ? h('div', { class: 'acciones' },
         verCostos ? h('button', { class: 'btn', 'aria-label': `Historial talla ${p.talla}`, onclick: () => abrirHistorial(ctx, p) }, icono('historial'), 'Historial') : null,
         puedeAdmin(ctx, 'ajustarInventario') ? h('button', { class: 'btn', onclick: () => abrirAjuste(ctx, p) }, icono('caja'), 'Ajustar') : null) : null)));
   const acciones = puedeAdmin(ctx, 'ofertas') ? h('div', { class: 'acciones' }, h('button', { class: 'btn', onclick: () => abrirOferta(ctx, g) }, icono('etiqueta'), 'Oferta')) : null;
-  abrirVentana({ titulo: `${g.producto}${g.color ? ' · ' + g.color : ''}`, contenido: cont, acciones });
+  abrirVentana({ titulo: `${g.titulo}${detalle(g) ? ' · ' + detalle(g) : ''}`, contenido: cont, acciones });
 }
 
 async function abrirImportar(ctx, costos) {
@@ -118,19 +122,22 @@ async function abrirImportar(ctx, costos) {
   const v = abrirVentana({ titulo: 'Importar desde la Carga Masiva', contenido: cuerpo, acciones: h('div', { class: 'acciones' }, archivo, elegir, b) });
   let plan = null;
   const mostrar = json => {
-    const { productos, avisos } = leerInventario(json);
+    const { productos, errores, avisos, filas } = leerInventario(json);
     plan = planImportacion(productos, ctx.productos, costos);
     const fila = (n, txt, cls) => h('div', { class: `resumen-imp ${cls}` }, h('b', { class: 'num' }, String(n)), txt);
     cuerpo.replaceChildren(...sin(
+      h('p', { class: 'nota' }, `${plural(filas, 'fila leída', 'filas leídas')}${json?.at ? ` · publicado ${new Date(json.at).toLocaleString('es', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}`),
       h('div', { class: 'resumenes' },
-        fila(plan.nuevos.length, plural(plan.nuevos.length, 'nuevo', 'nuevos').replace(/^\d+ /, ''), 'g'),
-        fila(plan.cambios.length, 'con cambios', 'b'),
+        fila(plan.nuevos.length, plan.nuevos.length === 1 ? 'nuevo' : 'nuevos', 'g'),
+        fila(plan.cambios.length, plan.cambios.length === 1 ? 'actualizado' : 'actualizados', 'b'),
         fila(plan.iguales.length, 'sin cambios', 'n'),
-        fila(plan.faltantes.length, 'ya no están en el archivo', 'y')),
-      h('p', { class: 'nota' }, `${plural(plan.nuevos.length, 'nuevo', 'nuevos')} · ${plan.cambios.length} con cambios · ${plan.iguales.length} sin cambios`),
-      h('p', { class: 'nota' }, 'Las existencias de los productos que ya están en el punto de venta no se modifican.'),
+        fila(errores.length, errores.length === 1 ? 'con error' : 'con errores', errores.length ? 'r' : 'n')),
+      h('p', { class: 'nota' }, 'Los productos nuevos toman la existencia del archivo; los que ya están en el punto de venta conservan la suya.'),
+      plan.faltantes.length ? h('div', { class: 'aviso' }, icono('alerta'), `${plural(plan.faltantes.length, 'producto del punto de venta no viene', 'productos del punto de venta no vienen')} en el archivo. No se borran.`) : null,
       ...avisos.map(a => h('div', { class: 'aviso' }, icono('alerta'), a)),
-      plan.cambios.length ? h('details', {}, h('summary', {}, 'Ver cambios'), h('div', { class: 'nota' }, plan.cambios.slice(0, 50).map(c => h('div', {}, `${c.sku}: ${Object.keys(c.campos).join(', ')}`)))) : null));
+      errores.length ? h('details', { class: 'imp-errores', open: true }, h('summary', {}, `Filas con error (${errores.length}): no se importan`),
+        h('div', { class: 'nota' }, ...errores.slice(0, 100).map(e => h('div', {}, `Fila ${e.fila}${e.sku ? ` · ${e.sku}` : ''}: ${e.motivo}`)))) : null,
+      plan.cambios.length ? h('details', {}, h('summary', {}, 'Ver qué cambia'), h('div', { class: 'nota' }, ...plan.cambios.slice(0, 50).map(c => h('div', {}, `${c.sku}: ${Object.keys(c.campos).join(', ')}`)))) : null));
     b.disabled = !plan.nuevos.length && !plan.cambios.length;
   };
   archivo.addEventListener('change', async () => { try { mostrar(JSON.parse(await archivo.files[0].text())); } catch { cuerpo.replaceChildren(h('div', { class: 'aviso' }, icono('alerta'), 'Ese archivo no es un inventario válido')); } });
@@ -150,10 +157,13 @@ async function abrirImportar(ctx, costos) {
 }
 
 function abrirFotos(ctx) {
-  const lista = grupos(ctx.productos).map(g => g.grupo);
+  // Las fotos se emparejan por sku: el nombre del archivo es el sku de la variante.
+  const activos = Object.values(ctx.productos).filter(p => p.activo !== false);
+  const lista = activos.map(p => p.sku);
+  const etiqueta = sku => { const p = ctx.productos[sku]; return `${sku} — ${titulo(p)}${detalle(p) ? ' · ' + detalle(p) : ''}${p.talla ? ' · T' + p.talla : ''}`; };
   let archivos = [], res = { asignadas: [], sinAsignar: [] }, manual = {};
   const entrada = h('input', { type: 'file', id: 'fotos-archivos', multiple: true, accept: 'image/*', class: 'sr' });
-  const zona = h('label', { class: 'zona-fotos', for: 'fotos-archivos' }, icono('imagen'), h('b', {}, 'Arrastra aquí las fotos o toca para elegirlas'), h('span', { class: 'nota' }, 'El nombre del archivo debe ser el del modelo y color, por ejemplo "Franela AS Niño Blanco.jpg".'));
+  const zona = h('label', { class: 'zona-fotos', for: 'fotos-archivos' }, icono('imagen'), h('b', {}, 'Arrastra aquí las fotos o toca para elegirlas'), h('span', { class: 'nota' }, 'El nombre de cada archivo debe ser el sku de la variante, por ejemplo Fran-AS-Niño-4-Bla-Alg.jpg'));
   const info = h('div', { class: 'pila' });
   const b = h('button', { class: 'btn primary', id: 'fotos-final', disabled: true }, icono('subir'), 'Subir fotos');
   const pintar = () => {
@@ -161,7 +171,7 @@ function abrirFotos(ctx) {
     info.replaceChildren(
       h('p', { class: 'nota' }, `${plural(res.asignadas.length, 'asignada', 'asignadas')} · ${res.sinAsignar.length} sin asignar`),
       res.sinAsignar.length ? h('div', { class: 'sin-asignar pila' }, ...res.sinAsignar.map(n => h('div', { class: 'campo' }, h('label', {}, n),
-        h('select', { class: 'inp', onchange: e => { manual[n] = e.target.value; } }, h('option', { value: '' }, 'Elegir modelo y color…'), ...lista.map(g => h('option', { value: g }, g)))))) : null);
+        h('select', { class: 'inp', onchange: e => { manual[n] = e.target.value; } }, h('option', { value: '' }, 'Elegir la variante (sku)…'), ...lista.map(sku => h('option', { value: sku }, etiqueta(sku))))))) : null);
     b.disabled = !archivos.length;
   };
   const cargar = fs => { archivos = [...fs].filter(f => f.type.startsWith('image/')); manual = {}; pintar(); };
@@ -171,19 +181,19 @@ function abrirFotos(ctx) {
   zona.addEventListener('drop', e => { e.preventDefault(); zona.classList.remove('encima'); cargar(e.dataTransfer.files); });
   const v = abrirVentana({ titulo: 'Fotos de productos', contenido: h('div', { class: 'pila' }, entrada, zona, info), acciones: h('div', { class: 'acciones' }, b) });
   b.addEventListener('click', async () => {
-    const tareas = [...res.asignadas, ...Object.entries(manual).filter(([, g]) => g).map(([archivo, grupo]) => ({ archivo, grupo }))];
+    const tareas = [...res.asignadas, ...Object.entries(manual).filter(([, s]) => s).map(([archivo, sku]) => ({ archivo, sku }))];
     if (!tareas.length) { toast('No hay fotos asignadas'); return; }
     b.disabled = true;
     let hechas = 0;
     for (const t of tareas) {
       b.textContent = `Subiendo ${hechas + 1} de ${tareas.length}…`;
       const blob = await comprimirFoto(archivos.find(f => f.name === t.archivo));
-      let r = await ctx.almacen.guardarFoto(t.grupo, blob);
+      let r = await ctx.almacen.guardarFoto(t.sku, blob);
       if (!r.ok && r.error === 'token') {
         const token = await pedirMotivo({ titulo: 'Token de GitHub', etiqueta: 'Pega el token para subir fotos (se guarda solo en este navegador)', boton: 'Guardar token' });
         if (!token) break;
         try { localStorage.setItem(CLAVE_TOKEN, token.trim()); } catch { /* sin almacenamiento */ }
-        r = await ctx.almacen.guardarFoto(t.grupo, blob);
+        r = await ctx.almacen.guardarFoto(t.sku, blob);
       }
       if (!r.ok) { toast(`No se pudo subir ${t.archivo}`, { malo: true }); break; }
       hechas++;
@@ -194,7 +204,7 @@ function abrirFotos(ctx) {
 
 registrarVista('/inventario', {
   montar(cont, ctx) {
-    let busqueda = '', costos = {}, filtro = '', categoria = '';
+    let busqueda = '', costos = {}, filtro = '', genero = '';
     const ESTADOS = [['', 'Todos'], ['bajo', 'Stock bajo'], ['agotado', 'Agotados']];
     const filtros = h('div', { class: 'filtros filtro-inv', role: 'group', 'aria-label': 'Filtrar inventario' });
     const buscar = h('input', { class: 'inp', id: 'buscar-inv', type: 'search', 'aria-label': 'Buscar prenda o código', placeholder: 'Buscar prenda o código', autocomplete: 'off' });
@@ -203,31 +213,31 @@ registrarVista('/inventario', {
       const q = norm(busqueda);
       const todos = grupos(ctx.productos);
       const estadoDe = g => (g.variantes.some(p => colorExistencia(p) === 'r') ? 'agotado' : g.variantes.some(p => colorExistencia(p) === 'y') ? 'bajo' : '');
-      const cats = [...new Set(todos.map(g => g.categoria).filter(Boolean))].sort();
+      const generos = [...new Set(todos.map(g => g.genero).filter(Boolean))].sort();
       const cuenta = k => todos.filter(g => (k === 'bajo' ? estadoDe(g) !== '' : estadoDe(g) === k)).length;
       filtros.replaceChildren(
         ...ESTADOS.map(([k, t]) => h('button', { type: 'button', class: 'chip' + (k === filtro ? ' activo' : ''), 'data-filtro': k || 'todos', 'aria-pressed': String(k === filtro), onclick: () => { filtro = k; pintar(); } }, t, k ? h('span', { class: 'cuenta' }, String(cuenta(k))) : null)),
-        cats.length > 1 ? h('span', { class: 'filtros-sep', 'aria-hidden': 'true' }) : null,
-        ...(cats.length > 1 ? cats.map(c => h('button', { type: 'button', class: 'chip' + (c === categoria ? ' activo' : ''), 'aria-pressed': String(c === categoria), onclick: () => { categoria = c === categoria ? '' : c; pintar(); } }, c)) : []));
-      const gs = todos.filter(g => (!q || g.variantes.some(p => norm(`${p.grupo} ${p.sku} ${p.codigo} ${p.marca}`).includes(q)))
+        generos.length > 1 ? h('span', { class: 'filtros-sep', 'aria-hidden': 'true' }) : null,
+        ...(generos.length > 1 ? generos.map(c => h('button', { type: 'button', class: 'chip' + (c === genero ? ' activo' : ''), 'aria-pressed': String(c === genero), onclick: () => { genero = c === genero ? '' : c; pintar(); } }, c)) : []));
+      const gs = todos.filter(g => (!q || g.variantes.some(p => norm(textoBusqueda(p)).includes(q)))
         && (!filtro || (filtro === 'bajo' ? estadoDe(g) !== '' : estadoDe(g) === filtro))
-        && (!categoria || g.categoria === categoria));
+        && (!genero || g.genero === genero));
       lista.replaceChildren(...(gs.length ? gs.map(g => {
         const total = g.variantes.reduce((s, p) => s + p.existencia, 0);
         const pocas = g.variantes.some(p => colorExistencia(p) === 'y');
         const agotadas = g.variantes.some(p => colorExistencia(p) === 'r');
         const est = agotadas && total <= 0 ? ['r', 'Agotado'] : agotadas || pocas ? ['y', 'Stock bajo'] : ['g', 'En stock'];
         const color = colorPrenda(g.color);
-        return h('button', { class: 'grupo-inv', 'data-grupo': g.grupo, onclick: () => abrirGrupo(ctx, g, costos) },
+        return h('button', { class: 'grupo-inv', 'data-grupo': g.grupo, 'data-nombre': [g.titulo, g.color].filter(Boolean).join(' '), onclick: () => abrirGrupo(ctx, g, costos) },
           miniatura(g, 'miniatura'),
-          h('span', { class: 'gi-info' }, h('b', {}, g.producto),
-            h('span', { class: 'gi-linea' }, g.color ? h('span', { class: 'gi-color' }, h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }), g.color) : null,
+          h('span', { class: 'gi-info' }, h('b', {}, g.titulo),
+            h('span', { class: 'gi-linea' }, g.color || g.tela ? h('span', { class: 'gi-color' }, g.color ? h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }) : null, detalle(g)) : null,
               h('span', {}, `${g.variantes.length} ${g.variantes.length === 1 ? 'talla' : 'tallas'}`)),
             h('span', { class: 'gi-salud', 'aria-hidden': 'true' }, ...g.variantes.map(p => h('i', { class: colorExistencia(p) })))),
           h('span', { class: 'gi-total' }, h('b', { class: 'num' }, String(total)),
             // Con aviso, la pastilla ocupa el lugar de «unidades»: todas las tarjetas miden lo mismo.
             est[0] === 'g' ? h('span', {}, total === 1 ? 'unidad' : 'unidades') : h('span', { class: `est ${est[0]}` }, h('span', { class: 'sr' }, `${total === 1 ? 'unidad' : 'unidades'}, `), est[1])));
-      }) : [h('div', { class: 'vacio' }, busqueda || filtro || categoria ? 'No hay prendas con ese filtro' : 'Todavía no hay productos')]));
+      }) : [h('div', { class: 'vacio' }, busqueda || filtro || genero ? 'No hay prendas con ese filtro' : 'Todavía no hay productos')]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
     const quitar = ctx.almacen.escuchar('costos', l => { costos = Object.fromEntries(l.map(c => [c.sku, c])); pintar(); });

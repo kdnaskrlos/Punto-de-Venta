@@ -24,7 +24,7 @@ test('ejemplos: todo marcado demo, ventas de hoy y de días anteriores, apartado
 });
 
 test('ejemplos: usa los productos reales si hay suficientes', () => {
-  const productos = Object.fromEntries(['A', 'B', 'C', 'D'].map(g => [`${g}-1`, { sku: `${g}-1`, producto: g, grupo: g, talla: '1', precios: [10000], activo: true }]));
+  const productos = Object.fromEntries(['A', 'B', 'C', 'D'].map(g => [`${g}-1`, { sku: `${g}-1`, tipo: g, grupo: g, titulo: g, talla: '1', precios: [10000], activo: true }]));
   const l = generarEjemplos({ productos, formas: FORMAS, tasas: TASAS });
   assert.equal(l.productos.length, 0);
   assert.ok(l.ventas.every(v => v.lineas.every(x => productos[x.sku])));

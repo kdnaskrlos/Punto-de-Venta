@@ -8,7 +8,7 @@ async function vender(p) {
     const a = window.__pos.ctx.almacen;
     const id = a.nuevoId();
     await a.guardarVenta({ id, fecha: new Date().toISOString(), cliente: { nombre: 'Ana', telefono: '584121234567' },
-      lineas: [{ sku: 'J-M', nombre: 'Jogger Texcol Negro', talla: 'M', cantidad: 1, precioUnit: 116000, subtotal: 116000, tramo: 0, comision: 4000, reducida: false }],
+      lineas: [{ sku: 'J-M', nombre: 'Jogger Texcol Caballero Negro', talla: 'M', cantidad: 1, precioUnit: 116000, subtotal: 116000, tramo: 0, comision: 4000, reducida: false }],
       subtotal: 116000, descuento: null, total: 116000,
       pagos: [{ forma: 'efectivo-cop', nombre: 'Efectivo pesos', moneda: 'COP', monto: 116000, equivalenteCop: 116000 }], vuelto: null, tasas: { copPorUsd: 3900, bsPorUsd: 1075 } });
     return id;
@@ -51,7 +51,7 @@ casos('gestion', [
     const p = await env.pagina({ usuario: 'admin' });
     await p.evaluate(() => { const al = window.__pos.ctx.almacen; al._estado('productos').get('B-L').existencia = -1; al.ajustarExistencia('B-S', 1, 'Conteo'); });
     await p.waitForSelector('text=Existencia negativa');
-    a.ok((await texto(p, '.alertas')).includes('Buzo Etanol Gris · Talla L'));
+    a.ok((await texto(p, '.alertas')).includes('Buzo Etanol Caballero Gris · Talla L'));
   }],
   ['Anular desde Inicio (encargada): existencia vuelve y la comisión no cuenta', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true });
@@ -82,9 +82,9 @@ casos('gestion', [
     await vender(p);
     await p.evaluate(() => { location.hash = '/reportes'; });
     await p.waitForSelector('.mas-vendidos');
-    a.ok((await texto(p, '.mas-vendidos')).includes('Jogger Texcol Negro'));
+    a.ok((await texto(p, '.mas-vendidos')).includes('Jogger Texcol Caballero Negro'));
     await p.click('.rep-fila.bajas');
-    a.ok((await texto(p, '.bajas-det')).includes('Buzo Etanol Gris'));
+    a.ok((await texto(p, '.bajas-det')).includes('Buzo Etanol Caballero Gris'));
   }],
   ['Ninguna pantalla muestra "null" ni "undefined"', async (env, a) => {
     for (const usuario of ['vendedora', 'encargada', 'admin']) {

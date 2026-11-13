@@ -1200,7 +1200,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .linea-pie .lc-cu{margin:0;font-size:13px}
 @media (max-width:420px){.tp-tallas .tp-pal{display:none}}
 
-/* v1.39 — Inventario: filtros en pastillas (estado y categoría) y aviso de stock bajo/agotado */
+/* v1.39 — Inventario: filtros en pastillas (estado y género) y aviso de stock bajo/agotado */
 .filtro-inv{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -12px 12px;padding:0 12px}
 .filtro-inv::-webkit-scrollbar{display:none}
 .filtro-inv .chip{flex:none;display:inline-flex;align-items:center;gap:8px}

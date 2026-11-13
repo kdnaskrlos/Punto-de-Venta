@@ -1,3 +1,4 @@
+import { nombreVenta } from '../nucleo/producto.js';
 // Inicio por rol (§13.4): recuadros del día, autorizaciones (admin), alertas y ventas de hoy.
 import { h, icono, toast, sin, unaVez, largo } from '../ui.js';
 import { abrirCajaVentana } from './caja.js';
@@ -99,7 +100,7 @@ registrarVista('/inicio', {
       const alerta = (txt, detalle) => h('div', { class: 'aviso grave' }, icono('alerta'), h('div', {}, h('b', {}, txt), detalle ? h('div', { class: 'nota' }, detalle) : null));
       const cierres = cajas.filter(c => c.estado === 'cerrada' && c.cierre?.fecha >= inicioDia(dia) && (c.cierre.filas || []).some(f => f.nivel !== 'ok'));
       alertas.replaceChildren(...(gestion ? [
-        negativos.length ? alerta('Existencia negativa', negativos.map(p => `${p.grupo} · Talla ${p.talla || p.sku} (${p.existencia})`).join(', ') + '. Se vendió sin conexión más de lo que había: revisa las ventas y ajusta.') : null,
+        negativos.length ? alerta('Existencia negativa', negativos.map(p => `${nombreVenta(p)} · ${p.talla ? 'Talla ' + p.talla : 'Talla única'} (${p.existencia})`).join(', ') + '. Se vendió sin conexión más de lo que había: revisa las ventas y ajusta.') : null,
         ...(ctx.porArquear || []).filter(c => c.tipo !== 'personal').map(c => h('div', { class: 'aviso' }, icono('alerta'), h('div', {}, h('b', {}, `La caja de @${c.usuario} del ${diaCorto(c.cierre?.fecha || c.abierta)} se cerró sola y falta arquearla`), h('div', { class: 'nota' }, 'Se arquea cuando cuente el dinero al abrir la caja de hoy.')))),
         ...cierres.map(c => alerta(`Cierre con diferencia · @${c.usuario}`, `${c.cierre.totalCop > 0 ? '+' : ''}${fmtCop(c.cierre.totalCop)} COP · ${c.cierre.nota || ''}`)),
       ].filter(Boolean) : []));

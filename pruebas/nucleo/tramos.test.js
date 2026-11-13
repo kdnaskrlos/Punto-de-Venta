@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { LIMITES_DEFECTO, tramoDe, etiquetaTramo, calcularCarrito } from '../../js/nucleo/tramos.js';
 
 const P = {
-  F: { sku: 'F', producto: 'Franela AS Niño', precios: [25000, 24000, 22500, 20000, null], separado: false, oferta: null },
-  B: { sku: 'B', producto: 'Buzo Etanol', precios: [48000, 45000, 42000, 40000, 38000], separado: false, oferta: null },
-  Y: { sku: 'Y', producto: 'Body Serfe', precios: [18000, 17000, 16000, 15000, 14000], separado: true, oferta: null },
-  Y2: { sku: 'Y2', producto: 'Body Serfe', precios: [18000, 17000, 16000, 15000, 14000], separado: true, oferta: null },
+  F: { sku: 'F', tipo: 'Franela AS Niño', precios: [25000, 24000, 22500, 20000, null], separado: false, oferta: null },
+  B: { sku: 'B', tipo: 'Buzo Etanol', precios: [48000, 45000, 42000, 40000, 38000], separado: false, oferta: null },
+  Y: { sku: 'Y', tipo: 'Body Serfe', precios: [18000, 17000, 16000, 15000, 14000], separado: true, oferta: null },
+  Y2: { sku: 'Y2', tipo: 'Body Serfe', precios: [18000, 17000, 16000, 15000, 14000], separado: true, oferta: null },
 };
 const opts = { limites: LIMITES_DEFECTO, redondeo: 100 };
 
@@ -23,13 +23,10 @@ test('el mix suma prendas de distintos productos', () => {
   assert.equal(r.lineas[0].subtotal, 72000);
 });
 
-test('un producto separado cuenta solo lo suyo y no suma al mix', () => {
+test('«separado» se guarda pero todavía no cambia el tramo: todo cuenta en el mix', () => {
   const s = calcularCarrito([{ sku: 'F', cantidad: 4 }, { sku: 'Y', cantidad: 2 }], P, opts);
-  assert.equal(s.cantidadMix, 4);
-  assert.equal(s.lineas[1].tramo, 0);
-  assert.deepEqual(s.aviso, { faltan: 2, etiqueta: '6–11' });
-  const t = calcularCarrito([{ sku: 'Y', cantidad: 3 }, { sku: 'Y2', cantidad: 3 }], P, opts);
-  assert.deepEqual(t.lineas.map(l => l.tramo), [1, 1]); // mismo producto base, distinta talla
+  assert.equal(s.cantidadMix, 6);
+  assert.deepEqual(s.lineas.map(l => l.tramo), [1, 1]);
 });
 
 test('tramo +49 sin precio 5 usa el del tramo 4', () => {

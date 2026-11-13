@@ -1,52 +1,85 @@
-// Convertir el inventario.json de la Carga Masiva en productos del POS y planear la importación (§7.2).
-const n = v => { const t = String(v ?? '').trim(); if (!t) return null; const x = Number(t.replace(',', '.')); return Number.isFinite(x) ? x : null; };
-const precio = v => { const x = n(v); return x && x > 0 ? x : null; };
-const verdad = v => v === true || /^(true|1|si|sí|x)$/i.test(String(v ?? '').trim());
+// Importar el inventario.json que publica la Carga Masiva (kdnaskrlos/App-Inventario, data/inventario.json).
+// Formato: { app: 'carga-masiva', v: 1, at, head: [...nombres de columna...], rows: [[...valores...], ...] }.
+// Siempre se lee por el NOMBRE de la columna en `head` (nunca por posición) y las columnas desconocidas se ignoran.
+// Columnas: sku, nombre, tipo, tela, color, talla, genero, marca, modelo, costo, precio1..precio5, separado,
+// codigo, existencia, minimo.
+
+export const COLUMNAS = ['sku', 'nombre', 'tipo', 'tela', 'color', 'talla', 'genero', 'marca', 'modelo', 'costo',
+  'precio1', 'precio2', 'precio3', 'precio4', 'precio5', 'separado', 'codigo', 'existencia', 'minimo'];
+const OBLIGATORIAS = ['sku', 'nombre'];
+
 const texto = v => String(v ?? '').trim();
+// Número opcional: vacío → null; texto con coma o punto decimal también vale. Inválido → NaN (se reporta).
+const numero = v => {
+  const t = texto(v);
+  if (!t) return null;
+  const x = Number(t.replace(/\s/g, '').replace(',', '.'));
+  return Number.isFinite(x) ? x : NaN;
+};
+const booleano = v => v === true || /^(true|1|si|sí|x)$/i.test(texto(v));
+
+// Clave de la tarjeta: las variantes de una misma tarjeta solo se distinguen por la talla.
+export const claveGrupo = p => [p.tipo, p.tela, p.marca, p.genero, p.modelo, p.color].map(texto).join('|');
+// Nombre que se muestra en la tarjeta (la tela y el color van aparte, debajo).
+// El modelo se omite cuando repite el tipo («Bluson / Bluson», «Chemis / Chemis»).
+const igual = (a, b) => texto(a).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() === texto(b).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+export const tituloProducto = p => [p.tipo, p.marca, p.genero, igual(p.modelo, p.tipo) ? '' : p.modelo].map(texto).filter(Boolean).join(' ') || texto(p.nombre) || p.sku;
 
 export function leerInventario(json) {
-  const head = json.head || [];
-  const col = nombre => head.indexOf(nombre);
-  const de = (fila, nombre) => { const i = col(nombre); return i >= 0 ? fila[i] : undefined; };
-  const iBarcode = col('barcode');
-  const productos = [];
-  let sinDatos = 0;
-  for (const fila of json.rows || []) {
+  const head = (json?.head || []).map(h => texto(h).toLowerCase());
+  const col = Object.fromEntries(COLUMNAS.map(c => [c, head.indexOf(c)]));
+  const faltan = OBLIGATORIAS.filter(c => col[c] < 0);
+  if (faltan.length) return { productos: [], errores: [{ fila: 0, sku: '', motivo: `Al archivo le falta la columna ${faltan.join(' y ')}` }], avisos: [], filas: (json?.rows || []).length };
+  const sinColumna = COLUMNAS.filter(c => col[c] < 0);
+  const de = (fila, c) => (col[c] >= 0 ? fila[col[c]] : undefined);
+
+  const productos = [], errores = [], vistos = new Map();
+  (json.rows || []).forEach((fila, i) => {
+    const n = i + 1; // número de fila de datos (1 = la primera después del encabezado)
     const sku = texto(de(fila, 'sku'));
-    if (!sku) continue;
-    const nombre = texto(de(fila, 'name'));
-    const producto = texto(de(fila, 'producto')), color = texto(de(fila, 'color')), talla = texto(de(fila, 'talla'));
-    if (!producto || !color || !talla) sinDatos++;
-    const comisiones = [1, 2, 3, 4, 5].map(k => {
-      const valor = n(de(fila, `comm_value${k}`));
-      if (de(fila, `comm_type${k}`) === undefined || valor == null || texto(de(fila, `comm_value${k}`)) === '') return null;
-      const tipo = /porc|%/i.test(texto(de(fila, `comm_type${k}`))) ? 'Porcentaje' : 'Fijo';
-      const reducida = verdad(de(fila, `comm_reduced_active${k}`)) ? (n(de(fila, `comm_reduced_value${k}`)) ?? valor) : valor;
-      return { tipo, valor, reducida };
-    });
-    let codigo = iBarcode >= 0 ? texto(fila[iBarcode]) : '';
-    if (!codigo && iBarcode >= 0 && head[iBarcode + 1] === '') codigo = texto(fila[iBarcode + 1]);
-    productos.push({
-      sku, nombre, producto, color, talla,
-      grupo: producto && color ? `${producto} ${color}` : nombre,
-      categoria: texto(de(fila, 'category')), marca: texto(de(fila, 'brand')),
+    const mal = motivo => errores.push({ fila: n, sku, motivo });
+    if (!sku) return mal('Sin sku');
+    if (vistos.has(sku)) return mal(`sku repetido (ya está en la fila ${vistos.get(sku)})`);
+    const codigo = texto(de(fila, 'codigo'));
+    if (codigo && !/^\d{13}$/.test(codigo)) return mal(`El código «${codigo}» no tiene 13 dígitos`);
+    const nums = {};
+    for (const c of ['costo', 'precio1', 'precio2', 'precio3', 'precio4', 'precio5', 'existencia', 'minimo']) {
+      nums[c] = numero(de(fila, c));
+      if (Number.isNaN(nums[c])) return mal(`«${c}» no es un número válido: ${texto(de(fila, c))}`);
+      if (nums[c] != null && nums[c] < 0) return mal(`«${c}» no puede ser negativo`);
+    }
+    const p = {
+      sku,
+      nombre: texto(de(fila, 'nombre')),
+      tipo: texto(de(fila, 'tipo')), tela: texto(de(fila, 'tela')),
+      color: texto(de(fila, 'color')), talla: texto(de(fila, 'talla')),
+      genero: texto(de(fila, 'genero')), marca: texto(de(fila, 'marca')), modelo: texto(de(fila, 'modelo')),
       codigo,
-      precios: ['price', 'price2', 'price3', 'price4', 'price5'].map(c => precio(de(fila, c))),
-      separado: verdad(de(fila, 'separado')),
-      comisiones,
-      existencia: Math.round((n(de(fila, 'location_fiscalstock')) || 0) + (n(de(fila, 'location_nonfiscalstock')) || 0)),
-      minimo: Math.round(n(de(fila, 'location_minstock')) || 0),
-      costo: n(de(fila, 'cost')),
+      // precio1 = 1-5, precio2 = 6-11, precio3 = 12-23, precio4 = 24-47, precio5 = el quinto del Tarifario.
+      precios: ['precio1', 'precio2', 'precio3', 'precio4', 'precio5'].map(c => (nums[c] > 0 ? nums[c] : null)),
+      separado: booleano(de(fila, 'separado')), // se guarda; todavía no tiene uso en el POS
+      existencia: Math.round(nums.existencia || 0),
+      minimo: Math.round(nums.minimo || 0),
+      costo: nums.costo,
       foto: null, oferta: null, activo: true,
-    });
-  }
-  const avisos = sinDatos ? [`${sinDatos} productos sin producto, color y talla: se agrupan por su nombre`] : [];
-  return { productos, avisos };
+    };
+    if (p.precios[0] == null) return mal('Sin precio1 (el precio de 1 a 5 unidades)');
+    p.grupo = claveGrupo(p);
+    p.titulo = tituloProducto(p);
+    vistos.set(sku, n); // solo una fila importada «ocupa» su sku
+    productos.push(p);
+  });
+  const avisos = sinColumna.length ? [`El archivo no trae: ${sinColumna.join(', ')}. Esos datos quedan vacíos.`] : [];
+  return { productos, errores, avisos, filas: (json.rows || []).length };
 }
 
-const CAMPOS = ['nombre', 'producto', 'grupo', 'color', 'talla', 'categoria', 'marca', 'codigo', 'precios', 'separado', 'comisiones', 'minimo'];
+// Campos que se comparan para decidir si un producto cambió. La existencia NO: el archivo solo
+// la aporta en la carga inicial (productos nuevos); la de los que ya existen la lleva el POS.
+const CAMPOS = ['nombre', 'tipo', 'tela', 'color', 'talla', 'genero', 'marca', 'modelo', 'grupo', 'titulo', 'codigo', 'precios', 'separado', 'minimo'];
 
 // El costo vive en costos/{sku} (solo admin y encargada lo leen), por eso se compara aparte.
+// Upsert por sku: nuevos se crean, los que cambiaron se actualizan; los que no vienen en el archivo
+// solo se listan (nunca se borran sin preguntar).
 export function planImportacion(entrantes, actualesPorSku, costosPorSku = {}) {
   const nuevos = [], cambios = [], iguales = [];
   const vistos = new Set();

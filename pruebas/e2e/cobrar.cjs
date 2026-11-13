@@ -119,7 +119,7 @@ casos('cobrar', [
     await p.click('.lado-carrito .cobrar');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.click('#cobrar-final');
-    await p.waitForSelector('text=Ya no hay existencia de Buzo Etanol Gris · Talla L');
+    await p.waitForSelector('text=Ya no hay existencia de Buzo Etanol Caballero Gris · Talla L');
     a.strictEqual((await ventas(p)).length, 0);
     a.ok(await p.$('.lado-carrito .linea[data-sku="B-L"]'));
     a.deepStrictEqual(p.errores, []);

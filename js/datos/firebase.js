@@ -519,16 +519,14 @@ export function crearFirebase(config) {
       q.docs.forEach(d => b.update(d.ref, { oferta: { pct, activa: !!oferta?.activa && pct > 0 } }));
       return sinEsperar(b.commit());
     },
-    async guardarFoto(grupo, blob) {
+    // La foto es de la variante (sku); la tarjeta muestra la de cualquiera de sus tallas.
+    async guardarFoto(sku, blob) {
       const e = exigir('fotosMasivas'); if (e) return NO(e);
       let token = null; try { token = localStorage.getItem(CLAVE_TOKEN); } catch { /* sin almacenamiento */ }
-      const subida = await subirFotoGitHub({ token, ruta: `fotos/${claveFoto(grupo)}.webp`, blob });
+      const subida = await subirFotoGitHub({ token, ruta: `fotos/${claveFoto(sku)}.webp`, blob });
       if (!subida.ok) return NO(subida.error);
       const ruta = `${subida.ruta}?v=${Date.now()}`;
-      const q = await getDocs(query(collection(db, 'productos'), where('grupo', '==', grupo)));
-      const b = writeBatch(db);
-      q.docs.forEach(d => b.update(d.ref, { foto: ruta }));
-      const r = await sinEsperar(b.commit());
+      const r = await sinEsperar(updateDoc(ref('productos', sku), { foto: ruta }));
       return r.ok ? SI({ ruta }) : r;
     },
 

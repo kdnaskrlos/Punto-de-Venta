@@ -2,6 +2,7 @@
 import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo } from '../ui.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
+import { titulo, grupoDe, textoBusqueda } from '../nucleo/producto.js';
 import { tipoPrenda, compararTallas } from '../nucleo/tipo-prenda.js';
 import { colorPrenda } from '../nucleo/colores.js';
 import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
@@ -63,10 +64,12 @@ function grupos(ctx) {
   const g = {};
   for (const p of Object.values(ctx.productos)) {
     if (p.activo === false) continue;
-    const k = p.grupo || p.sku;
-    (g[k] ||= { grupo: k, producto: p.producto || p.nombre, color: p.color, categoria: p.categoria, foto: p.foto, variantes: [] }).variantes.push(p);
+    const k = grupoDe(p);
+    const t = (g[k] ||= { grupo: k, titulo: titulo(p), tipo: p.tipo, tela: p.tela, color: p.color, genero: p.genero, foto: null, variantes: [] });
+    t.foto ||= p.foto; // la foto se busca por sku: la tarjeta usa la de cualquiera de sus tallas
+    t.variantes.push(p);
   }
-  return Object.values(g).sort((a, b) => a.grupo.localeCompare(b.grupo, 'es'));
+  return Object.values(g).sort((a, b) => a.titulo.localeCompare(b.titulo, 'es') || (a.color || '').localeCompare(b.color || '', 'es') || (a.tela || '').localeCompare(b.tela || '', 'es'));
 }
 
 // Línea del carrito en tarjeta: imagen, nombre, color y talla, tarifa; arriba a la derecha el contador
@@ -83,19 +86,19 @@ function contador(ctx, l) {
 }
 function lineaCarrito(ctx, l, aj, compacta) {
   const p = ctx.productos[l.sku];
-  const g = { producto: p.producto || p.nombre, categoria: p.categoria, foto: p.foto };
-  const variante = [p.color, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku;
+  const g = { titulo: titulo(p), tipo: p.tipo, genero: p.genero, foto: p.foto };
+  const variante = [p.color, p.tela, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku;
   const alternar = () => { const c = carrito(ctx); c.abierta = c.abierta === l.sku ? null : l.sku; window.dispatchEvent(new CustomEvent('pos:carrito')); };
   if (compacta) return h('div', { class: 'linea mini', 'data-sku': l.sku, role: 'button', tabindex: '0', 'aria-expanded': 'false', onclick: alternar, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } } },
     h('span', { class: 'lc-q num' }, String(l.cantidad)),
-    h('span', { class: 'lc-t' }, h('b', {}, g.producto), h('small', {}, ` · ${variante}`)),
+    h('span', { class: 'lc-t' }, h('b', {}, g.titulo), h('small', {}, ` · ${variante}`)),
     h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal))),
     icono('abajo'));
   const plegable = carrito(ctx).lineas.length > MAX_ABIERTAS;
   return h('div', { class: 'linea' + (plegable ? ' abierta' : ''), 'data-sku': l.sku, onclick: plegable ? alternar : null, 'aria-expanded': plegable ? 'true' : null },
     miniatura(g, 'foto'),
     h('div', { class: 'linea-info' },
-      h('b', {}, g.producto),
+      h('b', {}, g.titulo),
       h('span', { class: 'lc-chip' }, variante),
       h('span', { class: 'lc-chip tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Precio de oferta' : `Tarifa ${etiquetaTramo(l.tramo, aj.tramos)}`)),
     h('div', { class: 'linea-der' },
@@ -267,7 +270,7 @@ function abrirTallas(ctx, g) {
   const pintar = () => {
     lista.replaceChildren(...variantes.map(p => {
       const n = cuentas[p.sku];
-      const nombre = p.talla || p.nombre;
+      const nombre = p.talla || 'Única'; // 39 variantes del inventario no tienen talla
       const agotada = p.existencia <= 0;
       const pocas = !agotada && p.existencia <= p.minimo;
       return h('div', { class: 'talla-fila-v' + (n ? ' con' : '') + (agotada ? ' agotada' : ''), 'data-sku': p.sku },
@@ -284,14 +287,14 @@ function abrirTallas(ctx, g) {
     const total = Object.values(cuentas).reduce((x, y) => x + y, 0);
     const cambio = variantes.some(p => cuentas[p.sku] !== antes[p.sku]);
     const habia = Object.values(antes).some(Boolean);
-    agregar.replaceChildren(icono('carrito'), habia ? 'Actualizar carrito' : 'Agregar al carrito', total ? h('span', { class: 'tf-total' }, ` · ${total}`) : null);
+    agregar.replaceChildren(icono('carrito'), habia ? 'Actualizar carrito' : 'Agregar al carrito', ...(total ? [h('span', { class: 'tf-total' }, ` · ${total}`)] : []));
     agregar.disabled = !cambio;
   };
   pintar();
   const cont = h('div', { class: 'tallas-v' },
     h('p', { class: 'tallas-sub' }, g.color ? h('i', { class: 'punto-color grande', style: color ? `--pc:${color}` : '' }) : null, [g.color, 'Selecciona las tallas'].filter(Boolean).join(' · ')),
     lista);
-  const v = abrirVentana({ titulo: g.producto, contenido: cont, acciones: agregar, clase: 'ventana-tallas' });
+  const v = abrirVentana({ titulo: g.titulo, contenido: cont, acciones: agregar, clase: 'ventana-tallas' });
   agregar.onclick = () => {
     for (const p of variantes) { const d = cuentas[p.sku] - enCarrito(ctx, p.sku); if (d) agregarAlCarrito(ctx, p.sku, d); }
     v.cerrar();
@@ -300,7 +303,7 @@ function abrirTallas(ctx, g) {
 
 // Tarjeta de prenda compacta: imagen cuadrada a la izquierda (foto o ícono gris según el tipo de prenda) y al lado nombre, tallas y precio.
 export function miniatura(g, clase = 'miniatura') {
-  return h('span', { class: clase }, g.foto ? h('img', { src: g.foto, alt: '', loading: 'lazy', width: 64, height: 64 }) : icono(tipoPrenda(g.producto, g.categoria)));
+  return h('span', { class: clase }, g.foto ? h('img', { src: g.foto, alt: '', loading: 'lazy', width: 64, height: 64 }) : icono(tipoPrenda(g.tipo || g.titulo, g.genero)));
 }
 
 // Fila de prenda: imagen cuadrada, nombre, color y tallas; a la derecha disponibles y precio.
@@ -313,13 +316,13 @@ function tarjeta(ctx, g) {
   const elegidas = g.variantes.reduce((s, p) => s + enCarrito(ctx, p.sku), 0);
   const tallas = [...g.variantes].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || compararTallas(a.talla, b.talla));
   const color = colorPrenda(g.color);
-  return h('button', { class: 'tarjeta-prenda' + (agotada ? ' agotada' : '') + (elegidas ? ' elegida' : ''), 'data-grupo': g.grupo, onclick: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) },
+  return h('button', { class: 'tarjeta-prenda' + (agotada ? ' agotada' : '') + (elegidas ? ' elegida' : ''), 'data-grupo': g.grupo, 'data-nombre': [g.titulo, g.color].filter(Boolean).join(' '), onclick: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) },
     h('span', { class: 'tp-img' }, miniatura(g, 'foto'), elegidas ? h('span', { class: 'en-carrito', 'aria-label': `${elegidas} en el carrito` }, String(elegidas)) : null),
     h('span', { class: 'info' },
-      h('b', {}, g.producto),
+      h('b', {}, g.titulo),
       h('span', { class: 'tp-linea' },
-        g.color ? h('span', { class: 'tp-color' }, h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }), g.color) : null,
-        h('span', { class: 'tp-tallas' }, h('span', { class: 'tp-pal' }, 'Tallas: '), ...tallas.slice(0, 5).flatMap((p, i) => [i ? ' · ' : '', h('span', { class: p.existencia > 0 ? '' : 'sin' }, p.talla || p.sku)]),
+        g.color || g.tela ? h('span', { class: 'tp-color' }, g.color ? h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }) : null, [g.color, g.tela].filter(Boolean).join(' · ')) : null,
+        h('span', { class: 'tp-tallas' }, h('span', { class: 'tp-pal' }, 'Tallas: '), ...tallas.slice(0, 5).flatMap((p, i) => [i ? ' · ' : '', h('span', { class: p.existencia > 0 ? '' : 'sin' }, p.talla || 'Única')]),
           // Con muchas tallas, las 5 primeras y «+N»: la fila nunca se parte en dos líneas.
           tallas.length > 5 ? h('span', { class: 'tp-mas', 'aria-label': `y ${tallas.length - 5} tallas más` }, ` +${tallas.length - 5}`) : null))),
     h('span', { class: 'tp-der' },
@@ -331,7 +334,7 @@ function tarjeta(ctx, g) {
 
 registrarVista('/vender', {
   montar(cont, ctx) {
-    let busqueda = '', categoria = '';
+    let busqueda = '', genero = '';
     const buscar = h('input', { class: 'inp', id: 'buscar', type: 'search', 'aria-label': 'Buscar prenda o código', placeholder: 'Buscar prenda o código', autocomplete: 'off', enterkeyhint: 'search' });
     const filtros = h('div', { class: 'filtros' });
     const rejilla = h('div', { class: 'rejilla' });
@@ -352,16 +355,16 @@ registrarVista('/vender', {
     function agregarPorCodigo(cod) {
       const p = Object.values(ctx.productos).find(x => x.codigo && x.codigo === cod.trim());
       if (!p) return false;
-      if (agregarAlCarrito(ctx, p.sku, 1)) toast(`${p.producto || p.nombre} ${p.talla ? 'T' + p.talla : ''} agregada`);
+      if (agregarAlCarrito(ctx, p.sku, 1)) toast(`${titulo(p)} ${p.talla ? 'T' + p.talla : ''} agregada`);
       return true;
     }
 
     function pintar() {
       const todos = grupos(ctx);
-      const cats = [...new Set(todos.map(g => g.categoria).filter(Boolean))].sort();
-      filtros.replaceChildren(...['', ...cats].map(c => h('button', { class: 'chip' + (c === categoria ? ' activo' : ''), onclick: () => { categoria = c; pintar(); } }, c || 'Todo')));
+      const generos = [...new Set(todos.map(g => g.genero).filter(Boolean))].sort();
+      filtros.replaceChildren(...['', ...generos].map(c => h('button', { class: 'chip' + (c === genero ? ' activo' : ''), onclick: () => { genero = c; pintar(); } }, c || 'Todo')));
       const q = norm(busqueda);
-      const vis = todos.filter(g => (!categoria || g.categoria === categoria) && (!q || g.variantes.some(p => norm(`${p.grupo} ${p.nombre} ${p.sku} ${p.codigo} ${p.marca}`).includes(q))));
+      const vis = todos.filter(g => (!genero || g.genero === genero) && (!q || g.variantes.some(p => norm(textoBusqueda(p)).includes(q))));
       rejilla.replaceChildren(...(vis.length ? vis.map(g => tarjeta(ctx, g)) : [h('div', { class: 'vacio' }, q ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos. El administrador los importa desde la Carga Masiva.')]));
       pintarCarrito();
     }

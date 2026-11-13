@@ -1,3 +1,4 @@
+import { grupoDe, nombreVenta } from './producto.js';
 // Reportes básicos (§15). Se calculan en el dispositivo a partir de las ventas del rango.
 import { formaEfectivo, FORMAS_PAGO_DEFECTO } from './formas.js';
 
@@ -28,8 +29,8 @@ export function masVendidos(ventas, productosPorSku, n = 10) {
   const g = {};
   for (const v of validas(ventas)) for (const l of v.lineas) {
     const p = productosPorSku[l.sku] || {};
-    const k = p.grupo || l.sku;
-    g[k] ||= { grupo: k, unidades: 0, tallas: {} };
+    const k = p.sku ? grupoDe(p) : l.sku;
+    g[k] ||= { grupo: k, nombre: p.sku ? nombreVenta(p) : (l.nombre || l.sku), unidades: 0, tallas: {} };
     g[k].unidades += l.cantidad;
     const t = p.talla || '—';
     g[k].tallas[t] = (g[k].tallas[t] || 0) + l.cantidad;

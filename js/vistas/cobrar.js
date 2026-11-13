@@ -1,3 +1,4 @@
+import { nombreVenta } from '../nucleo/producto.js';
 // Ventana Cobrar (§9.2): el cliente se registra antes, en su propia pantalla; pagos mixtos, vuelto, guardar la venta y recibo por WhatsApp.
 import { h, icono, abrirVentana, toast, largo } from '../ui.js';
 import { conCaja } from './caja.js';
@@ -13,7 +14,7 @@ import { NOMBRE_MONEDA } from '../nucleo/formas.js';
 
 function nombreLinea(ctx, sku) {
   const p = ctx.productos[sku] || {};
-  return [p.grupo || p.nombre || sku, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ');
+  return [p.sku ? nombreVenta(p) : sku, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ');
 }
 
 export function lineasParaGuardar(ctx, r) {
@@ -22,7 +23,7 @@ export function lineasParaGuardar(ctx, r) {
   const descLinea = repartirDescuento(r.lineas, r.descuento);
   return r.lineas.map((l, i) => {
     const p = ctx.productos[l.sku];
-    return { sku: l.sku, nombre: `${p.producto || p.nombre}${p.color ? ' ' + p.color : ''}`, talla: p.talla || '', cantidad: l.cantidad, tramo: l.tramo, precioUnit: l.precioUnit, subtotal: l.subtotal, oferta: l.oferta, descuento: descLinea[i], comision: coms[i].comision, reducida: coms[i].reducida };
+    return { sku: l.sku, nombre: nombreVenta(p), talla: p.talla || '', cantidad: l.cantidad, tramo: l.tramo, precioUnit: l.precioUnit, subtotal: l.subtotal, oferta: l.oferta, descuento: descLinea[i], comision: coms[i].comision, reducida: coms[i].reducida };
   });
 }
 

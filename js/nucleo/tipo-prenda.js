@@ -1,4 +1,4 @@
-// Tipo de prenda a partir del nombre o la categoría ("Buzo Etanol" → buzo), para elegir el ícono cuando no hay foto.
+// Tipo de prenda (columna «tipo»: Franela, Buzo, Jogger…; o el nombre si falta) para elegir el ícono cuando no hay foto.
 const REGLAS = [
   ['body', /\b(body|bodys|pañalero|panalero|mameluco|enterizo bebe)\b/],
   ['buzo', /\b(buzo|buzos|sudadera|hoodie|sueter|suéter|sweater|chompa|poleron)\b/],
@@ -7,7 +7,7 @@ const REGLAS = [
   ['short', /\b(short|shorts|bermuda|bermudas|boxer|bóxer)\b/],
   ['vestido', /\b(vestido|falda|enterizo)\b/],
   ['gorra', /\b(gorra|gorro|cachucha|visera|sombrero)\b/],
-  ['camisa', /\b(camisa|chemise|polo|guayabera|blusa)\b/],
+  ['camisa', /\b(camisa|chemise|chemis|polo|guayabera|blusa|bluson|blusón)\b/],
 ];
 
 export function tipoPrenda(...textos) {

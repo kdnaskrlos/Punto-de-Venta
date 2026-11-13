@@ -343,10 +343,11 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       escribio(); avisar('productos');
       return SI();
     },
-    async guardarFoto(grupo, blob) {
+    async guardarFoto(sku, blob) {
       const e = exigir('fotosMasivas'); if (e) return NO(e);
-      const ruta = (blob && globalThis.URL?.createObjectURL) ? URL.createObjectURL(blob) : `fotos/${claveFoto(grupo)}.webp`;
-      for (const p of col.productos.values()) if (p.grupo === grupo) p.foto = ruta;
+      const ruta = (blob && globalThis.URL?.createObjectURL) ? URL.createObjectURL(blob) : `fotos/${claveFoto(sku)}.webp`;
+      const p = col.productos.get(sku); if (!p) return NO('no-existe');
+      p.foto = ruta;
       avisar('productos');
       return SI({ ruta });
     },

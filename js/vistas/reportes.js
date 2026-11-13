@@ -1,3 +1,4 @@
+import { nombreVenta } from '../nucleo/producto.js';
 // Reportes (§15) y comisiones (§14).
 import { h, icono, toast, sin, unaVez, abrirVentana, largo } from '../ui.js';
 import { registrarVista } from '../app.js';
@@ -98,16 +99,16 @@ registrarVista('/reportes', {
       const maxU = top[0]?.unidades || 0;
       const vendidos = h('div', { class: 'tarjeta mas-vendidos' }, h('h2', { class: 'sec-t' }, 'Más vendidos'),
         top.length ? h('div', { class: 'rep-top' }, ...top.slice(0, 5).map(m => h('div', { class: 'rep-top-fila' },
-          h('span', { class: 'rep-top-n' }, m.grupo), h('span', { class: 'rep-top-barra' }, h('i', { style: `width:${pct(m.unidades, maxU)}%` })), h('b', { class: 'num' }, String(m.unidades))))) : h('p', { class: 'nota' }, 'Sin ventas en este período.'),
+          h('span', { class: 'rep-top-n' }, m.nombre), h('span', { class: 'rep-top-barra' }, h('i', { style: `width:${pct(m.unidades, maxU)}%` })), h('b', { class: 'num' }, String(m.unidades))))) : h('p', { class: 'nota' }, 'Sin ventas en este período.'),
         top.length ? h('button', { type: 'button', class: 'rep-ver', id: 'rep-ver-vendidos', onclick: () => abrirVentana({ titulo: 'Más vendidos', contenido: h('div', { class: 'rep-det' },
-          ...top.map((m, i) => h('div', { class: 'fila-rep' }, h('span', { class: 'mv-nombre' }, `${i + 1}. ${m.grupo}`, h('span', { class: 'nota' }, 'Tallas ' + Object.entries(m.tallas).map(([t, n]) => `${t} (${n})`).join(', '))), h('b', { class: 'num' }, `${m.unidades}`)))) }) }, top.length > 5 ? `Ver los ${top.length}` : 'Ver tallas', icono('der')) : null);
+          ...top.map((m, i) => h('div', { class: 'fila-rep' }, h('span', { class: 'mv-nombre' }, `${i + 1}. ${m.nombre}`, h('span', { class: 'nota' }, 'Tallas ' + Object.entries(m.tallas).map(([t, n]) => `${t} (${n})`).join(', '))), h('b', { class: 'num' }, `${m.unidades}`)))) }) }, top.length > 5 ? `Ver los ${top.length}` : 'Ver tallas', icono('der')) : null);
 
       const inv = gestion ? valorInventario(productos, datos.costos) : null;
       cuerpo.replaceChildren(...sin(resumen, h('div', { class: 'rep-dos' }, pagos, vendidos),
         h('div', { class: 'rep-filas tarjeta' },
           filaSeccion('rep-ventas', 'historial', 'Ventas', `${validas} en este período`, () => abrirVentana({ titulo: 'Ventas', contenido: listaVentas(ctx, datos.ventas, 200) })),
           gestion ? filaSeccion('bajas', 'alerta', 'Existencias bajas', bajas.length ? `${bajas.length} ${bajas.length === 1 ? 'talla' : 'tallas'} en el mínimo o menos` : 'Todo en orden', () => abrirVentana({ titulo: 'Existencias bajas', contenido: h('div', { class: 'rep-det bajas-det' },
-            ...(bajas.length ? bajas.slice(0, 100).map(p => h('div', { class: 'fila-rep' }, h('span', {}, `${p.grupo} · Talla ${p.talla || p.sku}`), h('b', { class: 'num ' + (p.existencia <= 0 ? 'neg' : '') }, `${p.existencia} / mín. ${p.minimo || 0}`))) : [h('p', { class: 'nota' }, 'Ninguna talla está en el mínimo.')])) })) : null,
+            ...(bajas.length ? bajas.slice(0, 100).map(p => h('div', { class: 'fila-rep' }, h('span', {}, `${nombreVenta(p)} · ${p.talla ? 'Talla ' + p.talla : 'Talla única'}`), h('b', { class: 'num ' + (p.existencia <= 0 ? 'neg' : '') }, `${p.existencia} / mín. ${p.minimo || 0}`))) : [h('p', { class: 'nota' }, 'Ninguna talla está en el mínimo.')])) })) : null,
           gestion ? filaSeccion('rep-inv', 'caja', 'Valor del inventario', [`${fmtCop(inv.aCosto)} a costo`, h('br'), `${fmtCop(inv.aPrecio)} a precio`], () => abrirVentana({ titulo: 'Valor del inventario', contenido: h('div', { class: 'rep-det' },
             h('div', { class: 'fila-rep' }, h('span', {}, 'A costo'), h('b', { class: 'num' }, fmtCop(inv.aCosto))),
             h('div', { class: 'fila-rep' }, h('span', {}, 'A precio detal'), h('b', { class: 'num' }, fmtCop(inv.aPrecio))),

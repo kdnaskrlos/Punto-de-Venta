@@ -1,3 +1,4 @@
+import { titulo } from '../nucleo/producto.js';
 // Venta en curso: el carrito (prendas, descuento y cliente) se guarda en el aparato mientras se vende.
 // Si la app se cierra o se sale sin querer, al volver pregunta "¿Continuar venta?" (igual que Pedidos).
 import { h, icono, abrirVentana } from '../ui.js';
@@ -34,7 +35,7 @@ export function ofrecerRetomar(ctx) {
   if (!d || ctx.carrito?.lineas?.length) return;
   const c = d.c;
   const prendas = c.lineas.reduce((s, l) => s + l.cantidad, 0);
-  const nombres = [...new Set(c.lineas.map(l => ctx.productos?.[l.sku]?.producto || l.sku))];
+  const nombres = [...new Set(c.lineas.map(l => (ctx.productos?.[l.sku] ? titulo(ctx.productos[l.sku]) : l.sku)))];
   const continuar = h('button', { class: 'btn primary', id: 'retomar-si' }, icono('check'), 'Continuar');
   const cancelar = h('button', { class: 'btn', id: 'retomar-no' }, 'Cancelar');
   const v = abrirVentana({ titulo: '¿Continuar venta?', contenido: h('div', { class: 'pila' },

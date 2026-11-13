@@ -34,16 +34,12 @@ export function calcularCarrito(lineas, productosPorSku, { limites = LIMITES_DEF
     else if (precioDeTramo(p.precios, 0) == null) invalidas.push({ sku: l.sku, motivo: 'precio' });
     else if (l.cantidad > 0) validas.push(l);
   }
-  const cantidadMix = validas.reduce((s, l) => s + (productosPorSku[l.sku].separado ? 0 : l.cantidad), 0);
-  const porProducto = {};
-  for (const l of validas) {
-    const p = productosPorSku[l.sku];
-    if (p.separado) porProducto[p.producto] = (porProducto[p.producto] || 0) + l.cantidad;
-  }
+  // Todas las prendas cuentan juntas para el tramo (mix). «separado» se guarda desde el Tarifario pero todavía
+  // no tiene uso: Carlos definirá su regla más adelante.
+  const cantidadMix = validas.reduce((s, l) => s + l.cantidad, 0);
   const resultado = validas.map(l => {
     const p = productosPorSku[l.sku];
-    const cant = p.separado ? porProducto[p.producto] : cantidadMix;
-    const tramo = tramoDe(cant, limites);
+    const tramo = tramoDe(cantidadMix, limites);
     let precioUnit = precioDeTramo(p.precios, tramo);
     const oferta = !!(p.oferta && p.oferta.activa && p.oferta.pct > 0);
     if (oferta) precioUnit = redondear(precioUnit * (1 - Math.min(p.oferta.pct, 100) / 100), redondeo);

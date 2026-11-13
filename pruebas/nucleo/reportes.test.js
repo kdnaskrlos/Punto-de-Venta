@@ -8,9 +8,9 @@ const ventas = [
   { id: 'v3', estado: 'anulada', total: 999999, lineas: [{ sku: 'B', cantidad: 9 }], pagos: [{ forma: 'efectivo-cop', monto: 999999 }], vuelto: null },
 ];
 const productos = {
-  F4: { sku: 'F4', grupo: 'Franela Blanco', talla: '4', existencia: 3, minimo: 5, precios: [25000], activo: true },
-  F6: { sku: 'F6', grupo: 'Franela Blanco', talla: '6', existencia: 10, minimo: 5, precios: [25000], activo: true },
-  B: { sku: 'B', grupo: 'Buzo Gris', talla: 'M', existencia: -1, minimo: 2, precios: [48000], activo: true },
+  F4: { sku: 'F4', tipo: 'Franela', color: 'Blanco', grupo: 'Franela Blanco', talla: '4', existencia: 3, minimo: 5, precios: [25000], activo: true },
+  F6: { sku: 'F6', tipo: 'Franela', color: 'Blanco', grupo: 'Franela Blanco', talla: '6', existencia: 10, minimo: 5, precios: [25000], activo: true },
+  B: { sku: 'B', tipo: 'Buzo', color: 'Gris', grupo: 'Buzo Gris', talla: 'M', existencia: -1, minimo: 2, precios: [48000], activo: true },
 };
 
 test('resumen del día sin anuladas, con ganancia si hay costos', () => {
@@ -23,8 +23,8 @@ test('resumen del día sin anuladas, con ganancia si hay costos', () => {
 
 test('más vendidos por grupo, con tallas', () => {
   assert.deepEqual(masVendidos(ventas, productos, 5), [
-    { grupo: 'Franela Blanco', unidades: 4, tallas: { 4: 2, 6: 2 } },
-    { grupo: 'Buzo Gris', unidades: 1, tallas: { M: 1 } },
+    { grupo: 'Franela Blanco', nombre: 'Franela Blanco', unidades: 4, tallas: { 4: 2, 6: 2 } },
+    { grupo: 'Buzo Gris', nombre: 'Buzo Gris', unidades: 1, tallas: { M: 1 } },
   ]);
 });
 

@@ -8,8 +8,8 @@ test('la clave ignora mayúsculas, acentos, espacios, guiones y extensión', () 
   assert.equal(claveFoto('buzo_etanol  gris.webp'), 'buzoetanolgris');
 });
 
-test('empareja por nombre de archivo con el grupo', () => {
-  const r = emparejarFotos(['Franela AS Niño-Blanco.jpg', 'otra.png', 'BUZO ETANOL GRIS.jpeg'], ['Franela AS Niño Blanco', 'Buzo Etanol Gris']);
-  assert.deepEqual(r.asignadas, [{ archivo: 'Franela AS Niño-Blanco.jpg', grupo: 'Franela AS Niño Blanco' }, { archivo: 'BUZO ETANOL GRIS.jpeg', grupo: 'Buzo Etanol Gris' }]);
+test('empareja la foto con la variante por su sku (sin importar mayúsculas, acentos ni extensión)', () => {
+  const r = emparejarFotos(['fran-as-nino-4-bla-alg.JPG', 'otra.png', 'B-M.webp'], ['Fran-AS-Niño-4-Bla-Alg', 'B-M', 'B-L']);
+  assert.deepEqual(r.asignadas, [{ archivo: 'fran-as-nino-4-bla-alg.JPG', sku: 'Fran-AS-Niño-4-Bla-Alg' }, { archivo: 'B-M.webp', sku: 'B-M' }]);
   assert.deepEqual(r.sinAsignar, ['otra.png']);
 });

@@ -1,3 +1,5 @@
+import { claveGrupo, tituloProducto } from './importar.js';
+import { nombreVenta } from './producto.js';
 // Modo prueba (como en Pedidos): datos de ejemplo marcados con demo:true para ver la app llena.
 // Se pueden quitar sin tocar los datos reales.
 const NOMBRES = ['María González', 'José Rodríguez', 'Luisa Fernández', 'Pedro Ramírez', 'Carmen Díaz', 'Andrés Mora', 'Valentina Rojas', 'Diego Herrera', 'Gabriela Suárez', 'Ricardo Peña'];
@@ -5,13 +7,14 @@ const NOMBRES = ['María González', 'José Rodríguez', 'Luisa Fernández', 'Pe
 // Generador con semilla: siempre los mismos ejemplos.
 function azar(semilla) { let x = semilla >>> 0; return () => ((x = (x * 1664525 + 1013904223) >>> 0) / 2 ** 32); }
 
+// [tipo, modelo, color, abreviatura, tallas, precios, costo, género]
 const PRODUCTOS_EJEMPLO = [
-  ['Franela Oversize', 'Negro', 'XO-N', ['S', 'M', 'L', 'XL'], [35000, 33000, 31000, 29000, 27000], 14000, 'Caballero'],
-  ['Franela Oversize', 'Blanco', 'XO-B', ['S', 'M', 'L', 'XL'], [35000, 33000, 31000, 29000, 27000], 14000, 'Dama'],
-  ['Buzo Capucha', 'Gris', 'XB-G', ['S', 'M', 'L', 'XL'], [65000, 62000, 59000, 56000, 53000], 30000, 'Caballero'],
-  ['Short Deportivo', 'Azul', 'XS-A', ['M', 'L', 'XL'], [28000, 26000, 24000, 22000, 20000], 11000, 'Caballero'],
-  ['Body Bebé', 'Celeste', 'XY-C', ['3m', '6m', '9m'], [19000, 18000, 17000, 16000, 15000], 7500, 'Bebé'],
-  ['Franela Niño', 'Rojo', 'XN-R', ['4', '6', '8', '10'], [24000, 23000, 21500, 20000, 18500], 9000, 'Niño'],
+  ['Franela', 'Oversize', 'Negro', 'XO-N', ['S', 'M', 'L', 'XL'], [35000, 33000, 31000, 29000, 27000], 14000, 'Caballero'],
+  ['Franela', 'Oversize', 'Blanco', 'XO-B', ['S', 'M', 'L', 'XL'], [35000, 33000, 31000, 29000, 27000], 14000, 'Dama'],
+  ['Buzo', 'Capucha', 'Gris', 'XB-G', ['S', 'M', 'L', 'XL'], [65000, 62000, 59000, 56000, 53000], 30000, 'Caballero'],
+  ['Short', 'Deportivo', 'Azul', 'XS-A', ['M', 'L', 'XL'], [28000, 26000, 24000, 22000, 20000], 11000, 'Caballero'],
+  ['Body', 'Bebé', 'Celeste', 'XY-C', ['3m', '6m', '9m'], [19000, 18000, 17000, 16000, 15000], 7500, 'Unisex'],
+  ['Franela', 'Manga Corta', 'Rojo', 'XN-R', ['4', '6', '8', '10'], [24000, 23000, 21500, 20000, 18500], 9000, 'Niño'],
 ];
 
 export function generarEjemplos({ productos = {}, formas = [], tasas = {}, ahora = new Date() } = {}) {
@@ -23,11 +26,12 @@ export function generarEjemplos({ productos = {}, formas = [], tasas = {}, ahora
   // Productos: los reales si hay suficientes; si no, se agregan de ejemplo.
   let vars = Object.values(productos).filter(p => p.activo !== false && p.precios?.[0]);
   if (new Set(vars.map(p => p.grupo)).size < 4) {
-    for (const [producto, color, abrev, tallas, precios, costo, categoria] of PRODUCTOS_EJEMPLO) {
+    for (const [tipo, modelo, color, abrev, tallas, precios, costo, genero] of PRODUCTOS_EJEMPLO) {
       for (const talla of tallas) {
         const sku = `${abrev}-${talla}`;
-        const p = { sku, nombre: `${producto} ${talla} ${color}`, producto, color, talla, grupo: `${producto} ${color}`, categoria, marca: 'Ejemplo', codigo: `99${sku}`,
-          precios, separado: false, comisiones: null, existencia: Math.floor(r() * 12) + 1, minimo: 2, foto: null, oferta: null, activo: true, ...demo };
+        const base = { sku, nombre: `${tipo} Ejemplo ${genero} ${talla} ${color}`, tipo, tela: '', color, talla, genero, marca: 'Ejemplo', modelo, codigo: '',
+          precios, separado: false, existencia: Math.floor(r() * 12) + 1, minimo: 2, foto: null, oferta: null, activo: true, ...demo };
+        const p = { ...base, grupo: claveGrupo(base), titulo: tituloProducto(base) };
         lote.productos.push(p);
         lote.costos.push({ sku, costo, historial: [{ costo, desde: '2026-01-01T00:00:00.000Z' }], ...demo });
       }
@@ -49,7 +53,7 @@ export function generarEjemplos({ productos = {}, formas = [], tasas = {}, ahora
     for (let i = 0; i < n; i++) { const p = elegir(vars); usadas.set(p.sku, (usadas.get(p.sku) || 0) + 1 + (r() < 0.2 ? 1 : 0)); }
     return [...usadas].map(([sku, cantidad]) => {
       const p = vars.find(x => x.sku === sku);
-      return { sku, nombre: `${p.producto}${p.color ? ' ' + p.color : ''}`, talla: p.talla || '', cantidad, tramo: 0, precioUnit: p.precios[0], subtotal: p.precios[0] * cantidad, oferta: null, descuento: 0, comision: 2000 * cantidad, reducida: false };
+      return { sku, nombre: nombreVenta(p), talla: p.talla || '', cantidad, tramo: 0, precioUnit: p.precios[0], subtotal: p.precios[0] * cantidad, oferta: null, descuento: 0, comision: 2000 * cantidad, reducida: false };
     });
   };
   const hace = (dias, hora) => { const d = new Date(ahora); d.setDate(d.getDate() - dias); d.setHours(hora, Math.floor(r() * 60), 0, 0); return d.toISOString(); };
