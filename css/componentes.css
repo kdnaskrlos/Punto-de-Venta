@@ -652,3 +652,16 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .det-grupo{display:flex;flex-direction:column}
 .det-fila{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
 .det-total{border-bottom:0;font-size:16px}
+
+/* Vender: la prenda con su color real y sus tallas (v1.35) */
+.tarjeta-prenda .foto{height:96px}
+.tarjeta-prenda .foto.silueta{background:color-mix(in srgb,var(--pc,#9ca3af) 14%,var(--surface-2))}
+.tarjeta-prenda .foto.silueta > svg.i{width:46px;height:46px;fill:var(--pc);stroke:color-mix(in srgb,var(--pc) 55%,#1f2937);stroke-width:1.5}
+.tarjeta-prenda .foto.silueta.sin-color > svg.i{fill:none;stroke:var(--muted)}
+.tarjeta-prenda.elegida .foto.silueta svg.i{color:inherit}
+.tarjeta-prenda .info{gap:3px}
+.tp-tallas{display:flex;flex-wrap:wrap;gap:3px;margin:2px 0}
+.tp-tallas span{font-size:12px;font-weight:700;line-height:1;padding:3px 5px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink)}
+.tp-tallas span.sin{color:var(--muted);text-decoration:line-through;opacity:.7}
+.tarjeta-prenda .precio{font-size:16px;font-weight:800}
+@media (max-width:760px){.tarjeta-prenda .foto{height:80px}.tarjeta-prenda .foto.silueta > svg.i{width:40px;height:40px}}
