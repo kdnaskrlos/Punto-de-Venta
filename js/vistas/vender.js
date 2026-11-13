@@ -196,7 +196,7 @@ function tarjeta(ctx, g) {
 registrarVista('/vender', {
   montar(cont, ctx) {
     let busqueda = '', categoria = '';
-    const buscar = h('input', { class: 'inp', id: 'buscar', type: 'search', placeholder: 'Buscar prenda o código', autocomplete: 'off', enterkeyhint: 'search' });
+    const buscar = h('input', { class: 'inp', id: 'buscar', type: 'search', 'aria-label': 'Buscar prenda o código', placeholder: 'Buscar prenda o código', autocomplete: 'off', enterkeyhint: 'search' });
     const filtros = h('div', { class: 'filtros' });
     const rejilla = h('div', { class: 'rejilla' });
     const lado = h('aside', { class: 'lado-carrito' });

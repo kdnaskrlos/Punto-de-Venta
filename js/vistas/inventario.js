@@ -192,7 +192,7 @@ function abrirFotos(ctx) {
 registrarVista('/inventario', {
   montar(cont, ctx) {
     let busqueda = '', costos = {};
-    const buscar = h('input', { class: 'inp', id: 'buscar-inv', type: 'search', placeholder: 'Buscar prenda o código', autocomplete: 'off' });
+    const buscar = h('input', { class: 'inp', id: 'buscar-inv', type: 'search', 'aria-label': 'Buscar prenda o código', placeholder: 'Buscar prenda o código', autocomplete: 'off' });
     const lista = h('div', { class: 'lista-inv' });
     const pintar = () => {
       const q = norm(busqueda);

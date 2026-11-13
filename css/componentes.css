@@ -682,3 +682,8 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .tile{container-type:inline-size}
 .tiles .tile .val,.tile .val{font-size:clamp(17px,calc(100cqi / (var(--n,6) * .6)),26px)}
 .tiles .tile.ancha{grid-column:1/-1}
+/* W1: el foco se dibuja por dentro (el contenedor segmentado recorta lo que sale) */
+.segmentado button:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+.segmentado button[aria-pressed="true"]:focus-visible{outline-color:#fff}
+/* W4: toques de 44px en el teléfono */
+.chip,.btn.chico,.u-acc .btn,.pill.demo,.vuelto-moneda button,.rango-btn{min-height:44px}

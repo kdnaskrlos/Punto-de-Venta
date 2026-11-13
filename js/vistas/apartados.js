@@ -140,7 +140,7 @@ registrarVista('/apartados', {
     const FILTROS = [['pendiente', 'Pendientes'], ['completado', 'Completados'], ['cancelado', 'Cancelados'], ['todos', 'Todos']];
     const seg = h('div', { class: 'segmentado filtro-ap' });
     const resumen = h('div', { class: 'ap-resumen' });
-    const buscar = h('input', { class: 'inp', id: 'buscar-ap', type: 'search', placeholder: 'Buscar cliente o teléfono', autocomplete: 'off' });
+    const buscar = h('input', { class: 'inp', id: 'buscar-ap', type: 'search', 'aria-label': 'Buscar cliente o teléfono', placeholder: 'Buscar cliente o teléfono', autocomplete: 'off' });
     const caja = h('div', { class: 'lista-ap' });
     const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const pintar = () => {
