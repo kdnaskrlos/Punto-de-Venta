@@ -176,3 +176,20 @@
 
 /* Valores de recuadros en Inicio: tamaños fijos de la escala (24; «Ventas de hoy» 32) */
 .tiles .tile .val{font-size:24px}
+
+/* v1.51 — Carrito */
+/* Nombre largo: se corta con «…» en lugar de cortarse a la mitad de una letra */
+.linea-info{min-width:0}
+.linea-info b{display:block!important;min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Contador: mismo ancho y mismos botones con 1 o con varias; el bote solo cambia el color del ícono */
+.lc-cont{flex:none}
+.lc-cont .quitar{background:var(--surface-2)!important;color:var(--r-tx)!important;margin:0!important}
+.lc-cont .cant{min-width:32px}
+/* Tarifa: pastilla neutra (el verde queda para Cobrar) */
+.lc-chip.tramo:not(.oferta){background:var(--surface-2);color:var(--muted)}
+/* Total en recuadro neutro */
+.caja-total{background:var(--surface-2);border:1px solid var(--line)}
+.caja-total .et-total{font-weight:700}
+.fila-total .desc-et{display:inline-flex;align-items:center;gap:8px}
+/* El nombre puede usar dos líneas antes de cortarse (el contador ocupa la esquina) */
+.linea-info b{white-space:normal!important;display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.25}

@@ -154,7 +154,8 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
     r.aviso ? h('div', { class: 'aviso aviso-tramo' }, icono('etiqueta'), `Con ${r.aviso.faltan} ${r.aviso.faltan === 1 ? 'prenda' : 'prendas'} más pasan a precio ${r.aviso.etiqueta}`) : null,
     h('div', { class: 'totales' },
       r.descuento ? h('div', { class: 'fila-total' }, h('span', {}, 'Subtotal'), h('span', { class: 'num' }, fmtCop(r.subtotal), h('span', { class: 'c-cop moneda' }, 'COP'))) : null,
-      h('div', { class: 'fila-total desc' },
+      // Sin descuento no hay fila: ya está el botón «Descuento» abajo.
+      !r.descuento ? null : h('div', { class: 'fila-total desc' },
         h('span', { class: 'desc-et' }, icono('etiqueta'), 'Descuento',
           r.descuento ? h('button', { class: 'ibtn chico', 'aria-label': 'Quitar descuento', onclick: () => { c.descuento = null; c.autorizacion = null; window.dispatchEvent(new CustomEvent('pos:carrito')); } }, icono('x')) : null),
         h('span', { class: 'num' }, r.descuento ? '-' + fmtCop(r.descuento) : '0', h('span', { class: 'c-cop moneda' }, 'COP'))),

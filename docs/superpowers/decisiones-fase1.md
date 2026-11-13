@@ -306,3 +306,9 @@ Suite final: npm test 99/99 · e2e 59/59
 - Monto de Tasas del día a 20px (estaba en 18, fuera de la escala).
 - Se quitan los tamaños continuos (clamp/calc) de los recuadros de Inicio y de los montos que se encogían: ahora un monto largo baja un paso de la escala (24→20→16; 32→24→20) según su largo (data-largo, función largo() en ui.js).
 - Verificado en todas las pantallas a 360 y 1280px: solo 12·13·14·16·20·24·32.
+
+## v1.51 — Carrito
+- El nombre de la prenda usa hasta dos líneas y luego «…» (antes se cortaba a mitad de letra junto al contador).
+- Contador igual con 1 o con varias unidades: el bote tiene el mismo fondo gris que − y +, solo el ícono es rojo.
+- «Tarifa 1–5» en pastilla neutra y el recuadro del total en gris (el verde queda solo para Cobrar).
+- Sin descuento no se muestra la fila «Descuento 0 COP» (ya está el botón Descuento).
