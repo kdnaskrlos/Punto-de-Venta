@@ -89,10 +89,10 @@ casos('inventario', [
     // Sin precio propio, el tramo 49+ muestra el que se cobra (el de 24–48), nunca «—»
     a.deepStrictEqual(await p.$$eval('.detalle-grupo .precio-tramo:not(.costo) b', e => e.map(x => x.textContent)), ['25.000', '24.000', '22.500', '20.000', '20.000']);
   }],
-  ['Las tallas de la lista se leen claras: «T4 · 12»', async (env, a) => {
+  ['Las tallas de la lista se leen claras: «Talla 4: 12»', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inventario' });
     const t = await p.$$eval('.grupo-inv[data-grupo="Franela AS Niño Blanco"] .mini-tallas .est', e => e.map(x => x.textContent));
-    a.deepStrictEqual(t, ['T4 · 12', 'T6 · 12', 'T8 · 12', 'T10 · 12']);
+    a.deepStrictEqual(t, ['Talla 4: 12', 'Talla 6: 12', 'Talla 8: 12', 'Talla 10: 12']);
   }],
   ['El historial muestra la existencia inicial', async (env, a) => {
     const p = await env.pagina({ ruta: '/inventario' });

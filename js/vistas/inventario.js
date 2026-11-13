@@ -93,7 +93,7 @@ function abrirGrupo(ctx, g, costos) {
   const oferta = vs.find(p => p.oferta?.activa)?.oferta;
   const cont = h('div', { class: 'pila detalle-grupo' },
     oferta ? h('span', { class: 'est y' }, `Oferta ${oferta.pct}%`) : null,
-    iguales ? h('div', { class: 'pila' }, h('div', { class: 'sec-m' }, 'PRECIO POR CANTIDAD'), bloquePrecios(ctx, vs[0], costos[vs[0].sku]?.costo, verCostos)) : null,
+    iguales ? h('div', { class: 'pila' }, h('div', { class: 'sec-m' }, 'Precio por cantidad'), bloquePrecios(ctx, vs[0], costos[vs[0].sku]?.costo, verCostos)) : null,
     h('div', { class: 'sec-m' }, 'TALLAS'),
     vs.map(p => h('div', { class: 'talla-fila', 'data-sku': p.sku },
       h('div', { class: 'tf-info' },
@@ -202,7 +202,7 @@ registrarVista('/inventario', {
         return h('button', { class: 'grupo-inv', 'data-grupo': g.grupo, onclick: () => abrirGrupo(ctx, g, costos) },
           h('div', { class: 'mini-foto' }, g.foto ? h('img', { src: g.foto, alt: '' }) : icono('franela')),
           h('div', { class: 'gi-info' }, h('b', {}, g.producto), h('div', { class: 'nota' }, [g.color, plural(total, 'unidad', 'unidades')].filter(Boolean).join(' · ')),
-            h('div', { class: 'mini-tallas' }, ...g.variantes.map(p => h('span', { class: `est ${colorExistencia(p)}` }, `T${p.talla || p.sku} · ${p.existencia}`)))));
+            h('div', { class: 'mini-tallas' }, ...g.variantes.map(p => h('span', { class: `est ${colorExistencia(p)}` }, `Talla ${p.talla || p.sku}: ${p.existencia}`)))));
       }) : [h('div', { class: 'vacio' }, busqueda ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos')]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
@@ -210,7 +210,7 @@ registrarVista('/inventario', {
     const alDatos = e => { if (e.detail.que === 'productos') pintar(); };
     window.addEventListener('pos:datos', alDatos);
     cont.append(...sin(
-      h('div', { class: 'cab-vista' }, h('h1', { class: 'sec-t' }, icono('caja'), 'Inventario'),
+      h('div', { class: 'cab-vista' },
         h('div', { class: 'acciones' },
           puedeAdmin(ctx, 'fotosMasivas') ? h('button', { class: 'btn', onclick: () => abrirFotos(ctx) }, icono('imagen'), 'Fotos') : null,
           puedeAdmin(ctx, 'importar') ? h('button', { class: 'btn primary', onclick: () => abrirImportar(ctx, costos) }, icono('subir'), 'Importar') : null)),
