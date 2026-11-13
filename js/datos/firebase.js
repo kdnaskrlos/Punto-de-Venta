@@ -248,6 +248,10 @@ export function crearFirebase(config) {
         console.warn(e); return NO(e.code === 'auth/network-request-failed' ? 'red' : 'error');
       }
     },
+    async marcarComision(uid, gana) {
+      const e = exigir('ajustes'); if (e) return NO(e);
+      return sinEsperar(updateDoc(ref('usuarios', uid), { ganaComision: !!gana }));
+    },
     async activarUsuario(uid, activo) {
       const e = exigir('ajustes'); if (e) return NO(e);
       return sinEsperar(updateDoc(ref('usuarios', uid), { activo: !!activo }));

@@ -2,7 +2,7 @@
 import { h, icono, toast, sin, unaVez, abrirVentana } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { resumenDia, masVendidos, inventarioBajo, valorInventario, ventasPorPeriodo, cobrosEnPesos } from '../nucleo/reportes.js';
-import { resumenComisiones } from '../nucleo/comisiones.js';
+import { resumenComisiones, ganaComision } from '../nucleo/comisiones.js';
 import { fmtCop, fmtMonto } from '../nucleo/dinero.js';
 import { NOMBRE_MONEDA } from '../nucleo/formas.js';
 import { hoy, sumarDias, rangoCorto } from '../nucleo/fechas.js';
@@ -114,25 +114,42 @@ registrarVista('/comisiones', {
   montar(cont, ctx) {
     let usuarios = [], ventas = [], pagos = [], vendedor = '', quitarVentas = null;
     let [desde, hasta] = [hoy(), hoy()];
-    const sel = h('div', { class: 'segmentado personas', id: 'com-vendedor', role: 'group', 'aria-label': 'Vendedora' });
-    const res = h('div', { class: 'resumen-com tarjeta' });
+    const sel = h('div', { class: 'segmentado personas', id: 'com-vendedor', role: 'group', 'aria-label': 'Quién' });
+    const res = h('div', { class: 'resumen-com' });
     const pintar = () => {
-      const opciones = usuarios.filter(u => u.activo !== false && (u.rol !== 'admin' || ventas.some(v => v.usuario === u.usuario)));
-      // Sin elegir: la primera vendedora (normalmente hay una sola)
-      if (!opciones.some(u => u.usuario === vendedor)) vendedor = (opciones.find(u => u.rol === 'vendedora') || opciones[0])?.usuario || '';
+      // Solo quienes ganan comisión (lo marca el administrador en Usuarios; por defecto, la vendedora).
+      const opciones = usuarios.filter(u => u.activo !== false && ganaComision(u));
+      if (!opciones.some(u => u.usuario === vendedor)) vendedor = opciones[0]?.usuario || '';
       sel.replaceChildren(...opciones.map(u => h('button', { type: 'button', 'data-usuario': u.usuario, 'aria-pressed': String(u.usuario === vendedor), onclick: () => { vendedor = u.usuario; pintar(); } }, u.nombre)));
       sel.hidden = opciones.length < 2;
-      if (!vendedor) { res.replaceChildren(h('p', { class: 'nota' }, 'Aún no hay vendedoras.')); return; }
+      if (!vendedor) {
+        res.replaceChildren(h('div', { class: 'tarjeta vacio' }, h('p', {}, 'Nadie gana comisión todavía.'),
+          ctx.puedeVer('ajustes') ? h('p', { class: 'nota' }, 'Márcalo en Más → Usuarios con «Gana comisión».') : null));
+        return;
+      }
       const r = resumenComisiones(ventas, { vendedor, desde, hasta }, pagos);
-      const dato = (et, v, cls = '') => h('div', { class: 'dato ' + cls }, h('span', { class: 'nota' }, et), ' ', h('b', { class: 'num' }, v));
       const quien = opciones.find(u => u.usuario === vendedor);
-      res.replaceChildren(...sin(h('p', { class: 'nota' }, quien ? `Comisiones de ${quien.nombre}` : ''), h('div', { class: 'datos' },
-        dato('Ventas', String(r.ventas)), dato('Prendas', String(r.prendas)), dato('Normal', fmtCop(r.normal)), dato('Reducida', fmtCop(r.reducida)),
-        dato('Total', fmtCop(r.total), 'fuerte'), dato('Pagado', fmtCop(r.pagado)), dato('Pendiente', fmtCop(r.pendiente), r.pendiente ? 'pend' : '')),
-        r.pendiente > 0 ? h('div', { class: 'acciones' }, h('button', { class: 'btn primary', onclick: e => unaVez(e.currentTarget, async () => {
-          const x = await ctx.almacen.pagarComisiones({ vendedor, desde, hasta, monto: r.pendiente, ventas: r.idsPendientes });
-          toast(x.ok ? 'Comisiones pagadas' : 'No se pudo guardar', { malo: !x.ok });
-        })() }, icono('check'), 'Marcar como pagadas')) : null));
+      const pagadoPct = r.total ? Math.round((r.pagado / r.total) * 100) : 0;
+      const propias = ventas.filter(v => v.usuario === vendedor && v.estado !== 'anulada').sort((a, b) => b.fecha.localeCompare(a.fecha));
+      res.replaceChildren(
+        h('div', { class: 'tarjeta com-hero' },
+          h('span', { class: 'et' }, r.pendiente > 0 ? `Por pagar a ${quien?.nombre || vendedor}` : `${quien?.nombre || vendedor} · comisiones`),
+          h('b', { class: 'num com-monto', id: 'com-pendiente' }, fmtCop(r.pendiente > 0 ? r.pendiente : r.total)),
+          h('span', { class: 'nota' }, r.total ? (r.pendiente > 0 ? `de ${fmtCop(r.total)} ganados en el período` : 'Todo pagado') : 'Sin comisiones en el período'),
+          r.total ? h('div', { class: 'ap-barra com-barra', role: 'progressbar', 'aria-label': 'Pagado', 'aria-valuenow': String(pagadoPct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: `width:${pagadoPct}%` })) : null,
+          r.pendiente > 0 ? h('button', { class: 'btn primary grande', id: 'com-pagar', onclick: e => unaVez(e.currentTarget, async () => {
+            const x = await ctx.almacen.pagarComisiones({ vendedor, desde, hasta, monto: r.pendiente, ventas: r.idsPendientes });
+            toast(x.ok ? 'Comisiones pagadas' : 'No se pudo guardar', { malo: !x.ok });
+          })() }, icono('check'), 'Marcar como pagadas') : null),
+        h('div', { class: 'tarjeta com-datos' },
+          h('div', { class: 'com-fila' }, h('span', {}, 'Ventas'), h('b', { class: 'num' }, String(r.ventas))),
+          h('div', { class: 'com-fila' }, h('span', {}, 'Prendas'), h('b', { class: 'num' }, String(r.prendas))),
+          h('div', { class: 'com-fila' }, h('span', {}, 'Comisión normal'), h('b', { class: 'num' }, fmtCop(r.normal))),
+          h('div', { class: 'com-fila' }, h('span', {}, 'Comisión reducida', h('small', { class: 'nota' }, ' (descuento u oferta)')), h('b', { class: 'num' }, fmtCop(r.reducida))),
+          h('div', { class: 'com-fila' }, h('span', {}, 'Ya pagado'), h('b', { class: 'num' }, fmtCop(r.pagado))),
+          propias.length ? h('button', { type: 'button', class: 'rep-ver', id: 'com-ver-ventas', onclick: () => abrirVentana({ titulo: `Ventas de ${quien?.nombre || vendedor}`, contenido: h('div', { class: 'rep-det' },
+            ...propias.map(v => h('div', { class: 'fila-rep' }, h('span', {}, v.cliente?.nombre || 'Sin cliente', h('span', { class: 'nota' }, ` · ${v.numero || ''}`)),
+              h('b', { class: 'num' }, fmtCop((v.lineas || []).reduce((s, l) => s + (l.comision || 0), 0)))))) }) }, 'Ver comisión por venta', icono('der')) : null));
     };
     const cargar = (d, hh) => { desde = d; hasta = hh; quitarVentas && quitarVentas(); quitarVentas = escucharVentasConCosto(ctx, { desde, hasta }, x => { ventas = x.ventas; pintar(); }); };
     const rango = selectorRango(cargar, 'semana');

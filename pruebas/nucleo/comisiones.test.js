@@ -64,3 +64,12 @@ test('resumen por vendedora y rango, sin anuladas, con lo pagado', () => {
   assert.equal(resumenComisiones(ventas, { vendedor: 'ana', desde: '2026-11-09', hasta: '2026-11-15' }, mes).pendiente, 0);
   assert.equal(resumenComisiones(ventas, { vendedor: 'ana', desde: '2026-11-09', hasta: '2026-11-25' }, pagos).pendiente, 4000);
 });
+
+import { ganaComision } from '../../js/nucleo/comisiones.js';
+test('ganaComision: por defecto solo la vendedora; la marca del administrador manda', () => {
+  assert.equal(ganaComision({ rol: 'vendedora' }), true);
+  assert.equal(ganaComision({ rol: 'admin' }), false);
+  assert.equal(ganaComision({ rol: 'encargada' }), false);
+  assert.equal(ganaComision({ rol: 'encargada', ganaComision: true }), true);
+  assert.equal(ganaComision({ rol: 'vendedora', ganaComision: false }), false);
+});

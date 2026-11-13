@@ -127,6 +127,11 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       else if (rol() !== 'admin') return NO('permiso');
       pins.set(uid, String(pinNuevo)); return SI({ uid });
     },
+    async marcarComision(uid, gana) {
+      const e = exigir('ajustes'); if (e) return NO(e);
+      const u = col.usuarios.get(uid); if (!u) return NO('no-existe');
+      u.ganaComision = !!gana; avisar('usuarios'); return SI();
+    },
     async activarUsuario(uid, activo) {
       const e = exigir('ajustes'); if (e) return NO(e);
       const u = col.usuarios.get(uid); if (!u) return NO('no-existe');

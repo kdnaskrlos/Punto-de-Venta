@@ -64,18 +64,18 @@ casos('gestion', [
     await p.click('#motivo-final');
     await p.waitForFunction(() => window.__pos.ctx.productos['J-M'].existencia === 5);
     await p.evaluate(() => { location.hash = '/comisiones'; });
-    await p.click('#com-vendedor [data-usuario="vendedora"]');
-    a.ok((await texto(p, '.resumen-com')).includes('Total 0'));
+    await p.waitForSelector('#com-pendiente');
+    a.ok((await texto(p, '.resumen-com')).includes('Sin comisiones en el período'));
   }],
   ['Comisiones: total y marcar como pagadas', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true });
     await vender(p);
     await cambiarA(p, 'encargada');
     await p.evaluate(() => { location.hash = '/comisiones'; });
-    await p.click('#com-vendedor [data-usuario="vendedora"]');
-    a.ok((await texto(p, '.resumen-com')).includes('Pendiente 4.000'));
-    await p.click('button:has-text("Marcar como pagadas")');
-    await p.waitForFunction(() => document.querySelector('.resumen-com')?.textContent.replace(/\s+/g, ' ').includes('Pendiente 0'));
+    await p.waitForSelector('#com-pendiente');
+    a.strictEqual(await texto(p, '#com-pendiente'), '4.000');
+    await p.click('#com-pagar');
+    await p.waitForFunction(() => document.querySelector('.resumen-com')?.textContent.includes('Todo pagado'));
   }],
   ['Reportes: más vendidos y existencias bajas', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', caja: true });
@@ -138,10 +138,17 @@ casos('gestion', [
     await p.waitForSelector('.calendario', { state: 'detached' });
     a.match(await texto(p, '#rango-btn'), /^3 – 5 \w{3}$/);
   }],
-  ['Comisiones muestra a la vendedora sin tener que elegirla', async (env, a) => {
+  ['Comisiones: solo gana la vendedora salvo que el administrador marque a otro en Usuarios', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/comisiones' });
-    await p.waitForSelector('.resumen-com .datos');
-    a.ok(await p.$('#com-vendedor button[aria-pressed="true"]:has-text("Vendedora")'));
+    await p.waitForSelector('.com-hero');
+    a.ok((await texto(p, '.com-hero')).includes('Vendedora'));
+    a.ok(await p.$eval('#com-vendedor', e => e.hidden), 'con una sola persona no hay selector');
+    await p.evaluate(() => { location.hash = '/usuarios'; });
+    a.strictEqual(await p.$eval('[data-comision="encargada"]', e => e.checked), false);
+    a.strictEqual(await p.$eval('[data-comision="vendedora"]', e => e.checked), true);
+    await p.click('[data-comision="encargada"]');
+    await p.evaluate(() => { location.hash = '/comisiones'; });
+    await p.waitForSelector('#com-vendedor:not([hidden]) [data-usuario="encargada"]');
     a.strictEqual(!!(await p.$('select')), false, 'no debe haber lista del teléfono');
   }],
   ['Reportes: "Más vendidos" vacío lo dice', async (env, a) => {

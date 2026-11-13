@@ -3,6 +3,7 @@
 import { h, icono, abrirVentana, toast, unaVez } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { NOMBRE_ROL, opcionesCuenta } from './cuenta.js';
+import { ganaComision } from '../nucleo/comisiones.js';
 
 const seccion = (titulo, ic, ...hijos) => h('section', { class: 'tarjeta pila' }, h('h2', { class: 'sec-t' }, icono(ic), titulo), ...hijos);
 const guardado = r => toast(r.ok ? 'Guardado' : 'No se pudo guardar', { malo: !r.ok });
@@ -75,6 +76,8 @@ function usuarios(ctx) {
         h('span', { class: 'avatar' }, (u.nombre || u.usuario).slice(0, 1).toUpperCase()),
         h('div', { class: 'u-info' }, h('b', {}, u.nombre), h('div', { class: 'nota' }, `@${u.usuario} · ${NOMBRE_ROL[u.rol] || u.rol}`)),
         h('span', { class: 'est ' + (u.activo ? 'g' : 'n') }, u.activo ? 'Activo' : 'Inactivo')),
+      h('label', { class: 'interruptor u-com' }, h('input', { type: 'checkbox', 'data-comision': u.usuario, checked: ganaComision(u),
+        onchange: async e => { const r = await ctx.almacen.marcarComision(u.uid, e.target.checked); if (!r.ok) { e.target.checked = !e.target.checked; guardado(r); } else toast(e.target.checked ? `${u.nombre} gana comisión` : `${u.nombre} ya no gana comisión`); } }), 'Gana comisión por prenda vendida'),
       u.uid === ctx.sesion.uid ? null : h('div', { class: 'u-acc' },
         h('button', { class: 'btn', onclick: async () => { const pin = await pedirPin(`Nuevo PIN para ${u.nombre}`); if (pin) guardado(await ctx.almacen.cambiarPin(u.uid, pin)); } }, icono('llave'), 'Nuevo PIN'),
         h('button', { class: 'btn ' + (u.activo ? 'danger' : ''), onclick: async () => guardado(await ctx.almacen.activarUsuario(u.uid, !u.activo)) }, u.activo ? 'Desactivar' : 'Activar')))));

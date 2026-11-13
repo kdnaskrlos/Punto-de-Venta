@@ -52,3 +52,6 @@ export function resumenComisiones(ventas, { vendedor, desde, hasta }, pagosComis
   r.pendiente = r.total - r.pagado;
   return r;
 }
+
+// Quién gana comisión: lo marca el administrador en Usuarios; si nunca se marcó, solo la vendedora.
+export const ganaComision = u => (u?.ganaComision ?? u?.rol === 'vendedora') === true;
