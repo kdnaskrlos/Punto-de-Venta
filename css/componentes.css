@@ -1296,3 +1296,28 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .ventana-grupo .cuerpo{padding-top:18px}
 .dg-cifras{grid-template-columns:repeat(3,minmax(0,1fr))}
 .talla-panel .talla-fila{align-items:flex-start;text-align:left}
+
+/* v1.41 — Detalle de prenda sencillo: total, casillas por talla y precios en filas */
+.dg-total{display:flex;align-items:baseline;gap:8px}
+.dg-total b{font-size:28px;font-weight:800;line-height:1}
+.dg-total span{font-size:14px;font-weight:600;color:var(--muted)}
+.casillas-talla{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:8px}
+.casillas-talla .barra-talla{display:flex;flex-direction:column;align-items:center;gap:0;min-height:72px;padding:8px 4px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font:inherit;color:var(--ink);cursor:pointer}
+.casillas-talla .bt-talla{font-size:13px;font-weight:700;color:var(--muted)}
+.casillas-talla .bt-num{font-size:22px;font-weight:800;line-height:1.2;color:var(--ink)}
+.casillas-talla .bt-est{font-size:11px;font-weight:700}
+.casillas-talla .barra-talla.y{border-color:var(--y-bd);background:var(--y-bg)}
+.casillas-talla .barra-talla.y .bt-num,.casillas-talla .barra-talla.y .bt-est{color:var(--y-tx)}
+.casillas-talla .barra-talla.r{border-color:var(--r-bd);background:var(--r-bg)}
+.casillas-talla .barra-talla.r .bt-num,.casillas-talla .barra-talla.r .bt-est{color:var(--r-tx)}
+.casillas-talla .barra-talla.elegida{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
+.talla-panel:empty{display:none}
+.talla-panel .tp-cab{flex-wrap:wrap}
+.precios .precio-tramo{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+.precios .precio-tramo:last-child{border-bottom:0}
+.precios .precio-tramo span{font-size:14px;font-weight:600;color:var(--muted)}
+.precios .precio-tramo b{font-size:15px;color:var(--ink)}
+.precios .precio-tramo.costo span,.precios .precio-tramo.costo b{color:var(--bs)}
+.precio-tramo:not(:has(.pt-margen))::after{content:none}
+.precios .precio-tramo{flex-direction:row;background:none;border-radius:0;padding-left:2px;padding-right:2px}
+.precios{gap:0}

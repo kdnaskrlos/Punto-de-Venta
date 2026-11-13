@@ -260,3 +260,6 @@ Suite final: npm test 99/99 · e2e 59/59
 - Tarjeta del inventario sin tallas: imagen, nombre, punto de color, «N tallas», una barrita por talla (gris = bien, ámbar = en el mínimo, rojo = agotada), total de unidades y estado (En stock / Stock bajo / Agotado).
 - Detalle de prenda sin cabecera repetida: imagen y nombre con la X, tres cifras (unidades, tallas, en el mínimo), barras de existencia por talla con línea punteada del mínimo; al tocar una talla aparece su código, Historial y Ajustar. Precio por cantidad como barras con el margen sobre el costo y el costo en violeta.
 - Tallas en orden natural (meses, números, S–XXL) con compararTallas (nucleo/tipo-prenda.js).
+
+## v1.41 — Detalle de prenda más sencillo
+- Se quitan las barras, márgenes y cifras sueltas: total de unidades, una casilla por talla (talla y cantidad; ámbar «pocas», rojo «agotada»), y precios en filas simples con el costo al final. Tocar una talla muestra su código, Historial y Ajustar.
