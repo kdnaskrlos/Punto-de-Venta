@@ -103,7 +103,11 @@ registrarVista('/inicio', {
         ...(ctx.porArquear || []).filter(c => c.tipo !== 'personal').map(c => h('div', { class: 'aviso' }, icono('alerta'), h('div', {}, h('b', {}, `La caja de @${c.usuario} del ${diaCorto(c.cierre?.fecha || c.abierta)} se cerró sola y falta arquearla`), h('div', { class: 'nota' }, 'Se arquea cuando cuente el dinero al abrir la caja de hoy.')))),
         ...cierres.map(c => alerta(`Cierre con diferencia · @${c.usuario}`, `${c.cierre.totalCop > 0 ? '+' : ''}${fmtCop(c.cierre.totalCop)} COP · ${c.cierre.nota || ''}`)),
       ].filter(Boolean) : []));
-      ventasEl.replaceChildren(h('h2', { class: 'sec-t' }, icono('historial'), gestion ? 'Ventas de hoy' : 'Mis ventas de hoy'), listaVentas(ctx, datos.ventas));
+      // Solo las últimas 5: el total ya está en la tarjeta de arriba; el resto, en Reportes.
+      const n = datos.ventas.length;
+      ventasEl.replaceChildren(h('div', { class: 'cab-sec' }, h('h2', { class: 'sec-t' }, icono('historial'), 'Últimas ventas'),
+        n > 5 ? h('button', { class: 'enlace', id: 'ver-todas', onclick: () => navegar('/reportes') }, `Ver las ${n}`) : null),
+        listaVentas(ctx, datos.ventas, 5));
     };
     const q = [
       escucharVentasConCosto(ctx, { desde: dia, hasta: dia }, d => { datos = d; pintar(); }),

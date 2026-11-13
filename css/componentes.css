@@ -340,7 +340,7 @@ button.pill.vieja>span{background:var(--y-bg);border-color:var(--y-bd)}
 
 /* Cobro compacto: formas de pago en 3 columnas, ejemplos de campos en gris claro */
 .formas{gap:8px}
-.formas-rejilla{grid-template-columns:repeat(3,minmax(0,1fr))}
+.formas-rejilla{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
 .forma{font-size:13px;padding:4px 6px}
 .sec-m{margin-bottom:4px}
 .pagos:empty{display:none}
@@ -665,3 +665,14 @@ pre.cred{margin:0;white-space:pre-wrap;font:600 14px/1.5 var(--f);background:var
 .tp-tallas span.sin{color:var(--muted);text-decoration:line-through;opacity:.7}
 .tarjeta-prenda .precio{font-size:16px;font-weight:800}
 @media (max-width:760px){.tarjeta-prenda .foto{height:80px}.tarjeta-prenda .foto.silueta > svg.i{width:40px;height:40px}}
+
+/* Inicio y Cobrar ordenados (v1.35) */
+.tiles .tile:last-child:nth-child(odd){grid-column:1/-1}
+.autorizaciones:empty,.alertas:empty{display:none}
+.cab-sec{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.cab-sec .sec-t{margin:0}
+.enlace{border:0;background:none;color:var(--g-tx);font-weight:800;font-size:13px;padding:8px 4px;min-height:44px}
+.mv-nombre{display:flex;flex-direction:column;gap:2px}
+.mv-nombre .nota{font-size:12px}
+.rango-btn{min-height:36px}
+.cab-vista{margin-bottom:8px}

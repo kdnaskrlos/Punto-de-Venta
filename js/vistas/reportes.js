@@ -50,7 +50,7 @@ registrarVista('/reportes', {
           ...Object.entries(r.porForma).map(([id, m]) => { const f = formas.find(x => x.id === id) || { nombre: id, moneda: 'COP' }; return h('div', { class: 'fila-rep' }, h('span', {}, f.nombre), h('b', { class: 'num' }, `${fmtMonto(m, f.moneda)} ${NOMBRE_MONEDA[f.moneda]}`)); }),
           Object.keys(r.porForma).length ? null : h('p', { class: 'nota' }, 'Sin cobros.')),
         h('div', { class: 'tarjeta mas-vendidos' }, h('h2', { class: 'sec-t' }, icono('grafica'), 'Más vendidos'),
-          ...masVendidos(datos.ventas, ctx.productos, 10).map((m, i) => h('div', { class: 'fila-rep' }, h('span', {}, `${i + 1}. ${m.grupo}`, h('span', { class: 'nota' }, ' · ' + Object.entries(m.tallas).map(([t, n]) => `${t}: ${n}`).join(', '))), h('b', { class: 'num' }, `${m.unidades}`))),
+          ...masVendidos(datos.ventas, ctx.productos, 10).map((m, i) => h('div', { class: 'fila-rep' }, h('span', { class: 'mv-nombre' }, `${i + 1}. ${m.grupo}`, h('span', { class: 'nota' }, 'Tallas ' + Object.entries(m.tallas).map(([t, n]) => `${t} (${n})`).join(', '))), h('b', { class: 'num' }, `${m.unidades}`))),
           masVendidos(datos.ventas, ctx.productos, 1).length ? null : h('p', { class: 'nota' }, 'Sin ventas en este período.')),
         gestion ? h('div', { class: 'tarjeta bajas' }, h('h2', { class: 'sec-t' }, icono('alerta'), 'Existencias bajas'),
           ...inventarioBajo(productos).slice(0, 30).map(p => h('div', { class: 'fila-rep' }, h('span', {}, `${p.grupo} · Talla ${p.talla || p.sku}`), h('b', { class: 'num ' + (p.existencia <= 0 ? 'neg' : '') }, `${p.existencia} / mín. ${p.minimo || 0}`)))) : null,

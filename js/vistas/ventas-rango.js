@@ -57,8 +57,8 @@ function abrirDetalle(ctx, v) {
 }
 
 // Lista de ventas: cada fila se toca para ver el detalle (y ahí, Anular).
-export function listaVentas(ctx, ventas) {
-  const orden = [...ventas].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 40);
+export function listaVentas(ctx, ventas, limite = 40) {
+  const orden = [...ventas].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, limite);
   if (!orden.length) return h('p', { class: 'nota' }, 'Sin ventas en este período.');
   return h('div', { class: 'lista-ventas' }, ...orden.map(v => h('button', { type: 'button', class: 'venta-hoy' + (v.estado === 'anulada' ? ' anulada' : ''), onclick: () => abrirDetalle(ctx, v) },
     h('div', { class: 'vh-info' }, h('b', {}, v.cliente?.nombre || 'Sin cliente'),
