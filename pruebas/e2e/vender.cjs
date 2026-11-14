@@ -137,17 +137,15 @@ casos('vender', [
     await p.click('.capa .talla-mas[data-talla="S"]');
     await p.click('#tallas-agregar');
     a.ok(await p.$(g + '.elegida'));
-    a.strictEqual(await p.innerText(g + ' .en-carrito'), '2');
+    a.ok(await p.$(g + ' .en-carrito.quitar-sel svg'), 'círculo con «−»');
     a.strictEqual(await p.$('.tarjeta-prenda.elegida:not([data-nombre="Buzo Etanol Caballero Gris"])'), null);
-    // El círculo va arriba a la izquierda de la foto y cada toque resta una unidad hasta quitar la prenda.
+    // v1.91: el círculo va arriba a la izquierda de la foto y un toque quita la prenda (todas sus tallas) del carrito.
     await p.waitForSelector('.capa', { state: 'detached' });
     const ci = await p.$eval(g + ' .en-carrito', e => e.getBoundingClientRect().left);
     const fo = await p.$eval(g + ' .foto', e => e.getBoundingClientRect().left);
     a.ok(ci < fo, 'a la izquierda');
     await p.click(g + ' .en-carrito');
-    a.strictEqual(await p.innerText(g + ' .en-carrito'), '1');
     a.strictEqual(await p.$('.capa'), null, 'no abre las tallas');
-    await p.click(g + ' .en-carrito');
     a.strictEqual(await p.$(g + ' .en-carrito'), null);
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.length), 0);
   }],
@@ -197,4 +195,26 @@ casos('vender', [
     await p.reload(); await p.waitForTimeout(1200);
     a.strictEqual(await p.$('.capa:has-text("¿Continuar venta?")'), null, 'carrito vacío: no pregunta');
   }],
+  ['v1.91 · Teléfono: hoja del carrito con barrita, se baja con el dedo; con ella abierta la pantalla no se desplaza', async (env, a) => {
+    const p = await env.pagina({ movil: true, usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 2 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.tap('.barra-carrito'); await p.waitForSelector('.capa.hoja .cab.solo-agarre .agarre'); await p.waitForTimeout(400); // termina de subir
+    a.strictEqual(await p.$('.capa.hoja .cab svg'), null, 'sin flecha');
+    a.deepStrictEqual(await p.evaluate(() => [document.documentElement.classList.contains('con-capa'), getComputedStyle(document.documentElement).overscrollBehaviorY]), [true, 'none'], 'pantalla de abajo bloqueada y sin deslizar para actualizar');
+    // Tarjetas cobrar: color y talla en texto (sin pastilla); la tarifa sigue en pastilla.
+    a.deepStrictEqual(await p.$$eval('.capa .linea .lc-chip', e => e.map(x => getComputedStyle(x).backgroundColor)), ['rgba(0, 0, 0, 0)', 'rgb(246, 248, 250)']);
+    const cdp = await p.context().newCDPSession(p);
+    const b = await p.$eval('.cab.solo-agarre', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+    const t = (type, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: b.x, y }] });
+    await t('touchStart', b.y); for (let i = 1; i <= 10; i++) { await t('touchMove', b.y + i * 25); await p.waitForTimeout(16); } await t('touchEnd');
+    await p.waitForSelector('.capa.hoja', { state: 'detached' });
+    a.strictEqual(await p.evaluate(() => document.documentElement.classList.contains('con-capa')), false, 'al cerrarla se desbloquea');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.length), 1, 'ocultar no vacía el carrito');
+  }],
+  ['v1.91 · Ventana de tallas: la cantidad elegida sin fondo verde', async (env, a) => {
+    const p = await env.pagina({ ancho: 390, alto: 844, usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.click(GRUPO('Jogger Texcol Caballero Negro')); await p.click('.capa .talla-mas[data-talla="M"]');
+    a.strictEqual(await p.$eval('.capa .talla-fila-v[data-sku="J-M"] .tf-cant', e => getComputedStyle(e).backgroundColor), 'rgb(255, 255, 255)');
+  }],
+
 ]);

@@ -126,7 +126,7 @@ casos('esqueleto', [
   }],
   ['Hoja de detalle del inventario: la X no queda marcada al abrir', async (env, a) => {
     const p = await env.pagina({ ancho: 1280, alto: 860, ruta: '/inventario' });
-    await p.evaluate(() => document.querySelector('.stk .item').click());
+    await p.evaluate(() => document.querySelector('.stk .tarjeta-prenda').click());
     await p.waitForSelector('.stk-capa .sheet.in'); await p.waitForTimeout(150);
     a.strictEqual(await p.evaluate(() => document.activeElement.matches('.x')), false);
     a.ok(await p.evaluate(() => !!document.activeElement.closest('.stk-capa')));

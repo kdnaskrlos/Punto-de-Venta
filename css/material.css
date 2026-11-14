@@ -475,3 +475,20 @@
 .tf-cant:focus{background:color-mix(in srgb,var(--accent) 8%,var(--surface));color:var(--ink)}
 .tf-cant:disabled{opacity:.35}
 .tarjeta-prenda .tp-color{border-right:0!important;padding-right:0!important;margin-right:0!important;flex:0 1 auto!important;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ===== v1.91 ===== */
+/* Ventana, hoja o menú abierto: la pantalla de abajo no se desplaza y no hay «deslizar para actualizar». */
+html.con-capa,html.con-capa body{overflow:hidden;overscroll-behavior:none}
+.capa .cuerpo,.capa .caja,.stk .sheet,.menu-op{overscroll-behavior:contain}
+.solo-lector{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}
+/* Hoja del carrito (Tarjetas cobrar): barrita para arrastrar hacia abajo, como las hojas del Inventario. */
+.cab.solo-agarre{display:flex;justify-content:center;align-items:center;min-height:0!important;padding:10px 0 8px!important;border-bottom:0!important;touch-action:none;cursor:grab}
+.cab.solo-agarre .agarre{width:42px;height:4px;border-radius:2px;background:var(--line)}
+/* Tarjetas cobrar: el color, la tela y la talla en texto, sin pastilla; la tarifa sigue en pastilla. */
+.linea-info .lc-chip:not(.tramo){background:none!important;padding:0!important;border-radius:0!important;color:var(--muted)}
+/* Tarjetas listado: círculo con «−» para quitar la prenda del carrito. */
+.tarjeta-prenda .en-carrito.quitar-sel{width:24px;min-width:24px;height:24px;padding:0!important;display:grid;place-items:center}
+.tarjeta-prenda .en-carrito.quitar-sel svg.i{width:14px;height:14px;stroke-width:2.6}
+/* Ventana de tallas: la cantidad sin fondo verde (también al escribirla). */
+.ventana-tallas .tf-cant.con,.tf-cant.con,.tf-cant:focus{background:var(--surface)!important;color:var(--ink)}
+@media (hover:none){.tarjeta-prenda:hover{box-shadow:none}}

@@ -5,6 +5,7 @@ import { titulo, grupoDe, detalle, textoBusqueda, fotoDe, nombreVariante } from 
 import { abrirEscaner } from './escaner.js';
 import { compararTallas } from '../nucleo/tipo-prenda.js';
 import { registrarVista } from '../app.js';
+import { tarjetaPrenda } from './vender.js';
 import { leerInventario, planImportacion, detalleCambios } from '../nucleo/importar.js';
 import { emparejarFotos } from '../nucleo/fotos.js';
 import { fmtCop } from '../nucleo/dinero.js';
@@ -413,7 +414,7 @@ registrarVista('/inventario', {
     </div>` : ''}
   </header>
   <main>
-    <ul class="list" id="list"></ul>
+    <div class="rejilla" id="list"></div>
     <button class="more" id="more" type="button" hidden></button>
     <section class="empty" id="empty" hidden></section>
   </main>
@@ -453,19 +454,21 @@ registrarVista('/inventario', {
       $('#seg').innerHTML = seg.map(([, l, n, c]) => `<div class="tj ${c}"><b>${fmtN(n)}</b><span>${l}</span></div>`).join('');
       $('#qc').hidden = !F.q;
       const list = has ? filtered(G) : [], part = list.slice(0, F.shown);
-      $('#list').innerHTML = part.map(x => {
-        const p = x.p, foto = fotoDe(p, ctx.imagenes);
-        // Tarjeta: foto a la izquierda; nombre y unidades; estado arriba a la derecha y precio abajo a la derecha.
-        const estado = x.st === 'out' ? 'Agotado' : x.st === 'low' ? 'Stock bajo' : 'En stock';
-        return `<li><button type="button" class="item item-prenda" data-grupo="${esc(x.k)}" data-skus="${esc(x.vs.map(v => v.sku).join(' '))}"><div class="foto">${foto ? `<img src="${esc(foto)}" alt="" loading="lazy" width="58" height="58">` : SVG.imagen}</div><div class="tx"><div class="nm">${esc(x.nombre || '(sin nombre)')}</div><div class="uds">${fmtN(x.total)} ${x.total === 1 ? 'unidad' : 'unidades'}</div></div><div class="der"><span class="est-p ${x.st}">${estado}</span><b class="precio">${p.precios?.[0] ? fmtCop(p.precios[0]) : '—'}</b></div></button></li>`;
-      }).join('');
+      // Tarjetas listado: la misma tarjeta de Vender (v1.91), sin el círculo del carrito.
+      $('#list').replaceChildren(...part.map(x => {
+        const p = x.p;
+        const g = { grupo: x.k, titulo: titulo(p), tipo: p.tipo, tela: p.tela, color: p.color, genero: p.genero, foto: fotoDe(p, ctx.imagenes), variantes: x.vs };
+        const el = tarjetaPrenda(ctx, g, { pocas: x.st === 'low', alTocar: () => abrirGrupo(x.k) });
+        el.classList.add('item-inv'); el.dataset.skus = x.vs.map(v => v.sku).join(' ');
+        return el;
+      }));
       const m = $('#more'); m.hidden = list.length <= part.length; m.textContent = `Mostrar ${Math.min(100, list.length - part.length)} más`;
       const f = ctx.ajustes?.ultimaSincronizacion;
       // La fecha de la última sincronización va en el botón Sincronizar (al pasar el ratón) y en su ventana.
       const bs = cont.querySelector('#bSync'); if (bs) bs.title = f ? `Última sincronización: ${fechaHoraCorta(f)}` : 'Sincronizar inventario con la Carga Masiva';
       const e = $('#empty'); e.hidden = has;
       if (!has) e.innerHTML = `<p class="muted" style="margin:0;text-align:center">Sin inventario.${admSinc ? ' Toca el icono de arriba a la derecha para sincronizarlo.' : ''}</p>`;
-      else if (!list.length) $('#list').innerHTML = '<li class="muted" style="padding:18px 4px">Nada coincide con esos filtros.</li>';
+      else if (!list.length) $('#list').innerHTML = '<div class="vacio">Nada coincide con esos filtros.</div>';
       cont.querySelector('.search').style.opacity = has ? 1 : 0.55;
     };
     const seguir = d => { abiertas.add(d); const c = d.cerrar; d.cerrar = () => { abiertas.delete(d); c(); }; return d; };
@@ -480,10 +483,6 @@ registrarVista('/inventario', {
       return false;
     };
 
-    cont.addEventListener('click', e => {
-      const t = e.target;
-      const it = t.closest('.item'); if (it) { abrirGrupo(it.dataset.grupo); return; }
-    });
     $('#more').onclick = () => { F.shown += 100; render(); };
     let qt;
     $('#q').addEventListener('input', e => { clearTimeout(qt); qt = setTimeout(() => { F.q = e.target.value; F.shown = 80; render(); }, 120); });

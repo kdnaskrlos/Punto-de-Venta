@@ -79,4 +79,9 @@ casos('apartados', [
     const p = await env.pagina({ ruta: '/apartados' });
     a.match(await p.innerText('.vista'), /desde el carrito con «Apartar»/);
   }],
+  ['v1.91 · Teléfono: los chips de filtro tienen el contorno completo', async (env, a) => {
+    const p = await env.pagina({ ancho: 390, alto: 844, ruta: '/apartados' });
+    const b = await p.$$eval('.filtro-ap .chip', e => e.map(x => { const s = getComputedStyle(x); return [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth].join(' '); }));
+    a.ok(b.length >= 4 && b.every(x => x === '1px 1px 1px 1px'), b.join(' | '));
+  }],
 ]);

@@ -316,29 +316,29 @@ export function miniatura(g, clase = 'miniatura') {
   return h('span', { class: clase }, g.foto ? h('img', { src: g.foto, alt: '', loading: 'lazy', width: 64, height: 64 }) : icono(tipoPrenda(g.tipo || g.titulo, g.genero)));
 }
 
-// Círculo con las unidades en el carrito (arriba a la izquierda de la foto): cada toque resta una,
-// empezando por la última talla agregada, hasta quitar la prenda del carrito.
+// Círculo con «−» arriba a la izquierda de la foto (v1.91): quita la prenda del carrito (todas sus tallas).
 function insigniaCarrito(ctx, g, elegidas) {
-  const restar = e => {
+  const quitar = e => {
     e.preventDefault(); e.stopPropagation();
     const skus = new Set(g.variantes.map(p => p.sku));
-    const l = [...carrito(ctx).lineas].reverse().find(x => skus.has(x.sku));
-    if (l) agregarAlCarrito(ctx, l.sku, -1);
+    for (const l of [...carrito(ctx).lineas].filter(x => skus.has(x.sku))) agregarAlCarrito(ctx, l.sku, -l.cantidad);
   };
-  return h('span', { class: 'en-carrito', role: 'button', tabindex: '0', 'aria-label': `${elegidas} en el carrito. Quitar una`, onclick: restar,
-    onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') restar(e); } }, String(elegidas));
+  return h('span', { class: 'en-carrito quitar-sel', role: 'button', tabindex: '0', 'aria-label': `Quitar del carrito (${elegidas} ${elegidas === 1 ? 'prenda' : 'prendas'})`, onclick: quitar,
+    onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') quitar(e); } }, icono('menos'));
 }
 
-// Fila de prenda: imagen cuadrada, nombre, color y tallas; a la derecha disponibles y precio.
-function tarjeta(ctx, g) {
+// Tarjeta de prenda (Tarjetas listado): imagen cuadrada, nombre, color y tela; a la derecha disponibles y precio.
+// La usan Vender (con el círculo del carrito) y el Inventario (v1.91), para que se vean exactamente igual.
+// pocas: el Inventario pasa su propio criterio de stock bajo (alguna talla en el mínimo o agotada).
+export function tarjetaPrenda(ctx, g, { alTocar, carrito: conCarrito = false, pocas: pocasDado } = {}) {
   const existencia = g.variantes.reduce((s, p) => s + Math.max(p.existencia, 0), 0);
   const agotada = existencia <= 0;
-  const pocas = !agotada && g.variantes.some(p => p.existencia > 0 && p.existencia <= p.minimo);
+  const pocas = !agotada && (pocasDado ?? g.variantes.some(p => p.existencia > 0 && p.existencia <= p.minimo));
   const precio = Math.min(...g.variantes.map(p => p.precios?.[0] || Infinity));
   const oferta = g.variantes.some(p => p.oferta?.activa);
-  const elegidas = g.variantes.reduce((s, p) => s + enCarrito(ctx, p.sku), 0);
+  const elegidas = conCarrito ? g.variantes.reduce((s, p) => s + enCarrito(ctx, p.sku), 0) : 0;
   const color = colorPrenda(g.color);
-  return h('button', { class: 'tarjeta-prenda' + (agotada ? ' agotada' : '') + (elegidas ? ' elegida' : ''), 'data-grupo': g.grupo, 'data-nombre': [g.titulo, g.color].filter(Boolean).join(' '), onclick: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) },
+  return h('button', { type: 'button', class: 'tarjeta-prenda' + (agotada ? ' agotada' : '') + (elegidas ? ' elegida' : ''), 'data-grupo': g.grupo, 'data-nombre': [g.titulo, g.color].filter(Boolean).join(' '), onclick: alTocar },
     h('span', { class: 'tp-img' }, miniatura(g, 'foto'), elegidas ? insigniaCarrito(ctx, g, elegidas) : null),
     h('span', { class: 'info' },
       h('b', {}, g.titulo),
@@ -349,6 +349,9 @@ function tarjeta(ctx, g) {
         : h('span', { class: 'est tp-disp ' + (pocas ? 'y' : 'g') }, `${existencia} disp.`),
       agotada ? null : h('span', { class: 'num precio' }, Number.isFinite(precio) ? fmtCop(precio) : '—'),
       !agotada && oferta ? h('span', { class: 'tp-estado tp-oferta' }, 'oferta') : null));
+}
+function tarjeta(ctx, g) {
+  return tarjetaPrenda(ctx, g, { carrito: true, alTocar: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) });
 }
 
 registrarVista('/vender', {

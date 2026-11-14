@@ -118,10 +118,35 @@ function salirHistorial() {
   history.back();
 }
 
+// Con una ventana, hoja o menú abierto (v1.91): la pantalla de abajo no se desplaza ni recibe el gesto de
+// desplazamiento, y en el teléfono se desactiva «deslizar hacia abajo para actualizar» del navegador.
+// Las hojas no modales (no-modal) dejan usar la pantalla, así que no bloquean.
+function actualizarBloqueo() {
+  const raiz = document.documentElement;
+  const on = pila.some(c => !c.el.classList.contains('no-modal'));
+  if (on === raiz.classList.contains('con-capa')) return;
+  if (on) {
+    const barra = innerWidth - raiz.clientWidth; // sin salto del contenido al ocultar la barra de desplazamiento
+    if (barra > 0) document.body.style.paddingRight = `${barra}px`;
+    raiz.classList.add('con-capa');
+  } else { raiz.classList.remove('con-capa'); document.body.style.paddingRight = ''; }
+}
+// En el teléfono el dedo sobre el fondo oscuro o sobre algo que no se desplaza no debe mover la pantalla de abajo.
+document.addEventListener('touchmove', e => {
+  if (!document.documentElement.classList.contains('con-capa') || e.touches.length !== 1) return;
+  for (let n = e.target; n && n !== document.body; n = n.parentElement) {
+    if (n.nodeType !== 1) continue;
+    const s = getComputedStyle(n);
+    if (/(auto|scroll)/.test(s.overflowY + s.overflowX) && (n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1)) return;
+  }
+  if (e.cancelable) e.preventDefault();
+}, { passive: false });
+
 function abrirCapa(el, salir = null) {
   document.body.append(el);
   const capa = { el, cerrada: false, alCerrar: null, salir };
   pila.push(capa);
+  actualizarBloqueo();
   entrarHistorial();
   // Foco al abrir: el campo con [autofocus] o, en la computadora, el primer campo. Si no hay campo, el foco va a
   // la propia ventana (sin marco) y no a un botón: así la X no aparece marcada con el círculo de foco.
@@ -147,12 +172,13 @@ function quitar(capa) {
   capa.cerrada = true;
   const i = pila.indexOf(capa);
   if (i >= 0) pila.splice(i, 1);
+  actualizarBloqueo();
   const el = capa.el, caja = el.querySelector(':scope > .caja'), fondo = el.querySelector(':scope > .fondo');
   capa.alCerrar && capa.alCerrar();
   if (capa.salir) { capa.salir(); return; } // la capa anima y se quita sola (hoja del inventario, escáner)
   if (!caja || !el.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); return; }
   el.style.pointerEvents = 'none';
-  const salida = el.classList.contains('abajo') ? [{ transform: 'none' }, { transform: 'translateY(100%)' }]
+  const salida = el.classList.contains('abajo') ? [{ transform: caja.style.transform || 'none' }, { transform: 'translateY(100%)' }]
     : el.classList.contains('derecha') ? [{ transform: 'none' }, { transform: 'translateX(100%)' }]
     : el.classList.contains('desplegable') ? [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-14px) scaleY(.92)' }]
     : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(14px) scale(.985)' }];
@@ -225,7 +251,8 @@ document.addEventListener('keydown', e => {
 // Las hojas que suben desde abajo se ocultan con una flecha hacia abajo; las ventanas, con la X.
 function cabecera(titulo, extra, ocultar = false, sinTitulo = false) {
   // sinTitulo: solo la flecha para ocultar, centrada (hoja del carrito).
-  if (sinTitulo) return h('div', { class: 'cab solo-flecha' }, h('button', { class: 'ibtn cerrar', 'aria-label': 'Ocultar' }, icono('abajo')));
+  // v1.91: en vez de la flecha, la barrita para arrastrar (como las hojas del Inventario); el botón queda para teclado y lector.
+  if (sinTitulo) return h('div', { class: 'cab solo-agarre' }, h('span', { class: 'agarre', 'aria-hidden': 'true' }), h('button', { class: 'cerrar solo-lector', 'aria-label': 'Ocultar' }));
   return h('div', { class: 'cab' }, h('h2', {}, titulo), extra || null,
     h('button', { class: 'ibtn cerrar', 'aria-label': ocultar ? 'Ocultar' : 'Cerrar' }, icono(ocultar ? 'abajo' : 'x')));
 }
@@ -244,7 +271,29 @@ export function abrirHoja({ titulo, contenido, lado, modal = true, extraCab = nu
   const el = h('div', { class: `capa hoja ${l}${modal ? '' : ' no-modal'}`, role: 'dialog', 'aria-modal': String(modal), 'aria-label': titulo },
     modal ? h('div', { class: 'fondo' }) : null,
     h('div', { class: 'caja' }, cabecera(titulo, extraCab, l === 'abajo', sinTitulo && l === 'abajo'), h('div', { class: 'cuerpo' }, contenido)));
-  return abrirCapa(el);
+  const r = abrirCapa(el);
+  if (sinTitulo && l === 'abajo') arrastrarParaCerrar(el.querySelector('.caja'), el.querySelector('.cuerpo'), el.querySelector('.fondo'), r.cerrar);
+  return r;
+}
+
+// Bajar la hoja con el dedo (como la hoja del Inventario): se arrastra desde la barrita o desde el contenido
+// cuando ya está arriba del todo; si baja lo suficiente o rápido, se oculta; si no, vuelve a su sitio.
+function arrastrarParaCerrar(caja, cuerpo, fondo, cerrar) {
+  let y0 = 0, dy = 0, off = 0, t0 = 0, on = false, can = false, raf = 0;
+  const pintar = () => { raf = 0; const d = Math.max(0, dy - off); caja.style.transform = `translate3d(0,${d}px,0)`; if (fondo) fondo.style.opacity = String(Math.max(0, 1 - d / (caja.offsetHeight || 600))); };
+  const soltar = () => { cancelAnimationFrame(raf); raf = 0; caja.style.transition = 'transform .22s cubic-bezier(.22,.9,.3,1)'; caja.style.transform = ''; if (fondo) fondo.style.opacity = ''; setTimeout(() => { caja.style.transition = ''; }, 230); };
+  caja.addEventListener('touchstart', e => { if (e.touches.length !== 1) return; y0 = e.touches[0].clientY; t0 = Date.now(); dy = 0; off = 0; on = false; can = cuerpo.scrollTop <= 0 || !!e.target.closest('.cab'); }, { passive: true });
+  caja.addEventListener('touchmove', e => {
+    if (!can) return; dy = e.touches[0].clientY - y0;
+    if (!on) { if (dy > 8 && cuerpo.scrollTop <= 0) { on = true; off = dy; caja.style.animation = 'none'; } else if (dy < -4) { can = false; return; } else return; }
+    e.preventDefault(); if (!raf) raf = requestAnimationFrame(pintar);
+  }, { passive: false });
+  caja.addEventListener('touchend', () => {
+    if (!on) return; on = false; cancelAnimationFrame(raf); raf = 0;
+    const d = dy - off, v = d / Math.max(1, Date.now() - t0);
+    if (d > 110 || (d > 40 && v > 0.5)) cerrar(); else soltar();
+  });
+  caja.addEventListener('touchcancel', () => { if (on) { on = false; soltar(); } });
 }
 
 let toastT;

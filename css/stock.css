@@ -147,9 +147,9 @@ body.stk-lock{overflow:hidden}
 .stk.stk-capa{position:relative;z-index:45;font-size:15px}
 .stk.stk-capa.escaner{z-index:46}
 /* Foto en el lugar del recuadro de unidades. */
-.stk .foto{flex:none;width:58px;height:58px;border-radius:10px;overflow:hidden;background:var(--surface2);border:1px solid var(--line2);display:grid;place-items:center;color:var(--muted)}
-.stk .foto img{width:100%;height:100%;object-fit:cover;display:block}
-.stk .foto svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.stk .item .foto{flex:none;width:58px;height:58px;border-radius:10px;overflow:hidden;background:var(--surface2);border:1px solid var(--line2);display:grid;place-items:center;color:var(--muted)}
+.stk .item .foto img{width:100%;height:100%;object-fit:cover;display:block}
+.stk .item .foto svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .stk .item .pr .u{color:var(--good)}
 .stk .item .pr .u.low{color:var(--warn)}
 .stk .item .pr .u.out{color:var(--bad)}
@@ -263,3 +263,29 @@ html.stk-sin-barra::-webkit-scrollbar,html.stk-sin-barra body::-webkit-scrollbar
 .stk.hoja-pos .sheet{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
 .stk.ap-hoja .ap-det{padding-top:2px}
 .stk.ap-hoja .ap-acc{position:sticky;bottom:calc(-16px - env(safe-area-inset-bottom));background:var(--bg);margin:12px -16px 0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+
+/* v1.91 · Inventario alineado al resto del POS.
+   Colores: los del POS (tokens.css) en la vista y en sus hojas; letra base de 14 px como el resto. */
+.stk{--ink:#111827;--muted:#6b7280;--line:#e5e9ee;--line2:#edf0f3;--surface2:#f6f8fa;--accent:#15803d;--accent-ink:#ffffff;--accent-soft:#dcfce7;font-size:14px}
+.stk.stk-capa{font-size:14px}
+/* Espaciado de las demás pantallas: 12 px de borde y entre bloques en el teléfono; 16 px de borde en la computadora. */
+.vista.stk-vista{padding:0 max(12px,env(safe-area-inset-right,0px)) 12px max(12px,env(safe-area-inset-left,0px))}
+.stk .top{padding-block:12px}
+.stk .search,.stk .filters{margin-top:12px}
+.stk .seg{gap:8px}
+/* Buscador con el borde de los campos del POS. */
+.stk .search input{border-color:#c4cad3;font-weight:500}
+/* Filtros: chips del POS (34 px, 13/600). */
+.stk .filters{padding-block:0}
+.stk .filtro-menu{min-height:34px;height:34px;font-size:13px;font-weight:600;color:var(--muted);border-color:var(--line)}
+.stk .filtro-menu.activo{color:#fff}
+/* Tarjetas listado: las de Vender (componentes.css), sin reglas propias del inventario. */
+.stk .rejilla .tarjeta-prenda{font-size:14px;color:var(--ink);font-variant-numeric:normal}
+.stk .rejilla .vacio{grid-column:1/-1}
+@media (min-width:840px){
+  .vista.stk-vista{padding:0 16px 16px}
+  .stk .wrap{--ancho:auto;width:auto;max-width:none;margin:0}
+  .stk .top{padding-block:16px 12px;row-gap:12px}
+  .stk .filters{align-items:center}
+  .stk .filtro-menu{flex:none;min-width:150px;min-height:34px}
+}

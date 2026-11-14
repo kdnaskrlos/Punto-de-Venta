@@ -12,7 +12,7 @@ async function servirInventario(p, datos) {
 }
 
 // El inventario agrupa por prenda: la tarjeta de la prenda tiene data-skus con sus tallas.
-const itemDe = sku => `.stk .item[data-skus~="${sku}"]`;
+const itemDe = sku => `.stk .tarjeta-prenda[data-skus~="${sku}"]`;
 const abrirPrenda = async (p, sku) => { await p.fill('#q', sku); await p.click(itemDe(sku)); await p.waitForFunction(() => document.querySelectorAll('.stk-capa .sheet.in').length === 1); };
 // Abre la prenda y luego la talla (segunda hoja, con Historial y Ajustar).
 const abrirSku = async (p, sku) => { await abrirPrenda(p, sku); await p.click(`.stk-capa .talla-inv[data-sku="${sku}"]`); await p.waitForFunction(() => document.querySelectorAll('.stk-capa .sheet.in').length === 2); };
@@ -25,23 +25,26 @@ casos('inventario', [
     a.strictEqual(await p.$('.stk .brand, #bTheme'), null, 'sin título ni selector de tema');
     a.ok(await p.evaluate(() => document.documentElement.classList.contains('stk-sin-barra')), 'sin barra de desplazamiento');
     a.strictEqual(await p.$('#tiles, .stile'), null, 'sin tarjetas de unidades ni variantes');
-    a.deepStrictEqual(await p.evaluate(() => ['.stk .item .nm', '.stk .item .uds', '.stk .seg b'].map(x => getComputedStyle(document.querySelector(x)).fontFamily.split(',')[0].replace(/"/g, ''))), ['Plus Jakarta Sans', 'Plus Jakarta Sans', 'Plus Jakarta Sans'], 'letra del POS');
+    a.deepStrictEqual(await p.evaluate(() => ['.stk .tarjeta-prenda .info b', '.stk .tarjeta-prenda .tp-linea', '.stk .seg b'].map(x => getComputedStyle(document.querySelector(x)).fontFamily.split(',')[0].replace(/"/g, ''))), ['Plus Jakarta Sans', 'Plus Jakarta Sans', 'Plus Jakarta Sans'], 'letra del POS');
     a.strictEqual(await vis(p, '#seg'), '6 Todos 1 Stock bajo 1 Agotados');
-    a.strictEqual(await p.$$eval('.stk .item', e => e.length), 6);
+    a.strictEqual(await p.$$eval('.stk .tarjeta-prenda', e => e.length), 6);
     const totalJ = await p.evaluate(() => Object.values(window.__pos.ctx.productos).filter(x => x.sku.startsWith('J-')).reduce((n, x) => n + x.existencia, 0));
-    a.strictEqual(await texto(p, itemDe('J-M') + ' .nm'), 'Jogger Texcol Caballero Negro');
-    a.strictEqual(await texto(p, itemDe('J-M') + ' .uds'), `${totalJ} unidades`);
+    // v1.91: la misma tarjeta de Vender (Tarjetas listado): nombre, «color · tela», «N disp.» y precio.
+    a.strictEqual(await texto(p, itemDe('J-M') + ' .info b'), 'Jogger Texcol Caballero');
+    a.strictEqual(await texto(p, itemDe('J-M') + ' .tp-color'), 'Negro');
+    a.strictEqual(await texto(p, itemDe('J-M') + ' .tp-disp'), `${totalJ} disp.`);
     a.strictEqual(await texto(p, itemDe('J-M') + ' .precio'), '42.000');
-    a.ok(await p.$(itemDe('B-L') + ' .est-p.low'), 'pastilla de stock bajo');
-    a.ok(await p.$(itemDe('R-M') + ' .est-p.out'), 'pastilla de agotado');
+    a.ok(await p.$(itemDe('B-L') + ' .tp-disp.y'), 'pastilla de stock bajo');
+    a.ok(await p.$(itemDe('R-M') + '.agotada .est.r'), 'pastilla de agotado');
+    a.strictEqual(await p.$('.stk .en-carrito'), null, 'sin círculo del carrito');
     a.strictEqual(await p.$('#seg [data-st], #meta'), null, 'tarjetas solo informativas y sin línea de conteo');
     a.ok(await p.$(itemDe('J-M') + ' .foto svg'), 'sin foto: recuadro con ícono');
     a.strictEqual(await texto(p, '#fSt'), 'Stock');
     await p.click('#fSt'); await p.click('.menu-it:has-text("Agotados")');
-    a.deepStrictEqual(await p.$$eval('.stk .item', e => e.map(x => x.dataset.skus)), ['R-M R-L']);
+    a.deepStrictEqual(await p.$$eval('.stk .tarjeta-prenda', e => e.map(x => x.dataset.skus)), ['R-M R-L']);
     await p.click('#fSt'); await p.click('.menu-it:has-text("Todos")');
     await p.click('#fCat'); await p.click('.menu-it:has-text("Dama")');
-    a.strictEqual(await p.$$eval('.stk .item', e => e.length), 1);
+    a.strictEqual(await p.$$eval('.stk .tarjeta-prenda', e => e.length), 1);
     await p.click('#fCat'); await p.click('.menu-it >> nth=0');
     await p.fill('#q', 'zzzz'); await p.waitForSelector('text=Nada coincide con esos filtros.');
     await p.evaluate(() => { location.hash = '/inicio'; });
@@ -180,7 +183,7 @@ casos('inventario', [
     await p.waitForSelector('text=1 foto subida · 4 de 21 productos con foto · 4 códigos de imagen sin foto');
     const estado = await p.evaluate(() => { const c = window.__pos.ctx; return { img: !!c.imagenes['img-0001'], fotosSku: Object.values(c.productos).filter(x => x.foto).length }; });
     a.deepStrictEqual(estado, { img: true, fotosSku: 0 }, 'la foto queda en el código');
-    a.strictEqual(await p.$$eval('.stk .item .foto img', e => e.length), 1, 'la prenda de img-0001 muestra la foto');
+    a.strictEqual(await p.$$eval('.stk .tarjeta-prenda .foto img', e => e.length), 1, 'la prenda de img-0001 muestra la foto');
     a.ok(await p.$(itemDe('F-B-8') + ' .foto img'));
     a.strictEqual(await p.$(itemDe('F-N-8') + ' .foto img'), null, 'otro código sigue sin foto');
     await abrirSku(p, 'F-B-8');
@@ -244,14 +247,12 @@ casos('inventario', [
     await p.waitForSelector('.mov');
     a.match(await p.innerText('.capa:last-of-type'), /Existencia inicial/);
   }],
-  ['Escritorio: tarjetas en varias columnas, centradas en la pantalla, con Fotos y Sincronizar en la cabecera', async (env, a) => {
+  ['Escritorio: tarjetas en varias columnas, a todo el ancho, con Fotos y Sincronizar en la cabecera', async (env, a) => {
     const p = await env.pagina({ ancho: 1280, alto: 860, usuario: 'admin', ruta: '/inventario' });
-    const cols = await p.$$eval('.stk .item', e => new Set(e.slice(0, 6).map(x => Math.round(x.getBoundingClientRect().left))).size);
+    const cols = await p.$$eval('.stk .tarjeta-prenda', e => new Set(e.slice(0, 6).map(x => Math.round(x.getBoundingClientRect().left))).size);
     a.ok(cols >= 3, `columnas: ${cols}`);
-    const { izq, der } = await p.$eval('.stk .wrap', w => { const r = w.getBoundingClientRect(); return { izq: r.left, der: innerWidth - r.right }; });
-    a.ok(Math.abs(izq - der) <= 2, `centrado: ${izq} vs ${der}`);
-    const centro = await p.$eval('.stk .wrap', w => { const r = w.getBoundingClientRect(); return (r.left + r.right) / 2 - innerWidth / 2; });
-    a.ok(Math.abs(centro) <= 2, `centrado en la pantalla: ${centro}`);
+    const { izq, der } = await p.$eval('.stk .wrap', w => { const r = w.getBoundingClientRect(); return { izq: r.left - document.querySelector('.vista').getBoundingClientRect().left, der: innerWidth - r.right }; });
+    a.deepStrictEqual({ izq, der }, { izq: 16, der: 16 }, 'todo el ancho con 16 px de borde, como las demás pantallas');
     await p.waitForTimeout(400); // termina la animación de entrada de la pantalla
     a.strictEqual(await p.$eval('.stk .seg', e => Math.round(e.getBoundingClientRect().top)), await p.$eval('.topbar', e => Math.round(e.getBoundingClientRect().bottom)) + 16, 'mismo espacio arriba que las demás pantallas');
     a.ok(await p.isVisible('.stk .adm #bSync') && await p.isVisible('.stk .adm #bData'));
@@ -261,15 +262,15 @@ casos('inventario', [
     await p.evaluate(() => { const c = window.__pos.ctx, base = c.productos['J-M']; for (let i = 0; i < 1400; i++) c.productos['X-' + i] = { ...base, sku: 'X-' + i, color: 'Color ' + i, grupo: undefined }; window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que: 'productos' } })); });
     await p.waitForFunction(() => /1\.406/.test(document.querySelector('#seg').textContent));
     const r = await p.evaluate(() => { const x = document.querySelector('.stk .wrap').getBoundingClientRect(); return { izq: Math.round(x.left), der: Math.round(innerWidth - x.right), sobra: document.querySelector('.vista').scrollWidth - document.querySelector('.vista').clientWidth }; });
-    a.deepStrictEqual(r, { izq: 16, der: 16, sobra: 0 });
+    a.deepStrictEqual(r, { izq: 12, der: 12, sobra: 0 });
   }],
   ['Paginación: muestra 80 y luego «Mostrar N más»', async (env, a) => {
     const p = await env.pagina({ ruta: '/inventario' });
     await p.evaluate(() => { const c = window.__pos.ctx, base = c.productos['J-M']; for (let i = 0; i < 100; i++) c.productos['X-' + i] = { ...base, sku: 'X-' + i, color: 'Color ' + i, grupo: undefined }; window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que: 'productos' } })); });
-    await p.waitForFunction(() => document.querySelectorAll('.stk .item').length === 80);
+    await p.waitForFunction(() => document.querySelectorAll('.stk .tarjeta-prenda').length === 80);
     a.strictEqual(await texto(p, '#more'), 'Mostrar 26 más');
     await p.click('#more');
-    a.strictEqual(await p.$$eval('.stk .item', e => e.length), 106);
+    a.strictEqual(await p.$$eval('.stk .tarjeta-prenda', e => e.length), 106);
     a.ok(await p.isHidden('#more'));
   }],
 ]);

@@ -186,16 +186,15 @@ test('autorización de descuento: la pide la vendedora, solo el admin responde',
   assert.equal(a._estado('autorizaciones').get(id).aprueba, 'admin');
 });
 
-test('cambiar el PIN propio exige el actual; el admin cambia el de otros', async () => {
+test('solo el admin cambia PIN: el suyo exige el actual; la vendedora no puede (v1.89)', async () => {
   const a = crearMemoria(semilla());
   await a.entrar('vendedora', '1234');
-  const yo = [...a._estado('usuarios').values()].find(u => u.usuario === 'vendedora').uid;
-  assert.equal((await a.cambiarPin(yo, '5678', '0000')).error, 'pin');
-  assert.equal((await a.cambiarPin(yo, '5678', '1234')).ok, true);
-  await a.salir();
-  assert.equal((await a.entrar('vendedora', '5678')).ok, true);
+  const us = [...a._estado('usuarios').values()];
+  const vend = us.find(u => u.usuario === 'vendedora').uid, adm = us.find(u => u.usuario === 'admin').uid;
+  assert.equal((await a.cambiarPin(vend, '5678', '1234')).error, 'permiso');
   await a.salir(); await a.entrar('admin', '1234');
-  assert.equal((await a.cambiarPin(yo, '4321')).ok, true);
+  assert.equal((await a.cambiarPin(adm, '5678', '0000')).error, 'pin');
+  assert.equal((await a.cambiarPin(vend, '4321')).ok, true);
   await a.salir();
   assert.equal((await a.entrar('vendedora', '4321')).ok, true);
 });
