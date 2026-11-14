@@ -174,7 +174,8 @@ body.stk-lock{overflow:hidden}
 .stk .seg button .ic{position:absolute;right:-10px;top:-10px;width:60px;height:60px;color:var(--c);opacity:.06;pointer-events:none}
 .stk .seg button .ic svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .stk .seg button b,.stk .seg button span:not(.ic){position:relative}
-.stk .seg button[aria-pressed="true"]{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
+/* Elegida: sutil, como en Inicio: el mismo borde fino un poco más marcado y algo más de color en el degradado. */
+.stk .seg button[aria-pressed="true"]{border-color:color-mix(in srgb,var(--c) 55%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--c) 16%,var(--surface)) 0%,var(--surface) 80%)}
 .stk .seg button:active{transform:scale(.97)}
 /* Botones del administrador (Fotos / Sincronizar): al estilo del POS, con la letra y colores de esta sección. */
 .stk .adm{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}

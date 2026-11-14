@@ -238,6 +238,7 @@ casos('inventario', [
     a.ok(Math.abs(izq - der) <= 2, `centrado: ${izq} vs ${der}`);
     const centro = await p.$eval('.stk .wrap', w => { const r = w.getBoundingClientRect(); return (r.left + r.right) / 2 - innerWidth / 2; });
     a.ok(Math.abs(centro) <= 2, `centrado en la pantalla: ${centro}`);
+    await p.waitForTimeout(400); // termina la animación de entrada de la pantalla
     a.strictEqual(await p.$eval('.stk .seg', e => Math.round(e.getBoundingClientRect().top)), await p.$eval('.topbar', e => Math.round(e.getBoundingClientRect().bottom)) + 16, 'mismo espacio arriba que las demás pantallas');
     a.ok(await p.isVisible('.stk .adm #bSync') && await p.isVisible('.stk .adm #bData'));
   }],
