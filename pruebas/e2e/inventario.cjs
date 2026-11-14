@@ -20,7 +20,7 @@ casos('inventario', [
     const p = await env.pagina({ ancho: 390, alto: 844, ruta: '/inventario' });
     a.strictEqual(await p.$('.stk .brand, #bTheme'), null, 'sin título ni selector de tema');
     a.ok(await p.evaluate(() => document.documentElement.classList.contains('stk-sin-barra')), 'sin barra de desplazamiento');
-    a.strictEqual(await vis(p, '#tiles'), '145 unidades en stock 21 variantes registradas');
+    a.strictEqual(await p.$('#tiles, .stile'), null, 'sin tarjetas de unidades ni variantes');
     a.strictEqual(await vis(p, '#seg'), '21 Todos 2 Stock bajo 2 Agotados');
     a.strictEqual(await p.$$eval('.stk .item', e => e.length), 21);
     a.strictEqual(await texto(p, '.stk .item[data-sku="J-M"] .pr'), '42.000 · Caballero · 5 uds');
@@ -230,12 +230,15 @@ casos('inventario', [
     await p.waitForSelector('.mov');
     a.match(await p.innerText('.capa:last-of-type'), /Existencia inicial/);
   }],
-  ['Escritorio: tarjetas en varias columnas, centradas junto a la barra lateral, con Fotos y Sincronizar en la cabecera', async (env, a) => {
+  ['Escritorio: tarjetas en varias columnas, centradas en la pantalla, con Fotos y Sincronizar en la cabecera', async (env, a) => {
     const p = await env.pagina({ ancho: 1280, alto: 860, usuario: 'admin', ruta: '/inventario' });
     const cols = await p.$$eval('.stk .item', e => new Set(e.slice(0, 6).map(x => Math.round(x.getBoundingClientRect().left))).size);
     a.ok(cols >= 3, `columnas: ${cols}`);
-    const { izq, der } = await p.$eval('.stk .wrap', w => { const r = w.getBoundingClientRect(), side = document.querySelector('.side').getBoundingClientRect().right; return { izq: r.left - side, der: innerWidth - r.right }; });
+    const { izq, der } = await p.$eval('.stk .wrap', w => { const r = w.getBoundingClientRect(); return { izq: r.left, der: innerWidth - r.right }; });
     a.ok(Math.abs(izq - der) <= 2, `centrado: ${izq} vs ${der}`);
+    const centro = await p.$eval('.stk .wrap', w => { const r = w.getBoundingClientRect(); return (r.left + r.right) / 2 - innerWidth / 2; });
+    a.ok(Math.abs(centro) <= 2, `centrado en la pantalla: ${centro}`);
+    a.strictEqual(await p.$eval('.stk .seg', e => Math.round(e.getBoundingClientRect().top)), await p.$eval('.topbar', e => Math.round(e.getBoundingClientRect().bottom)) + 16, 'mismo espacio arriba que las demás pantallas');
     a.ok(await p.isVisible('.stk .adm #bSync') && await p.isVisible('.stk .adm #bData'));
   }],
   ['Paginación: muestra 80 y luego «Mostrar N más»', async (env, a) => {

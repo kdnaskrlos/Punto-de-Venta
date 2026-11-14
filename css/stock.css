@@ -43,17 +43,6 @@ body.stk-lock{overflow:hidden}
 .stk .ib:active{transform:scale(.88)}
 .stk .ib.spin svg{animation:stk-sp .9s linear infinite}@keyframes stk-sp{to{transform:rotate(360deg)}}
 .stk .ib svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.stk .stiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
-.stk .stile{border-radius:12px;padding:10px 14px;background:var(--violet-soft);display:flex;flex-direction:column}
-.stk .stile:nth-child(2){background:var(--accent-soft)}
-.stk .stile b{font-family:var(--f-mono);font-weight:500;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
-.stk .stile span{font-size:12px;color:var(--muted)}
-.stk .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:4px}
-.stk .seg button{border:0;background:transparent;border-radius:9px;padding:8px 4px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;font-size:12.5px;color:var(--muted);font-weight:500}
-.stk .seg button b{font-family:var(--f-mono);font-size:15px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
-.stk .seg button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px rgba(15,23,42,.14);color:var(--ink)}
-.stk .seg button.w[aria-pressed="true"] b{color:var(--warn)}
-.stk .seg button.x[aria-pressed="true"] b{color:var(--bad)}
 .stk .search{display:flex;gap:8px;margin-top:12px}
 .stk .search .f{flex:1;min-width:0;position:relative}
 .stk .search input{width:100%;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface);padding:0 40px 0 14px;font-size:16px}
@@ -164,6 +153,18 @@ body.stk-lock{overflow:hidden}
 .stk .card .oferta{color:var(--warn);text-transform:none;letter-spacing:0;font-weight:600}
 .stk .acc{display:flex;flex-wrap:wrap;gap:8px}
 .stk .acc>*{flex:1 1 140px}
+/* Todos / Stock bajo / Agotados con el estilo de las tarjetas de resumen de la app (fondo de color suave,
+   cifra grande en mono y etiqueta debajo). La opción elegida lleva un borde de su color. */
+.stk .seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stk .seg button{--c:var(--violet);border:0;border-radius:12px;padding:10px 14px;min-height:62px;background:var(--violet-soft);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;line-height:1.1;box-shadow:none;transition:box-shadow .14s ease-out,transform .14s ease-out}
+.stk .seg button.w{--c:var(--warn);background:var(--warn-soft)}
+.stk .seg button.x{--c:var(--bad);background:var(--bad-soft)}
+.stk .seg button b{font-family:var(--f-mono);font-weight:500;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--ink)}
+.stk .seg button.w b{color:var(--warn)}
+.stk .seg button.x b{color:var(--bad)}
+.stk .seg button span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.stk .seg button[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--c)}
+.stk .seg button:active{transform:scale(.97)}
 /* Botones del administrador (Fotos / Sincronizar): al estilo del POS, con la letra y colores de esta sección. */
 .stk .adm{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
 .stk .adm .sbtn{min-height:42px;padding:8px 14px;font-size:13.5px;white-space:nowrap}
@@ -174,15 +175,15 @@ html.stk-sin-barra::-webkit-scrollbar,html.stk-sin-barra body::-webkit-scrollbar
 
 /* ---- Escritorio: aprovecha el ancho, centrado en el espacio junto a la barra lateral ---- */
 @media (min-width:840px){
-  .stk .wrap{max-width:1180px}
+  /* Centrado en la pantalla (no solo en el espacio junto a la barra lateral): ancho hasta 1180 px. */
+  .stk .wrap{--ancho:min(1180px,calc(100vw - 2 * var(--side,84px) - 32px));max-width:none;width:var(--ancho);margin-left:calc(50vw - var(--ancho) / 2 - var(--side,84px) - 16px);margin-right:0}
   .stk .top{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:12px;row-gap:10px;padding-block:16px 10px}
   .stk .top>*{margin-top:0}
-  .stk .stiles{grid-column:span 5}
-  .stk .seg{grid-column:span 7}
-  .stk .search{grid-column:span 5}
-  .stk .filters{grid-column:span 7}
-  .stk .top.con-adm .filters{grid-column:span 4}
-  .stk .adm{grid-column:span 3;align-self:center}
+  .stk .seg{grid-column:span 5}
+  .stk .search{grid-column:span 7;align-self:center}
+  .stk .filters{grid-column:span 12}
+  .stk .top.con-adm .filters{grid-column:span 8}
+  .stk .adm{grid-column:span 4;align-self:center}
   .stk .adm .sbtn{flex:1 1 0;min-width:0;min-height:48px;padding:8px 10px}
   .stk .filters select{height:48px}
   .stk .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:10px}
@@ -191,4 +192,4 @@ html.stk-sin-barra::-webkit-scrollbar,html.stk-sin-barra body::-webkit-scrollbar
   /* La hoja de detalle se centra en el área de contenido (sin contar la barra lateral). */
   .stk .sheet{left:calc(var(--side,84px) + env(safe-area-inset-left,0px))}
 }
-@media (prefers-reduced-motion:reduce){.stk .sheet,.stk .scrim,.stk .item,.stk .ib{transition:none!important}.stk .item:active{transform:none}}
+@media (prefers-reduced-motion:reduce){.stk .sheet,.stk .scrim,.stk .item,.stk .ib,.stk .seg button{transition:none!important}.stk .item:active{transform:none}}

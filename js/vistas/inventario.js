@@ -360,7 +360,6 @@ registrarVista('/inventario', {
     const admSinc = puedeAdmin(ctx, 'importar'), admFotos = puedeAdmin(ctx, 'fotosMasivas');
     cont.innerHTML = `<div class="wrap">
   <header class="top${admSinc || admFotos ? ' con-adm' : ''}">
-    <div class="stiles" id="tiles"></div>
     <div class="seg" id="seg" role="group" aria-label="Estado del stock"></div>
     <div class="search">
       <div class="f"><input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Nombre, SKU o código" aria-label="Buscar por nombre, SKU o código"><button class="clr" id="qc" type="button" aria-label="Borrar búsqueda" hidden>×</button></div>
@@ -402,10 +401,9 @@ registrarVista('/inventario', {
     };
     const render = () => {
       const R = filas(), has = R.length > 0;
-      const units = R.reduce((s, p) => s + Math.max(0, p.existencia), 0), low = R.filter(p => st(p) === 'low').length, out = R.filter(p => st(p) === 'out').length;
-      $('#tiles').innerHTML = `<div class="stile"><b>${fmtN(units)}</b><span>unidades en stock</span></div><div class="stile"><b>${fmtN(R.length)}</b><span>variantes registradas</span></div>`;
+      const low = R.filter(p => st(p) === 'low').length, out = R.filter(p => st(p) === 'out').length;
       const seg = [['all', 'Todos', R.length, ''], ['low', 'Stock bajo', low, 'w'], ['out', 'Agotados', out, 'x']];
-      $('#seg').innerHTML = seg.map(([k, l, n, c]) => `<button type="button" class="${c}" data-st="${k}" aria-pressed="${F.st === k}"><b>${fmtN(n)}</b>${l}</button>`).join('');
+      $('#seg').innerHTML = seg.map(([k, l, n, c]) => `<button type="button" class="${c}" data-st="${k}" aria-pressed="${F.st === k}"><b>${fmtN(n)}</b><span>${l}</span></button>`).join('');
       $('#qc').hidden = !F.q;
       const list = has ? filtered() : [], part = list.slice(0, F.shown);
       $('#list').innerHTML = part.map(p => {
