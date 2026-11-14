@@ -14,10 +14,10 @@ function ean13(n) {
 }
 
 // Mismos campos que el inventario.json de la Carga Masiva.
-function variantes({ tipo, tela = '', marca, genero, modelo = '', color, abrev, tallas, precios, costo, existencia, minimo = 2, separado = false }) {
+function variantes({ img = '', tipo, tela = '', marca, genero, modelo = '', color, abrev, tallas, precios, costo, existencia, minimo = 2, separado = false }) {
   return tallas.map((talla, i) => {
     const p = {
-      sku: `${abrev}-${talla}`, nombre: [tipo, marca, genero, talla, color, tela].filter(Boolean).join(' '),
+      sku: `${abrev}-${talla}`, id_imagen: img, nombre: [tipo, marca, genero, talla, color, tela].filter(Boolean).join(' '),
       tipo, tela, color, talla, genero, marca, modelo, codigo: ean13(770000000000 + (++consecutivo) * 37), precios, separado,
       existencia: Array.isArray(existencia) ? existencia[i] : existencia, minimo, foto: null, oferta: null, activo: true,
       _costo: costo,
@@ -29,11 +29,11 @@ function variantes({ tipo, tela = '', marca, genero, modelo = '', color, abrev, 
 export function semilla() {
   consecutivo = 0;
   const productos = [
-    ...variantes({ tipo: 'Franela', tela: 'Algodon', marca: 'AS', genero: 'Niño', modelo: 'Manga Corta', color: 'Blanco', abrev: 'F-B', tallas: ['4', '6', '8', '10'], precios: [25000, 24000, 22500, 20000, null], costo: 9000, existencia: 12, minimo: 5 }),
-    ...variantes({ tipo: 'Franela', tela: 'Algodon', marca: 'AS', genero: 'Niño', modelo: 'Manga Corta', color: 'Negro', abrev: 'F-N', tallas: ['4', '6', '8', '10'], precios: [25000, 24000, 22500, 20000, null], costo: 9000, existencia: 12, minimo: 5 }),
-    ...variantes({ tipo: 'Buzo', marca: 'Etanol', genero: 'Caballero', color: 'Gris', abrev: 'B', tallas: ['S', 'M', 'L'], precios: [48000, 45000, 42000, 40000, 38000], costo: 20000, existencia: [3, 2, 1] }),
-    ...variantes({ tipo: 'Body', marca: 'Serfe', genero: 'Unisex', modelo: 'Bebé', color: 'Rosa', abrev: 'Y', tallas: ['3m', '6m', '9m'], precios: [18000, 17000, 16000, 15000, 14000], costo: 7000, existencia: 6, separado: true }),
-    ...variantes({ tipo: 'Jogger', marca: 'Texcol', genero: 'Caballero', color: 'Negro', abrev: 'J', tallas: ['S', 'M', 'L', 'XL', 'XXL'], precios: [42000, 40000, 38000, 36000, 34000], costo: 17000, existencia: 5 }),
+    ...variantes({ img: 'img-0001', tipo: 'Franela', tela: 'Algodon', marca: 'AS', genero: 'Niño', modelo: 'Manga Corta', color: 'Blanco', abrev: 'F-B', tallas: ['4', '6', '8', '10'], precios: [25000, 24000, 22500, 20000, null], costo: 9000, existencia: 12, minimo: 5 }),
+    ...variantes({ img: 'img-0002', tipo: 'Franela', tela: 'Algodon', marca: 'AS', genero: 'Niño', modelo: 'Manga Corta', color: 'Negro', abrev: 'F-N', tallas: ['4', '6', '8', '10'], precios: [25000, 24000, 22500, 20000, null], costo: 9000, existencia: 12, minimo: 5 }),
+    ...variantes({ img: 'img-0003', tipo: 'Buzo', marca: 'Etanol', genero: 'Caballero', color: 'Gris', abrev: 'B', tallas: ['S', 'M', 'L'], precios: [48000, 45000, 42000, 40000, 38000], costo: 20000, existencia: [3, 2, 1] }),
+    ...variantes({ img: 'img-0004', tipo: 'Body', marca: 'Serfe', genero: 'Unisex', modelo: 'Bebé', color: 'Rosa', abrev: 'Y', tallas: ['3m', '6m', '9m'], precios: [18000, 17000, 16000, 15000, 14000], costo: 7000, existencia: 6, separado: true }),
+    ...variantes({ img: 'img-0005', tipo: 'Jogger', marca: 'Texcol', genero: 'Caballero', color: 'Negro', abrev: 'J', tallas: ['S', 'M', 'L', 'XL', 'XXL'], precios: [42000, 40000, 38000, 36000, 34000], costo: 17000, existencia: 5 }),
     ...variantes({ tipo: 'Franela', tela: 'PoliAlg.', marca: 'Rockdreams', genero: 'Dama', color: 'Gris', abrev: 'R', tallas: ['M', 'L'], precios: [30000, 28000, 26000, 24000, null], costo: 12000, existencia: 0 }),
   ];
   const desde = '2026-11-01T00:00:00.000Z';

@@ -349,6 +349,17 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       escribio(); avisar('productos');
       return SI();
     },
+    async guardarImagen(codigo, blob) {
+      const e = exigir('fotosMasivas'); if (e) return NO(e);
+      codigo = String(codigo || '').trim().toLowerCase();
+      if (!codigo) return NO('datos');
+      const ruta = (blob && globalThis.URL?.createObjectURL) ? URL.createObjectURL(blob) : `fotos/${codigo}.webp`;
+      const doc = col.ajustes.get('imagenes') || { id: 'imagenes', fotos: {} };
+      doc.fotos = { ...(doc.fotos || {}), [codigo]: ruta };
+      col.ajustes.set('imagenes', doc);
+      escribio(); avisar('ajustes');
+      return SI({ ruta });
+    },
     async guardarFoto(sku, blob) {
       const e = exigir('fotosMasivas'); if (e) return NO(e);
       const ruta = (blob && globalThis.URL?.createObjectURL) ? URL.createObjectURL(blob) : `fotos/${claveFoto(sku)}.webp`;

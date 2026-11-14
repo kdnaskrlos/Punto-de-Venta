@@ -2,7 +2,7 @@
 import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo } from '../ui.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
-import { titulo, grupoDe, textoBusqueda } from '../nucleo/producto.js';
+import { titulo, grupoDe, textoBusqueda, fotoDe } from '../nucleo/producto.js';
 import { tipoPrenda, compararTallas } from '../nucleo/tipo-prenda.js';
 import { colorPrenda } from '../nucleo/colores.js';
 import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
@@ -66,7 +66,7 @@ function grupos(ctx) {
     if (p.activo === false) continue;
     const k = grupoDe(p);
     const t = (g[k] ||= { grupo: k, titulo: titulo(p), tipo: p.tipo, tela: p.tela, color: p.color, genero: p.genero, foto: null, variantes: [] });
-    t.foto ||= p.foto; // la foto se busca por sku: la tarjeta usa la de cualquiera de sus tallas
+    t.foto ||= fotoDe(p, ctx.imagenes); // foto del código de imagen (o, si falta, la del sku de alguna talla)
     t.variantes.push(p);
   }
   return Object.values(g).sort((a, b) => a.titulo.localeCompare(b.titulo, 'es') || (a.color || '').localeCompare(b.color || '', 'es') || (a.tela || '').localeCompare(b.tela || '', 'es'));
@@ -86,7 +86,7 @@ function contador(ctx, l) {
 }
 function lineaCarrito(ctx, l, aj, compacta) {
   const p = ctx.productos[l.sku];
-  const g = { titulo: titulo(p), tipo: p.tipo, genero: p.genero, foto: p.foto };
+  const g = { titulo: titulo(p), tipo: p.tipo, genero: p.genero, foto: fotoDe(p, ctx.imagenes) };
   const variante = [p.color, p.tela, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku;
   const alternar = () => { const c = carrito(ctx); c.abierta = c.abierta === l.sku ? null : l.sku; window.dispatchEvent(new CustomEvent('pos:carrito')); };
   if (compacta) return h('div', { class: 'linea mini', 'data-sku': l.sku, role: 'button', tabindex: '0', 'aria-expanded': 'false', onclick: alternar, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } } },

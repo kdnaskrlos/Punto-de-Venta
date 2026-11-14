@@ -107,3 +107,19 @@ test('título de la tarjeta: tipo, marca, género y modelo', () => {
   assert.equal(tituloProducto({ sku: 'X', nombre: 'Algo' }), 'Algo');
   assert.equal(tituloProducto({ tipo: 'Bluson', marca: 'Etanol', genero: 'Dama', modelo: 'Blusón' }), 'Bluson Etanol Dama', 'sin repetir el tipo');
 });
+
+test('lee id_imagen en minúsculas; vacío queda como texto vacío', () => {
+  const { productos } = leerInventario(INV);
+  assert.match(productos[0].id_imagen, /^img-\d{4}$/);
+  assert.equal(new Set(productos.map(p => p.id_imagen)).size, 1, 'las tallas comparten código');
+  const raro = leerInventario(conFilas([cambiar(INV.rows[0], 'id_imagen', ' IMG-0099 '), cambiar(INV.rows[1], 'id_imagen', '')])).productos;
+  assert.deepEqual(raro.map(p => p.id_imagen), ['img-0099', '']);
+});
+
+test('un id_imagen distinto cuenta como cambio en la vista previa', () => {
+  const { productos } = leerInventario(INV);
+  const actuales = Object.fromEntries(productos.map(p => [p.sku, { ...p, id_imagen: 'img-0500' }]));
+  const plan = planImportacion(productos, actuales, {});
+  assert.equal(plan.cambios.length, 3);
+  assert.ok(detalleCambios(plan.cambios[0], actuales[plan.cambios[0].sku], null).some(t => t.startsWith('id_imagen img-0500 →')));
+});

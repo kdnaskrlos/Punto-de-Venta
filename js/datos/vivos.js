@@ -27,6 +27,7 @@ export function iniciarDatos(ctx) {
   ctx.productos = {};
   ctx.ajustes = { ...AJUSTES_DEFECTO };
   ctx.ajustesTasas = {};
+  ctx.imagenes = {};
   ctx.miCaja = null;
   ctx.porArquear = []; // cajas que se cerraron solas a medianoche y falta contar
   ctx.tasaRemota = ctx.tasaRemota || null;
@@ -43,6 +44,8 @@ export function iniciarDatos(ctx) {
       ctx.ajustes.formasPago = normalizarFormas(ctx.ajustes.formasPago);
       ctx.ajustes.tramos = normalizarTramos(ctx.ajustes.tramos);
       ctx.ajustesTasas = por.tasas || {};
+      // Fotos por código de imagen: { 'img-0001': 'fotos/img-0001.webp?v=…' } (ajustes/imagenes).
+      ctx.imagenes = por.imagenes?.fotos || {};
       ctx.recalcularTasas();
       emitir('ajustes');
     }),

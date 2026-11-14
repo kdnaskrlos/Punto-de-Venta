@@ -102,12 +102,43 @@ casos('inventario', [
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }] }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
     a.strictEqual(await texto(p, '.carrito .total-cop'), '37.800');
   }],
+  ['Admin: una foto por código de imagen la muestran todas sus variantes, sin copiarla a cada sku', async (env, a) => {
+    const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
+    const png = await sharp({ create: { width: 40, height: 40, channels: 3, background: '#888' } }).png().toBuffer();
+    await p.click('button:has-text("Fotos")');
+    a.strictEqual(await texto(p, '#fotos-resumen'), '0 de 21 productos con foto · 5 códigos de imagen sin foto');
+    await p.setInputFiles('#fotos-archivos', [{ name: 'IMG-0001.jpg', mimeType: 'image/png', buffer: png }]);
+    a.strictEqual(await texto(p, '#fotos-asignadas'), '1 foto asignada a 4 productos · 0 sin asignar');
+    await p.click('#fotos-final');
+    await p.waitForSelector('text=1 foto subida · 4 de 21 productos con foto · 4 códigos de imagen sin foto');
+    const estado = await p.evaluate(() => { const c = window.__pos.ctx; return { img: !!c.imagenes['img-0001'], fotosSku: Object.values(c.productos).filter(x => x.foto).length }; });
+    a.deepStrictEqual(estado, { img: true, fotosSku: 0 }, 'la foto queda en el código, no en cada sku');
+    a.ok(await p.$('.grupo-inv[data-nombre="Franela AS Niño Manga Corta Blanco"] img'), 'la tarjeta de inventario muestra la foto');
+    a.strictEqual(await p.$('.grupo-inv[data-nombre="Franela AS Niño Manga Corta Negro"] img'), null, 'otro código sigue sin foto');
+    await p.evaluate(() => { location.hash = '/vender'; });
+    await p.waitForSelector('.tarjeta-prenda[data-nombre="Franela AS Niño Manga Corta Blanco"] img');
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'F-B-8', cantidad: 1 }] }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.waitForSelector('.carrito .linea img');
+    a.deepStrictEqual(p.errores, []);
+  }],
+  ['Admin: «Foto» en el detalle de la prenda sube la foto a su código de imagen', async (env, a) => {
+    const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
+    const png = await sharp({ create: { width: 40, height: 40, channels: 3, background: '#888' } }).png().toBuffer();
+    await p.click('.grupo-inv[data-nombre="Buzo Etanol Caballero Gris"]');
+    a.match(await texto(p, '.capa:last-of-type .foto-grupo'), /Código de imagen img-0003 · la comparten 3 productos · sin foto/);
+    await p.setInputFiles('#foto-grupo-archivo', { name: 'cualquiera.png', mimeType: 'image/png', buffer: png });
+    await p.waitForSelector('text=Foto guardada para img-0003');
+    a.strictEqual(await texto(p, '#foto-grupo'), 'Cambiar foto');
+    a.ok(await p.$('.foto-grupo img'), 'miniatura nueva');
+    a.ok(await p.evaluate(() => !!window.__pos.ctx.imagenes['img-0003']), 'registro');
+    a.deepStrictEqual(p.errores, []);
+  }],
   ['Admin: fotos por sku (nombre del archivo); las que no coinciden quedan sin asignar', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
     const png = await sharp({ create: { width: 40, height: 40, channels: 3, background: '#888' } }).png().toBuffer();
     await p.click('button:has-text("Fotos")');
     await p.setInputFiles('#fotos-archivos', [{ name: 'j-m.png', mimeType: 'image/png', buffer: png }, { name: 'otra.png', mimeType: 'image/png', buffer: png }]);
-    await p.waitForSelector('text=1 asignada');
+    await p.waitForSelector('text=1 foto asignada a 1 producto');
     a.ok((await texto(p, '.sin-asignar')).includes('otra.png'));
     await p.click('#fotos-final');
     await p.waitForFunction(() => !!window.__pos.ctx.productos['J-M'].foto);

@@ -378,3 +378,8 @@ Suite final: npm test 99/99 · e2e 59/59
 - Sin internet, error de descarga o archivo dañado / sin columnas obligatorias: mensaje claro y no se cambia nada. Las filas con error no se aplican; las válidas sí.
 - Prueba con el inventario real (1.369 filas): primera vez 1.369 nuevos, 0 actualizados, 0 sin cambios, 0 con error; segunda vez con el mismo archivo 0 / 0 / 1.369 / 0.
 - v1.72: el último tramo empieza en 48 (precio4 = 24–47, precio5 = 48+), como el Tarifario. Si en Ajustes quedaron guardados los tramos viejos exactos (1, 6, 12, 24, 49) se corrigen solos a 48; unos personalizados se respetan.
+- v1.73: fotos por código de imagen. La Carga Masiva trae la columna «id_imagen» (img-0001, en minúsculas; la comparten las tallas de una prenda y a veces varias prendas). Se importa por nombre con las demás columnas y en la vista previa de la sincronización cuenta como campo que cambia.
+  - La foto se guarda una sola vez como fotos/img-0001.webp (WebP, máx. 800 px) y el registro código → foto va en ajustes/imagenes (todos lo leen, solo el admin lo cambia; no hizo falta tocar las reglas). Todas las variantes con ese código la muestran, sin copiarla a cada sku.
+  - Orden: foto del código → foto del sku (respaldo) → ícono gris de la prenda.
+  - En Inventario: «Fotos» empareja los archivos por código (img-0001.jpg/.png/.webp) y si no, por sku; muestra «N de M productos con foto · K códigos de imagen sin foto». En el detalle de cada prenda, botón «Foto» / «Cambiar foto» que sube al código de esa tarjeta.
+  - Inventario real: 1.369 productos, 346 códigos de imagen, ninguno vacío; sin fotos subidas todavía (0 con foto, 346 códigos sin foto).

@@ -524,7 +524,20 @@ export function crearFirebase(config) {
       q.docs.forEach(d => b.update(d.ref, { oferta: { pct, activa: !!oferta?.activa && pct > 0 } }));
       return sinEsperar(b.commit());
     },
-    // La foto es de la variante (sku); la tarjeta muestra la de cualquiera de sus tallas.
+    // Foto de un código de imagen (img-0001): un solo archivo fotos/img-0001.webp para todas las variantes
+    // con ese id_imagen; el registro va en ajustes/imagenes (todos lo leen, solo el admin lo cambia).
+    async guardarImagen(codigo, blob) {
+      const e = exigir('fotosMasivas'); if (e) return NO(e);
+      codigo = String(codigo || '').trim().toLowerCase();
+      if (!codigo) return NO('datos');
+      let token = null; try { token = localStorage.getItem(CLAVE_TOKEN); } catch { /* sin almacenamiento */ }
+      const subida = await subirFotoGitHub({ token, ruta: `fotos/${codigo.replace(/[^a-z0-9_-]/g, '')}.webp`, blob });
+      if (!subida.ok) return NO(subida.error);
+      const ruta = `${subida.ruta}?v=${Date.now()}`;
+      const r = await sinEsperar(setDoc(ref('ajustes', 'imagenes'), { fotos: { [codigo]: ruta } }, { merge: true }));
+      return r.ok ? SI({ ruta }) : r;
+    },
+    // Foto de respaldo de una variante (sku), para productos sin id_imagen.
     async guardarFoto(sku, blob) {
       const e = exigir('fotosMasivas'); if (e) return NO(e);
       let token = null; try { token = localStorage.getItem(CLAVE_TOKEN); } catch { /* sin almacenamiento */ }

@@ -1,10 +1,11 @@
 // Importar el inventario.json que publica la Carga Masiva (kdnaskrlos/App-Inventario, data/inventario.json).
 // Formato: { app: 'carga-masiva', v: 1, at, head: [...nombres de columna...], rows: [[...valores...], ...] }.
 // Siempre se lee por el NOMBRE de la columna en `head` (nunca por posición) y las columnas desconocidas se ignoran.
-// Columnas: sku, nombre, tipo, tela, color, talla, genero, marca, modelo, costo, precio1..precio5, separado,
-// codigo, existencia, minimo.
+// Columnas: sku, id_imagen, nombre, tipo, tela, color, talla, genero, marca, modelo, costo, precio1..precio5,
+// separado, codigo, existencia, minimo. id_imagen («img-0001») lo comparten las tallas de una prenda (y a veces
+// varias prendas): la foto se guarda una vez por código.
 
-export const COLUMNAS = ['sku', 'nombre', 'tipo', 'tela', 'color', 'talla', 'genero', 'marca', 'modelo', 'costo',
+export const COLUMNAS = ['sku', 'id_imagen', 'nombre', 'tipo', 'tela', 'color', 'talla', 'genero', 'marca', 'modelo', 'costo',
   'precio1', 'precio2', 'precio3', 'precio4', 'precio5', 'separado', 'codigo', 'existencia', 'minimo'];
 const OBLIGATORIAS = ['sku', 'nombre'];
 
@@ -55,6 +56,7 @@ export function leerInventario(json) {
       color: texto(de(fila, 'color')), talla: texto(de(fila, 'talla')),
       genero: texto(de(fila, 'genero')), marca: texto(de(fila, 'marca')), modelo: texto(de(fila, 'modelo')),
       codigo,
+      id_imagen: texto(de(fila, 'id_imagen')).toLowerCase(),
       // precio1 = 1-5, precio2 = 6-11, precio3 = 12-23, precio4 = 24-47, precio5 = el quinto del Tarifario.
       precios: ['precio1', 'precio2', 'precio3', 'precio4', 'precio5'].map(c => (nums[c] > 0 ? nums[c] : null)),
       separado: booleano(de(fila, 'separado')), // se guarda; todavía no tiene uso en el POS
@@ -75,7 +77,7 @@ export function leerInventario(json) {
 
 // Campos que se comparan para decidir si un producto cambió. La existencia NO: el archivo solo
 // la aporta en la carga inicial (productos nuevos); la de los que ya existen la lleva el POS.
-const CAMPOS = ['nombre', 'tipo', 'tela', 'color', 'talla', 'genero', 'marca', 'modelo', 'grupo', 'titulo', 'codigo', 'precios', 'separado', 'minimo'];
+const CAMPOS = ['nombre', 'id_imagen', 'tipo', 'tela', 'color', 'talla', 'genero', 'marca', 'modelo', 'grupo', 'titulo', 'codigo', 'precios', 'separado', 'minimo'];
 
 // El costo vive en costos/{sku} (solo admin y encargada lo leen), por eso se compara aparte.
 // Upsert por sku: nuevos se crean, los que cambiaron se actualizan; los que no vienen en el archivo

@@ -367,3 +367,6 @@
 .sinc-cambio:last-child{border-bottom:0}
 .sinc-cambio b{color:var(--ink);font-size:13px}
 .sinc .resumenes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+/* v1.73 · Foto por código de imagen en el detalle de la prenda */
+.foto-grupo{display:flex;align-items:center;gap:12px}
+.foto-grupo .miniatura{width:72px;height:72px;border-radius:12px}
