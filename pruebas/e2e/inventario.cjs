@@ -15,7 +15,8 @@ async function servirInventario(p, datos) {
 const itemDe = sku => `.stk .tarjeta-prenda[data-skus~="${sku}"]`;
 const abrirPrenda = async (p, sku) => { await p.fill('#q', sku); await p.click(itemDe(sku)); await p.waitForFunction(() => document.querySelectorAll('.stk-capa .sheet.in').length === 1); };
 // Abre la prenda y luego la talla (segunda hoja, con Historial y Ajustar).
-const abrirSku = async (p, sku) => { await abrirPrenda(p, sku); await p.click(`.stk-capa .talla-inv[data-sku="${sku}"]`); await p.waitForFunction(() => document.querySelectorAll('.stk-capa .sheet.in').length === 2); };
+// v1.92: las tallas de la prenda ya no se tocan; la hoja de una talla se abre con su código (buscador + Enter o escáner).
+const abrirSku = async (p, sku) => { await p.fill('#q', sku); await p.press('#q', 'Enter'); await p.waitForFunction(() => document.querySelectorAll('.stk-capa .sheet.in').length === 1); };
 const hoja = p => p.evaluate(() => { const hs = document.querySelectorAll('.stk-capa .sheet'); return hs[hs.length - 1].textContent.replace(/\s+/g, ' ').trim(); });
 const vis = (p, s) => p.innerText(s).then(t => t.replace(/\s+/g, ' ').trim());
 
@@ -51,8 +52,15 @@ casos('inventario', [
     await p.waitForFunction(() => !document.documentElement.classList.contains('stk-sin-barra'));
     a.deepStrictEqual(p.errores, []);
   }],
-  ['Detalle: la prenda con sus tallas y, al tocar una, su hoja con stock, precios y ficha; Atrás cierra de a una sin salir del inventario', async (env, a) => {
+  ['Detalle: la prenda con sus tallas (sin SKU y sin tocarlas); la talla abre su hoja con su código; Atrás cierra sin salir del inventario', async (env, a) => {
     const p = await env.pagina({ ancho: 390, alto: 844, usuario: 'vendedora', ruta: '/inventario' });
+    await abrirPrenda(p, 'J-M');
+    a.match(await hoja(p), /Tallas.*Talla S/);
+    a.strictEqual(await p.$('.stk-capa button.talla-inv'), null, 'las tallas no son botones');
+    a.ok(!(await hoja(p)).includes('J-M'), 'sin SKU en las tallas');
+    await p.click('.stk-capa .talla-inv[data-sku="J-M"]'); await p.waitForTimeout(300);
+    a.strictEqual(await p.$$eval('.stk-capa .sheet', e => e.length), 1, 'tocar una talla no abre otra hoja');
+    await p.goBack(); await p.waitForSelector('.stk-capa', { state: 'detached' });
     await abrirSku(p, 'J-M');
     const t = await hoja(p);
     for (const x of ['Jogger Texcol Caballero M Negro', 'J-M', 'Stock', '5', 'en total', 'Precio 1', '42.000', 'Precio 5', '34.000', 'Tipo', 'Jogger', 'Talla', 'M']) a.ok(t.includes(x), `falta ${x}: ${t}`);
@@ -60,9 +68,6 @@ casos('inventario', [
     a.ok(!/Código de barras|Copiar/.test(t), 'sin código de barras ni botones de copiar');
     a.strictEqual(await p.$('#det-acciones:not([hidden])'), null, 'sin acciones');
     a.ok(await p.evaluate(() => document.body.classList.contains('stk-lock')), 'el fondo no hace scroll');
-    await p.goBack();
-    await p.waitForFunction(() => document.querySelectorAll('.stk-capa .sheet').length === 1, null, { timeout: 3000 });
-    a.match(await hoja(p), /Tallas.*Talla S/, 'Atrás vuelve a la prenda');
     await p.goBack();
     await p.waitForSelector('.stk-capa', { state: 'detached' });
     a.strictEqual(await p.evaluate(() => location.hash), '#/inventario');
@@ -186,9 +191,12 @@ casos('inventario', [
     a.strictEqual(await p.$$eval('.stk .tarjeta-prenda .foto img', e => e.length), 1, 'la prenda de img-0001 muestra la foto');
     a.ok(await p.$(itemDe('F-B-8') + ' .foto img'));
     a.strictEqual(await p.$(itemDe('F-N-8') + ' .foto img'), null, 'otro código sigue sin foto');
+    await abrirPrenda(p, 'F-B-8');
+    a.strictEqual(await p.$$eval('.stk-capa .fotocard img', e => e.length), 1, 'la prenda muestra la foto arriba');
+    await p.keyboard.press('Escape'); await p.waitForSelector('.stk-capa', { state: 'detached' });
     await abrirSku(p, 'F-B-8');
-    a.strictEqual(await p.$$eval('.stk-capa .fotocard img', e => e.length), 2, 'la prenda y la talla muestran la foto arriba');
-    await p.keyboard.press('Escape'); await p.keyboard.press('Escape'); await p.waitForSelector('.stk-capa', { state: 'detached' });
+    a.strictEqual(await p.$$eval('.stk-capa .fotocard img', e => e.length), 1, 'la talla muestra la foto arriba');
+    await p.keyboard.press('Escape'); await p.waitForSelector('.stk-capa', { state: 'detached' });
     await p.evaluate(() => { location.hash = '/vender'; });
     await p.waitForSelector('.tarjeta-prenda[data-nombre="Franela AS Niño Blanco"] img');
     a.deepStrictEqual(p.errores, []);

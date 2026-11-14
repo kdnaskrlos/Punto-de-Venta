@@ -80,8 +80,14 @@ casos('esqueleto', [
     const p = await env.pagina({ movil: true, ruta: '/vender', caja: true });
     a.match(await p.getAttribute('meta[name="viewport"]', 'content'), /interactive-widget=resizes-content/);
     a.ok(await p.isVisible('.side'));
-    await p.focus('.buscar-caja .inp');
+    // v1.92: la barra se esconde solo con el teclado a la vista (la pantalla visible se encoge), no por tener el foco.
+    const vp = p.viewportSize();
+    await p.focus('.buscar-caja .inp'); await p.waitForTimeout(400);
+    a.ok(await p.isVisible('.side'), 'con el foco pero sin teclado, la barra sigue');
+    await p.setViewportSize({ width: vp.width, height: vp.height - 320 }); // se abre el teclado
     await p.waitForFunction(() => getComputedStyle(document.querySelector('.side')).display === 'none', null, { timeout: 2000 });
+    await p.setViewportSize(vp); // el teclado se cierra con «Atrás» y el buscador sigue enfocado
+    await p.waitForFunction(() => getComputedStyle(document.querySelector('.side')).display !== 'none', null, { timeout: 2000 });
     await p.evaluate(() => document.activeElement.blur());
     await p.waitForFunction(() => getComputedStyle(document.querySelector('.side')).display !== 'none', null, { timeout: 2000 });
   }],

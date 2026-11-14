@@ -446,7 +446,7 @@
 .btn-escaner svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 /* v1.89 · Bordes de chips y pastillas que se veían incompletos: con el gris tan claro (#e5e9ee) y la fila en
    una posición con decimales, el navegador suavizaba el borde hasta casi borrarlo. Un gris un poco más firme. */
-.chip:not(.activo),.pill,.filtro-menu:not(.activo){border-color:#d5dbe2!important}
+.chip:not(.activo),.pill:not(button),.filtro-menu:not(.activo){border-color:#d5dbe2!important}
 .filtros,.filtro-ap,.filtro-inv{padding-top:3px!important;padding-bottom:3px!important}
 
 /* v1.89 · Usuarios: el despliegue lo anima la tarjeta completa (como en Pedidos), no el cuerpo; la flecha gira en .15 s.
@@ -478,7 +478,8 @@
 
 /* ===== v1.91 ===== */
 /* Ventana, hoja o menú abierto: la pantalla de abajo no se desplaza y no hay «deslizar para actualizar». */
-html.con-capa,html.con-capa body{overflow:hidden;overscroll-behavior:none}
+html.con-capa{overflow:hidden;overscroll-behavior:none}
+html.con-capa body{overscroll-behavior:none}
 .capa .cuerpo,.capa .caja,.stk .sheet,.menu-op{overscroll-behavior:contain}
 .solo-lector{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}
 /* Hoja del carrito (Tarjetas cobrar): barrita para arrastrar hacia abajo, como las hojas del Inventario. */
@@ -492,3 +493,65 @@ html.con-capa,html.con-capa body{overflow:hidden;overscroll-behavior:none}
 /* Ventana de tallas: la cantidad sin fondo verde (también al escribirla). */
 .ventana-tallas .tf-cant.con,.tf-cant.con,.tf-cant:focus{background:var(--surface)!important;color:var(--ink)}
 @media (hover:none){.tarjeta-prenda:hover{box-shadow:none}}
+.pill.demo:not(.on){border-color:#d5dbe2!important}
+
+/* ===== v1.92 ===== */
+/* Doble contorno: los botones .pill con una pastilla adentro (fecha de Reportes, tasas de la barra superior) ya no
+   llevan borde propio; el borde lo pone solo la pastilla de adentro. */
+button.pill:not(.demo){border-color:transparent!important}
+/* Tarjetas cobrar: nombre en una sola línea, con «…» si es largo. */
+.linea:not(.mini) .linea-info b{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;max-width:100%!important;-webkit-line-clamp:unset!important}
+/* Hoja del carrito: apertura, arrastre y cierre como la hoja del Inventario (transición en vez de animación). */
+.hoja-arrastre .caja{animation:none!important;transform:translate3d(0,100%,0);transition:transform .34s cubic-bezier(.22,.9,.28,1);will-change:transform;backface-visibility:hidden;touch-action:pan-y}
+.hoja-arrastre.in .caja{transform:translate3d(0,0,0)}
+.hoja-arrastre .fondo{animation:none!important;opacity:0;transition:opacity .28s ease;will-change:opacity}
+.hoja-arrastre.in .fondo{opacity:1}
+.hoja-arrastre.drag .caja,.hoja-arrastre.drag .fondo{transition:none!important}
+@media (prefers-reduced-motion:reduce){.hoja-arrastre .caja,.hoja-arrastre .fondo{transition:none!important}}
+/* Barra del carrito en el teléfono: parece el borde de una hoja que se abre (barrita, flecha hacia arriba). */
+@media (max-width:839px){
+  .barra-carrito{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;column-gap:12px;left:8px;right:8px;
+    min-height:64px;padding:14px 12px 10px 12px;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);text-align:left;
+    box-shadow:0 -2px 6px rgba(16,24,40,.05),0 10px 28px rgba(16,24,40,.16)}
+  .barra-carrito[hidden]{display:none!important}
+  .barra-carrito:active{transform:scale(.985)}
+  .barra-carrito .bc-agarre{position:absolute;top:5px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line)}
+  .barra-carrito .bc-ic{position:relative;width:40px;height:40px;border-radius:12px;background:var(--accent);color:#fff;display:grid;place-items:center}
+  .barra-carrito .bc-ic svg.i{width:20px;height:20px}
+  .barra-carrito .bc-n{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:99px;background:var(--sel-neu);color:#fff;font-size:11.5px;font-weight:700;display:grid;place-items:center;box-shadow:0 0 0 2px var(--surface)}
+  .barra-carrito .bc-tx{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+  .barra-carrito .bc-tx b{font-size:15px;font-weight:600}
+  .barra-carrito .bc-tx small{font-size:12.5px;color:var(--muted);font-weight:400}
+  .barra-carrito .bc-total{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
+  .barra-carrito .bc-total b{font-size:16px;font-weight:700}
+  .barra-carrito .bc-total small{font-size:11.5px;font-weight:700;color:var(--cop)}
+  .barra-carrito .bc-abrir{width:36px;height:36px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;color:var(--ink)}
+  .barra-carrito .bc-abrir svg.i{width:18px;height:18px;transform:rotate(180deg)}
+  .vista.vender .vender-main{padding-bottom:96px!important}
+}
+/* Búsqueda: lupa antes del texto y × para borrar, en todos los buscadores. */
+.buscar-caja .buscar-inp{padding-left:38px;padding-right:40px}
+.buscar-caja .buscar-inp::-webkit-search-cancel-button{display:none;-webkit-appearance:none}
+.buscar-caja > svg.i{pointer-events:none;z-index:1}
+.buscar-borrar{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;border-radius:10px;background:none;color:var(--muted);display:grid;place-items:center}
+.buscar-borrar[hidden]{display:none}
+.buscar-borrar svg.i{width:18px;height:18px}
+.ap-filtros .buscar-caja{width:100%}
+.stk .search .f .lupa{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.stk .search input{padding-left:38px!important}
+/* Detalle de prenda del Inventario: tallas sin SKU y sin tocar. */
+.stk .talla-inv{cursor:default}
+.stk .talla-inv:active{transform:none}
+/* Resumen de Apartados con el degradado de las tarjetas de Inicio (sin el ícono grande). */
+.ap-resumen{--c:var(--tono-azul);border:1px solid color-mix(in srgb,var(--c) 28%,var(--line))!important;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 9%,var(--surface)) 0%,var(--surface) 75%)!important}
+.ap-res-et{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:4px}
+.ap-res-et .chip-ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--c);background:linear-gradient(135deg,color-mix(in srgb,var(--c) 16%,var(--surface)),color-mix(in srgb,var(--c) 6%,var(--surface)));border:1px solid color-mix(in srgb,var(--c) 22%,var(--line))}
+.ap-res-et .chip-ic svg.i{width:16px;height:16px}
+.ap-res-estado{display:inline-flex;align-items:center;gap:4px}
+.ap-res-estado svg.i{width:14px;height:14px}
+.ap-res-estado.revisar,.ap-res-estado.revisar b{color:var(--r-tx)}
+.ap-res-estado.al-dia,.ap-res-estado.al-dia b{color:var(--g-tx)}
+.rango-btn{padding:0!important}
+/* Tarjetas cobrar: «Precio 1–5» y el precio por unidad en la misma fila. */
+.linea-info .lc-precio{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0}
+.linea-info .lc-precio .lc-cu{margin:0!important;font-size:12px;white-space:nowrap}

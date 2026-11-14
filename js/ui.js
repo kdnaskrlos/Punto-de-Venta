@@ -92,6 +92,18 @@ export function h(tag, attrs = {}, ...hijos) {
   return el;
 }
 
+// Campo de búsqueda (v1.92): lupa antes del texto y × para borrar (también con Esc). Devuelve la caja con el campo.
+export function campoBusqueda(input) {
+  const avisar = () => input.dispatchEvent(new Event('input', { bubbles: true }));
+  const borrar = h('button', { type: 'button', class: 'buscar-borrar', 'aria-label': 'Borrar búsqueda', hidden: true,
+    onclick: () => { input.value = ''; avisar(); input.focus(); } }, icono('x'));
+  const mostrar = () => { borrar.hidden = !input.value; };
+  input.addEventListener('input', mostrar);
+  input.addEventListener('keydown', e => { if (e.key === 'Escape' && input.value) { e.preventDefault(); e.stopPropagation(); input.value = ''; avisar(); } });
+  input.classList.add('buscar-inp');
+  return h('div', { class: 'buscar-caja' }, icono('buscar'), input, borrar);
+}
+
 // ---- Capas (ventanas y hojas): Esc y el botón atrás cierran la de arriba primero ----
 const pila = [];
 let ignorarPop = 0;
@@ -266,34 +278,38 @@ export function abrirVentana({ titulo, contenido, acciones, pantallaCompleta = f
 }
 
 // modal:false deja usar el resto de la pantalla mientras la hoja está abierta (sin fondo oscuro).
+// sinTitulo (hoja del carrito en el teléfono): se abre, se arrastra y se cierra exactamente como la hoja del
+// Inventario (v1.92): sube con transición de 340 ms, el fondo se aclara a medida que baja con el dedo y, al soltar,
+// sigue desde donde quedó hasta salir (o vuelve a su sitio).
 export function abrirHoja({ titulo, contenido, lado, modal = true, extraCab = null, sinTitulo = false }) {
   const l = lado || (matchMedia('(max-width:839px)').matches ? 'abajo' : 'derecha');
-  const el = h('div', { class: `capa hoja ${l}${modal ? '' : ' no-modal'}`, role: 'dialog', 'aria-modal': String(modal), 'aria-label': titulo },
+  const arrastre = sinTitulo && l === 'abajo';
+  const el = h('div', { class: `capa hoja ${l}${modal ? '' : ' no-modal'}${arrastre ? ' hoja-arrastre' : ''}`, role: 'dialog', 'aria-modal': String(modal), 'aria-label': titulo },
     modal ? h('div', { class: 'fondo' }) : null,
-    h('div', { class: 'caja' }, cabecera(titulo, extraCab, l === 'abajo', sinTitulo && l === 'abajo'), h('div', { class: 'cuerpo' }, contenido)));
-  const r = abrirCapa(el);
-  if (sinTitulo && l === 'abajo') arrastrarParaCerrar(el.querySelector('.caja'), el.querySelector('.cuerpo'), el.querySelector('.fondo'), r.cerrar);
-  return r;
-}
-
-// Bajar la hoja con el dedo (como la hoja del Inventario): se arrastra desde la barrita o desde el contenido
-// cuando ya está arriba del todo; si baja lo suficiente o rápido, se oculta; si no, vuelve a su sitio.
-function arrastrarParaCerrar(caja, cuerpo, fondo, cerrar) {
+    h('div', { class: 'caja' }, cabecera(titulo, extraCab, l === 'abajo', arrastre), h('div', { class: 'cuerpo' }, contenido)));
+  if (!arrastre) return abrirCapa(el);
+  const caja = el.querySelector('.caja'), fondo = el.querySelector('.fondo'), cuerpo = el.querySelector('.cuerpo');
+  const salir = () => {
+    el.classList.remove('drag', 'in'); caja.style.transform = ''; if (fondo) fondo.style.opacity = '';
+    el.style.pointerEvents = 'none';
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) el.remove(); else setTimeout(() => el.remove(), 340);
+  };
+  const r = abrirCapa(el, salir);
+  void caja.offsetHeight; el.classList.add('in');
+  // Gesto copiado de la hoja del Inventario (abrirHojaStock).
   let y0 = 0, dy = 0, off = 0, t0 = 0, on = false, can = false, raf = 0;
   const pintar = () => { raf = 0; const d = Math.max(0, dy - off); caja.style.transform = `translate3d(0,${d}px,0)`; if (fondo) fondo.style.opacity = String(Math.max(0, 1 - d / (caja.offsetHeight || 600))); };
-  const soltar = () => { cancelAnimationFrame(raf); raf = 0; caja.style.transition = 'transform .22s cubic-bezier(.22,.9,.3,1)'; caja.style.transform = ''; if (fondo) fondo.style.opacity = ''; setTimeout(() => { caja.style.transition = ''; }, 230); };
+  const soltar = () => { cancelAnimationFrame(raf); raf = 0; el.classList.remove('drag'); caja.style.transform = ''; if (fondo) fondo.style.opacity = ''; };
   caja.addEventListener('touchstart', e => { if (e.touches.length !== 1) return; y0 = e.touches[0].clientY; t0 = Date.now(); dy = 0; off = 0; on = false; can = cuerpo.scrollTop <= 0 || !!e.target.closest('.cab'); }, { passive: true });
   caja.addEventListener('touchmove', e => {
     if (!can) return; dy = e.touches[0].clientY - y0;
-    if (!on) { if (dy > 8 && cuerpo.scrollTop <= 0) { on = true; off = dy; caja.style.animation = 'none'; } else if (dy < -4) { can = false; return; } else return; }
+    if (!on) { if (dy > 8 && cuerpo.scrollTop <= 0) { on = true; off = dy; el.classList.add('drag'); } else if (dy < -4) { can = false; return; } else return; }
     e.preventDefault(); if (!raf) raf = requestAnimationFrame(pintar);
   }, { passive: false });
-  caja.addEventListener('touchend', () => {
-    if (!on) return; on = false; cancelAnimationFrame(raf); raf = 0;
-    const d = dy - off, v = d / Math.max(1, Date.now() - t0);
-    if (d > 110 || (d > 40 && v > 0.5)) cerrar(); else soltar();
-  });
+  const fin = () => { if (!on) return; on = false; const d = dy - off, v = d / Math.max(1, Date.now() - t0); if (d > 110 || (d > 40 && v > 0.5)) { soltar(); r.cerrar(); } else soltar(); };
+  caja.addEventListener('touchend', fin);
   caja.addEventListener('touchcancel', () => { if (on) { on = false; soltar(); } });
+  return r;
 }
 
 let toastT;
@@ -327,10 +343,22 @@ export function pedirMotivo({ titulo, etiqueta = 'Motivo', boton = 'Confirmar', 
 export const sin = (...xs) => xs.flat(Infinity).filter(x => x != null && x !== false);
 export { unaVez } from './nucleo/una-vez.js';
 
-// En el teléfono, mientras se escribe, la barra inferior se esconde para dejar sitio al teclado.
+// En el teléfono, mientras el teclado está abierto, la barra inferior se esconde para dejar sitio.
+// v1.92: se mira si el teclado de verdad está a la vista (la parte visible de la pantalla se encoge), no solo
+// si hay un campo con el foco: al cerrar el teclado con «Atrás» el buscador sigue enfocado y la barra se quedaba oculta.
 const ES_CAMPO = el => el && (el.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea'));
-document.addEventListener('focusin', e => { if (ES_CAMPO(e.target)) document.body.classList.add('teclado'); });
-document.addEventListener('focusout', () => setTimeout(() => { if (!ES_CAMPO(document.activeElement)) document.body.classList.remove('teclado'); }, 60));
+let altoSinTeclado = window.visualViewport ? visualViewport.height : innerHeight;
+const revisarTeclado = () => {
+  const vv = window.visualViewport, alto = vv ? vv.height : innerHeight;
+  if (!ES_CAMPO(document.activeElement)) altoSinTeclado = Math.max(alto, innerHeight);
+  else altoSinTeclado = Math.max(altoSinTeclado, alto);
+  const abierto = ES_CAMPO(document.activeElement) && (!vv || alto < altoSinTeclado - 120);
+  document.body.classList.toggle('teclado', abierto);
+};
+window.visualViewport?.addEventListener('resize', revisarTeclado);
+addEventListener('orientationchange', () => setTimeout(() => { altoSinTeclado = 0; revisarTeclado(); }, 300));
+document.addEventListener('focusin', () => setTimeout(revisarTeclado, 300));
+document.addEventListener('focusout', () => setTimeout(revisarTeclado, 60));
 
 // Montos largos bajan un paso de la escala de letra (sin tamaños intermedios):
 // hasta 9 caracteres normal, 10–11 «l», 12 o más «xl».

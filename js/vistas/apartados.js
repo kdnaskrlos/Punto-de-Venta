@@ -1,6 +1,7 @@
 // Apartados (§10): apartar desde el carrito, abonar, completar y cancelar.
 import { abrirHojaStock } from './inventario.js';
-import { h, icono, abrirVentana, toast, pedirMotivo, despuesDeCerrar, largo } from '../ui.js';
+import { h, icono, abrirVentana, toast, pedirMotivo, despuesDeCerrar, largo, campoBusqueda } from '../ui.js';
+import { coincide } from '../nucleo/busqueda.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { registrarVista } from '../app.js';
@@ -113,13 +114,13 @@ function tarjeta(ctx, ap, filtro) {
   const viejo = pendiente && dias >= 15;
   const abonado = ap.total - ap.saldo;
   return h('button', { type: 'button', class: `apartado ap-${ap.estado}${viejo ? ' viejo' : ''}`, 'data-id': ap.id, onclick: () => abrirDetalle(ctx, ap) },
-    // Dos líneas: 1) nombre | «Abono» | «Saldo»; 2) fecha / «Hace N días» | monto abonado | saldo.
+    // Dos líneas: 1) nombre | «Abono» | «Saldo»; 2) fecha / «N días» (sin «Hace» desde la v1.92) | monto abonado | saldo.
     // Abono y saldo alineados a la derecha, con una línea divisoria continua entre ellos.
     h('b', { class: 'ap-nombre' }, nombre),
     h('span', { class: 'ap-et ap-et-abono' }, 'Abono'),
     h('span', { class: 'ap-et ap-et-saldo' }, pendiente ? 'Saldo' : etiqueta),
     h('span', { class: 'ap-fecha' }, icono('calendario'), diaCorto(ap.fecha), h('span', { class: 'ap-sep', 'aria-hidden': 'true' }, '/'),
-      h('span', { class: 'ap-hace' + (viejo ? ' viejo' : '') }, dias <= 0 ? 'Hoy' : `Hace ${dias} ${dias === 1 ? 'día' : 'días'}`)),
+      h('span', { class: 'ap-hace' + (viejo ? ' viejo' : '') }, dias <= 0 ? 'Hoy' : `${dias} ${dias === 1 ? 'día' : 'días'}`)),
     h('b', { class: 'num ap-abono' }, fmtCop(abonado)),
     h('b', { class: 'num ap-saldo' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total)),
     h('span', { class: 'ap-linea', 'aria-hidden': 'true' }));
@@ -183,28 +184,29 @@ registrarVista('/apartados', {
     const FILTROS = [['pendiente', 'Pendientes'], ['completado', 'Completados'], ['cancelado', 'Cancelados'], ['todos', 'Todos']];
     const seg = h('div', { class: 'filtros filtro-ap', role: 'group', 'aria-label': 'Filtrar apartados' });
     const resumen = h('div', { class: 'ap-resumen' });
-    const buscar = h('input', { class: 'inp', id: 'buscar-ap', type: 'search', 'aria-label': 'Buscar cliente o teléfono', placeholder: 'Buscar cliente o teléfono', autocomplete: 'off' });
+    const buscar = h('input', { class: 'inp', id: 'buscar-ap', type: 'search', 'aria-label': 'Buscar cliente, teléfono o prenda', placeholder: 'Buscar cliente, teléfono o prenda', autocomplete: 'off' });
     const caja = h('div', { class: 'lista-ap' });
-    const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const pintar = () => {
       const pend = lista.filter(a => a.estado === 'pendiente');
       const porCobrar = pend.reduce((s, a) => s + a.saldo, 0);
       const viejos = pend.filter(a => diasDesde(a.fecha) >= 15).length;
       resumen.replaceChildren(
-        h('div', { class: 'ap-res-cifra' }, h('span', { class: 'nota' }, 'Por cobrar'), h('b', { class: 'num' }, fmtCop(porCobrar))),
+        // v1.92: ícono antes de «Por cobrar»; estado «ícono · cantidad · por revisar» (apartados con 15 días o más).
+        h('div', { class: 'ap-res-cifra' }, h('span', { class: 'ap-res-et' }, h('span', { class: 'chip-ic' }, icono('monedas')), 'Por cobrar'), h('b', { class: 'num' }, fmtCop(porCobrar))),
         h('div', { class: 'ap-res-sub' }, h('span', {}, h('b', { class: 'num' }, String(pend.length)), pend.length === 1 ? ' pendiente' : ' pendientes'),
-          viejos ? h('span', { class: 'ap-res-viejos' }, icono('alerta'), h('b', { class: 'num' }, String(viejos)), ' con +15 días') : null));
+          h('span', { class: 'ap-res-estado ' + (viejos ? 'revisar' : 'al-dia'), title: 'Apartados con 15 días o más' }, icono(viejos ? 'alerta' : 'check'), h('b', { class: 'num' }, String(viejos)), ' por revisar')));
       const cuenta = k => (k === 'todos' ? lista.length : lista.filter(a => a.estado === k).length);
       seg.replaceChildren(...FILTROS.map(([k, t]) => h('button', { type: 'button', class: 'chip' + (k === filtro ? ' activo' : ''), 'aria-pressed': String(k === filtro), onclick: () => { filtro = k; pintar(); } }, t, k === 'pendiente' && cuenta(k) ? h('span', { class: 'cuenta' }, String(cuenta(k))) : null)));
-      const q = norm(busqueda);
-      const vis = lista.filter(a => (filtro === 'todos' || a.estado === filtro) && (!q || norm(`${a.cliente?.nombre} ${a.cliente?.telefono}`).includes(q)))
+      // Búsqueda (v1.92): cliente, teléfono (con o sin 0 / +58, espacios o guiones) y prendas del apartado.
+      const q = busqueda.trim();
+      const vis = lista.filter(a => (filtro === 'todos' || a.estado === filtro) && (!q || coincide([a.cliente?.nombre, a.cliente?.telefono, ...(a.lineas || []).map(l => l.nombre)].filter(Boolean).join(' '), q)))
         .sort((a, b) => b.fecha.localeCompare(a.fecha));
       caja.replaceChildren(...(vis.length ? vis.map(a => tarjeta(ctx, a, filtro)) : [h('div', { class: 'vacio' }, icono('apartado'), h('p', {}, busqueda ? 'Ningún apartado coincide' : lista.length ? (filtro === 'pendiente' ? 'No hay apartados pendientes' : 'No hay apartados aquí') : 'Todavía no hay apartados'),
         !lista.length ? h('p', { class: 'nota' }, 'Se crean desde el carrito con «Apartar»: las prendas quedan reservadas para el cliente.') : null)]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
     const quitar = ctx.almacen.escuchar('apartados', l => { lista = l; pintar(); });
-    cont.append(resumen, h('div', { class: 'ap-filtros' }, buscar, seg), caja);
+    cont.append(resumen, h('div', { class: 'ap-filtros' }, campoBusqueda(buscar), seg), caja);
     pintar();
     return quitar;
   },

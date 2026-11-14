@@ -422,3 +422,14 @@ Suite final: npm test 99/99 · e2e 59/59
   - Panel cobrar (hoja del carrito en el teléfono): barrita para arrastrar en vez de la flecha; se oculta arrastrando hacia abajo (desde la barrita o desde el contenido arriba del todo; un arrastre corto vuelve).
   - Todo el sistema: con una ventana, hoja o menú abierto (no las hojas no modales) la pantalla de abajo no se desplaza (html.con-capa: overflow oculto, overscroll-behavior none, sin «deslizar para actualizar»; el dedo sobre lo que no se desplaza no mueve el fondo; sin salto por la barra de desplazamiento en la computadora).
   - Contornos incompletos: se quitó la regla vieja W3 de Apartados (filtros 2 × 2) que borraba el borde derecho e inferior de algunos chips. Revisión con herramienta de bordes cortados en todas las pantallas, la ventana de tallas y la hoja del carrito: sin más casos.
+- v1.92 (aprobado con boceto HTML; desde aquí los bocetos van siempre en HTML: elementos reales de la app con su CSS):
+  - Doble contorno: los botones .pill con una pastilla adentro (fecha de Reportes, tasas de la barra superior) ya no llevan borde propio (la regla de material.css que forzaba borde en .pill ahora excluye los botones).
+  - Tarjetas cobrar: nombre en una línea con «…»; sin la tela (color · talla); «Tarifa» pasa a «Precio» («Precio 1–5») y el precio por unidad («42.000 c/u») va al lado, no debajo del subtotal.
+  - Barra del carrito (teléfono): parece el borde de una hoja (barrita, carrito con la cantidad, «Ver carrito», total y flecha hacia arriba); se abre al tocarla o deslizándola hacia arriba.
+  - Panel cobrar: abre, se arrastra y cierra con el mismo mecanismo de la hoja del Inventario (transición de 340 ms; al soltar sigue desde donde quedó).
+  - Búsqueda (js/nucleo/busqueda.js) en Vender, Inventario y Apartados: palabras en cualquier orden, sin tildes ni mayúsculas, palabras de 1–2 letras como comienzo de palabra (tallas), plurales, códigos sin guiones, teléfonos con 0 / +58 / espacios / guiones; Apartados también por la prenda. Todos los buscadores con lupa y × para borrar (y Esc).
+  - Ventana de tallas: «Agregar al carrito» sin el contador de unidades.
+  - Panel de prenda del Inventario: tallas sin SKU y sin tocarlas (la hoja de la talla se abre con su código: buscador + Enter o escáner).
+  - Barra inferior: se esconde solo mientras el teclado está a la vista (visualViewport), no por tener un campo enfocado; antes quedaba oculta si se cerraba el teclado con «Atrás».
+  - Filtros: el bloqueo de desplazamiento de la v1.91 ponía overflow oculto también en body y la cabecera fija del Inventario se salía de la pantalla al abrir un menú; ahora solo en html.
+  - Apartados: resumen con el degradado de Inicio, ícono antes de «Por cobrar» y estado «ícono · cantidad · por revisar» (15 días o más; rojo con alerta o verde con ✓); en las tarjetas sin «Hace» en el contador de días.

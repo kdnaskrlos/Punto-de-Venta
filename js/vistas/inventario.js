@@ -6,6 +6,7 @@ import { abrirEscaner } from './escaner.js';
 import { compararTallas } from '../nucleo/tipo-prenda.js';
 import { registrarVista } from '../app.js';
 import { tarjetaPrenda } from './vender.js';
+import { coincide, prepararTexto } from '../nucleo/busqueda.js';
 import { leerInventario, planImportacion, detalleCambios } from '../nucleo/importar.js';
 import { emparejarFotos } from '../nucleo/fotos.js';
 import { fmtCop } from '../nucleo/dinero.js';
@@ -15,7 +16,6 @@ import { comprimirFoto, CLAVE_TOKEN } from '../datos/github-fotos.js';
 export const URL_INVENTARIO = 'https://kdnaskrlos.github.io/App-Inventario/data/inventario.json';
 const MOTIVOS = ['Conteo', 'Daño', 'Regalo', 'Llegó del taller', 'Otro'];
 const MOTIVO_TEXTO = { inicial: 'Existencia inicial', importación: 'Importación', venta: 'Venta', apartado: 'Apartado', anulación: 'Anulación', cancelación: 'Cancelación' };
-const norm = s => String(s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 
 
@@ -234,6 +234,7 @@ const TEMA = 'light';
 try { localStorage.removeItem('pos.temaInventario'); } catch { /* sin almacenamiento */ }
 
 const SVG = {
+  lupa: '<svg class="lupa" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
   sync: '<svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 0 1-14.7 5.8L3.5 15.5"/><path d="M3.5 12a8.5 8.5 0 0 1 14.7-5.8l2.3 2.3"/><path d="M20.5 3.5v5h-5M3.5 20.5v-5h5"/></svg>',
   datos: '<svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4.5 14v4.5a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V14"/></svg>',
   scan: '<svg viewBox="0 0 24 24"><path d="M3.5 8V5.5a2 2 0 0 1 2-2H8M16 3.5h2.5a2 2 0 0 1 2 2V8M20.5 16v2.5a2 2 0 0 1-2 2H16M8 20.5H5.5a2 2 0 0 1-2-2V16M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>',
@@ -353,7 +354,7 @@ function abrirPrenda(ctx, clave, costos, tema, abrirTalla) {
   ${foto ? `<div class="card fotocard"><img src="${esc(foto)}" alt="Foto de ${esc(x.nombre)}"></div>` : ''}
   <div class="card"><h3>Stock</h3><div class="big"><div class="stk ${x.st}"><b>${fmtN(x.total)}</b><span>${x.st === 'out' ? 'agotado' : x.st === 'low' ? 'stock bajo' : 'en total'}</span></div>
    <dl class="kv" style="flex:1"><dt>Unidades</dt><dd class="mono">${fmtN(x.total)}</dd><dt>Tallas</dt><dd class="mono">${x.vs.length}</dd></dl></div></div>
-  <div class="card"><h3>Tallas</h3><div class="tallas-inv">${x.vs.map(v => { const k = st(v); return `<button type="button" class="talla-inv" data-sku="${esc(v.sku)}"><span class="ti-t"><b>${esc(v.talla ? 'Talla ' + v.talla : 'Talla única')}</b><span>${esc(v.sku)}</span></span><span class="ti-u ${k}"><b>${k === 'out' ? 'Agotada' : fmtN(v.existencia) + ' uds'}</b><span>mín. ${fmtN(v.minimo || 0)}</span></span>${SVG.ir}</button>`; }).join('')}</div></div>
+  <div class="card"><h3>Tallas</h3><div class="tallas-inv">${x.vs.map(v => { const k = st(v); return `<div class="talla-inv" data-sku="${esc(v.sku)}"><span class="ti-t"><b>${esc(v.talla ? 'Talla ' + v.talla : 'Talla única')}</b></span><span class="ti-u ${k}"><b>${k === 'out' ? 'Agotada' : fmtN(v.existencia) + ' uds'}</b><span>mín. ${fmtN(v.minimo || 0)}</span></span></div>`; }).join('')}</div></div>
   <div class="card"><h3>Precios${oferta}</h3><div class="prices">${pri.map(o => `<div><span>Precio ${o.i + 1}</span><b>${o.v ? fmtCop(o.v) : '—'}</b></div>`).join('')}</div></div>
   <div class="card"><h3>Ficha</h3><dl class="kv">${kv('Tipo', p.tipo)}${kv('Tela', p.tela)}${kv('Color', p.color)}${kv('Género', p.genero)}${kv('Marca', p.marca)}${kv('Modelo', p.modelo)}${kv('Código de imagen', p.id_imagen)}
    ${verCostos ? `<dt>Costo</dt><dd><button class="reveal" type="button" data-cost="${costo != null ? fmtCop(costo) : '—'}">Mostrar</button></dd>` : ''}</dl></div>
@@ -366,7 +367,6 @@ function abrirPrenda(ctx, clave, costos, tema, abrirTalla) {
   };
   const hoja = abrirHojaStock({ tema, llenar: pintar });
   hoja.sh.addEventListener('click', e => {
-    const t = e.target.closest('.talla-inv'); if (t) { abrirTalla(t.dataset.sku); return; }
     const co = e.target.closest('[data-cost]'); if (co) { co.outerHTML = `<b class="mono">${esc(co.dataset.cost)}</b>`; }
   });
   return { repintar: () => pintar(hoja.sh), cerrar: hoja.cerrar, sh: hoja.sh };
@@ -400,7 +400,7 @@ registrarVista('/inventario', {
   <header class="top${admSinc || admFotos ? ' con-adm' : ''}">
     <div class="seg" id="seg" role="group" aria-label="Estado del stock"></div>
     <div class="search">
-      <div class="f"><input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Nombre, SKU o código" aria-label="Buscar por nombre, SKU o código"><button class="clr" id="qc" type="button" aria-label="Borrar búsqueda" hidden>×</button></div>
+      <div class="f">${SVG.lupa}<input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Nombre, SKU o código" aria-label="Buscar por nombre, SKU o código"><button class="clr" id="qc" type="button" aria-label="Borrar búsqueda" hidden>×</button></div>
       <button class="scanbtn" id="bScan" type="button" aria-label="Escanear código de barras">${SVG.scan}</button>
     </div>
     <div class="filters">
@@ -437,10 +437,10 @@ registrarVista('/inventario', {
     };
     // Filtra prendas: una prenda entra si alguna de sus tallas coincide con la búsqueda.
     const filtered = G => {
-      const terms = norm(F.q).split(/\s+/).filter(Boolean);
+      const q = F.q.trim(); // v1.92: la misma búsqueda de toda la app (nucleo/busqueda.js)
       const a = G.filter(x => {
         if (F.st !== 'all' && x.st !== F.st) return false; if (F.cat && x.p.genero !== F.cat) return false; if (F.brand && x.p.marca !== F.brand) return false;
-        if (!terms.length) return true; return x.vs.some(p => { const t = norm(textoBusqueda(p)); return terms.every(w => t.includes(w)); });
+        if (!q) return true; return x.vs.some(p => coincide(prepararTexto(textoBusqueda(p)), q));
       });
       const nm = x => x.nombre;
       const cmp = { name: (x, y) => nm(x).localeCompare(nm(y), 'es', { numeric: true }), sku: (x, y) => x.p.sku.localeCompare(y.p.sku, 'es', { numeric: true }), lo: (x, y) => x.total - y.total || nm(x).localeCompare(nm(y), 'es'), hi: (x, y) => y.total - x.total || nm(x).localeCompare(nm(y), 'es') }[F.sort];
@@ -487,6 +487,7 @@ registrarVista('/inventario', {
     let qt;
     $('#q').addEventListener('input', e => { clearTimeout(qt); qt = setTimeout(() => { F.q = e.target.value; F.shown = 80; render(); }, 120); });
     $('#q').addEventListener('keydown', e => {
+      if (e.key === 'Escape' && e.target.value) { e.preventDefault(); e.stopPropagation(); $('#qc').click(); return; }
       if (e.key !== 'Enter') return;
       e.preventDefault(); clearTimeout(qt); F.q = e.target.value; const v = e.target.value.trim();
       if (/^\d{8,14}$/.test(v) || (/^[A-Za-z0-9_.-]+$/.test(v) && filas().some(p => p.sku.toLowerCase() === v.toLowerCase()))) lookup(v, true); else render();

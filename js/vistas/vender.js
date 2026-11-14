@@ -1,7 +1,8 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
 import { abrirEscaner, ICONO_ESCANER } from './escaner.js';
 import { buscarCodigo } from './inventario.js';
-import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo } from '../ui.js';
+import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, campoBusqueda } from '../ui.js';
+import { coincide, prepararTexto } from '../nucleo/busqueda.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
 import { titulo, grupoDe, textoBusqueda, fotoDe } from '../nucleo/producto.js';
@@ -12,7 +13,6 @@ import { aplicarDescuento, requiereAutorizacion } from '../nucleo/descuento.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { desdeCop } from '../nucleo/tasas.js';
 
-const norm = s => String(s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
 export function carrito(ctx) {
   ctx.carrito ||= { lineas: [], descuento: null, autorizacion: null };
@@ -89,7 +89,8 @@ function contador(ctx, l) {
 function lineaCarrito(ctx, l, aj, compacta) {
   const p = ctx.productos[l.sku];
   const g = { titulo: titulo(p), tipo: p.tipo, genero: p.genero, foto: fotoDe(p, ctx.imagenes) };
-  const variante = [p.color, p.tela, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku;
+  // v1.92: Tarjetas cobrar sin la tela (color y talla).
+  const variante = [p.color, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku;
   const alternar = () => { const c = carrito(ctx); c.abierta = c.abierta === l.sku ? null : l.sku; window.dispatchEvent(new CustomEvent('pos:carrito')); };
   if (compacta) return h('div', { class: 'linea mini', 'data-sku': l.sku, role: 'button', tabindex: '0', 'aria-expanded': 'false', onclick: alternar, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } } },
     h('span', { class: 'lc-q num' }, String(l.cantidad)),
@@ -102,12 +103,14 @@ function lineaCarrito(ctx, l, aj, compacta) {
     h('div', { class: 'linea-info' },
       h('b', {}, g.titulo),
       h('span', { class: 'lc-chip' }, variante),
-      h('span', { class: 'lc-chip tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Precio de oferta' : `Tarifa ${etiquetaTramo(l.tramo, aj.tramos)}`)),
+      // v1.92: «Precio 1–5» (antes «Tarifa») y el precio por unidad al lado.
+      h('span', { class: 'lc-precio' },
+        h('span', { class: 'lc-chip tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Precio de oferta' : `Precio ${etiquetaTramo(l.tramo, aj.tramos)}`),
+        l.cantidad > 1 ? h('span', { class: 'nota num lc-cu' }, `${fmtCop(l.precioUnit)} c/u`) : null)),
     h('div', { class: 'linea-der' },
       contador(ctx, l),
       h('span', { class: 'lc-pie' },
-        h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal)), h('span', { class: 'c-cop moneda' }, 'COP')),
-        l.cantidad > 1 ? h('span', { class: 'nota num lc-cu' }, `${fmtCop(l.precioUnit)} c/u`) : null)));
+        h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal)), h('span', { class: 'c-cop moneda' }, 'COP')))));
 }
 
 // Cambia el carrito con transiciones suaves (como en Pedidos): las líneas cambian de alto, las nuevas
@@ -297,7 +300,7 @@ function abrirTallas(ctx, g) {
     const total = Object.values(cuentas).reduce((x, y) => x + y, 0);
     const cambio = variantes.some(p => cuentas[p.sku] !== antes[p.sku]);
     const habia = Object.values(antes).some(Boolean);
-    agregar.replaceChildren(icono('carrito'), habia ? 'Actualizar carrito' : 'Agregar al carrito', ...(total ? [h('span', { class: 'tf-total' }, ` · ${total}`)] : []));
+    agregar.replaceChildren(icono('carrito'), habia ? 'Actualizar carrito' : 'Agregar al carrito'); // v1.92: sin el contador de unidades
     agregar.disabled = !cambio;
   };
   pintar();
@@ -367,7 +370,10 @@ registrarVista('/vender', {
       repintar();
       window.addEventListener('pos:carrito', repintar);
       hj.alCerrar = () => window.removeEventListener('pos:carrito', repintar);
-    } });
+    }, type: 'button', 'aria-label': 'Abrir carrito' });
+    // v1.92: la barra parece el borde de la hoja del carrito (barrita, flecha hacia arriba); también se abre deslizando hacia arriba.
+    { let y0 = null; barra.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
+      barra.addEventListener('touchmove', e => { if (y0 != null && y0 - e.touches[0].clientY > 24) { y0 = null; barra.click(); } }, { passive: true }); }
     const sinCaja = h('div', { class: 'aviso sin-caja' }, icono('cartera'), h('span', {}, 'Abre tu caja para vender'), h('span', { class: 'sp' }), h('button', { class: 'btn primary', onclick: () => abrirCajaVentana(ctx) }, 'Abrir caja'));
 
     // El mismo escáner del Inventario (cámara, foto del código o escribirlo / lector USB): lo leído se agrega al carrito.
@@ -389,8 +395,9 @@ registrarVista('/vender', {
       const pos = g => { const i = ORDEN_GENERO.indexOf(g); return i < 0 ? ORDEN_GENERO.length : i; };
       const generos = [...new Set(todos.map(g => g.genero).filter(Boolean))].sort((a, b) => pos(a) - pos(b) || a.localeCompare(b, 'es'));
       filtros.replaceChildren(...['', ...generos].map(c => h('button', { class: 'chip' + (c === genero ? ' activo' : ''), onclick: () => { genero = c; pintar(); } }, c || 'Todo')));
-      const q = norm(busqueda);
-      const vis = todos.filter(g => (!genero || g.genero === genero) && (!q || g.variantes.some(p => norm(textoBusqueda(p)).includes(q))));
+      // Búsqueda (v1.92): palabras en cualquier orden, sin tildes, plurales, tallas y códigos (nucleo/busqueda.js).
+      const q = busqueda.trim();
+      const vis = todos.filter(g => (!genero || g.genero === genero) && (!q || g.variantes.some(p => coincide(prepararTexto(textoBusqueda(p)), q))));
       rejilla.replaceChildren(...(vis.length ? vis.map(g => tarjeta(ctx, g)) : [h('div', { class: 'vacio' }, q ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos. El administrador los importa desde la Carga Masiva.')]));
       pintarCarrito();
     }
@@ -400,14 +407,18 @@ registrarVista('/vender', {
       ponerCarrito(lado, panelCarrito(ctx));
       const r = resumenCarrito(ctx);
       barra.hidden = !r.unidades;
-      barra.replaceChildren(h('span', {}, `${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`), h('span', { class: 'num' }, `${fmtCop(r.total)} · Ver`));
+      barra.replaceChildren(h('span', { class: 'bc-agarre', 'aria-hidden': 'true' }),
+        h('span', { class: 'bc-ic' }, icono('carrito'), h('span', { class: 'bc-n num' }, String(r.unidades))),
+        h('span', { class: 'bc-tx' }, h('b', {}, 'Ver carrito'), h('small', {}, `${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`)),
+        h('span', { class: 'bc-total' }, h('b', { class: 'num' }, fmtCop(r.total)), h('small', {}, 'COP')),
+        h('span', { class: 'bc-abrir' }, icono('abajo')));
       sinCaja.hidden = !!ctx.miCaja || !ctx.puedeVer('cajaFisica');
     }
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
     buscar.addEventListener('keydown', e => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
-      if (agregarPorCodigo(buscar.value)) { buscar.value = ''; busqueda = ''; pintar(); }
+      if (agregarPorCodigo(buscar.value)) { buscar.value = ''; buscar.dispatchEvent(new Event('input', { bubbles: true })); }
       else buscar.blur();
     });
     const teclas = e => {
@@ -420,7 +431,7 @@ registrarVista('/vender', {
     window.addEventListener('pos:carrito', pintarCarrito);
 
     cont.classList.add('vender');
-    cont.append(h('div', { class: 'vender-main' }, sinCaja, h('div', { class: 'buscador' }, h('div', { class: 'buscar-caja' }, icono('buscar'), buscar), escanear), filtros, rejilla), lado, barra);
+    cont.append(h('div', { class: 'vender-main' }, sinCaja, h('div', { class: 'buscador' }, campoBusqueda(buscar), escanear), filtros, rejilla), lado, barra);
     pintar();
     if (!esTelefono()) setTimeout(() => buscar.focus(), 50);
     return () => { document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
