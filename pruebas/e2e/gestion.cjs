@@ -321,4 +321,37 @@ casos('gestion', [
     await p.waitForSelector('.lista-mas');
     a.strictEqual(await p.$('#modo-prueba'), null);
   }],
+  ['Modo demo (teléfono): junto a Modo prueba; ver como vendedora quita lo de gestión y «Salir» vuelve', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/mas' });
+    a.ok(await p.$('.modo-prueba #modo-prueba + #modo-demo'), 'al lado de Modo prueba');
+    await p.click('#modo-demo');
+    await p.click('.demo-roles [data-rol="vendedora"]');
+    await p.waitForSelector('#aviso-demo:not([hidden])');
+    a.match(await p.textContent('#aviso-demo'), /Modo demo · Vendedora/);
+    await p.waitForFunction(() => location.hash === '#/inicio' && document.querySelector('.vista')?.dataset.ruta === '/inicio');
+    await p.evaluate(() => { location.hash = '/mas'; });
+    await p.waitForSelector('.lista-mas');
+    a.strictEqual(await p.$('#modo-prueba'), null, 'como vendedora no ve las pastillas');
+    a.ok(!(await p.textContent('.lista-mas')).includes('Ajustes'), 'ni Ajustes');
+    await p.evaluate(() => { location.hash = '/ajustes'; });
+    await p.waitForFunction(() => location.hash === '#/inicio');
+    await p.click('#salir-demo');
+    await p.waitForSelector('#aviso-demo[hidden]', { state: 'attached' });
+    await p.evaluate(() => { location.hash = '/mas'; });
+    await p.waitForSelector('#modo-demo');
+    a.deepStrictEqual(p.errores, []);
+  }],
+  ['Modo demo (computadora): en Ajustes; como encargada ve costos pero no Usuarios ni Ajustes', async (env, a) => {
+    const p = await env.pagina({ ruta: '/ajustes' });
+    await p.click('#modo-demo');
+    await p.click('.demo-roles [data-rol="encargada"]');
+    await p.waitForSelector('#aviso-demo:not([hidden])');
+    const nav = await p.$$eval('.side .nav', ns => ns.map(n => n.getAttribute('aria-label')));
+    a.ok(!nav.includes('Usuarios') && !nav.includes('Ajustes'), nav.join(','));
+    await p.evaluate(() => { location.hash = '/inventario'; });
+    await p.click('.grupo-inv[data-nombre="Jogger Texcol Caballero Negro"]');
+    a.ok((await p.textContent('.capa')).includes('Costo'), 'la encargada ve costos');
+    a.strictEqual(await p.$('#sinc-abrir'), null, 'sin sincronizar');
+    a.deepStrictEqual(p.errores, []);
+  }],
 ]);

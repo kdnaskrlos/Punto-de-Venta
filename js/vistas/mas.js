@@ -1,6 +1,6 @@
 // "Más" en el teléfono: accesos que no caben en la barra inferior. "Mi cuenta" está dentro de Usuarios.
 import { h, icono } from '../ui.js';
-import { registrarVista, navegar } from '../app.js';
+import { registrarVista, navegar, pastillaModoDemo } from '../app.js';
 import { abrirVentana, toast, unaVez } from '../ui.js';
 import { generarEjemplos } from '../nucleo/ejemplos.js';
 
@@ -23,23 +23,30 @@ registrarVista('/mas', {
         admin ? ir('/ajustes', 'ajustes', 'var(--tono-turquesa)', 'Ajustes', 'Tasas, pagos y recibo') : null),
     ].filter(Boolean));
     if (!admin) return undefined;
-    // Modo prueba (como en Pedidos): llena la app con ejemplos para ver cómo se ve; se quitan sin tocar lo real.
-    const boton = h('button', { class: 'pill demo', id: 'modo-prueba' });
-    let hay = false;
-    const pintar = () => { boton.classList.toggle('on', hay); boton.replaceChildren(icono('matraz'), hay ? 'Modo prueba · activo' : 'Modo prueba'); };
-    boton.onclick = e => unaVez(e.currentTarget, async () => {
-      if (!hay) {
-        const r = await ctx.almacen.cargarEjemplos(generarEjemplos({ productos: ctx.productos, formas: ctx.ajustes.formasPago, tasas: ctx.tasas }));
-        toast(r.ok ? 'Ejemplos cargados' : 'No se pudieron cargar', { malo: !r.ok });
-        return;
-      }
-      const si = h('button', { class: 'btn danger', id: 'quitar-ejemplos' }, icono('borrar'), 'Quitar ejemplos');
-      const v = abrirVentana({ titulo: 'Quitar modo prueba', contenido: h('p', {}, 'Se borran las ventas, apartados, clientes y prendas de ejemplo. Tus datos reales no se tocan.'),
-        acciones: h('div', { class: 'acciones' }, h('button', { class: 'btn', onclick: () => v.cerrar() }, 'Cancelar'), si) });
-      si.onclick = ev => unaVez(ev.currentTarget, async () => { const r = await ctx.almacen.quitarEjemplos(); v.cerrar(); toast(r.ok ? 'Ejemplos quitados' : 'No se pudieron quitar', { malo: !r.ok }); })();
-    })();
-    pintar();
-    cont.append(h('div', { class: 'modo-prueba' }, boton));
-    return ctx.almacen.escuchar('apartados', l => { hay = l.some(a => a.demo); pintar(); });
+    const { el, quitar } = bloquePrueba(ctx);
+    cont.append(el);
+    return quitar;
   },
 });
+
+// Pastillas «Modo prueba» (llena la app con ejemplos) y «Modo demo» (ver como vendedora o encargada).
+// Están en Más (teléfono) y al pie de Ajustes (computadora).
+export function bloquePrueba(ctx) {
+  // Modo prueba (como en Pedidos): llena la app con ejemplos para ver cómo se ve; se quitan sin tocar lo real.
+  const boton = h('button', { class: 'pill demo', id: 'modo-prueba' });
+  let hay = false;
+  const pintar = () => { boton.classList.toggle('on', hay); boton.replaceChildren(icono('matraz'), hay ? 'Modo prueba · activo' : 'Modo prueba'); };
+  boton.onclick = e => unaVez(e.currentTarget, async () => {
+    if (!hay) {
+      const r = await ctx.almacen.cargarEjemplos(generarEjemplos({ productos: ctx.productos, formas: ctx.ajustes.formasPago, tasas: ctx.tasas }));
+      toast(r.ok ? 'Ejemplos cargados' : 'No se pudieron cargar', { malo: !r.ok });
+      return;
+    }
+    const si = h('button', { class: 'btn danger', id: 'quitar-ejemplos' }, icono('borrar'), 'Quitar ejemplos');
+    const v = abrirVentana({ titulo: 'Quitar modo prueba', contenido: h('p', {}, 'Se borran las ventas, apartados, clientes y prendas de ejemplo. Tus datos reales no se tocan.'),
+      acciones: h('div', { class: 'acciones' }, h('button', { class: 'btn', onclick: () => v.cerrar() }, 'Cancelar'), si) });
+    si.onclick = ev => unaVez(ev.currentTarget, async () => { const r = await ctx.almacen.quitarEjemplos(); v.cerrar(); toast(r.ok ? 'Ejemplos quitados' : 'No se pudieron quitar', { malo: !r.ok }); })();
+  })();
+  pintar();
+  return { el: h('div', { class: 'modo-prueba' }, boton, pastillaModoDemo()), quitar: ctx.almacen.escuchar('apartados', l => { hay = l.some(a => a.demo); pintar(); }) };
+}

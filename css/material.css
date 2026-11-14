@@ -370,3 +370,13 @@
 /* v1.73 · Foto por código de imagen en el detalle de la prenda */
 .foto-grupo{display:flex;align-items:center;gap:12px}
 .foto-grupo .miniatura{width:72px;height:72px;border-radius:12px}
+
+/* v1.77 · Modo demo: ver la app como vendedora o encargada */
+.modo-prueba{flex-wrap:wrap;gap:8px}
+.aviso-demo{position:sticky;top:56px;z-index:14;display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--y-bg);border-bottom:1px solid var(--y-bd);color:var(--y-tx);font-size:13px}
+.aviso-demo[hidden]{display:none}
+.aviso-demo > span{flex:1;min-width:0}
+.aviso-demo .nota{color:inherit;opacity:.85}
+.aviso-demo svg.i{width:16px;height:16px;flex:none}
+.demo-roles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.demo-roles .btn{min-height:52px;justify-content:center}

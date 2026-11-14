@@ -1,5 +1,5 @@
 // Arranque de la app: navegación, cabecera, enrutador por hash y atajos.
-import { h, icono, logo, abrirHoja, esTelefono } from './ui.js';
+import { h, icono, logo, abrirHoja, abrirVentana, esTelefono, despuesDeCerrar } from './ui.js';
 import { APP_VERSION } from './version.js';
 import { puede } from './nucleo/permisos.js';
 import { opcionesCuenta } from './vistas/cuenta.js';
@@ -53,7 +53,11 @@ export const ctx = {
   sesion: null,
   tasas: { copPorUsd: null, bsPorUsd: null },
   ajustes: {},
-  puedeVer: accion => !!ctx.sesion && puede(ctx.sesion.rol, accion),
+  // Modo demo: el administrador ve la app con los permisos de otro rol (vistaRol). Los datos y lo que
+  // se guarda siguen siendo los reales; solo cambia qué pantallas, botones y cifras se muestran.
+  vistaRol: null,
+  rol: () => ctx.vistaRol || ctx.sesion?.rol,
+  puedeVer: accion => !!ctx.sesion && puede(ctx.rol(), accion),
   abrirCalculadora: () => alAbrirCalculadora(),
 };
 
@@ -61,7 +65,31 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 export function fechaCorta(d = new Date()) { return `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`; }
 
-let raiz, contenedor, barra, cabecera;
+let raiz, contenedor, barra, cabecera, avisoDemo;
+
+export const ROLES_DEMO = [['vendedora', 'Vendedora'], ['encargada', 'Encargada']];
+const nombreRol = r => (ROLES_DEMO.find(([k]) => k === r) || [, r])[1];
+export function verComo(rol) {
+  ctx.vistaRol = rol || null;
+  pintarAvisoDemo();
+  if (rutaActual() === '/inicio') montar(); else location.replace('#/inicio');
+}
+function pintarAvisoDemo() {
+  if (!avisoDemo) return;
+  avisoDemo.hidden = !ctx.vistaRol;
+  avisoDemo.replaceChildren(...(ctx.vistaRol ? [icono('usuario'), h('span', {}, h('b', {}, `Modo demo · ${nombreRol(ctx.vistaRol)}`), h('span', { class: 'nota' }, ' Lo que hagas se guarda de verdad.')),
+    h('button', { class: 'btn chico', id: 'salir-demo', onclick: () => verComo(null) }, 'Salir')] : []));
+}
+// Pastilla «Modo demo»: elige con qué rol ver la app.
+export function pastillaModoDemo() {
+  const b = h('button', { class: 'pill demo' + (ctx.vistaRol ? ' on' : ''), id: 'modo-demo', type: 'button' }, icono('usuario'), ctx.vistaRol ? `Modo demo · ${nombreRol(ctx.vistaRol)}` : 'Modo demo');
+  b.onclick = () => {
+    const v = abrirVentana({ titulo: 'Modo demo', contenido: h('div', { class: 'pila' },
+      h('p', { class: 'nota' }, '¿Cómo quieres ver la app? Para volver, pulsa «Salir» en la franja amarilla de arriba.'),
+      h('div', { class: 'demo-roles' }, ...ROLES_DEMO.map(([k, t]) => h('button', { class: 'btn' + (ctx.vistaRol === k ? ' primary' : ''), 'data-rol': k, onclick: () => { v.cerrar(); despuesDeCerrar(() => verComo(k)); } }, icono('usuario'), t)))) });
+  };
+  return b;
+}
 let alAbrirCalculadora = () => abrirHoja({ titulo: 'Calculadora', contenido: h('div', { class: 'vacio' }, 'Calculadora') });
 export function definirCalculadora(fn) { alAbrirCalculadora = fn; }
 
@@ -125,7 +153,9 @@ export function mostrarApp() {
   barra = h('nav', { class: 'side', 'aria-label': 'Navegación' });
   cabecera = h('header', { class: 'topbar' });
   contenedor = h('main', { class: 'contenido' });
-  raiz.replaceChildren(barra, h('div', { class: 'main' }, cabecera, contenedor));
+  ctx.vistaRol = null;
+  avisoDemo = h('div', { class: 'aviso-demo', id: 'aviso-demo', role: 'status', hidden: true });
+  raiz.replaceChildren(barra, h('div', { class: 'main' }, cabecera, avisoDemo, contenedor));
   if (!location.hash || location.hash === '#') history.replaceState(null, '', '#/inicio');
   pintarCabecera();
   montar();

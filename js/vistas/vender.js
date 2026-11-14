@@ -34,7 +34,7 @@ export function revisarDescuento(ctx) {
   const sub = calcularCarrito(c.lineas, ctx.productos, { limites: ctx.ajustes.tramos, redondeo: ctx.ajustes.redondeo }).subtotal;
   const pct = c.descuento.tipo === 'pct' ? c.descuento.valor : (sub ? c.descuento.valor * 100 / sub : 100);
   const invalido = c.autorizacion ? c.autorizacion.subtotal !== sub
-    : (requiereAutorizacion(ctx.sesion?.rol, pct, 0) || pct >= 100);
+    : (requiereAutorizacion(ctx.rol(), pct, 0) || pct >= 100);
   if (!invalido) return true;
   c.descuento = null; c.autorizacion = null;
   if (c.lineas.length) toast('Se quitó el descuento: el carrito cambió');
@@ -223,7 +223,7 @@ function abrirDescuento(ctx) {
     ...[['COP', 'Pesos (COP)'], ['USD', 'Dólares (USD)']].map(([m, txt]) => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === moneda), disabled: m === 'USD' && !tasa,
       onclick: e => { moneda = m; segm.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); valor.value = ''; err.textContent = ''; pintar(); } }, txt)));
   valor.addEventListener('input', pintar);
-  const nota = ctx.sesion.rol === 'vendedora' ? h('p', { class: 'nota' }, 'El descuento se aplica cuando lo autorice el administrador o la encargada.') : null;
+  const nota = ctx.rol() === 'vendedora' ? h('p', { class: 'nota' }, 'El descuento se aplica cuando lo autorice el administrador o la encargada.') : null;
   const aplicar = h('button', { class: 'btn primary' }, 'Aplicar');
   const quitarDesc = c.descuento ? h('button', { type: 'button', class: 'btn texto peligro', id: 'desc-quitar', onclick: () => { c.descuento = null; c.autorizacion = null; v.cerrar(); toast('Descuento quitado'); window.dispatchEvent(new CustomEvent('pos:carrito')); } }, 'Quitar descuento') : null;
   const v = abrirVentana({ titulo: 'Descuento', contenido: h('div', { class: 'pila' }, segm,
@@ -237,7 +237,7 @@ function abrirDescuento(ctx) {
     if (pct >= 100) { err.textContent = 'Debe ser menor que el total'; return; }
     const tipo = 'monto';
     const desc = { tipo, valor: n, moneda, valorUsd: moneda === 'USD' ? parseMonto(valor.value, 'USD') : null };
-    if (requiereAutorizacion(ctx.sesion.rol, pct, max)) {
+    if (requiereAutorizacion(ctx.rol(), pct, max)) {
       aplicar.disabled = true;
       const s = await ctx.almacen.solicitarAutorizacion({ pct: Math.round(pct * 100) / 100, tipo, valor: n, subtotal: r.subtotal });
       if (!s.ok) { aplicar.disabled = false; err.textContent = s.error === 'red' ? 'Necesitas internet para pedir autorización' : 'No se pudo pedir'; return; }
