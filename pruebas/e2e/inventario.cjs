@@ -241,6 +241,13 @@ casos('inventario', [
     a.strictEqual(await p.$eval('.stk .seg', e => Math.round(e.getBoundingClientRect().top)), await p.$eval('.topbar', e => Math.round(e.getBoundingClientRect().bottom)) + 16, 'mismo espacio arriba que las demás pantallas');
     a.ok(await p.isVisible('.stk .adm #bSync') && await p.isVisible('.stk .adm #bData'));
   }],
+  ['Teléfono angosto (320 px) con muchas variantes: centrado, nada se sale por la derecha', async (env, a) => {
+    const p = await env.pagina({ ancho: 320, alto: 658, ruta: '/inventario' });
+    await p.evaluate(() => { const c = window.__pos.ctx, base = c.productos['J-M']; for (let i = 0; i < 1400; i++) c.productos['X-' + i] = { ...base, sku: 'X-' + i }; window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que: 'productos' } })); });
+    await p.waitForFunction(() => /1\.421/.test(document.querySelector('#seg').textContent));
+    const r = await p.evaluate(() => { const x = document.querySelector('.stk .wrap').getBoundingClientRect(); return { izq: Math.round(x.left), der: Math.round(innerWidth - x.right), sobra: document.querySelector('.vista').scrollWidth - document.querySelector('.vista').clientWidth }; });
+    a.deepStrictEqual(r, { izq: 16, der: 16, sobra: 0 });
+  }],
   ['Paginación: muestra 80 y luego «Mostrar N más»', async (env, a) => {
     const p = await env.pagina({ ruta: '/inventario' });
     await p.evaluate(() => { const c = window.__pos.ctx, base = c.productos['J-M']; for (let i = 0; i < 100; i++) c.productos['X-' + i] = { ...base, sku: 'X-' + i }; window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que: 'productos' } })); });

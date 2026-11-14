@@ -135,6 +135,10 @@ body.stk-lock{overflow:hidden}
 
 /* ---- Adaptación al POS ---- */
 /* La vista ocupa todo el ancho con el fondo de la app; el contenido, centrado a 640 px. */
+/* Bloque normal: la regla vieja .vista[data-ruta="/inventario"] (flex) hacía que el contenido no pudiera
+   encogerse más que las cifras de Todos/Stock bajo/Agotados y se salía por la derecha en teléfonos angostos. */
+.vista.stk-vista{display:block;min-width:0}
+.stk .wrap{min-width:0}
 .vista.stk-vista{padding:0 max(16px,env(safe-area-inset-right,0px)) 28px max(16px,env(safe-area-inset-left,0px));background:var(--bg)}
 /* La cabecera fija queda debajo de la barra superior del POS (56 px). */
 .stk .top{top:56px}
@@ -156,13 +160,14 @@ body.stk-lock{overflow:hidden}
 /* Todos / Stock bajo / Agotados con el estilo de las tarjetas de resumen de la app (fondo de color suave,
    cifra grande en mono y etiqueta debajo). La opción elegida lleva un borde de su color. */
 .stk .seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.stk .seg button{--c:var(--violet);border:0;border-radius:12px;padding:10px 14px;min-height:62px;background:var(--violet-soft);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;line-height:1.1;box-shadow:none;transition:box-shadow .14s ease-out,transform .14s ease-out}
+.stk .seg button{--c:var(--violet);min-width:0;border:0;border-radius:12px;padding:10px 14px;min-height:62px;background:var(--violet-soft);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;line-height:1.1;box-shadow:none;transition:box-shadow .14s ease-out,transform .14s ease-out}
 .stk .seg button.w{--c:var(--warn);background:var(--warn-soft)}
 .stk .seg button.x{--c:var(--bad);background:var(--bad-soft)}
 .stk .seg button b{font-family:var(--f-mono);font-weight:500;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--ink)}
 .stk .seg button.w b{color:var(--warn)}
 .stk .seg button.x b{color:var(--bad)}
 .stk .seg button span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+@media (max-width:380px){.stk .seg button{padding:10px}.stk .seg button b{font-size:20px}}
 .stk .seg button[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--c)}
 .stk .seg button:active{transform:scale(.97)}
 /* Botones del administrador (Fotos / Sincronizar): al estilo del POS, con la letra y colores de esta sección. */
