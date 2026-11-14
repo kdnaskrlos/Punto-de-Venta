@@ -113,10 +113,10 @@ casos('inventario', [
     await p.waitForSelector('text=1 foto subida · 4 de 21 productos con foto · 4 códigos de imagen sin foto');
     const estado = await p.evaluate(() => { const c = window.__pos.ctx; return { img: !!c.imagenes['img-0001'], fotosSku: Object.values(c.productos).filter(x => x.foto).length }; });
     a.deepStrictEqual(estado, { img: true, fotosSku: 0 }, 'la foto queda en el código');
-    a.ok(await p.$('.grupo-inv[data-nombre="Franela AS Niño Manga Corta Blanco"] img'), 'la tarjeta de inventario muestra la foto');
-    a.strictEqual(await p.$('.grupo-inv[data-nombre="Franela AS Niño Manga Corta Negro"] img'), null, 'otro código sigue sin foto');
+    a.ok(await p.$('.grupo-inv[data-nombre="Franela AS Niño Blanco"] img'), 'la tarjeta de inventario muestra la foto');
+    a.strictEqual(await p.$('.grupo-inv[data-nombre="Franela AS Niño Negro"] img'), null, 'otro código sigue sin foto');
     await p.evaluate(() => { location.hash = '/vender'; });
-    await p.waitForSelector('.tarjeta-prenda[data-nombre="Franela AS Niño Manga Corta Blanco"] img');
+    await p.waitForSelector('.tarjeta-prenda[data-nombre="Franela AS Niño Blanco"] img');
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'F-B-8', cantidad: 1 }] }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
     await p.waitForSelector('.carrito .linea img');
     a.deepStrictEqual(p.errores, []);
@@ -168,7 +168,7 @@ casos('inventario', [
   }],
   ['Detalle de una prenda: los precios salen una sola vez si son iguales en todas las tallas', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inventario' });
-    await p.click('.grupo-inv[data-nombre="Franela AS Niño Manga Corta Blanco"]');
+    await p.click('.grupo-inv[data-nombre="Franela AS Niño Blanco"]');
     await p.waitForSelector('.detalle-grupo');
     a.strictEqual(await p.$$eval('.detalle-grupo .precio-tramo:not(.costo)', e => e.length), 5);
     a.strictEqual(await p.$$eval('.detalle-grupo .talla-fila', e => e.length), 4);
@@ -184,7 +184,7 @@ casos('inventario', [
   }],
   ['El historial muestra la existencia inicial', async (env, a) => {
     const p = await env.pagina({ ruta: '/inventario' });
-    await p.click('.grupo-inv[data-nombre="Franela AS Niño Manga Corta Blanco"]');
+    await p.click('.grupo-inv[data-nombre="Franela AS Niño Blanco"]');
     await p.click('.talla-fila[data-sku="F-B-4"] button:has-text("Historial")');
     await p.waitForSelector('.mov');
     a.match(await p.innerText('.capa:last-of-type'), /Existencia inicial/);

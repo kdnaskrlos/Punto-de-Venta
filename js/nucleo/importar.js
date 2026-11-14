@@ -21,10 +21,22 @@ const booleano = v => v === true || /^(true|1|si|sí|x)$/i.test(texto(v));
 
 // Clave de la tarjeta: las variantes de una misma tarjeta solo se distinguen por la talla.
 export const claveGrupo = p => [p.tipo, p.tela, p.marca, p.genero, p.modelo, p.color].map(texto).join('|');
-// Nombre que se muestra en la tarjeta (la tela y el color van aparte, debajo).
-// El modelo se omite cuando repite el tipo («Bluson / Bluson», «Chemis / Chemis»).
-const igual = (a, b) => texto(a).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() === texto(b).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-export const tituloProducto = p => [p.tipo, p.marca, p.genero, igual(p.modelo, p.tipo) ? '' : p.modelo].map(texto).filter(Boolean).join(' ') || texto(p.nombre) || p.sku;
+// Nombre de la tarjeta: la columna «nombre» tal cual, quitándole la talla, el color y la tela (que
+// distinguen variantes y van aparte). El modelo y la tela no se agregan: son datos para clasificar.
+// «Franela Etanol Unisex 2XL Amarillo Claro PoliAlg.» → «Franela Etanol Unisex».
+const llano = s => texto(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+function quitarFrase(palabras, frase) {
+  const f = texto(frase).split(/\s+/).filter(Boolean).map(llano);
+  if (!f.length) return palabras;
+  for (let i = palabras.length - f.length; i >= 0; i--) {
+    if (f.every((x, k) => llano(palabras[i + k]) === x)) return [...palabras.slice(0, i), ...palabras.slice(i + f.length)];
+  }
+  return palabras;
+}
+export const tituloProducto = p => {
+  const palabras = [p.tela, p.color, p.talla].reduce(quitarFrase, texto(p.nombre).split(/\s+/).filter(Boolean));
+  return palabras.join(' ') || [p.tipo, p.marca, p.genero].map(texto).filter(Boolean).join(' ') || texto(p.sku);
+};
 
 export function leerInventario(json) {
   const head = (json?.head || []).map(h => texto(h).toLowerCase());

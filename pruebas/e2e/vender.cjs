@@ -30,9 +30,9 @@ casos('vender', [
   ['El mix pasa ambas líneas al precio 6–11 con el total correcto', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await agregar(p, 'Buzo Etanol Caballero Gris', 'M', 2);
-    await agregar(p, 'Franela AS Niño Manga Corta Blanco', '6', 2);
+    await agregar(p, 'Franela AS Niño Blanco', '6', 2);
     a.ok((await texto(p, '.aviso-tramo')).includes('Con 2 prendas más pasan a precio 6–11'));
-    await agregar(p, 'Franela AS Niño Manga Corta Blanco', '8', 2);
+    await agregar(p, 'Franela AS Niño Blanco', '8', 2);
     a.strictEqual(await p.$$eval('.lado-carrito .linea.mini', e => e.length), 3, 'con más de 2 prendas el carrito se compacta');
     for (const sku of ['B-M', 'F-B-6', 'F-B-8']) {
       await p.click(`.lado-carrito .linea[data-sku="${sku}"].mini`);

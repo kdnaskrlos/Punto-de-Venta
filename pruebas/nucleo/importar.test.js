@@ -20,7 +20,7 @@ test('lee la fila real (Franela AS Niño 4 Blanco Algodón) por nombre de column
   assert.equal(p.costo, 9000); assert.equal(p.existencia, 12); assert.equal(p.minimo, 5);
   assert.equal(p.codigo, '1009830869336'); assert.equal(typeof p.codigo, 'string');
   assert.equal(p.separado, false);
-  assert.equal(p.titulo, 'Franela AS Niño Manga Corta');
+  assert.equal(p.titulo, 'Franela AS Niño');
   assert.equal(p.grupo, claveGrupo(p));
   assert.equal('categoria' in p || 'producto' in p || 'comisiones' in p, false, 'sin campos viejos');
 });
@@ -102,10 +102,15 @@ test('detalle de cambios campo por campo («precio1 25000 → 27000»)', () => {
   assert.deepEqual(lineas, ['precio1 25000 → 27000', 'precio5 18000 → —', 'minimo 5 → 4', 'costo 9000 → 9500']);
 });
 
-test('título de la tarjeta: tipo, marca, género y modelo', () => {
-  assert.equal(tituloProducto({ tipo: 'Chemis', marca: 'Texcol', genero: 'Caballero', modelo: '' }), 'Chemis Texcol Caballero');
-  assert.equal(tituloProducto({ sku: 'X', nombre: 'Algo' }), 'Algo');
-  assert.equal(tituloProducto({ tipo: 'Bluson', marca: 'Etanol', genero: 'Dama', modelo: 'Blusón' }), 'Bluson Etanol Dama', 'sin repetir el tipo');
+test('título de la tarjeta: la columna nombre tal cual, sin talla, color ni tela (el modelo no se agrega)', () => {
+  const fila = (nombre, talla, color, tela, extra = {}) => ({ nombre, talla, color, tela, tipo: 'X', marca: 'Y', genero: 'Z', modelo: 'Manga Corta', ...extra });
+  assert.equal(tituloProducto(fila('Franela Etanol Unisex 2XL Amarillo Claro PoliAlg.', '2XL', 'Amarillo Claro', 'PoliAlg.')), 'Franela Etanol Unisex');
+  assert.equal(tituloProducto(fila('Jogger Tubo Etanol Dama M Mostaza', 'M', 'Mostaza', '')), 'Jogger Tubo Etanol Dama', 'si el nombre trae el modelo, se respeta');
+  assert.equal(tituloProducto(fila('Blusón Etanol Dama Esmeralda PoliAlg.', '', 'Esmeralda', 'PoliAlg.')), 'Blusón Etanol Dama');
+  assert.equal(tituloProducto(fila('Franela AS Niño 4 Blanco Algodon', '4', 'blanco', 'algodón')), 'Franela AS Niño', 'sin importar mayúsculas ni acentos');
+  assert.equal(tituloProducto(fila('Sueter ML AS Unisex S Rojo Algodon', 'S', 'Rojo', 'Algodon')), 'Sueter ML AS Unisex', 'quita la talla solo como palabra suelta');
+  assert.equal(tituloProducto({ tipo: 'Chemis', marca: 'Texcol', genero: 'Caballero', modelo: 'Chemis' }), 'Chemis Texcol Caballero', 'sin nombre: tipo, marca y género');
+  assert.equal(tituloProducto({ sku: 'X' }), 'X');
 });
 
 test('lee id_imagen en minúsculas; vacío queda como texto vacío', () => {
