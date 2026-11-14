@@ -123,8 +123,9 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
     async cambiarPin(uid, pinNuevo, pinActual) {
       if (!sesion) return NO('sesion');
       if (!/^\d{4}$/.test(String(pinNuevo))) return NO('datos');
-      if (sesion.uid === uid) { if (pins.get(uid) !== String(pinActual)) return NO('pin'); }
-      else if (rol() !== 'admin') return NO('permiso');
+      // Solo el administrador cambia PIN (el suyo o el de otros); la vendedora y la encargada no.
+      if (rol() !== 'admin') return NO('permiso');
+      if (sesion.uid === uid && pins.get(uid) !== String(pinActual)) return NO('pin');
       pins.set(uid, String(pinNuevo)); return SI({ uid });
     },
     async marcarComision(uid, gana) {
@@ -432,4 +433,19 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
     },
   };
   return api;
+}
+
+// Modo demo: copia en memoria de los datos reales con una sesión del rol elegido. Lo que se haga
+// ahí (ventas, cajas, apartados…) solo vive en esta copia y se descarta al salir.
+export function crearSimulacion(copiaDatos, { rol, nombre }) {
+  const m = crearMemoria({ usuarios: [{ usuario: 'demo', nombre, rol, pin: '0000' }] });
+  for (const [n, docs] of Object.entries(copiaDatos || {})) {
+    const c = m._estado(n); if (!c) continue;
+    for (const d of docs || []) {
+      const id = n === 'usuarios' ? (d.uid ?? d.id) : (d.id ?? d.sku ?? d.telefono);
+      if (id == null || (n === 'usuarios' && id === 'u-demo')) continue;
+      c.set(String(id), copia(n === 'usuarios' ? { uid: id, ...d } : d));
+    }
+  }
+  return m;
 }

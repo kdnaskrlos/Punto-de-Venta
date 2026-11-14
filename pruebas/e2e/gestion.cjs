@@ -327,7 +327,12 @@ casos('gestion', [
     await p.click('#modo-demo');
     await p.click('.demo-roles [data-rol="vendedora"]');
     await p.waitForSelector('#aviso-demo:not([hidden])');
-    a.match(await p.textContent('#aviso-demo'), /Modo demo · Vendedora/);
+    a.match(await p.textContent('#aviso-demo'), /^Modo demo · VendedoraSalir$/, 'sin descripción');
+    // Lo hecho en el modo demo es simulado: no llega al almacén real.
+    const antes = await p.evaluate(() => window.__pos.ctx.almacenReal._estado('clientes').size);
+    a.ok(await p.evaluate(() => window.__pos.ctx.almacen.guardarCliente({ telefono: '04140000999', nombre: 'Prueba Demo' }).then(r => r.ok)));
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.almacenReal._estado('clientes').size), antes, 'no se guarda de verdad');
+    a.ok(await p.evaluate(() => window.__pos.ctx.almacen._estado('productos').size > 5), 'la simulación tiene los productos');
     await p.waitForFunction(() => location.hash === '#/inicio' && document.querySelector('.vista')?.dataset.ruta === '/inicio');
     await p.evaluate(() => { location.hash = '/mas'; });
     await p.waitForSelector('.lista-mas');
@@ -337,6 +342,7 @@ casos('gestion', [
     await p.waitForFunction(() => location.hash === '#/inicio');
     await p.click('#salir-demo');
     await p.waitForSelector('#aviso-demo[hidden]', { state: 'attached' });
+    a.ok(await p.evaluate(() => !window.__pos.ctx.almacenReal && !window.__pos.ctx.almacen._estado('clientes').has('04140000999')), 'al salir se descarta');
     await p.evaluate(() => { location.hash = '/mas'; });
     await p.waitForSelector('#modo-demo');
     a.deepStrictEqual(p.errores, []);

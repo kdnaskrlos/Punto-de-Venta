@@ -423,3 +423,53 @@
 
 /* v1.88 · Filtros (chips) con esquinas como los filtros del Inventario (10 px), no en forma de pastilla. */
 .chip{border-radius:10px!important}
+
+/* v1.89 · Menú propio de los filtros (reemplaza la lista gris del sistema). */
+.capa-menu{position:fixed;inset:0;z-index:60}
+.menu-fondo{position:absolute;inset:0}
+.menu-op{position:fixed;max-height:320px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 44px rgba(0,0,0,.16);padding:6px;opacity:0;transform:translateY(-4px) scale(.98);transform-origin:top center;transition:opacity .14s ease-out,transform .14s cubic-bezier(.22,.9,.3,1)}
+.capa-menu.abierto .menu-op{opacity:1;transform:none}
+.menu-it{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:8px;background:none;font:inherit;font-size:14px;font-weight:400;color:var(--ink);text-align:left;cursor:pointer}
+.menu-it:hover{background:var(--surface-2)}
+.menu-it.on{font-weight:600;background:var(--sel-neu-bg)}
+.menu-it svg.i{width:18px;height:18px;color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.menu-op{transition:none}}
+
+/* v1.89 · Línea del carrito igual a la tarjeta del inventario: foto 58 a la izquierda; nombre (14,5/600),
+   tela y talla (12,5) y el contador; tarifa como pastilla arriba a la derecha y subtotal abajo a la derecha. */
+.linea.lv2{display:grid!important;grid-template-columns:58px minmax(0,1fr) auto!important;grid-template-areas:none!important;align-items:stretch!important;gap:12px!important;padding:10px 12px!important;min-height:68px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.linea.lv2 > .foto{grid-column:1;width:58px!important;height:58px!important;border-radius:10px!important;align-self:center}
+.linea.lv2 .lv-info{grid-column:2;grid-area:auto!important;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;min-width:0}
+.linea.lv2 .lv-nombre{font-size:14.5px!important;font-weight:600!important;line-height:1.25!important;white-space:normal!important;display:block!important;overflow:visible!important;-webkit-line-clamp:unset!important}
+.linea.lv2 .lv-var{font-size:12.5px;color:var(--muted);line-height:1.3}
+.linea.lv2 .lc-cont{margin-top:2px}
+.linea.lv2 .lv-der{grid-column:3;grid-area:auto!important;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;gap:8px;border:0!important;padding:0!important}
+.linea.lv2 .lv-tramo{font-size:12px;font-weight:500;line-height:1;padding:4px 8px;border-radius:99px;white-space:nowrap;background:var(--surface-2);color:var(--muted)}
+.linea.lv2 .lv-tramo.oferta{background:var(--y-bg);color:var(--y-tx)}
+.linea.lv2 .lc-pie{display:flex;flex-direction:column;align-items:flex-end}
+.linea.lv2 .lc-monto .monto{font-size:14.5px;font-weight:600;white-space:nowrap}
+.linea.lv2 .lc-cu{font-size:12px;font-weight:400;margin:0}
+
+/* v1.89 · Hoja del carrito sin el título «Carrito»: solo la flecha para ocultarla, al centro. */
+.cab.solo-flecha{justify-content:center!important;padding-top:6px!important;padding-bottom:6px!important;min-height:0}
+.cab.solo-flecha .cerrar{margin:0 auto!important}
+
+/* v1.89 · Botón del escáner en Vender: el mismo del Inventario (cuadro verde de 52 × 48 con el ícono de código de barras). */
+.btn-escaner{flex:none;width:52px;height:48px;border:0;border-radius:12px;background:var(--accent);color:#fff;display:grid;place-items:center;cursor:pointer;transition:transform .14s ease-out}
+.btn-escaner:active{transform:scale(.97)}
+.btn-escaner svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+/* v1.89 · Bordes de chips y pastillas que se veían incompletos: con el gris tan claro (#e5e9ee) y la fila en
+   una posición con decimales, el navegador suavizaba el borde hasta casi borrarlo. Un gris un poco más firme. */
+.chip:not(.activo),.pill,.filtro-menu:not(.activo){border-color:#d5dbe2!important}
+.filtros,.filtro-ap,.filtro-inv{padding-top:3px!important;padding-bottom:3px!important}
+
+/* v1.89 · Usuarios: el despliegue lo anima la tarjeta completa (como en Pedidos), no el cuerpo; la flecha gira en .15 s.
+   Opciones dentro del recuadro: los botones se reparten y bajan de fila si no caben. */
+.lista-usuarios .u-cuerpo{animation:none!important}
+.lista-usuarios .u-cab > svg.i:last-child{transition:transform .15s}
+.lista-usuarios .usuario.abierto .u-cab > svg.i:last-child{transform:rotate(180deg)}
+.lista-usuarios .usuario{min-width:0;overflow:hidden}
+.lista-usuarios .u-acc{display:flex!important;flex-wrap:wrap;gap:8px;min-width:0}
+.lista-usuarios .u-acc .btn{flex:1 1 140px;min-width:0;width:auto!important;white-space:normal;text-align:center}
+.lista-usuarios .u-acc .u-eliminar{flex:1 1 100%;justify-content:flex-start}
+.lista-usuarios .u-com{min-width:0;white-space:normal}

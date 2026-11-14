@@ -1,6 +1,6 @@
 // Inventario (§7): consulta con la apariencia de la app «Stock, Comic Shop», escáner, ajustes con motivo,
 // ofertas, sincronizar con la Carga Masiva y fotos por código de imagen.
-import { h, icono, abrirVentana, abrirCapaPropia, toast, esTelefono, pedirMotivo, sin, unaVez } from '../ui.js';
+import { h, icono, abrirVentana, abrirCapaPropia, abrirMenu, toast, esTelefono, pedirMotivo, sin, unaVez } from '../ui.js';
 import { titulo, grupoDe, detalle, textoBusqueda, fotoDe, nombreVariante } from '../nucleo/producto.js';
 import { abrirEscaner } from './escaner.js';
 import { compararTallas } from '../nucleo/tipo-prenda.js';
@@ -113,6 +113,7 @@ async function abrirSincronizar(ctx, costos, alTerminar) {
   const actualizados = plan.cambios.slice(0, 200).map(c => h('div', { class: 'sinc-cambio' }, h('b', {}, c.sku),
     ...detalleCambios(c, ctx.productos[c.sku], costos[c.sku]?.costo ?? null).map(t => h('span', {}, t))));
   cuerpo.replaceChildren(...sin(
+    h('p', { class: 'nota sinc-ultima-v' }, ctx.ajustes?.ultimaSincronizacion ? `Última sincronización: ${fechaHoraCorta(ctx.ajustes.ultimaSincronizacion)} (${haceCuanto(ctx.ajustes.ultimaSincronizacion)})` : 'Todavía no se ha sincronizado'),
     h('p', { class: 'nota sinc-fecha' }, json?.at ? `Archivo del ${fechaHoraCorta(json.at)} (${haceCuanto(json.at)}) · ${filas} filas` : `${filas} filas`),
     h('div', { class: 'resumenes' },
       fila(plan.nuevos.length, plan.nuevos.length === 1 ? 'nuevo' : 'nuevos', 'g'),
@@ -252,9 +253,9 @@ export function buscarCodigo(productos, raw) {
 }
 
 // Hoja inferior (bottom sheet) con la animación y el gesto de la app; Atrás/Escape la cierran sin salir del POS.
-function abrirHojaStock({ tema, llenar }) {
+export function abrirHojaStock({ tema, llenar, clase = '' }) {
   const capa = document.createElement('div');
-  capa.className = 'stk stk-capa';
+  capa.className = 'stk stk-capa' + (clase ? ' ' + clase : '');
   if (tema) capa.dataset.theme = tema;
   capa.innerHTML = '<div class="scrim" id="scrim"></div><section class="sheet" id="detail" role="dialog" aria-modal="true" aria-label="Detalle del producto"></section>';
   const sc = capa.querySelector('.scrim'), sh = capa.querySelector('.sheet');
@@ -402,9 +403,9 @@ registrarVista('/inventario', {
       <button class="scanbtn" id="bScan" type="button" aria-label="Escanear código de barras">${SVG.scan}</button>
     </div>
     <div class="filters">
-      <select id="fCat" aria-label="Género"></select>
-      <select id="fBrand" aria-label="Marca"></select>
-      <select id="fSort" aria-label="Orden"><option value="name">A–Z</option><option value="lo">Menos stock</option><option value="hi">Más stock</option><option value="sku">Por SKU</option></select>
+      <button type="button" class="chip filtro-menu" id="fCat" aria-haspopup="listbox"></button>
+      <button type="button" class="chip filtro-menu" id="fBrand" aria-haspopup="listbox"></button>
+      <button type="button" class="chip filtro-menu" id="fSt" aria-haspopup="listbox"></button>
     </div>
     ${admSinc || admFotos ? `<div class="adm">
       ${admFotos ? `<button class="sbtn" id="bData" type="button">${SVG.datos}<span>Fotos</span></button>` : ''}
@@ -412,7 +413,6 @@ registrarVista('/inventario', {
     </div>` : ''}
   </header>
   <main>
-    <div class="meta" id="meta"></div>
     <ul class="list" id="list"></ul>
     <button class="more" id="more" type="button" hidden></button>
     <section class="empty" id="empty" hidden></section>
@@ -420,10 +420,19 @@ registrarVista('/inventario', {
 </div>`;
     const $ = s => cont.querySelector(s);
     const filas = () => Object.values(ctx.productos).filter(p => p.activo !== false);
-    const opts = (sel, all, vals, cur) => { $(sel).innerHTML = `<option value="">${all}</option>` + vals.map(v => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(v)}</option>`).join(''); };
+    // Filtros Género / Marca / Stock: botones como los filtros del resto de la app; al tocarlos abren un menú
+    // propio. Con un valor elegido el botón se marca y muestra ese valor.
+    const ESTADOS = [['all', 'Todos'], ['low', 'Stock bajo'], ['out', 'Agotados']];
+    let opGenero = [], opMarca = [];
+    const chev = '<svg class="i" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+    const pintarFiltros = () => {
+      const poner = (id, nombre, valor) => { const b = $(id); b.classList.toggle('activo', !!valor); b.innerHTML = `<span>${esc(valor || nombre)}</span>${chev}`; b.setAttribute('aria-label', `${nombre}: ${valor || 'todos'}`); };
+      poner('#fCat', 'Género', F.cat); poner('#fBrand', 'Marca', F.brand); poner('#fSt', 'Stock', F.st === 'all' ? '' : ESTADOS.find(e => e[0] === F.st)[1]);
+    };
     const build = () => {
       const R = filas(), orden = xs => [...new Set(xs.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
-      opts('#fCat', 'Géneros', orden(R.map(p => p.genero)), F.cat); opts('#fBrand', 'Marcas', orden(R.map(p => p.marca)), F.brand);
+      opGenero = orden(R.map(p => p.genero)); opMarca = orden(R.map(p => p.marca));
+      pintarFiltros();
     };
     // Filtra prendas: una prenda entra si alguna de sus tallas coincide con la búsqueda.
     const filtered = G => {
@@ -440,17 +449,20 @@ registrarVista('/inventario', {
       const R = filas(), has = R.length > 0, G = prendas(R);
       const low = G.filter(x => x.st === 'low').length, out = G.filter(x => x.st === 'out').length;
       const seg = [['all', 'Todos', G.length, '', SVG.caja], ['low', 'Stock bajo', low, 'w', SVG.alerta], ['out', 'Agotados', out, 'x', SVG.agotado]];
-      $('#seg').innerHTML = seg.map(([k, l, n, c, ic]) => `<button type="button" class="${c}" data-st="${k}" aria-pressed="${F.st === k}"><span class="ic" aria-hidden="true">${ic}</span><b>${fmtN(n)}</b><span>${l}</span></button>`).join('');
+      // Solo informativas (filtrar es con «Stock»).
+      $('#seg').innerHTML = seg.map(([, l, n, c]) => `<div class="tj ${c}"><b>${fmtN(n)}</b><span>${l}</span></div>`).join('');
       $('#qc').hidden = !F.q;
       const list = has ? filtered(G) : [], part = list.slice(0, F.shown);
       $('#list').innerHTML = part.map(x => {
         const p = x.p, foto = fotoDe(p, ctx.imagenes);
-        const linea2 = [p.tela, x.tallas.length ? 'Tallas ' + x.tallas.join(' · ') : 'Talla única'].filter(Boolean).join(' · ');
-        return `<li><button type="button" class="item" data-grupo="${esc(x.k)}" data-skus="${esc(x.vs.map(v => v.sku).join(" "))}"><div class="tx"><div class="nm">${esc(x.nombre || '(sin nombre)')}</div><div class="sk">${esc(linea2)}</div><div class="pr">${p.precios?.[0] ? fmtCop(p.precios[0]) : '—'}${p.genero ? ' · ' + esc(p.genero) : ''} · <span class="u ${x.st}">${unidades(x)}</span></div></div><div class="foto">${foto ? `<img src="${esc(foto)}" alt="" loading="lazy" width="58" height="58">` : SVG.imagen}</div></button></li>`;
+        // Tarjeta: foto a la izquierda; nombre y unidades; estado arriba a la derecha y precio abajo a la derecha.
+        const estado = x.st === 'out' ? 'Agotado' : x.st === 'low' ? 'Stock bajo' : 'En stock';
+        return `<li><button type="button" class="item item-prenda" data-grupo="${esc(x.k)}" data-skus="${esc(x.vs.map(v => v.sku).join(' '))}"><div class="foto">${foto ? `<img src="${esc(foto)}" alt="" loading="lazy" width="58" height="58">` : SVG.imagen}</div><div class="tx"><div class="nm">${esc(x.nombre || '(sin nombre)')}</div><div class="uds">${fmtN(x.total)} ${x.total === 1 ? 'unidad' : 'unidades'}</div></div><div class="der"><span class="est-p ${x.st}">${estado}</span><b class="precio">${p.precios?.[0] ? fmtCop(p.precios[0]) : '—'}</b></div></button></li>`;
       }).join('');
       const m = $('#more'); m.hidden = list.length <= part.length; m.textContent = `Mostrar ${Math.min(100, list.length - part.length)} más`;
       const f = ctx.ajustes?.ultimaSincronizacion;
-      $('#meta').innerHTML = has ? `<span>${fmtN(list.length)} ${list.length === 1 ? 'prenda' : 'prendas'}</span><span>${f ? 'Sincronizado ' + new Date(f).toLocaleDateString('es-VE', { day: '2-digit', month: 'short' }) + ' ' + new Date(f).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : ''}</span>` : '';
+      // La fecha de la última sincronización va en el botón Sincronizar (al pasar el ratón) y en su ventana.
+      const bs = cont.querySelector('#bSync'); if (bs) bs.title = f ? `Última sincronización: ${fechaHoraCorta(f)}` : 'Sincronizar inventario con la Carga Masiva';
       const e = $('#empty'); e.hidden = has;
       if (!has) e.innerHTML = `<p class="muted" style="margin:0;text-align:center">Sin inventario.${admSinc ? ' Toca el icono de arriba a la derecha para sincronizarlo.' : ''}</p>`;
       else if (!list.length) $('#list').innerHTML = '<li class="muted" style="padding:18px 4px">Nada coincide con esos filtros.</li>';
@@ -471,7 +483,6 @@ registrarVista('/inventario', {
     cont.addEventListener('click', e => {
       const t = e.target;
       const it = t.closest('.item'); if (it) { abrirGrupo(it.dataset.grupo); return; }
-      const sg = t.closest('[data-st]'); if (sg) { F.st = sg.dataset.st; F.shown = 80; render(); }
     });
     $('#more').onclick = () => { F.shown += 100; render(); };
     let qt;
@@ -483,9 +494,10 @@ registrarVista('/inventario', {
       e.target.blur();
     });
     $('#qc').onclick = () => { F.q = ''; $('#q').value = ''; render(); $('#q').focus(); };
-    $('#fCat').onchange = e => { F.cat = e.target.value; F.shown = 80; render(); };
-    $('#fBrand').onchange = e => { F.brand = e.target.value; F.shown = 80; render(); };
-    $('#fSort').onchange = e => { F.sort = e.target.value; render(); };
+    const menu = (id, titulo, opciones, actual, poner) => { $(id).onclick = e => abrirMenu(e.currentTarget, { titulo, opciones: opciones(), actual: actual(), alElegir: v => { poner(v); F.shown = 80; pintarFiltros(); render(); } }); };
+    menu('#fCat', 'Género', () => [['', 'Todos'], ...opGenero.map(g => [g, g])], () => F.cat, v => { F.cat = v; });
+    menu('#fBrand', 'Marca', () => [['', 'Todas'], ...opMarca.map(m => [m, m])], () => F.brand, v => { F.brand = v; });
+    menu('#fSt', 'Stock', () => ESTADOS, () => F.st, v => { F.st = v; });
     $('#bScan').onclick = () => {
       if (!filas().length) { toast('Primero sincroniza el inventario'); return; }
       abrirEscaner({ tema: TEMA, alLeer: c => lookup(c, false) });

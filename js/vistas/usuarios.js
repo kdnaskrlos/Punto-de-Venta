@@ -1,6 +1,6 @@
 // Usuarios (Más → Usuarios): el administrador crea usuarios, cambia PIN y activa/desactiva.
 // Cada quien tiene sus opciones (cambiar PIN, cerrar sesión) en su propia tarjeta; los demás roles ven «Mi cuenta».
-import { h, icono, abrirVentana, toast, unaVez, desplegar } from '../ui.js';
+import { h, icono, abrirVentana, toast, unaVez } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { NOMBRE_ROL, opcionesCuenta, cambiarMiPin } from './cuenta.js';
 import { DEMO_DIRECTO } from '../datos/index.js';
@@ -68,6 +68,27 @@ function nuevoUsuario(ctx) {
 }
 
 
+// Abre o cierra la tarjeta (sin volver a pintar la lista).
+function poner(tarjeta, abrir) {
+  tarjeta.classList.toggle('abierto', abrir);
+  tarjeta.querySelector('.u-cab').setAttribute('aria-expanded', String(abrir));
+  tarjeta.querySelector('.u-cuerpo').hidden = !abrir;
+}
+// Copia de animarDesplegable de Pedidos: mide, cambia y anima la altura de cada tarjeta de la vieja a la nueva.
+function animarTarjetas(tarjetas, cambiar, nueva) {
+  const h0 = new Map(tarjetas.map(t => [t, t.getBoundingClientRect().height]));
+  cambiar();
+  if (!document.body.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (const t of tarjetas) {
+    t.getAnimations().forEach(a => a.cancel());
+    const h1 = t.getBoundingClientRect().height; if (Math.abs(h1 - h0.get(t)) < 2) continue;
+    t.style.overflow = 'hidden';
+    const a = t.animate([{ height: h0.get(t) + 'px' }, { height: h1 + 'px' }], { duration: 280, easing: 'cubic-bezier(.22,.9,.3,1)' });
+    if (t === nueva) [...t.querySelector('.u-cuerpo').children].forEach((r, i) => r.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 240, delay: 40 + i * 35, easing: 'ease-out', fill: 'backwards' }));
+    a.onfinish = a.oncancel = () => { t.style.overflow = ''; };
+  }
+}
+
 // Usuarios como en Pedidos: tarjetas compactas (avatar, nombre, @usuario, rol) que se despliegan al tocarlas.
 function usuarios(ctx) {
   const lista = h('div', { class: 'lista-usuarios' });
@@ -81,12 +102,16 @@ function usuarios(ctx) {
     const idCuerpo = `u-cuerpo-${u.usuario}`;
     return h('div', { class: 'usuario' + (u.activo ? '' : ' off') + (abierto ? ' abierto' : ''), 'data-usuario': u.usuario },
       h('button', { type: 'button', class: 'u-cab', 'aria-expanded': String(abierto), 'aria-controls': idCuerpo, onclick: e => {
-        // Se despliega en su lugar, con la animación de Pedidos (sin volver a pintar la lista).
-        const tarjeta = e.currentTarget.closest('.usuario'), cuerpo = tarjeta.querySelector('.u-cuerpo');
+        // Igual que en Pedidos: solo una tarjeta abierta; se anima la altura de la tarjeta que se abre y de la
+        // que se cierra a la vez (280 ms), y las filas de la que se abre aparecen escalonadas.
+        const tarjeta = e.currentTarget.closest('.usuario');
         const abrir = !abiertos.has(u.usuario);
-        abrir ? abiertos.add(u.usuario) : abiertos.delete(u.usuario);
-        tarjeta.classList.toggle('abierto', abrir); e.currentTarget.setAttribute('aria-expanded', String(abrir));
-        desplegar(cuerpo, abrir);
+        const otra = abrir ? [...lista.querySelectorAll('.usuario.abierto')].find(t => t !== tarjeta) : null;
+        animarTarjetas([tarjeta, otra].filter(Boolean), () => {
+          if (otra) { abiertos.delete(otra.dataset.usuario); poner(otra, false); }
+          abrir ? abiertos.add(u.usuario) : abiertos.delete(u.usuario);
+          poner(tarjeta, abrir);
+        }, abrir ? tarjeta : null);
       } },
         h('span', { class: 'avatar' }, (u.nombre || u.usuario).slice(0, 1).toUpperCase()),
         h('span', { class: 'u-info' }, h('b', {}, u.nombre), h('span', { class: 'nota' }, `@${u.usuario}`)),

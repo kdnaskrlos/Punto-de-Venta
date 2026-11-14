@@ -35,7 +35,7 @@ export function bloquePrueba(ctx) {
   // Modo prueba (como en Pedidos): llena la app con ejemplos para ver cómo se ve; se quitan sin tocar lo real.
   const boton = h('button', { class: 'pill demo', id: 'modo-prueba' });
   let hay = false;
-  const pintar = () => { boton.classList.toggle('on', hay); boton.replaceChildren(icono('matraz'), hay ? 'Modo prueba · activo' : 'Modo prueba'); };
+  const pintar = () => { boton.classList.toggle('on', hay); boton.replaceChildren(icono('matraz'), 'Modo prueba'); };
   boton.onclick = e => unaVez(e.currentTarget, async () => {
     if (!hay) {
       const r = await ctx.almacen.cargarEjemplos(generarEjemplos({ productos: ctx.productos, formas: ctx.ajustes.formasPago, tasas: ctx.tasas }));

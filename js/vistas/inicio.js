@@ -1,7 +1,6 @@
 import { nombreVenta } from '../nucleo/producto.js';
 // Inicio por rol (§13.4): recuadros del día, autorizaciones (admin), alertas y ventas de hoy.
 import { h, icono, toast, sin, unaVez, largo } from '../ui.js';
-import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
 import { resumenDia, inventarioBajo } from '../nucleo/reportes.js';
 import { esperadoCaja } from '../nucleo/caja.js';
@@ -124,8 +123,8 @@ registrarVista('/inicio', {
     const alDatos = e => { if (['productos', 'caja', 'tasas', 'ajustes'].includes(e.detail.que)) pintar(); };
     window.addEventListener('pos:datos', alDatos);
     const s = ctx.sesion;
-    cont.append(...sin(saludo((s.nombre || s.usuario).split(' ')[0]), tiles, auts, alertas, ventasEl,
-      !gestion && !ctx.miCaja ? h('button', { class: 'btn primary grande', onclick: () => abrirCajaVentana(ctx, () => navegar('/vender')) }, icono('cartera'), 'Abrir caja') : null));
+    // Sin botón «Abrir caja» en el Inicio de la vendedora: la caja se abre desde Vender.
+    cont.append(...sin(saludo((s.nombre || s.usuario).split(' ')[0]), tiles, auts, alertas, ventasEl));
     pintar();
     return () => { q.forEach(x => x()); porCaja.parar(); window.removeEventListener('pos:datos', alDatos); };
   },

@@ -25,7 +25,8 @@ export function opcionesCuenta(ctx, alSalir) {
   return h('div', { class: 'cuenta' },
     h('div', { class: 'cuenta-quien' }, h('span', { class: 'avatar' }, (s.nombre || s.usuario).slice(0, 1).toUpperCase()),
       h('div', {}, h('b', {}, s.nombre), h('div', { class: 'nota' }, `@${s.usuario} · ${NOMBRE_ROL[s.rol] || s.rol}`))),
-    DEMO_DIRECTO ? probarComo(ctx, alSalir) : h('button', { class: 'fila-btn', id: 'mi-pin', onclick: () => cambiarMiPin(ctx) }, icono('llave'), 'Cambiar mi PIN'),
+    // Cambiar el PIN es solo del administrador: la vendedora y la encargada se lo piden a él.
+    DEMO_DIRECTO ? probarComo(ctx, alSalir) : (ctx.rol ? ctx.rol() : s.rol) === 'admin' ? h('button', { class: 'fila-btn', id: 'mi-pin', onclick: () => cambiarMiPin(ctx) }, icono('llave'), 'Cambiar mi PIN') : null,
     DEMO_DIRECTO ? null : h('button', { class: 'fila-btn peligro', onclick: async () => { alSalir && alSalir(); await ctx.almacen.salir(); } }, icono('salir'), 'Cerrar sesión'));
 }
 

@@ -1,4 +1,5 @@
 // Apartados (§10): apartar desde el carrito, abonar, completar y cancelar.
+import { abrirHojaStock } from './inventario.js';
 import { h, icono, abrirVentana, toast, pedirMotivo, despuesDeCerrar, largo } from '../ui.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
@@ -140,7 +141,7 @@ function abrirDetalle(ctx, ap) {
     h('div', { class: 'ap-det-cab' },
       h('div', {}, h('h2', { class: 'ap-det-nombre' }, ap.cliente?.nombre || 'Apartado'),
         ap.cliente?.telefono ? h('span', { class: 'ap-det-tel nota num' }, icono('telefono'), telLegible(ap.cliente.telefono)) : null),
-      h('span', { class: 'ap-det-cab-der' }, h('span', { class: `est ${color}` }, etiqueta), h('button', { class: 'ibtn cerrar', 'aria-label': 'Cerrar' }, icono('x')))),
+      h('span', { class: 'ap-det-cab-der' }, h('span', { class: `est ${color}` }, etiqueta), h('button', { class: 'ibtn cerrar', 'data-act': 'close', 'aria-label': 'Cerrar' }, icono('x')))),
     h('div', { class: 'ap-det-pago' },
       h('div', { class: 'ap-det-cifras' },
         // Primero lo abonado y luego lo que falta (de izquierda a derecha, como se lee el pago).
@@ -167,7 +168,12 @@ function abrirDetalle(ctx, ap) {
     }) }, 'Cancelar') : null,
     h('button', { class: 'btn', id: 'ap-abonar', onclick: () => ir(() => abrirPago(ctx, ap, 'abonar')) }, 'Abonar'),
     h('button', { class: 'btn primary', id: 'ap-completar', onclick: () => ir(() => abrirPago(ctx, ap, 'completar')) }, 'Completar')) : null;
-  const v = abrirVentana({ titulo: ap.cliente?.nombre || 'Apartado', contenido, acciones, clase: 'ap-ventana', sinCabecera: true });
+  // Hoja inferior, con la misma animación y gestos que el detalle del Inventario (arrastrar hacia abajo,
+  // tocar el fondo, la X o Atrás).
+  const v = abrirHojaStock({ tema: 'light', clase: 'hoja-pos ap-hoja', llenar: sh => {
+    sh.setAttribute('aria-label', ap.cliente?.nombre || 'Apartado');
+    sh.replaceChildren(h('div', { class: 'grab' }), contenido, ...(acciones ? [acciones] : []));
+  } });
 }
 
 // Apartados: resumen de lo que falta por cobrar, búsqueda por cliente y filtros por estado.

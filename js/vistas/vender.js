@@ -1,4 +1,6 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
+import { abrirEscaner, ICONO_ESCANER } from './escaner.js';
+import { buscarCodigo } from './inventario.js';
 import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo } from '../ui.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
@@ -95,16 +97,20 @@ function lineaCarrito(ctx, l, aj, compacta) {
     h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal))),
     icono('abajo'));
   const plegable = carrito(ctx).lineas.length > MAX_ABIERTAS;
-  return h('div', { class: 'linea' + (plegable ? ' abierta' : ''), 'data-sku': l.sku, onclick: plegable ? alternar : null, 'aria-expanded': plegable ? 'true' : null },
+  // Tarjeta igual a la del inventario: foto a la izquierda; nombre (con el color), tela y talla, y el contador;
+  // la tarifa arriba a la derecha y el subtotal abajo a la derecha.
+  const nombre = [g.titulo, p.color].filter(Boolean).join(' ');
+  const detalleTalla = [p.tela, p.talla ? `Talla ${p.talla}` : 'Talla única'].filter(Boolean).join(' · ');
+  return h('div', { class: 'linea lv2' + (plegable ? ' abierta' : ''), 'data-sku': l.sku, onclick: plegable ? alternar : null, 'aria-expanded': plegable ? 'true' : null },
     miniatura(g, 'foto'),
-    h('div', { class: 'linea-info' },
-      h('b', {}, g.titulo),
-      h('span', { class: 'lc-chip' }, variante),
-      h('span', { class: 'lc-chip tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Precio de oferta' : `Tarifa ${etiquetaTramo(l.tramo, aj.tramos)}`)),
-    h('div', { class: 'linea-der' },
-      contador(ctx, l),
+    h('div', { class: 'linea-info lv-info' },
+      h('b', { class: 'lv-nombre' }, nombre),
+      h('span', { class: 'lv-var' }, detalleTalla),
+      contador(ctx, l)),
+    h('div', { class: 'linea-der lv-der' },
+      h('span', { class: 'lv-tramo tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Oferta' : `Tarifa ${etiquetaTramo(l.tramo, aj.tramos)}`),
       h('span', { class: 'lc-pie' },
-        h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal)), h('span', { class: 'c-cop moneda' }, 'COP')),
+        h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal))),
         l.cantidad > 1 ? h('span', { class: 'nota num lc-cu' }, `${fmtCop(l.precioUnit)} c/u`) : null)));
 }
 
@@ -340,7 +346,7 @@ registrarVista('/vender', {
     const rejilla = h('div', { class: 'rejilla' });
     const lado = h('aside', { class: 'lado-carrito' });
     const barra = h('button', { class: 'barra-carrito', onclick: () => {
-      const hj = abrirHoja({ titulo: 'Carrito', contenido: h('div', { class: 'hoja-carrito' }), lado: 'abajo' });
+      const hj = abrirHoja({ titulo: 'Carrito', contenido: h('div', { class: 'hoja-carrito' }), lado: 'abajo', sinTitulo: true });
       const repintar = () => { ponerCarrito(hj.el.querySelector('.hoja-carrito'), panelCarrito(ctx, { enHoja: true })); if (!carrito(ctx).lineas.length) hj.cerrar(); };
       repintar();
       window.addEventListener('pos:carrito', repintar);
@@ -348,12 +354,13 @@ registrarVista('/vender', {
     } });
     const sinCaja = h('div', { class: 'aviso sin-caja' }, icono('cartera'), h('span', {}, 'Abre tu caja para vender'), h('span', { class: 'sp' }), h('button', { class: 'btn primary', onclick: () => abrirCajaVentana(ctx) }, 'Abrir caja'));
 
-    const escanear = ('BarcodeDetector' in window)
-      ? h('button', { class: 'btn', 'aria-label': 'Escanear', onclick: () => ctx.escanear && ctx.escanear(cod => agregarPorCodigo(cod)) }, icono('escanear'), h('span', { class: 'solo-pc' }, 'Escanear'))
-      : h('button', { class: 'btn solo-pc', 'aria-label': 'Escanear', onclick: () => { buscar.focus(); toast('Escanea con el lector'); } }, icono('escanear'), 'Escanear');
+    // El mismo escáner del Inventario (cámara, foto del código o escribirlo / lector USB): lo leído se agrega al carrito.
+    const escanear = h('button', { class: 'btn-escaner', type: 'button', id: 'escanear-vender', 'aria-label': 'Escanear código de barras',
+      onclick: () => abrirEscaner({ tema: 'light', alLeer: cod => agregarPorCodigo(cod) }) });
+    escanear.innerHTML = ICONO_ESCANER;
 
     function agregarPorCodigo(cod) {
-      const p = Object.values(ctx.productos).find(x => x.codigo && x.codigo === cod.trim());
+      const [p] = buscarCodigo(Object.values(ctx.productos).filter(x => x.activo !== false), cod);
       if (!p) return false;
       if (agregarAlCarrito(ctx, p.sku, 1)) toast(`${titulo(p)} ${p.talla ? 'T' + p.talla : ''} agregada`);
       return true;

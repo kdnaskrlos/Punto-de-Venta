@@ -255,6 +255,8 @@ export function crearFirebase(config) {
     // Propio: pide el PIN actual. De otra persona (admin): cuenta nueva con el PIN nuevo, como en Pedidos.
     async cambiarPin(uid, pinNuevo, pinActual) {
       if (!sesion) return NO('sesion');
+      // Solo el administrador cambia PIN (el suyo o el de otros); la vendedora y la encargada no.
+      if (sesion.rol !== 'admin') return NO('permiso');
       if (!/^\d{4}$/.test(String(pinNuevo))) return NO('datos');
       try {
         if (uid === sesion.uid) {

@@ -174,6 +174,28 @@ function atraparFoco(e, el) {
 // cerrarse, llama a `salir` en vez de la animación de las ventanas. Devuelve { cerrar }.
 export function abrirCapaPropia(el, salir) { return abrirCapa(el, salir); }
 
+// Menú propio (en vez del selector nativo): lista de opciones bajo el botón que lo abre, con la elegida
+// marcada. Atrás, Escape o tocar fuera lo cierran. `opciones` = [[valor, texto], …].
+export function abrirMenu(boton, { opciones, actual, titulo, alElegir }) {
+  const lista = h('div', { class: 'menu-op', role: 'listbox', 'aria-label': titulo || '' },
+    ...opciones.map(([v, t]) => h('button', { type: 'button', role: 'option', class: 'menu-it' + (v === actual ? ' on' : ''), 'aria-selected': String(v === actual), 'data-v': v },
+      h('span', {}, t), v === actual ? icono('check') : null)));
+  const capa = h('div', { class: 'capa-menu' }, h('div', { class: 'menu-fondo' }), lista);
+  const salir = () => { capa.classList.remove('abierto'); setTimeout(() => capa.remove(), 140); };
+  const { cerrar } = abrirCapa(capa, salir);
+  // Posición: debajo del botón (o encima si no cabe); en el teléfono, a lo ancho del botón como mínimo.
+  const r = boton.getBoundingClientRect();
+  lista.style.minWidth = `${Math.max(r.width, 180)}px`;
+  const ancho = Math.max(r.width, 180), izq = Math.min(Math.max(8, r.left), innerWidth - ancho - 8);
+  lista.style.left = `${izq}px`;
+  const alto = Math.min(lista.scrollHeight || 320, 320);
+  if (r.bottom + 6 + alto > innerHeight - 8 && r.top - 6 - alto > 8) lista.style.bottom = `${innerHeight - r.top + 6}px`; else lista.style.top = `${r.bottom + 6}px`;
+  requestAnimationFrame(() => capa.classList.add('abierto'));
+  capa.querySelector('.menu-fondo').addEventListener('click', cerrar);
+  lista.addEventListener('click', e => { const b = e.target.closest('.menu-it'); if (!b) return; cerrar(); alElegir(b.dataset.v); });
+  return { cerrar };
+}
+
 export function hayCapas() { return pila.length > 0; }
 
 export function cerrarCapaSuperior() {
@@ -201,7 +223,9 @@ document.addEventListener('keydown', e => {
 });
 
 // Las hojas que suben desde abajo se ocultan con una flecha hacia abajo; las ventanas, con la X.
-function cabecera(titulo, extra, ocultar = false) {
+function cabecera(titulo, extra, ocultar = false, sinTitulo = false) {
+  // sinTitulo: solo la flecha para ocultar, centrada (hoja del carrito).
+  if (sinTitulo) return h('div', { class: 'cab solo-flecha' }, h('button', { class: 'ibtn cerrar', 'aria-label': 'Ocultar' }, icono('abajo')));
   return h('div', { class: 'cab' }, h('h2', {}, titulo), extra || null,
     h('button', { class: 'ibtn cerrar', 'aria-label': ocultar ? 'Ocultar' : 'Cerrar' }, icono(ocultar ? 'abajo' : 'x')));
 }
@@ -215,11 +239,11 @@ export function abrirVentana({ titulo, contenido, acciones, pantallaCompleta = f
 }
 
 // modal:false deja usar el resto de la pantalla mientras la hoja está abierta (sin fondo oscuro).
-export function abrirHoja({ titulo, contenido, lado, modal = true, extraCab = null }) {
+export function abrirHoja({ titulo, contenido, lado, modal = true, extraCab = null, sinTitulo = false }) {
   const l = lado || (matchMedia('(max-width:839px)').matches ? 'abajo' : 'derecha');
   const el = h('div', { class: `capa hoja ${l}${modal ? '' : ' no-modal'}`, role: 'dialog', 'aria-modal': String(modal), 'aria-label': titulo },
     modal ? h('div', { class: 'fondo' }) : null,
-    h('div', { class: 'caja' }, cabecera(titulo, extraCab, l === 'abajo'), h('div', { class: 'cuerpo' }, contenido)));
+    h('div', { class: 'caja' }, cabecera(titulo, extraCab, l === 'abajo', sinTitulo && l === 'abajo'), h('div', { class: 'cuerpo' }, contenido)));
   return abrirCapa(el);
 }
 

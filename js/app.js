@@ -4,6 +4,8 @@ import { APP_VERSION } from './version.js';
 import { puede } from './nucleo/permisos.js';
 import { opcionesCuenta } from './vistas/cuenta.js';
 import { MODO_DEMO } from './datos/index.js';
+import { crearSimulacion } from './datos/memoria.js';
+import { NOMBRES } from './datos/contrato.js';
 
 const VISTAS = {};
 export function registrarVista(ruta, def) { VISTAS[ruta] = def; }
@@ -53,8 +55,8 @@ export const ctx = {
   sesion: null,
   tasas: { copPorUsd: null, bsPorUsd: null },
   ajustes: {},
-  // Modo demo: el administrador ve la app con los permisos de otro rol (vistaRol). Los datos y lo que
-  // se guarda siguen siendo los reales; solo cambia qué pantallas, botones y cifras se muestran.
+  // Modo demo: el administrador ve la app como otro rol (vistaRol) sobre una copia simulada de los
+  // datos (almacenReal guarda el de verdad); al salir se descarta todo lo hecho en la simulación.
   vistaRol: null,
   rol: () => ctx.vistaRol || ctx.sesion?.rol,
   puedeVer: accion => !!ctx.sesion && puede(ctx.rol(), accion),
@@ -69,15 +71,39 @@ let raiz, contenedor, barra, cabecera, avisoDemo;
 
 export const ROLES_DEMO = [['vendedora', 'Vendedora'], ['encargada', 'Encargada']];
 const nombreRol = r => (ROLES_DEMO.find(([k]) => k === r) || [, r])[1];
-export function verComo(rol) {
-  ctx.vistaRol = rol || null;
+export async function verComo(rol) {
+  rol = rol || null;
+  if (rol && rol !== ctx.vistaRol) {
+    // Se trabaja sobre una copia simulada: nada de lo que se haga en el modo demo se guarda de verdad.
+    const real = ctx.almacenReal || ctx.almacen;
+    const datos = await copiarDatos(real);
+    const sim = crearSimulacion(datos, { rol, nombre: nombreRol(rol) });
+    await sim.entrar('demo', '0000');
+    ctx.almacenReal = real; ctx.sesionReal = ctx.sesionReal || ctx.sesion;
+    ctx.almacen = sim; ctx.sesion = { uid: 'u-demo', usuario: 'demo', nombre: nombreRol(rol), rol };
+  } else if (!rol && ctx.almacenReal) {
+    ctx.almacen = ctx.almacenReal; ctx.sesion = ctx.sesionReal || ctx.sesion;
+    ctx.almacenReal = null; ctx.sesionReal = null;
+  }
+  ctx.vistaRol = rol;
+  ctx.reiniciarDatos && ctx.reiniciarDatos();
   pintarAvisoDemo();
   if (rutaActual() === '/inicio') montar(); else location.replace('#/inicio');
+}
+// Toma una foto de todas las colecciones (la primera respuesta de cada una, con 5 s de tope).
+function copiarDatos(almacen) {
+  const datos = {};
+  return Promise.all(NOMBRES.map(n => new Promise(listo => {
+    let quitar = null, hecho = false;
+    const fin = docs => { if (hecho) return; hecho = true; datos[n] = docs || []; setTimeout(() => quitar && quitar()); listo(); };
+    quitar = almacen.escuchar(n, fin);
+    setTimeout(() => fin([]), 5000);
+  }))).then(() => datos);
 }
 function pintarAvisoDemo() {
   if (!avisoDemo) return;
   avisoDemo.hidden = !ctx.vistaRol;
-  avisoDemo.replaceChildren(...(ctx.vistaRol ? [icono('usuario'), h('span', {}, h('b', {}, `Modo demo · ${nombreRol(ctx.vistaRol)}`), h('span', { class: 'nota' }, ' Lo que hagas se guarda de verdad.')),
+  avisoDemo.replaceChildren(...(ctx.vistaRol ? [icono('usuario'), h('span', {}, h('b', {}, `Modo demo · ${nombreRol(ctx.vistaRol)}`)),
     h('button', { class: 'btn chico', id: 'salir-demo', onclick: () => verComo(null) }, 'Salir')] : []));
 }
 // Pastilla «Modo demo»: elige con qué rol ver la app.

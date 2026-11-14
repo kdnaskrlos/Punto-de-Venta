@@ -3,6 +3,9 @@
 // para escribirlo (también sirve para un lector USB). Lee con BarcodeDetector y, si no, con @zxing/library 0.21.3.
 import { abrirCapaPropia } from '../ui.js';
 
+// Ícono del botón del escáner (el mismo en Inventario y Vender).
+export const ICONO_ESCANER = '<svg viewBox="0 0 24 24"><path d="M3.5 8V5.5a2 2 0 0 1 2-2H8M16 3.5h2.5a2 2 0 0 1 2 2V8M20.5 16v2.5a2 2 0 0 1-2 2H16M8 20.5H5.5a2 2 0 0 1-2-2V16M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>';
+
 const ZXING = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
 let cargaZx = null;
 function cargarZxing() {

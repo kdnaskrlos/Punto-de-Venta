@@ -30,6 +30,8 @@ async function iniciar() {
   ctx.almacen = await crearAlmacen();
   if (DEMO_DIRECTO) await ctx.almacen.entrar(usuarioDemo(), '1234');
   let anterior, pararDatos = null, turno = 0;
+  // Modo demo: cambia de almacén (real ↔ simulado) y vuelve a escuchar los datos del nuevo.
+  ctx.reiniciarDatos = () => { pararDatos && pararDatos(); ctx.carrito = null; pararDatos = ctx.sesion ? iniciarDatos(ctx) : null; };
   ctx.almacen.alCambiarSesion(async s => {
     const clave = s ? s.uid + s.rol : null;
     // Solo se omite si la pantalla que se ve ya corresponde (app con sesión o entrada sin ella).
@@ -37,6 +39,8 @@ async function iniciar() {
     if (clave === anterior && mostrando) { ctx.sesion = s; return; }
     const mio = ++turno;
     anterior = clave;
+    // Si se sale o cambia la sesión real estando en Modo demo, se vuelve al almacén real.
+    if (ctx.almacenReal) { ctx.almacen = ctx.almacenReal; ctx.almacenReal = null; ctx.sesionReal = null; ctx.vistaRol = null; }
     ctx.sesion = s;
     while (hayCapas()) cerrarCapaSuperior();
     pararDatos && pararDatos(); pararDatos = null;
