@@ -19,7 +19,7 @@ const ventas = p => p.evaluate(() => [...window.__pos.ctx.almacen._estado('venta
 casos('cobrar', [
   ['Cobrar sin cliente pide registrarlo primero; teléfono conocido completa el nombre', async (env, a) => {
     const p = await preparar(env, { ancho: 360, alto: 780, sinCliente: true });
-    await p.click('.barra-carrito'); await p.click('.panel-carrito .cobrar');
+    await p.click('.lado-carrito .cobrar');
     await p.waitForSelector('.capa #cli-tel');
     a.strictEqual(await p.$('#cobrar-final'), null, 'todavía no abre el cobro');
     await p.fill('#cli-tel', '0412-123.45.67');
@@ -121,12 +121,12 @@ casos('cobrar', [
     await p.click('#cobrar-final');
     await p.waitForSelector('text=Ya no hay existencia de Buzo Etanol Caballero Gris · Talla L');
     a.strictEqual((await ventas(p)).length, 0);
-    a.ok(await p.$('.lado-carrito .linea[data-sku="B-L"]'));
+    a.ok(await p.$('.zona-carrito .linea[data-sku="B-L"]'));
     a.deepStrictEqual(p.errores, []);
   }],
   ['Teléfono: Cobrar no abre el teclado solo; el pago elegido aparece debajo del total y el botón Cobrar a la vista', async (env, a) => {
     const p = await preparar(env, { movil: true });
-    await p.click('.barra-carrito'); await p.click('.panel-carrito .cobrar');
+    await p.click('.lado-carrito .cobrar');
     await p.waitForSelector('#cobrar-final');
     await p.waitForTimeout(150);
     a.notStrictEqual(await p.evaluate(() => document.activeElement.tagName), 'INPUT');
@@ -142,13 +142,13 @@ casos('cobrar', [
   }],
   ['El ejemplo de teléfono no parece un dato escrito', async (env, a) => {
     const p = await preparar(env, { ancho: 360, alto: 780, sinCliente: true });
-    await p.click('.barra-carrito'); await p.click('.panel-carrito .cobrar');
+    await p.click('.lado-carrito .cobrar');
     a.match(await p.getAttribute('#cli-tel', 'placeholder'), /^Ej\. /);
   }],
   ['Carrito: el monto del descuento va alineado a la derecha, como los demás', async (env, a) => {
     const p = await preparar(env);
     const d = await p.evaluate(() => {
-      const fila = document.querySelector('.lado-carrito .fila-total.desc'), sub = document.querySelector('.lado-carrito .fila-total:not(.desc) .num');
+      const fila = document.querySelector('.zona-carrito .fila-total.desc'), sub = document.querySelector('.zona-carrito .fila-total:not(.desc) .num');
       return { desc: fila.querySelector('.num').getBoundingClientRect().right, sub: sub.getBoundingClientRect().right };
     });
     a.ok(Math.abs(d.desc - d.sub) < 2, `descuento termina en ${d.desc}, subtotal en ${d.sub}`);
@@ -179,19 +179,19 @@ casos('cobrar', [
   }],
   ['Las formas ya agregadas quedan resaltadas y ningún botón queda marcado por el foco', async (env, a) => {
     const p = await preparar(env, { movil: true });
-    await p.click('.barra-carrito'); await p.click('.panel-carrito .cobrar');
+    await p.click('.lado-carrito .cobrar');
     await p.click('.forma[data-forma="efectivo-usd"]');
     a.deepStrictEqual(await p.$$eval('.forma-cobro.activa', e => e.map(x => x.dataset.formaCard)), ['efectivo-usd']);
     a.strictEqual(await p.evaluate(() => document.activeElement.classList.contains('forma')), false);
   }],
   ['El carrito muestra en dólares y bolívares lo mismo que se cobrará (redondeado hacia arriba)', async (env, a) => {
     const p = await preparar(env);
-    a.strictEqual(await texto(p, '.lado-carrito .equivalentes'), '29,75 USD · 31.974,36 Bs'); // 116.000 COP
+    a.strictEqual(await texto(p, '.barra-cobro .tc-eq'), '29,75 USD · 31.974,36 Bs'); // 116.000 COP
   }],
   ['El texto del tramo en el carrito se lee (12 px o más)', async (env, a) => {
     const p = await preparar(env);
-    await p.click('.lado-carrito .linea.mini');
-    const tam = await p.$eval('.lado-carrito .linea .tramo', e => parseFloat(getComputedStyle(e).fontSize));
+    await p.click('.zona-carrito .linea.mini');
+    const tam = await p.$eval('.zona-carrito .linea .tramo', e => parseFloat(getComputedStyle(e).fontSize));
     a.ok(tam >= 12, `${tam}px`);
   }],
   ['Registrar cliente y pasar al cobro: al cerrar sigue en la app', async (env, a) => {

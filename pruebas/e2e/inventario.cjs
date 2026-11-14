@@ -173,9 +173,10 @@ casos('inventario', [
     await p.keyboard.press('Escape');
     await p.waitForSelector('.stk-capa', { state: 'detached' });
     await p.evaluate(() => { location.hash = '/vender'; });
+    await p.fill('#buscar', 'jogger');
     await p.waitForSelector('.tarjeta-prenda[data-nombre="Jogger Texcol Caballero Negro"] .tp-estado');
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }] }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
-    a.strictEqual(await texto(p, '.carrito .total-cop'), '37.800');
+    a.strictEqual(await texto(p, '.barra-cobro .total-cop'), '37.800');
   }],
   ['Admin: una foto por código de imagen la muestran todas sus variantes, sin copiarla a cada sku', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
@@ -198,6 +199,7 @@ casos('inventario', [
     a.strictEqual(await p.$$eval('.stk-capa .fotocard img', e => e.length), 1, 'la talla muestra la foto arriba');
     await p.keyboard.press('Escape'); await p.waitForSelector('.stk-capa', { state: 'detached' });
     await p.evaluate(() => { location.hash = '/vender'; });
+    await p.fill('#buscar', 'franela');
     await p.waitForSelector('.tarjeta-prenda[data-nombre="Franela AS Niño Blanco"] img');
     a.deepStrictEqual(p.errores, []);
   }],

@@ -13,13 +13,14 @@ casos('calculadora', [
   }],
   ['PC: panel derecho sin tapar el carrito; 100 USD = 390.000 COP = 107.500,00 Bs', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
     await p.click('.topbar [aria-label="Calculadora"]');
     a.ok(await p.$('.capa.hoja.derecha'));
     await p.waitForTimeout(350); // fin de la animación de entrada
     const calc = await p.$eval('.capa .caja', e => e.getBoundingClientRect().toJSON());
     const carro = await p.$eval('.lado-carrito', e => e.getBoundingClientRect().toJSON());
     a.ok(calc.right <= carro.left + 1, `la calculadora (${calc.left}-${calc.right}) tapa el carrito (${carro.left}-${carro.right})`);
-    await p.click('.lado-carrito .sec-t, .lado-carrito .nota'); // el carrito sigue usable con la calculadora abierta
+    await p.click('.lado-carrito .bco-total'); // el carrito sigue usable con la calculadora abierta
     a.ok(await p.$('.capa .caja'));
     await p.fill('#calc-usd', '100');
     a.strictEqual(await p.inputValue('#calc-cop'), '390.000');

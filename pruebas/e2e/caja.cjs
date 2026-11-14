@@ -73,16 +73,16 @@ casos('caja', [
   }],
   ['Vendedora sin caja: tocar una prenda abre "Abrir caja" y no la agrega', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', ruta: '/vender' });
-    await p.click('.tarjeta-prenda[data-nombre="Buzo Etanol Caballero Gris"]');
+    await p.fill('#buscar', 'buzo'); await p.click('.tarjeta-prenda[data-nombre="Buzo Etanol Caballero Gris"]');
     await p.waitForSelector('.capa #fondo-cop');
     a.strictEqual(await p.evaluate(() => (window.__pos.ctx.carrito?.lineas || []).length), 0);
   }],
   ['Dueños: venden sin abrir caja; se crea sola su caja personal, sin fondo', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'encargada', ruta: '/vender' });
     a.strictEqual(await p.isVisible('.sin-caja'), false);
-    await p.click('.tarjeta-prenda[data-nombre="Buzo Etanol Caballero Gris"]');
+    await p.fill('#buscar', 'buzo'); await p.click('.tarjeta-prenda[data-nombre="Buzo Etanol Caballero Gris"]');
     await p.click('.capa .talla-mas[data-talla="S"]'); await p.click('#tallas-agregar');
-    await p.click('.barra-carrito'); await p.click('.panel-carrito .cobrar');
+    await p.click('.lado-carrito .cobrar');
     await p.fill('#cli-tel', '0414-555.12.12'); await p.fill('#cli-nombre', 'Luis'); await p.click('#cli-guardar');
     await p.click('.forma[data-forma="pago-movil"]');
     await p.click('#cobrar-final');

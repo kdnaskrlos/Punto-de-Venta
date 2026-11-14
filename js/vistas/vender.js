@@ -1,7 +1,7 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
 import { abrirEscaner, ICONO_ESCANER } from './escaner.js';
 import { buscarCodigo } from './inventario.js';
-import { h, icono, abrirVentana, abrirHoja, abrirCapaPropia, toast, esTelefono, hayCapas, largo, campoBusqueda } from '../ui.js';
+import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, campoBusqueda } from '../ui.js';
 import { coincide, prepararTexto } from '../nucleo/busqueda.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
@@ -205,6 +205,19 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
       h('button', { class: 'btn primary cobrar', onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') }, 'Cobrar')));
 }
 
+// Barra de cobro (v1.97): total en COP con su equivalente en USD y Bs, Cobrar, y debajo Descuento y Apartar.
+// En el teléfono va fija sobre la barra de íconos; en la computadora es la columna derecha.
+function barraCobro(ctx, r) {
+  return h('div', { class: 'barra-cobro' },
+    h('div', { class: 'bco-total' },
+      r.descuento ? h('span', { class: 'bco-desc' }, icono('etiqueta'), '−' + fmtCop(r.descuento)) : null,
+      h('div', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
+      h('div', { class: 'tc-eq' }, equivalentes(ctx, r.total))),
+    h('button', { class: 'btn primary cobrar', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') }, 'Cobrar'),
+    h('button', { class: 'btn', type: 'button', id: 'car-descuento', onclick: () => abrirDescuento(ctx) }, icono('etiqueta'), 'Descuento'),
+    h('button', { class: 'btn', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'));
+}
+
 // Descuento por monto, en pesos o en dólares (sin porcentaje). En dólares se convierte a pesos con la tasa del día.
 // Si ya hay uno, la misma ventana permite quitarlo.
 function abrirDescuento(ctx) {
@@ -351,9 +364,7 @@ export function tarjetaPrenda(ctx, g, { alTocar, carrito: conCarrito = false, po
     h('span', { class: 'tp-der' },
       agotada ? h('span', { class: 'est r tp-estado' }, icono('alerta'), 'Agotada')
         : h('span', { class: 'est tp-disp ' + (pocas ? 'y' : 'g') }, `${existencia} disp.`),
-      // v1.96: en Vender la agotada también muestra el precio (en gris) para conservar la forma de la tarjeta;
-      // con 9 caracteres o más el precio va más pequeño (data-largo) para no tocar la foto.
-      agotada && !conCarrito ? null : (() => { const t = Number.isFinite(precio) ? fmtCop(precio) : '—'; return h('span', { class: 'num precio', 'data-largo': t.length >= 9 ? 'l' : null }, t); })(),
+      agotada ? null : h('span', { class: 'num precio' }, Number.isFinite(precio) ? fmtCop(precio) : '—'),
       !agotada && oferta ? h('span', { class: 'tp-estado tp-oferta' }, 'oferta') : null));
 }
 function tarjeta(ctx, g) {
@@ -366,53 +377,14 @@ registrarVista('/vender', {
     const buscar = h('input', { class: 'inp', id: 'buscar', type: 'search', 'aria-label': 'Buscar prenda o código', placeholder: 'Buscar prenda o código', autocomplete: 'off', enterkeyhint: 'search' });
     const filtros = h('div', { class: 'filtros' });
     const rejilla = h('div', { class: 'rejilla' });
-    const lado = h('aside', { class: 'lado-carrito' });
-    // Panel del carrito en el teléfono (v1.94): la barra de abajo es la cabecera del propio panel; al tocarla (o
-    // deslizarla hacia arriba) el panel entero sube y se despliega, sin abrir otra hoja encima. Se baja con el dedo
-    // como la hoja del Inventario; Atrás y Esc lo bajan; mientras está abierto la pantalla de abajo no se desplaza.
-    const barra = h('button', { class: 'barra-carrito', type: 'button', 'aria-label': 'Abrir carrito', 'aria-expanded': 'false' });
-    const hojaCarrito = h('div', { class: 'hoja-carrito' });
-    const cuerpoPanel = h('div', { class: 'pc-cuerpo' }, hojaCarrito);
-    const panel = h('div', { class: 'panel-carrito', hidden: true }, barra, cuerpoPanel);
-    const velo = h('div', { class: 'pc-velo' });
-    let abierto = false, capaPanel = null, tVelo = 0;
-    const asomar = () => { if (abierto) return; const nav = document.querySelector('.side'); panel.style.setProperty('--asoma', `${barra.offsetHeight + (nav && esTelefono() ? nav.offsetHeight : 0)}px`); };
-    const bajarPanel = () => { // la llama la pila de capas (Atrás, Esc, tocar el fondo, bajar con el dedo)
-      abierto = false; capaPanel = null;
-      document.body.classList.remove('panel-abierto'); // la barra de íconos vuelve a subir, con transición
-      panel.classList.remove('abierto', 'drag'); panel.style.transform = ''; velo.classList.remove('on'); velo.style.opacity = '';
-      barra.setAttribute('aria-expanded', 'false'); barra.setAttribute('aria-label', 'Abrir carrito');
-      clearTimeout(tVelo); tVelo = setTimeout(() => { if (!abierto) { panel.classList.remove('alto'); velo.remove(); } }, 250);
-    };
-    const subirPanel = () => {
-      if (abierto || panel.hidden) return;
-      abierto = true; clearTimeout(tVelo);
-      panel.classList.add('alto'); velo.style.opacity = '';
-      document.body.classList.add('panel-abierto'); // la barra de íconos baja mientras el panel está abierto
-      capaPanel = abrirCapaPropia(velo, bajarPanel);
-      void panel.offsetHeight; panel.classList.add('abierto'); velo.classList.add('on');
-      barra.setAttribute('aria-expanded', 'true'); barra.setAttribute('aria-label', 'Ocultar carrito');
-      cuerpoPanel.scrollTop = 0;
-    };
-    const cerrarPanel = () => capaPanel?.cerrar();
-    barra.addEventListener('click', () => (abierto ? cerrarPanel() : subirPanel()));
-    velo.addEventListener('click', cerrarPanel);
-    { // Gesto: cerrado, deslizar hacia arriba abre; abierto, arrastrar hacia abajo baja (copiado de la hoja del Inventario).
-      let y0 = 0, dy = 0, off = 0, t0 = 0, on = false, can = false, raf = 0;
-      const pintarArrastre = () => { raf = 0; const d = Math.max(0, dy - off); panel.style.transform = `translate3d(0,${d}px,0)`; velo.style.opacity = String(Math.max(0, 1 - d / (panel.offsetHeight || 600))); };
-      const soltar = () => { cancelAnimationFrame(raf); raf = 0; panel.classList.remove('drag'); panel.style.transform = ''; velo.style.opacity = ''; };
-      panel.addEventListener('touchstart', e => { if (e.touches.length !== 1) return; y0 = e.touches[0].clientY; t0 = Date.now(); dy = 0; off = 0; on = false; can = abierto && (cuerpoPanel.scrollTop <= 0 || !!e.target.closest('.barra-carrito')); }, { passive: true });
-      panel.addEventListener('touchmove', e => {
-        dy = e.touches[0].clientY - y0;
-        if (!abierto) { if (dy < -24 && e.target.closest('.barra-carrito')) { y0 = e.touches[0].clientY; subirPanel(); } return; }
-        if (!can) return;
-        if (!on) { if (dy > 8 && cuerpoPanel.scrollTop <= 0) { on = true; off = dy; panel.classList.add('drag'); } else if (dy < -4) { can = false; return; } else return; }
-        e.preventDefault(); if (!raf) raf = requestAnimationFrame(pintarArrastre);
-      }, { passive: false });
-      panel.addEventListener('touchend', () => { if (!on) return; on = false; const d = dy - off, v = d / Math.max(1, Date.now() - t0); if (d > 110 || (d > 40 && v > 0.5)) { soltar(); cerrarPanel(); } else soltar(); });
-      panel.addEventListener('touchcancel', () => { if (on) { on = false; soltar(); } });
-    }
-    addEventListener('resize', asomar);
+    // v1.97 · La pantalla de Vender es el carrito: sin la lista de prendas a la vista. Buscar o escanear agrega;
+    // «Todos los productos» abre la lista completa (Tarjetas listado alargadas). Al agregar, se vuelve al carrito.
+    // Total, Cobrar, Descuento y Apartar van en la barra de cobro: abajo en el teléfono, columna derecha en la computadora.
+    const lado = h('aside', { class: 'lado-carrito barra-cobro-lado' });
+    const zonaCarrito = h('div', { class: 'zona-carrito' });
+    const btnTodos = h('button', { class: 'btn btn-todos', type: 'button', id: 'todos-productos', onclick: () => { catalogo = true; pintar(); } }, icono('cuadricula'), 'Todos los productos');
+    const vacio = h('div', { class: 'venta-vacia' }, btnTodos);
+    let catalogo = false, antes = new Map(), tRecien = 0;
     const sinCaja = h('div', { class: 'aviso sin-caja' }, icono('cartera'), h('span', {}, 'Abre tu caja para vender'), h('span', { class: 'sp' }), h('button', { class: 'btn primary', onclick: () => abrirCajaVentana(ctx) }, 'Abrir caja'));
 
     // El mismo escáner del Inventario (cámara, foto del código o escribirlo / lector USB): lo leído se agrega al carrito.
@@ -437,25 +409,33 @@ registrarVista('/vender', {
       // Búsqueda (v1.92): palabras en cualquier orden, sin tildes, plurales, tallas y códigos (nucleo/busqueda.js).
       const q = busqueda.trim();
       const vis = todos.filter(g => (!genero || g.genero === genero) && (!q || g.variantes.some(p => coincide(prepararTexto(textoBusqueda(p)), q))));
-      rejilla.replaceChildren(...(vis.length ? vis.map(g => tarjeta(ctx, g)) : [h('div', { class: 'vacio' }, q ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos. El administrador los importa desde la Carga Masiva.')]));
+      const lista = !!q || catalogo;
+      filtros.hidden = rejilla.hidden = !lista;
+      cont.classList.toggle('en-lista', lista);
+      const borrar = cont.querySelector('.buscar-borrar'); if (borrar && catalogo && !q) borrar.hidden = false; // la × también cierra «Todos los productos»
+      rejilla.replaceChildren(...(!lista ? [] : vis.length ? vis.map(g => tarjeta(ctx, g)) : [h('div', { class: 'vacio' }, q ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos. El administrador los importa desde la Carga Masiva.')]));
       pintarCarrito();
     }
     function pintarCarrito() {
       const porGrupo = new Map(grupos(ctx).map(g => [g.grupo, g]));
       rejilla.querySelectorAll('.tarjeta-prenda').forEach(el => { const g = porGrupo.get(el.dataset.grupo); if (g) el.replaceWith(tarjeta(ctx, g)); });
-      ponerCarrito(lado, panelCarrito(ctx));
       const r = resumenCarrito(ctx);
-      panel.hidden = !r.unidades;
-      if (!r.unidades && abierto) cerrarPanel();
-      barra.replaceChildren(h('span', { class: 'bc-flecha', 'aria-hidden': 'true' }, icono('abajo')),
-        h('span', { class: 'bc-ic' }, icono('carrito'), h('span', { class: 'bc-n num' }, String(r.unidades))),
-        h('span', { class: 'bc-tx' }, h('b', {}, 'Ver carrito'), h('small', {}, `${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`)),
-        h('span', { class: 'bc-total' }, h('b', { class: 'num' }, fmtCop(r.total)), h('small', {}, 'COP')));
-      if (r.unidades && esTelefono()) ponerCarrito(hojaCarrito, panelCarrito(ctx, { enHoja: true })); else if (!esTelefono()) hojaCarrito.replaceChildren();
-      requestAnimationFrame(asomar);
+      // ¿Qué prenda acaba de entrar o subir? Se resalta un momento y, si se estaba buscando, se vuelve al carrito.
+      const ahora = new Map(carrito(ctx).lineas.map(l => [l.sku, l.cantidad]));
+      const nueva = [...ahora].find(([sku, n]) => n > (antes.get(sku) || 0))?.[0];
+      antes = ahora;
+      if (nueva && (busqueda || catalogo)) { buscar.value = ''; busqueda = ''; catalogo = false; buscar.dispatchEvent(new Event('input', { bubbles: true })); return; }
+      const lista = !!busqueda.trim() || catalogo;
+      vacio.hidden = lista || !!r.unidades;
+      zonaCarrito.hidden = lista || !r.unidades;
+      if (r.unidades) ponerCarrito(zonaCarrito, panelCarrito(ctx, { enHoja: true })); else zonaCarrito.replaceChildren();
+      if (nueva) { clearTimeout(tRecien); const el = zonaCarrito.querySelector(`.linea[data-sku="${CSS.escape(nueva)}"]`); if (el) { el.classList.add('recien'); el.scrollIntoView({ block: 'nearest' }); tRecien = setTimeout(() => el.classList.remove('recien'), 1600); } }
+      lado.hidden = !r.unidades;
+      cont.classList.toggle('con-barra', !!r.unidades);
+      if (r.unidades) lado.replaceChildren(barraCobro(ctx, r));
       sinCaja.hidden = !!ctx.miCaja || !ctx.puedeVer('cajaFisica');
     }
-    buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
+    buscar.addEventListener('input', () => { busqueda = buscar.value; if (!busqueda) catalogo = false; pintar(); });
     buscar.addEventListener('keydown', e => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
@@ -472,9 +452,9 @@ registrarVista('/vender', {
     window.addEventListener('pos:carrito', pintarCarrito);
 
     cont.classList.add('vender');
-    cont.append(h('div', { class: 'vender-main' }, sinCaja, h('div', { class: 'buscador' }, campoBusqueda(buscar), escanear), filtros, rejilla), lado, panel);
+    cont.append(h('div', { class: 'vender-main' }, sinCaja, h('div', { class: 'buscador' }, campoBusqueda(buscar), escanear), filtros, rejilla, vacio, zonaCarrito), lado);
     pintar();
     if (!esTelefono()) setTimeout(() => buscar.focus(), 50);
-    return () => { document.body.classList.remove('panel-abierto'); if (abierto) cerrarPanel(); velo.remove(); removeEventListener('resize', asomar); document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
+    return () => { clearTimeout(tRecien); document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
   },
 });

@@ -632,29 +632,45 @@ button.pill:not(.demo){border-color:transparent!important}
 }
 @media (max-width:839px) and (prefers-reduced-motion:reduce){.side{transition:none}}
 
-/* v1.96 · Vender en el teléfono: Tarjetas listado en dos columnas (foto y pastilla arriba, precio al pie de la foto,
-   nombre en 2 líneas y «color · tela» debajo). Inventario y computadora quedan igual. */
+
+/* ===== v1.97 · Vender: la pantalla es el carrito ===== */
+/* Lista de prendas solo al buscar o con «Todos los productos» (Tarjetas listado alargadas, una columna). */
+.vista.vender .filtros[hidden],.vista.vender .rejilla[hidden],.venta-vacia[hidden],.zona-carrito[hidden],.lado-carrito[hidden]{display:none!important}
+.venta-vacia{display:flex;justify-content:center;padding:48px 0 24px}
+.btn-todos{min-height:48px;padding:0 20px;gap:8px;background:var(--surface);border:1px solid var(--line)}
+.btn-todos svg.i{width:18px;height:18px}
+/* Espaciado del sistema: 12 px entre bloques (16 px en la computadora). */
+.vista.vender .vender-main > .buscador,.vista.vender .vender-main > .filtros{margin:0!important}
+@media (min-width:840px){.vista.vender .vender-main{gap:16px}}
+.zona-carrito .carrito{padding:0!important;border:0!important;background:none!important}
+.zona-carrito .caja-total,.zona-carrito .acciones-carrito{display:none!important}
+.zona-carrito .totales:not(:has(.fila-total)){display:none!important}
+.linea.recien{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 45%,transparent)!important;transition:box-shadow .2s ease}
+/* Barra de cobro: total + equivalentes, Cobrar, y debajo Descuento | Apartar. */
+.barra-cobro{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"tot cob" "des apa";gap:10px 8px;align-items:center}
+.barra-cobro .bco-total{grid-area:tot;min-width:0;line-height:1.15}
+.barra-cobro .bco-total .total{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
+.barra-cobro .bco-total .total-cop{font-size:22px;font-weight:700}
+.barra-cobro .bco-total .total-cop[data-largo=l]{font-size:19px}.barra-cobro .bco-total .total-cop[data-largo=xl]{font-size:17px}
+.barra-cobro .bco-total .c-cop{font-size:12px;font-weight:700}
+.barra-cobro .tc-eq{font-size:12.5px;font-weight:600;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.barra-cobro .bco-desc{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--r-tx);margin-bottom:2px}
+.barra-cobro .bco-desc svg.i{width:13px;height:13px}
+.barra-cobro .cobrar{grid-area:cob;min-height:52px!important;font-size:16px!important;border-radius:14px!important}
+.barra-cobro .btn:not(.cobrar){min-height:44px!important;background:var(--surface)}
+.barra-cobro #car-descuento{grid-area:des}.barra-cobro .btn:last-child{grid-area:apa}
 @media (max-width:839px){
-  .vender-main .rejilla{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;align-items:stretch}
-  .vender-main .rejilla .tarjeta-prenda{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;grid-template-rows:auto 1fr auto auto!important;
-    grid-template-areas:"img est" "img pre" "nom nom" "lin lin"!important;align-content:start!important;align-items:start!important;column-gap:8px!important;row-gap:0!important;padding:12px!important;min-height:0!important;text-align:left}
-  .vender-main .rejilla .tarjeta-prenda .tp-img{grid-area:img!important;position:relative;align-self:start!important;margin:0!important}
-  .vender-main .rejilla .tarjeta-prenda .foto{width:60px!important;height:60px!important;border-radius:14px!important}
-  .vender-main .rejilla .tarjeta-prenda .foto svg.i{width:30px!important;height:30px!important}
-  .vender-main .rejilla .tarjeta-prenda .info,.vender-main .rejilla .tarjeta-prenda .tp-der{display:contents!important}
-  .vender-main .rejilla .tarjeta-prenda .est,.vender-main .rejilla .tarjeta-prenda .tp-estado{grid-area:est!important;justify-self:end;align-self:start}
-  .vender-main .rejilla .tarjeta-prenda .precio{grid-area:pre!important;justify-self:end;align-self:end!important;font-size:19px!important;font-weight:700!important;line-height:1;white-space:nowrap}
-  .vender-main .rejilla .tarjeta-prenda .precio[data-largo]{font-size:16px!important}
-  .vender-main .rejilla .tarjeta-prenda .info b{grid-area:nom!important;margin-top:10px!important;font-size:15px!important;font-weight:600!important;line-height:1.25!important;height:2.5em;
-    display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important;white-space:normal!important}
-  .vender-main .rejilla .tarjeta-prenda .tp-linea{grid-area:lin!important;margin-top:4px!important;font-size:13px!important;color:var(--muted);min-width:0;display:block!important}
-  .vender-main .rejilla .tarjeta-prenda .tp-linea .tp-color{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
-  .vender-main .rejilla .tarjeta-prenda .tp-linea .punto-color{display:inline-block!important;vertical-align:-1px;margin-right:6px}
-  .vender-main .rejilla .tarjeta-prenda .en-carrito{top:-7px!important;left:-7px!important;width:28px!important;height:28px!important;min-width:28px!important}
-  .vender-main .rejilla .tarjeta-prenda .en-carrito::after{content:"";position:absolute;inset:-8px}
-  .vender-main .rejilla .tarjeta-prenda.agotada .info b{color:#4b5563!important}
-  .vender-main .rejilla .tarjeta-prenda.agotada .tp-linea{color:#5b6472!important}
-  .vender-main .rejilla .tarjeta-prenda.agotada .precio{color:#6b7280!important;font-weight:600!important}
+  .vista.vender .lado-carrito:not([hidden]){display:block!important;position:fixed;left:0;right:0;bottom:calc(72px + env(safe-area-inset-bottom,0px));top:auto;height:auto;z-index:18;
+    padding:14px 12px 12px;border:0;border-top:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:18px 18px 0 0;overflow:visible;
+    background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 12%,var(--surface)) 0%,var(--surface) 75%);box-shadow:0 -6px 24px rgba(16,24,40,.12)}
+  body.teclado .vista.vender .lado-carrito{display:none!important}
+  .vista.vender.con-barra .vender-main{padding-bottom:150px!important}
+  .vista.vender:not(.con-barra) .vender-main{padding-bottom:12px!important}
 }
-@media (max-width:379px){.vender-main .rejilla .tarjeta-prenda .foto{width:52px!important;height:52px!important;border-radius:12px!important}.vender-main .rejilla .tarjeta-prenda .foto svg.i{width:26px!important;height:26px!important}}
-.vender-main .tarjeta-prenda.agotada .precio{color:#6b7280!important;font-weight:600!important}
+@media (min-width:840px){
+  .vista.vender .lado-carrito{padding:16px;height:auto;max-height:calc(100vh - 56px);align-self:start;border-left:1px solid var(--line)}
+  .vista.vender .barra-cobro{grid-template-columns:1fr 1fr;grid-template-areas:"tot tot" "cob cob" "des apa";gap:12px 8px}
+  .vista.vender .barra-cobro .bco-total .total-cop{font-size:30px}
+  .vista.vender .barra-cobro .bco-total{padding:4px 0 4px}
+  .vista.vender:not(.con-barra){grid-template-columns:minmax(0,1fr)!important}
+}
