@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { leerInventario, planImportacion, detalleCambios, claveGrupo, tituloProducto } from '../../js/nucleo/importar.js';
+import { leerInventario, planImportacion, detalleCambios, claveGrupo, tituloProducto, nombreVariante } from '../../js/nucleo/importar.js';
 
 // Tres filas reales del inventario.json de la Carga Masiva (columnas en español).
 const INV = JSON.parse(readFileSync(new URL('./ejemplos/inventario.json', import.meta.url)));
@@ -127,4 +127,10 @@ test('un id_imagen distinto cuenta como cambio en la vista previa', () => {
   const plan = planImportacion(productos, actuales, {});
   assert.equal(plan.cambios.length, 3);
   assert.ok(detalleCambios(plan.cambios[0], actuales[plan.cambios[0].sku], null).some(t => t.startsWith('id_imagen img-0500 →')));
+});
+
+test('nombre de la variante: la columna nombre tal cual, sin la tela', () => {
+  assert.equal(nombreVariante({ nombre: 'Franela Etanol Unisex 2XL Amarillo Claro PoliAlg.', tela: 'PoliAlg.', color: 'Amarillo Claro', talla: '2XL' }), 'Franela Etanol Unisex 2XL Amarillo Claro');
+  assert.equal(nombreVariante({ nombre: 'Jogger Tubo Etanol Dama M Mostaza', tela: '', talla: 'M' }), 'Jogger Tubo Etanol Dama M Mostaza');
+  assert.equal(nombreVariante({ tipo: 'Body', marca: 'Serfe', genero: 'Unisex', color: 'Rosa', talla: '3m' }), 'Body Serfe Unisex Rosa 3m');
 });

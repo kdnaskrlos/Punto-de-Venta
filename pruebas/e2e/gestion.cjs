@@ -349,9 +349,10 @@ casos('gestion', [
     const nav = await p.$$eval('.side .nav', ns => ns.map(n => n.getAttribute('aria-label')));
     a.ok(!nav.includes('Usuarios') && !nav.includes('Ajustes'), nav.join(','));
     await p.evaluate(() => { location.hash = '/inventario'; });
-    await p.click('.grupo-inv[data-nombre="Jogger Texcol Caballero Negro"]');
-    a.ok((await p.textContent('.capa')).includes('Costo'), 'la encargada ve costos');
-    a.strictEqual(await p.$('#sinc-abrir'), null, 'sin sincronizar');
+    await p.fill('#q', 'J-M'); await p.click('.stk .item[data-sku="J-M"]');
+    await p.waitForSelector('.stk-capa .sheet.in');
+    a.ok((await p.textContent('.stk-capa .sheet')).includes('Costo'), 'la encargada ve costos');
+    a.strictEqual(await p.$('#bSync'), null, 'sin sincronizar');
     a.deepStrictEqual(p.errores, []);
   }],
 ]);

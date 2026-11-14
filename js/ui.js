@@ -118,9 +118,9 @@ function salirHistorial() {
   history.back();
 }
 
-function abrirCapa(el) {
+function abrirCapa(el, salir = null) {
   document.body.append(el);
-  const capa = { el, cerrada: false, alCerrar: null };
+  const capa = { el, cerrada: false, alCerrar: null, salir };
   pila.push(capa);
   entrarHistorial();
   // En el teléfono no se enfoca un campo al abrir (abriría el teclado y taparía la ventana); solo si lo pide [autofocus].
@@ -145,6 +145,7 @@ function quitar(capa) {
   if (i >= 0) pila.splice(i, 1);
   const el = capa.el, caja = el.querySelector(':scope > .caja'), fondo = el.querySelector(':scope > .fondo');
   capa.alCerrar && capa.alCerrar();
+  if (capa.salir) { capa.salir(); return; } // la capa anima y se quita sola (hoja del inventario, escáner)
   if (!caja || !el.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); return; }
   el.style.pointerEvents = 'none';
   const salida = el.classList.contains('abajo') ? [{ transform: 'none' }, { transform: 'translateY(100%)' }]
@@ -164,6 +165,10 @@ function atraparFoco(e, el) {
   if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
   else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
 }
+
+// Capa con su propia animación: entra en la pila (Atrás y Escape la cierran sin salir del POS) y, al
+// cerrarse, llama a `salir` en vez de la animación de las ventanas. Devuelve { cerrar }.
+export function abrirCapaPropia(el, salir) { return abrirCapa(el, salir); }
 
 export function hayCapas() { return pila.length > 0; }
 

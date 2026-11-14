@@ -1,9 +1,9 @@
 // Permite instalar la app y abrirla sin internet. Las ventas las guarda Firebase (con su propia caché).
-const CACHE = 'pos-v1.79';
+const CACHE = 'pos-v1.80';
 const LIBS = 'libs-v1'; // Firebase y la fuente: archivos con versión fija
 const FOTOS = 'fotos-v1';
 const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icono-192.png', './icono-512.png', './icono-maskable-512.png', './apple-touch-icon.png', './logo-carrito.png',
-  './css/tokens.css', './css/base.css', './css/componentes.css', './css/material.css',
+  './css/tokens.css', './css/base.css', './css/componentes.css', './css/material.css', './css/stock.css',
   './js/principal.js', './js/app.js', './js/ui.js', './js/version.js'];
 
 self.addEventListener('install', e => {
@@ -17,7 +17,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const r = e.request, u = new URL(r.url);
   if (r.method !== 'GET') return;
-  if ((u.hostname === 'www.gstatic.com' && u.pathname.startsWith('/firebasejs/')) || u.hostname.startsWith('fonts.g')) {
+  if ((u.hostname === 'www.gstatic.com' && u.pathname.startsWith('/firebasejs/')) || u.hostname.startsWith('fonts.g') || (u.hostname === 'cdn.jsdelivr.net' && u.pathname.startsWith('/npm/@zxing/library@0.21.3/'))) {
     e.respondWith(caches.open(LIBS).then(c => c.match(r).then(hit => hit || fetch(r).then(res => { if (res.ok || res.type === 'opaque') c.put(r, res.clone()); return res; }))));
     return;
   }

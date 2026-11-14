@@ -33,6 +33,10 @@ function quitarFrase(palabras, frase) {
   }
   return palabras;
 }
+// Nombre de una variante (una talla): la columna nombre tal cual, sin la tela.
+// «Franela Etanol Unisex 2XL Amarillo Claro PoliAlg.» → «Franela Etanol Unisex 2XL Amarillo Claro».
+export const nombreVariante = p => quitarFrase(texto(p.nombre).split(/\s+/).filter(Boolean), p.tela).join(' ')
+  || [tituloProducto(p), p.color, p.talla].map(texto).filter(Boolean).join(' ');
 export const tituloProducto = p => {
   const palabras = [p.tela, p.color, p.talla].reduce(quitarFrase, texto(p.nombre).split(/\s+/).filter(Boolean));
   return palabras.join(' ') || [p.tipo, p.marca, p.genero].map(texto).filter(Boolean).join(' ') || texto(p.sku);
