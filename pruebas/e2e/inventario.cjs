@@ -112,7 +112,7 @@ casos('inventario', [
     await p.click('#fotos-final');
     await p.waitForSelector('text=1 foto subida · 4 de 21 productos con foto · 4 códigos de imagen sin foto');
     const estado = await p.evaluate(() => { const c = window.__pos.ctx; return { img: !!c.imagenes['img-0001'], fotosSku: Object.values(c.productos).filter(x => x.foto).length }; });
-    a.deepStrictEqual(estado, { img: true, fotosSku: 0 }, 'la foto queda en el código, no en cada sku');
+    a.deepStrictEqual(estado, { img: true, fotosSku: 0 }, 'la foto queda en el código');
     a.ok(await p.$('.grupo-inv[data-nombre="Franela AS Niño Manga Corta Blanco"] img'), 'la tarjeta de inventario muestra la foto');
     a.strictEqual(await p.$('.grupo-inv[data-nombre="Franela AS Niño Manga Corta Negro"] img'), null, 'otro código sigue sin foto');
     await p.evaluate(() => { location.hash = '/vender'; });
@@ -144,18 +144,21 @@ casos('inventario', [
     a.match(await texto(p, '#fotos-sin-codigos'), /Sincronizar inventario/);
     a.match(await texto(p, '.capa:last-of-type .zona-fotos .nota'), /img-0001\.jpg/);
   }],
-  ['Admin: fotos por sku (nombre del archivo); las que no coinciden quedan sin asignar', async (env, a) => {
+  ['Admin: un archivo con nombre de sku ya no se asigna (sin respaldo por sku)', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
     const png = await sharp({ create: { width: 40, height: 40, channels: 3, background: '#888' } }).png().toBuffer();
     await p.click('button:has-text("Fotos")');
-    await p.setInputFiles('#fotos-archivos', [{ name: 'j-m.png', mimeType: 'image/png', buffer: png }, { name: 'otra.png', mimeType: 'image/png', buffer: png }]);
-    await p.waitForSelector('text=1 foto asignada a 1 producto');
-    a.ok((await texto(p, '.sin-asignar')).includes('otra.png'));
-    await p.click('#fotos-final');
-    await p.waitForFunction(() => !!window.__pos.ctx.productos['J-M'].foto);
-    a.strictEqual(await p.evaluate(() => window.__pos.ctx.productos['J-L'].foto), null, 'solo esa variante');
-    a.ok(await p.$('.grupo-inv[data-nombre="Jogger Texcol Caballero Negro"] img'), 'la tarjeta muestra la foto de una de sus tallas');
-    a.deepStrictEqual(p.errores, []);
+    await p.setInputFiles('#fotos-archivos', [{ name: 'j-m.png', mimeType: 'image/png', buffer: png }]);
+    a.strictEqual(await texto(p, '#fotos-asignadas'), '0 fotos asignadas a 0 productos · 1 sin asignar');
+    const opciones = await p.$$eval('.sin-asignar option', os => os.map(o => o.value));
+    a.ok(opciones.slice(1).every(v => /^img-\d{4}$/.test(v)), 'solo se elige entre códigos de imagen');
+    a.strictEqual(await p.evaluate(() => typeof window.__pos.ctx.almacen.guardarFoto), 'undefined');
+  }],
+  ['Detalle de una prenda sin código de imagen: no ofrece subir foto', async (env, a) => {
+    const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
+    await p.click('.grupo-inv[data-nombre="Franela Rockdreams Dama Gris"]');
+    a.match(await texto(p, '.foto-grupo'), /Sin código de imagen/);
+    a.strictEqual(await p.$('#foto-grupo'), null);
   }],
   ['Encargada: ve costos, sin importar, fotos, ajustes ni ofertas', async (env, a) => {
     const p = await env.pagina({ usuario: 'encargada', ruta: '/inventario' });

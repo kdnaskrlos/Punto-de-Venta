@@ -11,6 +11,5 @@ export const detalle = p => [p?.color, p?.tela].filter(Boolean).join(' · ');
 export const textoBusqueda = p => [p.nombre, p.sku, p.codigo, p.tipo, p.tela, p.color, p.talla, p.genero, p.marca, p.modelo].filter(Boolean).join(' ');
 // Nombre que queda guardado en cada línea de una venta o apartado («Franela AS Niño Manga Corta Blanco Algodon»).
 export const nombreVenta = p => [titulo(p), p?.color, p?.tela].filter(Boolean).join(' ');
-// Foto de un producto: primero la de su código de imagen (id_imagen, compartida por todas las tallas y
-// prendas con ese código); si no tiene código o ese código aún no tiene foto, la foto por sku; si no, null.
-export const fotoDe = (p, imagenes = {}) => (p?.id_imagen && imagenes[p.id_imagen]) || p?.foto || null;
+// Foto de un producto: solo la de su código de imagen (la comparten todas las prendas con ese código).
+export const fotoDe = (p, imagenes = {}) => (p?.id_imagen && imagenes?.[p.id_imagen]) || null;

@@ -2,7 +2,6 @@
 // y aplica los mismos permisos, para que las pantallas se comporten igual en ambos.
 import { puede } from '../nucleo/permisos.js';
 import { diaLocal, finDia } from '../nucleo/fechas.js';
-import { claveFoto } from '../nucleo/fotos.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
 import { NOMBRES, nuevoId } from './contrato.js';
 
@@ -360,14 +359,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       escribio(); avisar('ajustes');
       return SI({ ruta });
     },
-    async guardarFoto(sku, blob) {
-      const e = exigir('fotosMasivas'); if (e) return NO(e);
-      const ruta = (blob && globalThis.URL?.createObjectURL) ? URL.createObjectURL(blob) : `fotos/${claveFoto(sku)}.webp`;
-      const p = col.productos.get(sku); if (!p) return NO('no-existe');
-      p.foto = ruta;
-      avisar('productos');
-      return SI({ ruta });
-    },
+
 
     // ---- otros ----
     async guardarAjustes(doc, datos) {

@@ -8,7 +8,6 @@ import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
 import { nuevoId } from './contrato.js';
 import { subirFotoGitHub, CLAVE_TOKEN } from './github-fotos.js';
-import { claveFoto } from '../nucleo/fotos.js';
 
 const ahora = () => new Date().toISOString();
 const NO = (error, extra = {}) => ({ ok: false, error, ...extra });
@@ -537,16 +536,7 @@ export function crearFirebase(config) {
       const r = await sinEsperar(setDoc(ref('ajustes', 'imagenes'), { fotos: { [codigo]: ruta } }, { merge: true }));
       return r.ok ? SI({ ruta }) : r;
     },
-    // Foto de respaldo de una variante (sku), para productos sin id_imagen.
-    async guardarFoto(sku, blob) {
-      const e = exigir('fotosMasivas'); if (e) return NO(e);
-      let token = null; try { token = localStorage.getItem(CLAVE_TOKEN); } catch { /* sin almacenamiento */ }
-      const subida = await subirFotoGitHub({ token, ruta: `fotos/${claveFoto(sku)}.webp`, blob });
-      if (!subida.ok) return NO(subida.error);
-      const ruta = `${subida.ruta}?v=${Date.now()}`;
-      const r = await sinEsperar(updateDoc(ref('productos', sku), { foto: ruta }));
-      return r.ok ? SI({ ruta }) : r;
-    },
+
 
     // ---- otros ----
     async guardarAjustes(nombreDoc, datos) {

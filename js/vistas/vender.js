@@ -66,7 +66,7 @@ function grupos(ctx) {
     if (p.activo === false) continue;
     const k = grupoDe(p);
     const t = (g[k] ||= { grupo: k, titulo: titulo(p), tipo: p.tipo, tela: p.tela, color: p.color, genero: p.genero, foto: null, variantes: [] });
-    t.foto ||= fotoDe(p, ctx.imagenes); // foto del código de imagen (o, si falta, la del sku de alguna talla)
+    t.foto ||= fotoDe(p, ctx.imagenes); // la foto del código de imagen de la tarjeta
     t.variantes.push(p);
   }
   return Object.values(g).sort((a, b) => a.titulo.localeCompare(b.titulo, 'es') || (a.color || '').localeCompare(b.color || '', 'es') || (a.tela || '').localeCompare(b.tela || '', 'es'));

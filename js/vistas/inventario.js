@@ -26,7 +26,7 @@ function grupos(productos, imagenes = {}) {
     if (p.activo === false) continue;
     const k = grupoDe(p);
     const t = (g[k] ||= { grupo: k, titulo: titulo(p), tipo: p.tipo, tela: p.tela, color: p.color, genero: p.genero, foto: null, id_imagen: '', variantes: [] });
-    t.foto ||= fotoDe(p, imagenes); // foto del código de imagen (o, si falta, la del sku de alguna talla)
+    t.foto ||= fotoDe(p, imagenes); // la foto del código de imagen de la tarjeta
     t.id_imagen ||= p.id_imagen || '';
     t.variantes.push(p);
   }
@@ -93,8 +93,8 @@ function bloquePrecios(ctx, p, costo, verCostos) {
     verCostos ? h('div', { class: 'precio-tramo costo' }, h('span', { class: 'nota' }, 'Costo'), h('b', { class: 'num' }, costo != null ? fmtCop(costo) : '—')) : null);
 }
 
-// «Foto» / «Cambiar foto» en el detalle: con código de imagen se sube una sola vez para todas sus
-// variantes; sin código, se guarda en el sku de cada talla de la tarjeta.
+// «Foto» / «Cambiar foto» en el detalle: se sube una sola vez al código de imagen de la tarjeta y la
+// muestran todas sus variantes. Sin código de imagen no se ofrece (no hay foto por sku).
 function botonFoto(ctx, g, cont) {
   const entrada = h('input', { type: 'file', accept: 'image/*', class: 'sr', id: 'foto-grupo-archivo' });
   const b = h('button', { class: 'btn', id: 'foto-grupo', onclick: () => entrada.click() }, icono('imagen'), g.foto ? 'Cambiar foto' : 'Foto');
@@ -102,15 +102,13 @@ function botonFoto(ctx, g, cont) {
     const f = entrada.files[0]; if (!f) return;
     b.disabled = true; b.replaceChildren(icono('imagen'), 'Subiendo…');
     const blob = await comprimirFoto(f);
-    const destinos = g.id_imagen ? [{ codigo: g.id_imagen }] : g.variantes.map(p => ({ sku: p.sku }));
-    let r = { ok: true };
-    for (const d of destinos) { r = await subirFoto(ctx, d, blob); if (!r.ok) break; }
+    const r = await subirFoto(ctx, g.id_imagen, blob);
     b.disabled = false; b.replaceChildren(icono('imagen'), r.ok ? 'Cambiar foto' : g.foto ? 'Cambiar foto' : 'Foto');
     entrada.value = '';
     if (!r.ok) { if (r.error !== 'cancelado') toast('No se pudo subir la foto', { malo: true }); return; }
     const vista = cont.querySelector('.foto-grupo');
     if (vista && globalThis.URL?.createObjectURL) vista.firstChild.replaceWith(miniatura({ ...g, foto: URL.createObjectURL(blob) }, 'miniatura'));
-    toast(g.id_imagen ? `Foto guardada para ${g.id_imagen}` : 'Foto guardada');
+    toast(`Foto guardada para ${g.id_imagen}`);
   });
   return h('span', { class: 'foto-acc' }, entrada, b);
 }
@@ -124,7 +122,7 @@ function abrirGrupo(ctx, g, costos) {
   const compartida = g.id_imagen ? Object.values(ctx.productos).filter(p => p.activo !== false && p.id_imagen === g.id_imagen).length : 0;
   const cont = h('div', { class: 'pila detalle-grupo' },
     h('div', { class: 'foto-grupo' }, miniatura(g, 'miniatura'),
-      h('span', { class: 'nota' }, g.id_imagen ? `Código de imagen ${g.id_imagen}${compartida > 1 ? ` · la comparten ${compartida} productos` : ''}${g.foto ? '' : ' · sin foto'}` : g.foto ? 'Foto del sku' : 'Sin código de imagen ni foto')),
+      h('span', { class: 'nota' }, g.id_imagen ? `Código de imagen ${g.id_imagen}${compartida > 1 ? ` · la comparten ${compartida} productos` : ''}${g.foto ? '' : ' · sin foto'}` : 'Sin código de imagen: sincroniza el inventario para traerlo')),
     oferta ? h('span', { class: 'est y' }, `Oferta ${oferta.pct}%`) : null,
     iguales ? h('div', { class: 'pila' }, h('div', { class: 'sec-m' }, 'Precio por cantidad'), bloquePrecios(ctx, vs[0], costos[vs[0].sku]?.costo, verCostos)) : null,
     h('div', { class: 'sec-m' }, 'TALLAS'),
@@ -137,7 +135,7 @@ function abrirGrupo(ctx, g, costos) {
         verCostos ? h('button', { class: 'btn', 'aria-label': `Historial talla ${p.talla}`, onclick: () => abrirHistorial(ctx, p) }, icono('historial'), 'Historial') : null,
         puedeAdmin(ctx, 'ajustarInventario') ? h('button', { class: 'btn', onclick: () => abrirAjuste(ctx, p) }, icono('caja'), 'Ajustar') : null) : null)));
   const acciones = puedeAdmin(ctx, 'ofertas') || puedeAdmin(ctx, 'fotosMasivas') ? h('div', { class: 'acciones' },
-    puedeAdmin(ctx, 'fotosMasivas') ? botonFoto(ctx, g, cont) : null,
+    puedeAdmin(ctx, 'fotosMasivas') && g.id_imagen ? botonFoto(ctx, g, cont) : null,
     puedeAdmin(ctx, 'ofertas') ? h('button', { class: 'btn', onclick: () => abrirOferta(ctx, g) }, icono('etiqueta'), 'Oferta') : null) : null;
   abrirVentana({ titulo: `${g.titulo}${detalle(g) ? ' · ' + detalle(g) : ''}`, contenido: cont, acciones });
 }
@@ -216,10 +214,10 @@ async function abrirSincronizar(ctx, costos, alTerminar) {
   }));
 }
 
-// Sube una foto ya comprimida a su código de imagen (una sola para todas sus variantes) o, si el
-// producto no tiene código, a su sku. Si falta el token de GitHub lo pide una vez.
-async function subirFoto(ctx, destino, blob) {
-  const subir = () => (destino.codigo ? ctx.almacen.guardarImagen(destino.codigo, blob) : ctx.almacen.guardarFoto(destino.sku, blob));
+// Sube una foto ya comprimida a su código de imagen (una sola para todas sus variantes).
+// Si falta el token de GitHub lo pide una vez.
+async function subirFoto(ctx, codigo, blob) {
+  const subir = () => ctx.almacen.guardarImagen(codigo, blob);
   let r = await subir();
   if (!r.ok && r.error === 'token') {
     const token = await pedirMotivo({ titulo: 'Token de GitHub', etiqueta: 'Pega el token para subir fotos (se guarda solo en este navegador)', boton: 'Guardar token' });
@@ -240,13 +238,11 @@ const textoResumen = r => `${r.conFoto} de ${r.total} productos con foto · ${pl
 
 function abrirFotos(ctx) {
   // Cada archivo se llama como su código de imagen (img-0001.jpg): esa foto la muestran todas las
-  // prendas con ese código. Si el nombre no es un código, se prueba con el sku (foto de respaldo).
+  // prendas con ese código.
   const activos = Object.values(ctx.productos).filter(p => p.activo !== false);
-  const skus = activos.map(p => p.sku);
   const { codigos } = resumenFotos(ctx.productos, ctx.imagenes);
   const deCodigo = c => activos.filter(p => p.id_imagen === c);
   const etiquetaCodigo = c => { const ps = deCodigo(c), p = ps[0]; return `${c} — ${titulo(p)}${p.color ? ' · ' + p.color : ''}${ps.length > 1 ? ` (${ps.length} productos)` : ''}${ctx.imagenes?.[c] ? ' · ya tiene foto' : ''}`; };
-  const etiquetaSku = sku => { const p = ctx.productos[sku]; return `${sku} — ${titulo(p)}${detalle(p) ? ' · ' + detalle(p) : ''}${p.talla ? ' · T' + p.talla : ''}`; };
   let archivos = [], res = { asignadas: [], sinAsignar: [] }, manual = {};
   const resumen = h('p', { class: 'nota', id: 'fotos-resumen' });
   const pintarResumen = () => { resumen.textContent = textoResumen(resumenFotos(ctx.productos, ctx.imagenes)); };
@@ -258,14 +254,14 @@ function abrirFotos(ctx) {
   const info = h('div', { class: 'pila' });
   const b = h('button', { class: 'btn primary', id: 'fotos-final', disabled: true }, icono('subir'), 'Subir fotos');
   const pintar = () => {
-    res = emparejarFotos(archivos.map(f => f.name), skus, codigos);
-    const productosCubiertos = res.asignadas.reduce((n, a) => n + (a.codigo ? deCodigo(a.codigo).length : 1), 0);
+    res = emparejarFotos(archivos.map(f => f.name), codigos);
+    const productosCubiertos = res.asignadas.reduce((n, a) => n + deCodigo(a.codigo).length, 0);
     info.replaceChildren(...sin(
       archivos.length ? h('p', { class: 'nota', id: 'fotos-asignadas' }, `${plural(res.asignadas.length, 'foto asignada', 'fotos asignadas')} a ${plural(productosCubiertos, 'producto', 'productos')} · ${res.sinAsignar.length} sin asignar`) : null,
       res.sinAsignar.length ? h('div', { class: 'sin-asignar pila' }, ...res.sinAsignar.map(n => h('div', { class: 'campo' }, h('label', {}, n),
         h('select', { class: 'inp', onchange: e => { manual[n] = e.target.value; } },
-          h('option', { value: '' }, codigos.length ? 'Elegir el código de imagen…' : 'Elegir la variante (sku)…'),
-          ...(codigos.length ? codigos.map(c => h('option', { value: 'c:' + c }, etiquetaCodigo(c))) : skus.map(sku => h('option', { value: 's:' + sku }, etiquetaSku(sku)))))))) : null));
+          h('option', { value: '' }, 'Elegir el código de imagen…'),
+          ...codigos.map(c => h('option', { value: c }, etiquetaCodigo(c))))))) : null));
     b.disabled = !archivos.length;
   };
   const cargar = fs => { archivos = [...fs].filter(f => f.type.startsWith('image/')); manual = {}; pintar(); };
@@ -276,7 +272,7 @@ function abrirFotos(ctx) {
   pintarResumen();
   const v = abrirVentana({ titulo: 'Fotos de productos', contenido: h('div', { class: 'pila' }, ...sin(resumen, sinCodigos, entrada, zona, info)), acciones: h('div', { class: 'acciones' }, b) });
   b.addEventListener('click', async () => {
-    const elegidas = Object.entries(manual).filter(([, x]) => x).map(([archivo, x]) => (x.startsWith('c:') ? { archivo, codigo: x.slice(2) } : { archivo, sku: x.slice(2) }));
+    const elegidas = Object.entries(manual).filter(([, c]) => c).map(([archivo, codigo]) => ({ archivo, codigo }));
     const tareas = [...res.asignadas, ...elegidas];
     if (!tareas.length) { toast('No hay fotos asignadas'); return; }
     b.disabled = true;
@@ -284,7 +280,7 @@ function abrirFotos(ctx) {
     for (const t of tareas) {
       b.textContent = `Subiendo ${hechas + 1} de ${tareas.length}…`;
       const blob = await comprimirFoto(archivos.find(f => f.name === t.archivo));
-      const r = await subirFoto(ctx, t, blob);
+      const r = await subirFoto(ctx, t.codigo, blob);
       if (!r.ok) { if (r.error !== 'cancelado') toast(`No se pudo subir ${t.archivo}`, { malo: true }); break; }
       hechas++;
     }
