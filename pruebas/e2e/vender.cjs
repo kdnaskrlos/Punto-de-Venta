@@ -97,13 +97,12 @@ casos('vender', [
     const fondo = await p.evaluate(() => window.__pos.ctx.miCaja.fondo);
     a.deepStrictEqual(fondo, { COP: 10000, USD: 0, BS: 0 });
   }],
-  ['Géneros en el orden Unisex / Dama / Niño / Niña, «Todo» al final; filtros con esquinas de 10 px', async (env, a) => {
+  ['Géneros: «Todo» primero y luego Unisex / Dama / Niño / Niña; filtros con esquinas de 10 px', async (env, a) => {
     const p = await env.pagina({ ancho: 390, alto: 780, ruta: '/vender', caja: true });
     const t = await p.$$eval('.filtros .chip', e => e.map(x => x.textContent));
-    const esperado = ['Unisex', 'Dama', 'Niño', 'Niña'].filter(g => t.includes(g));
+    const esperado = ['Todo', ...['Unisex', 'Dama', 'Niño', 'Niña'].filter(g => t.includes(g))];
     a.deepStrictEqual(t.slice(0, esperado.length), esperado, t.join(' / '));
-    a.strictEqual(t[t.length - 1], 'Todo');
-    a.ok(await p.$eval('.filtros .chip:last-child', e => e.classList.contains('activo')), '«Todo» sigue elegido al entrar');
+    a.ok(await p.$eval('.filtros .chip:first-child', e => e.classList.contains('activo')), '«Todo» elegido al entrar');
     a.strictEqual(await p.$eval('.filtros .chip', e => getComputedStyle(e).borderTopLeftRadius), '10px');
   }],
   ['Teléfono: los géneros van en una sola fila deslizable', async (env, a) => {
@@ -129,17 +128,47 @@ casos('vender', [
     const g = '.tarjeta-prenda[data-nombre="Buzo Etanol Caballero Gris"]';
     await p.click(g);
     await p.click('.capa .talla-mas[data-talla="S"]'); await p.click('.capa .talla-mas[data-talla="S"]'); await p.click('.capa .talla-mas[data-talla="M"]');
-    a.strictEqual(await p.innerText('.capa .talla-fila-v[data-sku="B-S"] .tf-cant'), '2');
+    a.strictEqual(await p.inputValue('.capa .talla-fila-v[data-sku="B-S"] .tf-cant'), '2');
     await p.click('.capa .talla-menos[data-sku="B-S"]');
-    a.strictEqual(await p.innerText('.capa .talla-fila-v[data-sku="B-S"] .tf-cant'), '1');
+    a.strictEqual(await p.inputValue('.capa .talla-fila-v[data-sku="B-S"] .tf-cant'), '1');
     await p.click('.capa .talla-menos[data-sku="B-S"]');
-    a.strictEqual(await p.innerText('.capa .talla-fila-v[data-sku="B-S"] .tf-cant'), '0');
+    a.strictEqual(await p.inputValue('.capa .talla-fila-v[data-sku="B-S"] .tf-cant'), '0');
     a.strictEqual(await p.$eval('.capa .talla-menos[data-sku="B-S"]', b => b.disabled), true, 'sin prendas el − no actúa');
     await p.click('.capa .talla-mas[data-talla="S"]');
     await p.click('#tallas-agregar');
     a.ok(await p.$(g + '.elegida'));
     a.strictEqual(await p.innerText(g + ' .en-carrito'), '2');
     a.strictEqual(await p.$('.tarjeta-prenda.elegida:not([data-nombre="Buzo Etanol Caballero Gris"])'), null);
+    // El círculo va arriba a la izquierda de la foto y cada toque resta una unidad hasta quitar la prenda.
+    await p.waitForSelector('.capa', { state: 'detached' });
+    const ci = await p.$eval(g + ' .en-carrito', e => e.getBoundingClientRect().left);
+    const fo = await p.$eval(g + ' .foto', e => e.getBoundingClientRect().left);
+    a.ok(ci < fo, 'a la izquierda');
+    await p.click(g + ' .en-carrito');
+    a.strictEqual(await p.innerText(g + ' .en-carrito'), '1');
+    a.strictEqual(await p.$('.capa'), null, 'no abre las tallas');
+    await p.click(g + ' .en-carrito');
+    a.strictEqual(await p.$(g + ' .en-carrito'), null);
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.length), 0);
+  }],
+  ['Tallas: la cantidad se escribe a mano (máximo la existencia) y el contador tiene tres partes iguales', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.click('.tarjeta-prenda[data-nombre="Buzo Etanol Caballero Gris"]');
+    const c = '.capa .talla-fila-v[data-sku="B-S"] .tf-cant';
+    await p.fill(c, '3'); await p.press(c, 'Enter');
+    a.strictEqual(await p.inputValue(c), '3');
+    const anchos = await p.$$eval('.capa .talla-fila-v[data-sku="B-S"] .tf-paso > *', e => e.map(x => Math.round(x.getBoundingClientRect().width)));
+    a.deepStrictEqual(anchos, [48, 48, 48]);
+    await p.fill(c, '999'); await p.press(c, 'Enter');
+    const max = await p.evaluate(() => window.__pos.ctx.productos['B-S'].existencia);
+    a.strictEqual(await p.inputValue(c), String(max));
+    await p.click('#tallas-agregar');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas[0].cantidad), max);
+  }],
+  ['Tarjeta de prenda: sin tallas y el nombre largo se completa en otra línea', async (env, a) => {
+    const p = await env.pagina({ ancho: 320, alto: 780, ruta: '/vender', caja: true });
+    a.strictEqual(await p.$('.tarjeta-prenda .tp-tallas'), null);
+    a.ok(await p.$$eval('.tarjeta-prenda .info b', e => e.every(x => x.scrollWidth <= x.clientWidth + 3 && getComputedStyle(x).whiteSpace === 'normal')), 'sin cortar');
   }],
   ['Tallas: − y + de 48 px, separados y sin encimarse con otra talla', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', caja: true, ruta: '/vender' });

@@ -97,20 +97,16 @@ function lineaCarrito(ctx, l, aj, compacta) {
     h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal))),
     icono('abajo'));
   const plegable = carrito(ctx).lineas.length > MAX_ABIERTAS;
-  // Tarjeta igual a la del inventario: foto a la izquierda; nombre (con el color), tela y talla, y el contador;
-  // la tarifa arriba a la derecha y el subtotal abajo a la derecha.
-  const nombre = [g.titulo, p.color].filter(Boolean).join(' ');
-  const detalleTalla = [p.tela, p.talla ? `Talla ${p.talla}` : 'Talla única'].filter(Boolean).join(' · ');
-  return h('div', { class: 'linea lv2' + (plegable ? ' abierta' : ''), 'data-sku': l.sku, onclick: plegable ? alternar : null, 'aria-expanded': plegable ? 'true' : null },
+  return h('div', { class: 'linea' + (plegable ? ' abierta' : ''), 'data-sku': l.sku, onclick: plegable ? alternar : null, 'aria-expanded': plegable ? 'true' : null },
     miniatura(g, 'foto'),
-    h('div', { class: 'linea-info lv-info' },
-      h('b', { class: 'lv-nombre' }, nombre),
-      h('span', { class: 'lv-var' }, detalleTalla),
-      contador(ctx, l)),
-    h('div', { class: 'linea-der lv-der' },
-      h('span', { class: 'lv-tramo tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Oferta' : `Tarifa ${etiquetaTramo(l.tramo, aj.tramos)}`),
+    h('div', { class: 'linea-info' },
+      h('b', {}, g.titulo),
+      h('span', { class: 'lc-chip' }, variante),
+      h('span', { class: 'lc-chip tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Precio de oferta' : `Tarifa ${etiquetaTramo(l.tramo, aj.tramos)}`)),
+    h('div', { class: 'linea-der' },
+      contador(ctx, l),
       h('span', { class: 'lc-pie' },
-        h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal))),
+        h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal)), h('span', { class: 'c-cop moneda' }, 'COP')),
         l.cantidad > 1 ? h('span', { class: 'nota num lc-cu' }, `${fmtCop(l.precioUnit)} c/u`) : null)));
 }
 
@@ -285,11 +281,19 @@ function abrirTallas(ctx, g) {
         h('span', { class: 'tf-paso' },
           h('button', { type: 'button', class: 'talla-menos', 'data-sku': p.sku, 'aria-label': `Quitar una talla ${nombre}`, disabled: !n,
             onclick: () => { cuentas[p.sku] = Math.max(0, n - 1); pintar(); } }, icono('menos')),
-          h('span', { class: 'tf-cant num' + (n ? ' con' : ''), 'aria-live': 'polite' }, String(n)),
+          h('input', { class: 'tf-cant num' + (n ? ' con' : ''), type: 'text', inputmode: 'numeric', enterkeyhint: 'done', autocomplete: 'off', value: String(n),
+            'aria-label': `Cantidad talla ${nombre}`, disabled: agotada,
+            onfocus: e => e.target.select(),
+            oninput: e => { const d = e.target.value.replace(/\D/g, ''); e.target.value = d; cuentas[p.sku] = Math.min(p.existencia, Number(d) || 0); resumen(); },
+            onchange: () => pintar(),
+            onkeydown: e => { if (e.key === 'Enter') e.target.blur(); } }),
           h('button', { type: 'button', class: 'talla-mas', 'data-talla': nombre, 'data-sku': p.sku, 'aria-label': `Agregar una talla ${nombre}`, disabled: agotada || n >= p.existencia,
             onclick: () => { if (n >= p.existencia) return; cuentas[p.sku] = n + 1; pintar(); } }, icono('mas1'))),
         !agotada && n > 0 && n >= p.existencia ? h('span', { class: 'tf-max' }, `Máximo ${p.existencia}`) : null);
     }));
+    resumen();
+  };
+  const resumen = () => {
     const total = Object.values(cuentas).reduce((x, y) => x + y, 0);
     const cambio = variantes.some(p => cuentas[p.sku] !== antes[p.sku]);
     const habia = Object.values(antes).some(Boolean);
@@ -312,6 +316,19 @@ export function miniatura(g, clase = 'miniatura') {
   return h('span', { class: clase }, g.foto ? h('img', { src: g.foto, alt: '', loading: 'lazy', width: 64, height: 64 }) : icono(tipoPrenda(g.tipo || g.titulo, g.genero)));
 }
 
+// Círculo con las unidades en el carrito (arriba a la izquierda de la foto): cada toque resta una,
+// empezando por la última talla agregada, hasta quitar la prenda del carrito.
+function insigniaCarrito(ctx, g, elegidas) {
+  const restar = e => {
+    e.preventDefault(); e.stopPropagation();
+    const skus = new Set(g.variantes.map(p => p.sku));
+    const l = [...carrito(ctx).lineas].reverse().find(x => skus.has(x.sku));
+    if (l) agregarAlCarrito(ctx, l.sku, -1);
+  };
+  return h('span', { class: 'en-carrito', role: 'button', tabindex: '0', 'aria-label': `${elegidas} en el carrito. Quitar una`, onclick: restar,
+    onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') restar(e); } }, String(elegidas));
+}
+
 // Fila de prenda: imagen cuadrada, nombre, color y tallas; a la derecha disponibles y precio.
 function tarjeta(ctx, g) {
   const existencia = g.variantes.reduce((s, p) => s + Math.max(p.existencia, 0), 0);
@@ -320,17 +337,13 @@ function tarjeta(ctx, g) {
   const precio = Math.min(...g.variantes.map(p => p.precios?.[0] || Infinity));
   const oferta = g.variantes.some(p => p.oferta?.activa);
   const elegidas = g.variantes.reduce((s, p) => s + enCarrito(ctx, p.sku), 0);
-  const tallas = [...g.variantes].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || compararTallas(a.talla, b.talla));
   const color = colorPrenda(g.color);
   return h('button', { class: 'tarjeta-prenda' + (agotada ? ' agotada' : '') + (elegidas ? ' elegida' : ''), 'data-grupo': g.grupo, 'data-nombre': [g.titulo, g.color].filter(Boolean).join(' '), onclick: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) },
-    h('span', { class: 'tp-img' }, miniatura(g, 'foto'), elegidas ? h('span', { class: 'en-carrito', 'aria-label': `${elegidas} en el carrito` }, String(elegidas)) : null),
+    h('span', { class: 'tp-img' }, miniatura(g, 'foto'), elegidas ? insigniaCarrito(ctx, g, elegidas) : null),
     h('span', { class: 'info' },
       h('b', {}, g.titulo),
       h('span', { class: 'tp-linea' },
-        g.color || g.tela ? h('span', { class: 'tp-color' }, g.color ? h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }) : null, [g.color, g.tela].filter(Boolean).join(' · ')) : null,
-        h('span', { class: 'tp-tallas' }, h('span', { class: 'tp-pal' }, 'Tallas: '), ...tallas.slice(0, 5).flatMap((p, i) => [i ? ' · ' : '', h('span', { class: p.existencia > 0 ? '' : 'sin' }, p.talla || 'Única')]),
-          // Con muchas tallas, las 5 primeras y «+N»: la fila nunca se parte en dos líneas.
-          tallas.length > 5 ? h('span', { class: 'tp-mas', 'aria-label': `y ${tallas.length - 5} tallas más` }, ` +${tallas.length - 5}`) : null))),
+        g.color || g.tela ? h('span', { class: 'tp-color' }, g.color ? h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }) : null, [g.color, g.tela].filter(Boolean).join(' · ')) : null)),
     h('span', { class: 'tp-der' },
       agotada ? h('span', { class: 'est r tp-estado' }, icono('alerta'), 'Agotada')
         : h('span', { class: 'est tp-disp ' + (pocas ? 'y' : 'g') }, `${existencia} disp.`),
@@ -372,7 +385,7 @@ registrarVista('/vender', {
       const ORDEN_GENERO = ['Unisex', 'Dama', 'Niño', 'Niña'];
       const pos = g => { const i = ORDEN_GENERO.indexOf(g); return i < 0 ? ORDEN_GENERO.length : i; };
       const generos = [...new Set(todos.map(g => g.genero).filter(Boolean))].sort((a, b) => pos(a) - pos(b) || a.localeCompare(b, 'es'));
-      filtros.replaceChildren(...[...generos, ''].map(c => h('button', { class: 'chip' + (c === genero ? ' activo' : ''), onclick: () => { genero = c; pintar(); } }, c || 'Todo')));
+      filtros.replaceChildren(...['', ...generos].map(c => h('button', { class: 'chip' + (c === genero ? ' activo' : ''), onclick: () => { genero = c; pintar(); } }, c || 'Todo')));
       const q = norm(busqueda);
       const vis = todos.filter(g => (!genero || g.genero === genero) && (!q || g.variantes.some(p => norm(textoBusqueda(p)).includes(q))));
       rejilla.replaceChildren(...(vis.length ? vis.map(g => tarjeta(ctx, g)) : [h('div', { class: 'vacio' }, q ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos. El administrador los importa desde la Carga Masiva.')]));
