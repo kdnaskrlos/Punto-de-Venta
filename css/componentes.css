@@ -44,7 +44,7 @@
 .caja .cuerpo{padding:16px 16px;overflow:auto;flex:1}
 .caja .pie{padding:12px 16px 16px;border-top:1px solid var(--line)}
 .capa.hoja.derecha{justify-content:flex-end}
-.hoja.derecha .caja{position:relative;width:min(380px,100%);height:100%;background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column;box-shadow:0 18px 44px rgba(0,0,0,.2);animation:desliza .18s var(--ease)}
+.hoja.derecha .caja{position:relative;width:min(380px,100%);height:100%;background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column;box-shadow:0 18px 44px rgba(0,0,0,.2);animation:desliza .13s var(--ease)}
 .capa.hoja.abajo{align-items:flex-end}
 .hoja.abajo .caja{position:relative;width:100%;max-height:92%;background:var(--surface);border-radius:16px 16px 0 0;display:flex;flex-direction:column;box-shadow:0 -10px 40px rgba(0,0,0,.2);animation:subeh .16s var(--ease);padding-bottom:env(safe-area-inset-bottom,0px)}
 @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -999,7 +999,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:500 14px/1.5 var(--f);background:var
 /* v1.39 — Tasas: panel que baja desde la barra superior (como la referencia) */
 .capa.ventana.desplegable{align-items:flex-start;justify-content:center;padding:62px 12px 12px}
 .capa.ventana.desplegable .fondo{background:rgba(15,23,42,.18)}
-.capa.ventana.desplegable .caja{max-width:440px;border-radius:16px;box-shadow:0 18px 44px rgba(15,23,42,.18);transform-origin:top center;animation:baja .26s cubic-bezier(.22,.9,.3,1)}
+.capa.ventana.desplegable .caja{max-width:440px;border-radius:16px;box-shadow:0 18px 44px rgba(15,23,42,.18);transform-origin:top center;animation:baja .18s cubic-bezier(.22,.9,.3,1)}
 .capa.ventana.desplegable .cuerpo{padding:4px 16px 8px}
 @media (min-width:840px){.capa.ventana.desplegable{justify-content:flex-end;padding-right:70px}}
 @keyframes baja{from{opacity:0;transform:translateY(-14px) scaleY(.92)}to{opacity:1;transform:none}}
@@ -1214,9 +1214,9 @@ pre.cred{margin:0;white-space:pre-wrap;font:500 14px/1.5 var(--f);background:var
 .lista-usuarios .u-info b{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lista-usuarios .u-info .nota{font-size:13px}
 .lista-usuarios .u-cab .est{flex:none}
-.lista-usuarios .u-cab > svg.i{flex:none;width:18px;height:18px;color:var(--muted);transition:transform .2s}
+.lista-usuarios .u-cab > svg.i{flex:none;width:18px;height:18px;color:var(--muted);transition:transform .14s}
 .lista-usuarios .usuario.abierto .u-cab > svg.i{transform:rotate(180deg)}
-.lista-usuarios .u-cuerpo{display:flex;flex-direction:column;gap:8px;padding:4px 12px 12px;border-top:1px solid var(--line);margin:0 12px;padding-left:0;padding-right:0;animation:fade .18s}
+.lista-usuarios .u-cuerpo{display:flex;flex-direction:column;gap:8px;padding:4px 12px 12px;border-top:1px solid var(--line);margin:0 12px;padding-left:0;padding-right:0;animation:fade .13s}
 .lista-usuarios .u-cuerpo[hidden]{display:none}
 .lista-usuarios .u-com{margin:8px 0 0}
 .lista-usuarios .u-acc{justify-content:flex-end;margin:0}
@@ -1271,7 +1271,7 @@ pre.cred{margin:0;white-space:pre-wrap;font:500 14px/1.5 var(--f);background:var
 .despl-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .despl-t b{font-size:16px}
 .despl-t .nota{font-size:13px;font-weight:400}
-.despl > summary > svg.i{flex:none;width:18px;height:18px;color:var(--muted);transition:transform .2s}
+.despl > summary > svg.i{flex:none;width:18px;height:18px;color:var(--muted);transition:transform .14s}
 .despl[open] > summary > svg.i{transform:rotate(180deg)}
 .despl-cuerpo{padding:4px 12px 16px;border-top:1px solid var(--line);margin:0 12px;padding-left:0;padding-right:0}
 .despl-cuerpo .rejilla-aj{margin-top:12px}

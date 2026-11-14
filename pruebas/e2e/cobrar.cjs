@@ -19,7 +19,7 @@ const ventas = p => p.evaluate(() => [...window.__pos.ctx.almacen._estado('venta
 casos('cobrar', [
   ['Cobrar sin cliente pide registrarlo primero; teléfono conocido completa el nombre', async (env, a) => {
     const p = await preparar(env, { ancho: 360, alto: 780, sinCliente: true });
-    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
+    await p.click('.barra-carrito'); await p.click('.panel-carrito .cobrar');
     await p.waitForSelector('.capa #cli-tel');
     a.strictEqual(await p.$('#cobrar-final'), null, 'todavía no abre el cobro');
     await p.fill('#cli-tel', '0412-123.45.67');
@@ -126,7 +126,7 @@ casos('cobrar', [
   }],
   ['Teléfono: Cobrar no abre el teclado solo; el pago elegido aparece debajo del total y el botón Cobrar a la vista', async (env, a) => {
     const p = await preparar(env, { movil: true });
-    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
+    await p.click('.barra-carrito'); await p.click('.panel-carrito .cobrar');
     await p.waitForSelector('#cobrar-final');
     await p.waitForTimeout(150);
     a.notStrictEqual(await p.evaluate(() => document.activeElement.tagName), 'INPUT');
@@ -142,7 +142,7 @@ casos('cobrar', [
   }],
   ['El ejemplo de teléfono no parece un dato escrito', async (env, a) => {
     const p = await preparar(env, { ancho: 360, alto: 780, sinCliente: true });
-    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
+    await p.click('.barra-carrito'); await p.click('.panel-carrito .cobrar');
     a.match(await p.getAttribute('#cli-tel', 'placeholder'), /^Ej\. /);
   }],
   ['Carrito: el monto del descuento va alineado a la derecha, como los demás', async (env, a) => {
@@ -179,7 +179,7 @@ casos('cobrar', [
   }],
   ['Las formas ya agregadas quedan resaltadas y ningún botón queda marcado por el foco', async (env, a) => {
     const p = await preparar(env, { movil: true });
-    await p.click('.barra-carrito'); await p.click('.capa .cobrar');
+    await p.click('.barra-carrito'); await p.click('.panel-carrito .cobrar');
     await p.click('.forma[data-forma="efectivo-usd"]');
     a.deepStrictEqual(await p.$$eval('.forma-cobro.activa', e => e.map(x => x.dataset.formaCard)), ['efectivo-usd']);
     a.strictEqual(await p.evaluate(() => document.activeElement.classList.contains('forma')), false);

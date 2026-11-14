@@ -23,7 +23,7 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .nav[aria-current="true"]{color:var(--accent);background:var(--accent-soft)}
 .nav .bdg{position:absolute;top:2px;right:12px;min-width:18px;height:18px;padding:0 4px;border-radius:8px;background:var(--err);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center}
 .main{margin-left:calc(var(--side) + env(safe-area-inset-left,0px));min-height:100vh;display:flex;flex-direction:column}
-.vista{padding:16px;flex:1;min-width:0;animation:entra .22s var(--ease)}
+.vista{padding:16px;flex:1;min-width:0;animation:entra .15s var(--ease)}
 /* Entrada de cada sección: solo vertical, para no ensanchar la página (en Android eso hacía brincar la barra inferior) */
 @keyframes entra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 

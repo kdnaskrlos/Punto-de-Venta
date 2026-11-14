@@ -194,7 +194,7 @@ function quitar(capa) {
     : el.classList.contains('derecha') ? [{ transform: 'none' }, { transform: 'translateX(100%)' }]
     : el.classList.contains('desplegable') ? [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-14px) scaleY(.92)' }]
     : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(14px) scale(.985)' }];
-  const dur = el.classList.contains('hoja') ? 240 : 140;
+  const dur = el.classList.contains('hoja') ? 180 : 130;
   caja.animate(salida, { duration: dur, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
   fondo?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, easing: 'ease-in', fill: 'forwards' });
   el.querySelector(':scope > .caja') && setTimeout(() => el.remove(), dur);
@@ -292,7 +292,7 @@ export function abrirHoja({ titulo, contenido, lado, modal = true, extraCab = nu
   const salir = () => {
     el.classList.remove('drag', 'in'); caja.style.transform = ''; if (fondo) fondo.style.opacity = '';
     el.style.pointerEvents = 'none';
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) el.remove(); else setTimeout(() => el.remove(), 340);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) el.remove(); else setTimeout(() => el.remove(), 250);
   };
   const r = abrirCapa(el, salir);
   void caja.offsetHeight; el.classList.add('in');
@@ -375,13 +375,13 @@ export function desplegar(cuerpo, abrir, alTerminar) {
     cuerpo.hidden = false;
     const alto = cuerpo.scrollHeight;
     cuerpo.style.overflow = 'hidden';
-    cuerpo.animate([{ height: '0px', opacity: 0 }, { height: alto + 'px', opacity: 1 }], { duration: 280, easing: CURVA })
+    cuerpo.animate([{ height: '0px', opacity: 0 }, { height: alto + 'px', opacity: 1 }], { duration: 200, easing: CURVA })
       .onfinish = () => { cuerpo.style.overflow = ''; alTerminar && alTerminar(); };
-    [...cuerpo.children].forEach((f, i) => f.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 220, delay: 40 + i * 35, easing: 'ease-out', fill: 'backwards' }));
+    [...cuerpo.children].forEach((f, i) => f.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 150, delay: 40 + i * 35, easing: 'ease-out', fill: 'backwards' }));
   } else {
     const alto = cuerpo.offsetHeight;
     cuerpo.style.overflow = 'hidden';
-    cuerpo.animate([{ height: alto + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: 220, easing: 'cubic-bezier(.4,0,1,1)' })
+    cuerpo.animate([{ height: alto + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: 150, easing: 'cubic-bezier(.4,0,1,1)' })
       .onfinish = () => { cuerpo.hidden = true; cuerpo.style.overflow = ''; alTerminar && alTerminar(); };
   }
 }

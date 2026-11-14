@@ -83,8 +83,8 @@ function animarTarjetas(tarjetas, cambiar, nueva) {
     t.getAnimations().forEach(a => a.cancel());
     const h1 = t.getBoundingClientRect().height; if (Math.abs(h1 - h0.get(t)) < 2) continue;
     t.style.overflow = 'hidden';
-    const a = t.animate([{ height: h0.get(t) + 'px' }, { height: h1 + 'px' }], { duration: 280, easing: 'cubic-bezier(.22,.9,.3,1)' });
-    if (t === nueva) [...t.querySelector('.u-cuerpo').children].forEach((r, i) => r.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 240, delay: 40 + i * 35, easing: 'ease-out', fill: 'backwards' }));
+    const a = t.animate([{ height: h0.get(t) + 'px' }, { height: h1 + 'px' }], { duration: 200, easing: 'cubic-bezier(.22,.9,.3,1)' });
+    if (t === nueva) [...t.querySelector('.u-cuerpo').children].forEach((r, i) => r.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 170, delay: 40 + i * 35, easing: 'ease-out', fill: 'backwards' }));
     a.onfinish = a.oncancel = () => { t.style.overflow = ''; };
   }
 }

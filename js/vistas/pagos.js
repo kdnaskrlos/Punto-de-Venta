@@ -38,33 +38,36 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     lista.replaceChildren(...pagos.map(p => {
       const f = p.forma;
       const inp = h('input', { class: 'inp num', inputmode: 'decimal', value: p.monto ? fmtMonto(p.monto, f.moneda) : '', 'aria-label': `Monto en ${f.nombre}` });
-      inp.addEventListener('input', () => { p.monto = parseMonto(inp.value, f.moneda) || 0; pintarBarra(); avisar(); });
-      inp.addEventListener('blur', () => { inp.value = p.monto ? fmtMonto(p.monto, f.moneda) : ''; });
+      // v1.94: la letra del monto baja de tamaño a medida que crece, para que siempre quepa en el campo.
+      const tam = () => { const n = inp.value.length; inp.dataset.largo = n >= 11 ? 'xl' : n >= 8 ? 'l' : ''; };
+      inp.addEventListener('input', () => { p.monto = parseMonto(inp.value, f.moneda) || 0; tam(); pintarBarra(); avisar(); });
+      inp.addEventListener('blur', () => { inp.value = p.monto ? fmtMonto(p.monto, f.moneda) : ''; tam(); });
+      tam();
       inp.addEventListener('focus', () => inp.select());
       inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') inp.blur(); });
       const eq = h('span', { class: 'nota num equiv' });
       p.pintarEq = () => { const e = estado().pagos.find(x => x.forma === f.id); eq.textContent = f.moneda === 'COP' ? '' : (e?.equivalenteCop == null ? 'Sin tasa' : e.equivalenteCop > 0 ? `≈ ${fmtCop(e.equivalenteCop)} COP` : ''); };
       p.pintarEq();
       if (enfocar === f.id && !esTelefono()) setTimeout(() => { inp.focus(); inp.select(); }, 20);
-      // Tarjeta de pago: ícono, nombre y equivalente en pesos; el monto en su recuadro con la moneda;
-      // un botón redondo − en la esquina para quitarlo.
+      // Tarjeta de pago (v1.94): ícono; nombre con la moneda debajo (COP, USD, Bs);
+      // el monto en su recuadro; un bote de basura al lado para quitarla.
       return h('div', { class: `pago m-${f.moneda.toLowerCase()}`, 'data-forma': f.id },
         h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
-        h('span', { class: 'pago-nombre' }, h('b', {}, nombreCorto(f.nombre)), eq),
-        h('label', { class: 'pago-monto' }, inp, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda])),
-        h('button', { type: 'button', class: 'pago-quitar', 'aria-label': `Quitar ${f.nombre}`, onclick: () => quitarPago(p) }, icono('menos')));
+        h('span', { class: 'pago-nombre' }, h('b', {}, nombreCorto(f.nombre)), h('span', { class: 'pago-moneda' }, NOMBRE_MONEDA[f.moneda])), // v1.94: sin el equivalente en pesos
+        h('label', { class: 'pago-monto' }, inp),
+        h('button', { type: 'button', class: 'pago-quitar', 'aria-label': `Quitar ${f.nombre}`, onclick: () => quitarPago(p) }, icono('borrar')));
     }));
     // El pago recién elegido entra abriéndose (como los desplegables de Pedidos).
     const nueva = enfocar && lista.querySelector(`.pago[data-forma="${enfocar}"]`);
     if (nueva && nueva.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const alto = nueva.offsetHeight;
-      const cs = getComputedStyle(nueva), quitar = nueva.querySelector('.pago-quitar');
+      const cs = getComputedStyle(nueva);
       nueva.style.overflow = 'hidden';
       nueva.animate([
         { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', opacity: 0, transform: 'translateY(-4px)' },
         { height: alto + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, opacity: 1, transform: 'none' }],
-        { duration: 300, easing: 'cubic-bezier(.4,0,.2,1)' })
-        .onfinish = () => { nueva.style.overflow = ''; quitar?.animate([{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'none' }], { duration: 160, easing: 'ease-out' }); };
+        { duration: 210, easing: 'cubic-bezier(.4,0,.2,1)' })
+        .onfinish = () => { nueva.style.overflow = ''; };
     }
     botones.replaceChildren(...formas.map(f => {
       const elegida = pagos.some(x => x.forma.id === f.id);
@@ -94,7 +97,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     fila.animate([
       { height: fila.offsetHeight + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth, opacity: 1, transform: 'none' },
       { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', opacity: 0, transform: 'scale(.98)' }],
-      { duration: 300, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = fin;
+      { duration: 210, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = fin;
   }
 
   function pintarBarra() {

@@ -434,3 +434,11 @@ Suite final: npm test 99/99 · e2e 59/59
   - Filtros: el bloqueo de desplazamiento de la v1.91 ponía overflow oculto también en body y la cabecera fija del Inventario se salía de la pantalla al abrir un menú; ahora solo en html.
   - Apartados: resumen con el degradado de Inicio, ícono antes de «Por cobrar» y estado «ícono · cantidad · por revisar» (15 días o más; rojo con alerta o verde con ✓); en las tarjetas sin «Hace» en el contador de días.
 - v1.93 (aprobado con boceto HTML): en el panel de la prenda del Inventario cada talla lleva dos botones pequeños: Ajustar existencia (tuerca; solo administrador y en la computadora, como antes) e Historial (reloj; quien ve costos, también en el teléfono). Abren sus ventanas sin abrir otra hoja. Desde aquí los bocetos HTML se entregan en el chat (archivo), sin crear artefactos, y no se ponen descripciones obvias en las pantallas.
+- v1.94 (aprobado con boceto HTML en el chat; las correcciones finales sin boceto, a pedido):
+  - Panel del carrito (teléfono): la barra de abajo es la cabecera del propio panel, de borde a borde, esquinas de arriba redondeadas, degradado verde crema como el resumen de Apartados y la flecha arriba al centro. Al tocarla o deslizarla hacia arriba el panel entero sube (no se abre otra hoja); al abrirse la cabecera se recoge con transición y queda solo la flecha; se baja con el dedo, Atrás, Esc o tocando el fondo.
+  - Tarjetas cobrar: el subtotal en la línea base de «Precio 1–5 · c/u» (rejilla de 3 filas).
+  - Ventana de tallas: sin «Selecciona las tallas»; se mantiene «N disponibles» y sin existencia dice «No hay» (antes «Agotada»).
+  - Cobrar: el monto cabe en el campo (sin «COP» adentro, letra que baja si es largo); moneda (COP, USD, Bs) bajo el nombre, sin el equivalente en pesos; bote de basura al lado del campo para quitar la forma de pago.
+  - Reportes: Ventas y Ganancia en dos columnas iguales con espacio, letra más chica desde 8 caracteres.
+  - Calculadora de tasas: 40 px de aire al final.
+  - Animaciones de todo el sistema un 30 % más cortas (hojas y paneles 240 ms, ventanas 130–180 ms, desplegables ~200 ms).

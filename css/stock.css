@@ -81,11 +81,11 @@ body.stk-lock{overflow:hidden}
 .stk .sbtn.block{width:100%}
 .stk .row{display:flex;gap:8px;flex-wrap:wrap}
 .stk .row>*{flex:1 1 140px}
-.stk .scrim{position:fixed;inset:0;z-index:40;background:var(--scrim);opacity:0;transition:opacity .28s ease;will-change:opacity}
+.stk .scrim{position:fixed;inset:0;z-index:40;background:var(--scrim);opacity:0;transition:opacity .2s ease;will-change:opacity}
 .stk .scrim.on{opacity:1}
 .stk .sheet{position:fixed;z-index:41;left:0;right:0;bottom:0;margin-inline:auto;max-width:640px;max-height:90%;overflow:auto;overscroll-behavior:contain;background:var(--bg);border-radius:18px 18px 0 0;border:1px solid var(--line);border-bottom:0;
   padding:8px max(16px,env(safe-area-inset-left,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-right,0px));box-shadow:0 -10px 40px rgba(0,0,0,.25)}
-.stk .sheet{touch-action:pan-y;transform:translate3d(0,100%,0);transition:transform .34s cubic-bezier(.22,.9,.28,1);will-change:transform;backface-visibility:hidden;contain:layout paint}
+.stk .sheet{touch-action:pan-y;transform:translate3d(0,100%,0);transition:transform .24s cubic-bezier(.22,.9,.28,1);will-change:transform;backface-visibility:hidden;contain:layout paint}
 .stk .sheet.in{transform:translate3d(0,0,0)}
 .stk .sheet.drag{transition:none!important}
 .stk .scrim.drag{transition:none!important}

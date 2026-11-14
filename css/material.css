@@ -196,7 +196,7 @@
 .linea-info b{white-space:normal!important;display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.25}
 
 /* v1.55 — Aviso discreto de cambios sin guardar en Ajustes */
-.aviso-guardar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;padding:4px 4px 4px 16px;border:1px solid var(--line);border-radius:99px;background:var(--surface);box-shadow:var(--sombra-2);font-size:13px;font-weight:500;color:var(--ink);white-space:nowrap;animation:avisoEntra .22s var(--ease)}
+.aviso-guardar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;padding:4px 4px 4px 16px;border:1px solid var(--line);border-radius:99px;background:var(--surface);box-shadow:var(--sombra-2);font-size:13px;font-weight:500;color:var(--ink);white-space:nowrap;animation:avisoEntra .15s var(--ease)}
 .aviso-guardar[hidden]{display:none}
 .aviso-guardar .btn.texto{min-height:40px;color:var(--accent);font-weight:600}
 @media (max-width:839px){.aviso-guardar{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
@@ -229,13 +229,13 @@
 /* Pastillas de filtro: solo se desplazan de lado; sin el bamboleo vertical (el área de toque de 48 px sobresalía) */
 .filtros,.filtro-ap,.filtro-inv{overflow-y:hidden!important;overscroll-behavior-x:contain}
 /* Hojas: entran completas desde su borde (abajo o derecha), suave; al cerrar hacen lo inverso (ui.js quitar) */
-.hoja.abajo .caja{animation:hojaSube .28s cubic-bezier(.22,.9,.3,1)!important}
-.hoja.derecha .caja{animation:hojaEntra .26s cubic-bezier(.22,.9,.3,1)!important}
+.hoja.abajo .caja{animation:hojaSube .2s cubic-bezier(.22,.9,.3,1)!important}
+.hoja.derecha .caja{animation:hojaEntra .18s cubic-bezier(.22,.9,.3,1)!important}
 @keyframes hojaSube{from{transform:translateY(100%)}to{transform:none}}
 @keyframes hojaEntra{from{transform:translateX(100%)}to{transform:none}}
 @media (prefers-reduced-motion:reduce){.hoja.abajo .caja,.hoja.derecha .caja{animation:none!important}}
 /* Flecha de los desplegables: gira con la misma curva que el despliegue */
-.lista-usuarios .u-cab > svg.i,.despl > summary > svg.i{transition:transform .28s cubic-bezier(.22,.9,.3,1)}
+.lista-usuarios .u-cab > svg.i,.despl > summary > svg.i{transition:transform .2s cubic-bezier(.22,.9,.3,1)}
 
 /* v1.56 — Pagos en Cobrar (imagen 4): ícono · nombre y ≈ pesos · recuadro con el monto; − redondo en la esquina */
 .pagos{gap:12px!important;padding-top:8px}
@@ -258,21 +258,21 @@
 .total-cobro.tarjeta{background:var(--g-bg)!important;border-color:var(--g-bd)!important}
 /* Venta exitosa */
 .listo.exito{gap:12px;padding:24px 0 8px;max-width:420px;margin:0 auto;width:100%}
-.exito-ic{position:relative;width:80px;height:80px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff;margin-bottom:4px;animation:exitoEntra .5s cubic-bezier(.34,1.56,.64,1) both}
-.exito-ic svg.i{width:40px;height:40px;stroke-width:3;stroke-dasharray:30;stroke-dashoffset:30;animation:exitoTrazo .4s .25s ease-out forwards}
-.exito-onda{position:absolute;inset:0;border-radius:50%;background:var(--accent);opacity:.25;animation:exitoOnda 1.2s .2s ease-out both}
+.exito-ic{position:relative;width:80px;height:80px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff;margin-bottom:4px;animation:exitoEntra .35s cubic-bezier(.34,1.56,.64,1) both}
+.exito-ic svg.i{width:40px;height:40px;stroke-width:3;stroke-dasharray:30;stroke-dashoffset:30;animation:exitoTrazo .28s .18s ease-out forwards}
+.exito-onda{position:absolute;inset:0;border-radius:50%;background:var(--accent);opacity:.25;animation:exitoOnda 1.2s .14s ease-out both}
 @keyframes exitoEntra{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes exitoTrazo{to{stroke-dashoffset:0}}
 @keyframes exitoOnda{from{transform:scale(1);opacity:.3}to{transform:scale(1.8);opacity:0}}
-.listo.exito h2{font-size:24px;margin:0;animation:entra .3s .15s var(--ease) both}
+.listo.exito h2{font-size:24px;margin:0;animation:entra .21s .15s var(--ease) both}
 .exito-sub{margin:-8px 0 0;font-size:14px}
 .exito-sub:empty{display:none}
-.exito-total{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px;border-radius:16px;background:var(--g-bg);border:1px solid var(--g-bd);animation:entra .3s .25s var(--ease) both}
+.exito-total{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px;border-radius:16px;background:var(--g-bg);border:1px solid var(--g-bd);animation:entra .21s .18s var(--ease) both}
 .exito-total .et{font-size:13px;font-weight:500;color:var(--g-tx)}
 .exito-total .total{display:flex;align-items:baseline;gap:8px}
 .exito-total .total-cop{font-size:32px;font-weight:700;line-height:1.1}
 .exito-total .moneda{font-size:13px;font-weight:600}
-.exito-pagos{width:100%;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;padding:4px 16px;animation:entra .3s .32s var(--ease) both}
+.exito-pagos{width:100%;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;padding:4px 16px;animation:entra .21s .22s var(--ease) both}
 .exito-fila{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0;font-size:14px;font-weight:400;color:var(--muted);border-bottom:1px solid var(--line)}
 .exito-fila:last-child{border-bottom:0}
 .exito-fila b{color:var(--ink);font-size:16px}
@@ -502,20 +502,33 @@ button.pill:not(.demo){border-color:transparent!important}
 /* Tarjetas cobrar: nombre en una sola línea, con «…» si es largo. */
 .linea:not(.mini) .linea-info b{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;max-width:100%!important;-webkit-line-clamp:unset!important}
 /* Hoja del carrito: apertura, arrastre y cierre como la hoja del Inventario (transición en vez de animación). */
-.hoja-arrastre .caja{animation:none!important;transform:translate3d(0,100%,0);transition:transform .34s cubic-bezier(.22,.9,.28,1);will-change:transform;backface-visibility:hidden;touch-action:pan-y}
+.hoja-arrastre .caja{animation:none!important;transform:translate3d(0,100%,0);transition:transform .24s cubic-bezier(.22,.9,.28,1);will-change:transform;backface-visibility:hidden;touch-action:pan-y}
 .hoja-arrastre.in .caja{transform:translate3d(0,0,0)}
-.hoja-arrastre .fondo{animation:none!important;opacity:0;transition:opacity .28s ease;will-change:opacity}
+.hoja-arrastre .fondo{animation:none!important;opacity:0;transition:opacity .2s ease;will-change:opacity}
 .hoja-arrastre.in .fondo{opacity:1}
 .hoja-arrastre.drag .caja,.hoja-arrastre.drag .fondo{transition:none!important}
 @media (prefers-reduced-motion:reduce){.hoja-arrastre .caja,.hoja-arrastre .fondo{transition:none!important}}
-/* Barra del carrito en el teléfono: parece el borde de una hoja que se abre (barrita, flecha hacia arriba). */
+/* Panel del carrito en el teléfono (v1.94): de borde a borde, esquinas de arriba redondeadas; la cabecera (degradado
+   verde crema como el resumen de Apartados) asoma sobre la barra inferior y el panel entero sube al tocarla. */
+.panel-carrito{display:none}
 @media (max-width:839px){
-  .barra-carrito{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;column-gap:12px;left:8px;right:8px;
-    min-height:64px;padding:14px 12px 10px 12px;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);text-align:left;
-    box-shadow:0 -2px 6px rgba(16,24,40,.05),0 10px 28px rgba(16,24,40,.16)}
-  .barra-carrito[hidden]{display:none!important}
-  .barra-carrito:active{transform:scale(.985)}
-  .barra-carrito .bc-agarre{position:absolute;top:5px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line)}
+  .barra-carrito{display:none!important}
+  .panel-carrito{display:flex;flex-direction:column;position:fixed;left:0;right:0;bottom:0;z-index:18;max-height:88vh;max-height:88dvh;
+    background:var(--surface);border-radius:18px 18px 0 0;border-top:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));
+    box-shadow:0 -6px 24px rgba(16,24,40,.12);transform:translate3d(0,calc(100% - var(--asoma,136px)),0);
+    transition:transform .24s cubic-bezier(.22,.9,.28,1);will-change:transform;backface-visibility:hidden}
+  .panel-carrito[hidden]{display:none}
+  .panel-carrito.alto{z-index:46}
+  .panel-carrito.abierto{transform:translate3d(0,0,0)}
+  .panel-carrito.drag{transition:none}
+  body.teclado .panel-carrito:not(.abierto){display:none}
+  .panel-carrito .barra-carrito{display:grid!important;position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;margin:0!important;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;column-gap:12px;
+    width:100%;min-height:72px;padding:22px 16px 12px;border:0;border-radius:18px 18px 0 0;color:var(--ink);text-align:left;box-shadow:none;flex:none;touch-action:none;
+    background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 12%,var(--surface)) 0%,var(--surface) 75%)}
+  .panel-carrito .barra-carrito:active{transform:none}
+  .barra-carrito .bc-flecha{position:absolute;top:2px;left:50%;margin-left:-14px;width:28px;height:22px;display:grid;place-items:center;color:var(--muted)}
+  .barra-carrito .bc-flecha svg.i{width:20px;height:20px;transform:rotate(180deg);transition:transform .2s ease}
+  .panel-carrito.abierto .bc-flecha svg.i{transform:none}
   .barra-carrito .bc-ic{position:relative;width:40px;height:40px;border-radius:12px;background:var(--accent);color:#fff;display:grid;place-items:center}
   .barra-carrito .bc-ic svg.i{width:20px;height:20px}
   .barra-carrito .bc-n{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:99px;background:var(--sel-neu);color:#fff;font-size:11.5px;font-weight:700;display:grid;place-items:center;box-shadow:0 0 0 2px var(--surface)}
@@ -525,8 +538,10 @@ button.pill:not(.demo){border-color:transparent!important}
   .barra-carrito .bc-total{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
   .barra-carrito .bc-total b{font-size:16px;font-weight:700}
   .barra-carrito .bc-total small{font-size:11.5px;font-weight:700;color:var(--cop)}
-  .barra-carrito .bc-abrir{width:36px;height:36px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;color:var(--ink)}
-  .barra-carrito .bc-abrir svg.i{width:18px;height:18px;transform:rotate(180deg)}
+  .pc-cuerpo{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:4px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+  .pc-velo{position:fixed;inset:0;z-index:45;background:rgba(10,15,20,.45);opacity:0;transition:opacity .2s ease}
+  .pc-velo.on{opacity:1}
+  .panel-carrito.drag ~ .pc-velo,.pc-velo.drag{transition:none}
   .vista.vender .vender-main{padding-bottom:96px!important}
 }
 /* Búsqueda: lupa antes del texto y × para borrar, en todos los buscadores. */
@@ -555,3 +570,54 @@ button.pill:not(.demo){border-color:transparent!important}
 /* Tarjetas cobrar: «Precio 1–5» y el precio por unidad en la misma fila. */
 .linea-info .lc-precio{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0}
 .linea-info .lc-precio .lc-cu{margin:0!important;font-size:12px;white-space:nowrap}
+/* v1.94 · Tarjetas cobrar: el monto siempre en la línea base del último dato bajo el nombre («Precio 1–5 · c/u»).
+   La tarjeta pasa a una rejilla de 3 filas (nombre / color · talla / precio) y el monto ocupa la 3.ª fila a la derecha. */
+.linea:not(.mini){display:grid!important;grid-template-columns:56px minmax(0,1fr) auto!important;grid-template-rows:auto auto auto!important;grid-template-areas:none!important;column-gap:12px!important;row-gap:4px!important;align-items:start!important}
+.linea:not(.mini) > .foto{grid-column:1!important;grid-row:1 / 4!important;align-self:center!important;width:56px!important;height:56px!important}
+.linea:not(.mini) .linea-info,.linea:not(.mini) .linea-der,.linea:not(.mini) .lc-pie{display:contents!important}
+.linea:not(.mini) .linea-info > b{grid-column:2;grid-row:1;align-self:center}
+.linea:not(.mini) .linea-info > .lc-chip:not(.tramo){grid-column:2;grid-row:2}
+.linea:not(.mini) .linea-info > .lc-precio{grid-column:2;grid-row:3;align-self:baseline}
+.linea:not(.mini) .linea-der > .stepper{grid-column:3;grid-row:1 / 3;justify-self:end;align-self:start}
+.linea:not(.mini) .lc-pie > .lc-monto{grid-column:3;grid-row:3;align-self:baseline;justify-self:end;display:flex;align-items:baseline;gap:4px}
+.linea:not(.mini) .linea-der{border:0!important;padding:0!important}
+/* v1.94 · Reportes: Ventas y Ganancia en dos columnas iguales, con espacio entre ellas, para que nunca se toquen. */
+.rep-kpis{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:20px}
+.rep-kpis .rep-kpi{min-width:0}
+.rep-kpis .rep-kpi .val{overflow-wrap:anywhere}
+.rep-kpis[data-largo=m] .rep-kpi .val{font-size:28px!important}
+@media (max-width:380px){.rep-kpis[data-largo=m] .rep-kpi .val{font-size:24px!important}.rep-kpis[data-largo=l] .rep-kpi .val{font-size:21px!important}.rep-kpis[data-largo=xl] .rep-kpi .val{font-size:18px!important}}
+/* v1.94 · Calculadora de tasas: más aire al final. */
+.pila.calc{padding-bottom:40px}
+/* v1.94 · Formas de pago en Cobrar: moneda bajo el nombre, el monto ocupa el campo (sin «COP» adentro y con letra que
+   baja si es largo) y un bote de basura al lado para quitarla. */
+.pagos .pago{grid-template-columns:40px minmax(0,1fr) minmax(120px,48%) 36px!important;grid-template-areas:none!important;column-gap:10px!important}
+.pagos .pago .pago-moneda{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.pagos .pago-nombre b{font-size:15px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pagos .pago-monto{padding:0 10px!important;min-width:0}
+.pagos .pago-monto .inp{width:100%;min-width:0;font-size:20px!important}
+.pagos .pago-monto .inp[data-largo=l]{font-size:17px!important}
+.pagos .pago-monto .inp[data-largo=xl]{font-size:15px!important}
+.pago-quitar{position:static!important;width:36px!important;height:36px!important;border-radius:10px!important;background:none!important;color:var(--r-tx)!important;box-shadow:none!important;border:0!important}
+.pago-quitar svg.i{width:20px!important;height:20px!important;stroke-width:1.9!important}
+.pago-quitar::after{inset:-6px!important}
+.panel-pagos .pagos{padding-right:0!important;padding-top:0!important}
+.pagos .pago > .forma-ic{grid-area:auto!important;grid-column:1!important;grid-row:1!important}
+.pagos .pago > .pago-nombre{grid-area:auto!important;grid-column:2!important;grid-row:1!important;min-width:0;display:flex}
+.pagos .pago > .pago-monto{grid-area:auto!important;grid-column:3!important;grid-row:1!important}
+.pagos .pago > .pago-quitar{grid-area:auto!important;grid-column:4!important;grid-row:1!important;justify-self:end}
+/* v1.94 · Ventana de tallas sin «disponibles»: el contador pegado a la derecha aunque no haya texto en medio. */
+.ventana-tallas .talla-fila-v > .tf-paso{grid-column:3}
+.ventana-tallas .talla-fila-v > .tf-disp{grid-column:2}
+.ventana-tallas .talla-fila-v > .tf-max{grid-column:1 / -1}
+/* Formas de pago: el equivalente en pesos no se mete bajo el campo. */
+.pagos .pago-nombre .equiv{white-space:normal;overflow-wrap:anywhere;line-height:1.25;font-size:12px!important}
+.pagos .pago-nombre .pago-moneda{line-height:1.2}
+/* v1.94 · Panel del carrito abierto: la cabecera se recoge (su información ya está en el total de abajo) y queda solo
+   la flecha para bajarlo; todo con transición. */
+@media (max-width:839px){
+  .panel-carrito .barra-carrito{max-height:84px;overflow:hidden;transition:max-height .24s cubic-bezier(.22,.9,.28,1),padding .24s cubic-bezier(.22,.9,.28,1),min-height .24s cubic-bezier(.22,.9,.28,1)}
+  .panel-carrito .barra-carrito > :not(.bc-flecha){transition:opacity .16s ease,transform .24s cubic-bezier(.22,.9,.28,1)}
+  .panel-carrito.abierto .barra-carrito{max-height:30px;min-height:30px;padding-top:30px;padding-bottom:0}
+  .panel-carrito.abierto .barra-carrito > :not(.bc-flecha){opacity:0;transform:translateY(-10px);pointer-events:none}
+}

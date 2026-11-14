@@ -267,7 +267,7 @@ export function abrirHojaStock({ tema, llenar, clase = '' }) {
   const salir = () => {
     document.body.classList.remove('stk-lock');
     sc.classList.remove('on'); sc.style.opacity = ''; sh.classList.remove('in');
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) capa.remove(); else setTimeout(() => capa.remove(), 340);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) capa.remove(); else setTimeout(() => capa.remove(), 250);
   };
   const { cerrar } = abrirCapaPropia(capa, salir);
   sh.scrollTop = 0; void sh.offsetHeight; sc.classList.add('on'); sh.classList.add('in'); document.body.classList.add('stk-lock');

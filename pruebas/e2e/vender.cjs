@@ -16,13 +16,14 @@ casos('vender', [
     await p.waitForFunction(() => document.querySelectorAll('.tarjeta-prenda').length === 1);
     a.ok(await p.$(GRUPO('Buzo Etanol Caballero Gris')));
   }],
-  ['Tallas como botones ≥ 44 px con su existencia; dos toques suman 2', async (env, a) => {
+  ['Tallas como botones ≥ 44 px con su existencia y sin «Selecciona las tallas»; dos toques suman 2', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await p.click(GRUPO('Buzo Etanol Caballero Gris'));
     const tallas = await p.$$eval('.capa .talla-mas', bs => bs.map(b => { const r = b.getBoundingClientRect(); return { t: b.dataset.talla, w: r.width, h: r.height, x: b.closest('.talla-fila-v').textContent }; }));
     a.deepStrictEqual(tallas.map(t => t.t), ['S', 'M', 'L']);
     for (const t of tallas) a.ok(t.w >= 44 && t.h >= 44, JSON.stringify(t));
     a.ok(tallas[1].x.includes('2'), tallas[1].x);
+    a.ok(!(await p.innerText('.capa')).includes('Selecciona'), 'sin «Selecciona las tallas»');
     await p.click('.capa .talla-mas[data-talla="M"]'); await p.click('.capa .talla-mas[data-talla="M"]');
     await p.click('#tallas-agregar');
     a.strictEqual(await texto(p, '.linea[data-sku="B-M"] .cant'), '2');
@@ -60,7 +61,7 @@ casos('vender', [
     a.ok((await texto(p, '.barra-carrito')).includes('1 prenda'));
     a.ok((await texto(p, '.barra-carrito')).includes('48.000'));
     await p.click('.barra-carrito');
-    await p.waitForSelector('.capa .linea[data-sku="B-S"]');
+    await p.waitForSelector('.panel-carrito.abierto .linea[data-sku="B-S"]');
   }],
   ['F2 enfoca el buscador; código de barras + Enter agrega la variante', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
@@ -195,21 +196,28 @@ casos('vender', [
     await p.reload(); await p.waitForTimeout(1200);
     a.strictEqual(await p.$('.capa:has-text("¿Continuar venta?")'), null, 'carrito vacío: no pregunta');
   }],
-  ['v1.91 · Teléfono: hoja del carrito con barrita, se baja con el dedo; con ella abierta la pantalla no se desplaza', async (env, a) => {
+  ['v1.94 · Teléfono: el panel del carrito se despliega desde la barra y se baja con el dedo; abierto, la pantalla no se desplaza', async (env, a) => {
     const p = await env.pagina({ movil: true, usuario: 'vendedora', caja: true, ruta: '/vender' });
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 2 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
-    await p.tap('.barra-carrito'); await p.waitForSelector('.capa.hoja .cab.solo-agarre .agarre'); await p.waitForTimeout(400); // termina de subir
-    a.strictEqual(await p.$('.capa.hoja .cab svg'), null, 'sin flecha');
-    a.deepStrictEqual(await p.evaluate(() => [document.documentElement.classList.contains('con-capa'), getComputedStyle(document.documentElement).overscrollBehaviorY]), [true, 'none'], 'pantalla de abajo bloqueada y sin deslizar para actualizar');
-    // Tarjetas cobrar: color y talla en texto (sin pastilla); la tarifa sigue en pastilla.
-    a.deepStrictEqual(await p.$$eval('.capa .linea .lc-chip', e => e.map(x => getComputedStyle(x).backgroundColor)), ['rgba(0, 0, 0, 0)', 'rgb(246, 248, 250)']);
+    await p.waitForSelector('.panel-carrito:not([hidden]) .barra-carrito .bc-flecha');
+    const anchoPanel = await p.$eval('.panel-carrito', e => [Math.round(e.getBoundingClientRect().left), Math.round(innerWidth - e.getBoundingClientRect().right)]);
+    a.deepStrictEqual(anchoPanel, [0, 0], 'de borde a borde');
+    await p.tap('.barra-carrito'); await p.waitForSelector('.panel-carrito.abierto'); await p.waitForTimeout(350);
+    a.strictEqual(await p.$eval('.barra-carrito .bc-total', e => getComputedStyle(e).opacity), '0', 'abierto, la cabecera se recoge');
+    a.strictEqual(await p.$$eval('.capa.hoja', e => e.length), 0, 'no abre otra hoja');
+    a.deepStrictEqual(await p.evaluate(() => [document.documentElement.classList.contains('con-capa'), getComputedStyle(document.documentElement).overscrollBehaviorY]), [true, 'none']);
+    // Tarjetas cobrar: color y talla en texto (sin pastilla); «Precio 1–5» en pastilla con el c/u al lado; monto en su línea base.
+    a.deepStrictEqual(await p.$$eval('.panel-carrito .linea .lc-chip', e => e.map(x => getComputedStyle(x).backgroundColor)), ['rgba(0, 0, 0, 0)', 'rgb(246, 248, 250)']);
+    a.match(await texto(p, '.panel-carrito .linea .lc-precio'), /^Precio 1–5\s*42\.000 c\/u$/);
+    const bases = await p.$eval('.panel-carrito .linea', l => { const r = (s) => { const e = l.querySelector(s), rg = document.createRange(); rg.selectNodeContents(e); return Math.round(rg.getBoundingClientRect().bottom); }; return [r('.lc-cu'), r('.lc-monto .monto')]; });
+    a.ok(Math.abs(bases[0] - bases[1]) <= 2, `línea base: ${bases}`);
     const cdp = await p.context().newCDPSession(p);
-    const b = await p.$eval('.cab.solo-agarre', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+    const b = await p.$eval('.barra-carrito', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + 30 }; });
     const t = (type, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: b.x, y }] });
     await t('touchStart', b.y); for (let i = 1; i <= 10; i++) { await t('touchMove', b.y + i * 25); await p.waitForTimeout(16); } await t('touchEnd');
-    await p.waitForSelector('.capa.hoja', { state: 'detached' });
-    a.strictEqual(await p.evaluate(() => document.documentElement.classList.contains('con-capa')), false, 'al cerrarla se desbloquea');
-    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.length), 1, 'ocultar no vacía el carrito');
+    await p.waitForFunction(() => !document.querySelector('.panel-carrito').classList.contains('abierto'));
+    a.strictEqual(await p.evaluate(() => document.documentElement.classList.contains('con-capa')), false, 'al bajarlo se desbloquea');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.length), 1, 'bajarlo no vacía el carrito');
   }],
   ['v1.91 · Ventana de tallas: la cantidad elegida sin fondo verde', async (env, a) => {
     const p = await env.pagina({ ancho: 390, alto: 844, usuario: 'vendedora', caja: true, ruta: '/vender' });

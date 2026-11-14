@@ -10,6 +10,9 @@ import { hoy, sumarDias, rangoCorto } from '../nucleo/fechas.js';
 import { abrirCalendarioRango } from './calendario.js';
 import { escucharVentasConCosto, listaVentas } from './ventas-rango.js';
 
+// v1.94: Ventas y Ganancia van en dos columnas iguales; la letra baja antes (desde 8 caracteres) para que no se toquen.
+const largoKpi = t => { const n = String(t).length; return n >= 12 ? 'xl' : n >= 10 ? 'l' : n >= 8 ? 'm' : null; };
+
 // Selector de rango: Hoy / Semana / 7 días / Este mes, o cualquier rango con el calendario propio.
 function selectorRango(alCambiar, inicial = 'hoy') {
   const d = hoy();
@@ -77,7 +80,7 @@ registrarVista('/reportes', {
 
       const resumen = h('div', { class: 'tarjeta rep-resumen' },
         // Ventas y Ganancia con el mismo tamaño; si alguno es largo, bajan los dos un paso de la escala.
-        h('div', { class: 'rep-kpis', 'data-largo': largo(fmtCop(Math.max(r.total || 0, Math.abs(r.ganancia || 0)))) },
+        h('div', { class: 'rep-kpis', 'data-largo': largoKpi(fmtCop(Math.max(r.total || 0, Math.abs(r.ganancia || 0)))) },
           h('div', { class: 'rep-kpi principal', 'data-k': 'total' }, h('span', { class: 'et' }, 'Ventas'), h('b', { class: 'val num' }, fmtCop(r.total))),
           gestion ? h('div', { class: 'rep-kpi', 'data-k': 'ganancia' }, h('span', { class: 'et' }, 'Ganancia'),
             h('b', { class: 'val num' }, r.ganancia == null ? '—' : fmtCop(r.ganancia)),

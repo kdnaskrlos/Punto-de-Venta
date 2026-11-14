@@ -1,7 +1,7 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
 import { abrirEscaner, ICONO_ESCANER } from './escaner.js';
 import { buscarCodigo } from './inventario.js';
-import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, campoBusqueda } from '../ui.js';
+import { h, icono, abrirVentana, abrirHoja, abrirCapaPropia, toast, esTelefono, hayCapas, largo, campoBusqueda } from '../ui.js';
 import { coincide, prepararTexto } from '../nucleo/busqueda.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
@@ -129,8 +129,8 @@ export function ponerCarrito(cont, nuevo) {
     const a = antes.get(el.dataset.sku), h1 = el.getBoundingClientRect().height, h0 = a ? a.h : 0;
     if (Math.abs(h1 - h0) < 2) return;
     el.style.overflow = 'hidden';
-    const an = el.animate(a ? [{ height: `${h0}px` }, { height: `${h1}px` }] : [{ height: '0px', opacity: 0 }, { height: `${h1}px`, opacity: 1 }], { duration: 280, easing: 'cubic-bezier(.22,.9,.3,1)' });
-    if (!el.classList.contains('mini') && (!a || a.mini)) [...el.children].forEach((c, k) => c.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 240, delay: 40 + k * 35, easing: 'ease-out', fill: 'backwards' }));
+    const an = el.animate(a ? [{ height: `${h0}px` }, { height: `${h1}px` }] : [{ height: '0px', opacity: 0 }, { height: `${h1}px`, opacity: 1 }], { duration: 200, easing: 'cubic-bezier(.22,.9,.3,1)' });
+    if (!el.classList.contains('mini') && (!a || a.mini)) [...el.children].forEach((c, k) => c.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 170, delay: 40 + k * 35, easing: 'ease-out', fill: 'backwards' }));
     an.onfinish = an.oncancel = () => { el.style.overflow = ''; };
   });
   // Aviso amarillo de tramos (como el aviso de Pedidos): al aparecer, primero se abre su espacio y luego
@@ -144,12 +144,12 @@ export function ponerCarrito(cont, nuevo) {
       { height: '0px', paddingTop: '0px', paddingBottom: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', marginTop: `-${g}px`, opacity: 0, transform: 'translateY(-8px)' },
       { height: `${alto}px`, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth, marginTop: '0px', opacity: 0, transform: 'translateY(-8px)', offset: .45 },
       { height: `${alto}px`, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth, marginTop: '0px', opacity: 1, transform: 'none' }],
-      { duration: 480, easing: 'cubic-bezier(.4,0,.2,1)' });
+      { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)' });
     an.onfinish = () => { aviso.style.overflow = ''; aviso.classList.add('anim'); };
     an.oncancel = () => { aviso.style.overflow = ''; };
   } else if (aviso && aviso.textContent !== avisoAntes) {
     // Cambió el número: el texto se renueva con un fundido corto y el aviso late.
-    aviso.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
+    aviso.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
     aviso.classList.add('anim');
   } else if (!aviso && avisoViejo) {
     // Se fue: un fantasma del aviso queda en su lugar, se desvanece y cierra su espacio.
@@ -165,7 +165,7 @@ export function ponerCarrito(cont, nuevo) {
         { ...lleno, opacity: 1, transform: 'none' },
         { ...lleno, opacity: 0, transform: 'translateY(-8px)', offset: .4 },
         { height: '0px', paddingTop: '0px', paddingBottom: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', marginTop: `-${g}px`, opacity: 0, transform: 'translateY(-8px)' }],
-        { duration: 380, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => fantasma.remove();
+        { duration: 270, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => fantasma.remove();
     }
   }
 }
@@ -280,7 +280,8 @@ function abrirTallas(ctx, g) {
       const pocas = !agotada && p.existencia <= p.minimo;
       return h('div', { class: 'talla-fila-v' + (n ? ' con' : '') + (agotada ? ' agotada' : ''), 'data-sku': p.sku },
         h('span', { class: 'tf-talla' }, nombre),
-        h('span', { class: 'tf-disp' + (pocas ? ' pocas' : '') }, agotada ? 'Agotada' : [`${p.existencia} `, h('span', { class: 'largo' }, p.existencia === 1 ? 'disponible' : 'disponibles'), h('span', { class: 'corto' }, 'disp.')]),
+        // v1.94: sin existencia dice «No hay» (más corto que «Agotada», para que quepa).
+        h('span', { class: 'tf-disp' + (pocas ? ' pocas' : '') }, agotada ? 'No hay' : [`${p.existencia} `, h('span', { class: 'largo' }, p.existencia === 1 ? 'disponible' : 'disponibles'), h('span', { class: 'corto' }, 'disp.')]),
         h('span', { class: 'tf-paso' },
           h('button', { type: 'button', class: 'talla-menos', 'data-sku': p.sku, 'aria-label': `Quitar una talla ${nombre}`, disabled: !n,
             onclick: () => { cuentas[p.sku] = Math.max(0, n - 1); pintar(); } }, icono('menos')),
@@ -305,7 +306,7 @@ function abrirTallas(ctx, g) {
   };
   pintar();
   const cont = h('div', { class: 'tallas-v' },
-    h('p', { class: 'tallas-sub' }, g.color ? h('i', { class: 'punto-color grande', style: color ? `--pc:${color}` : '' }) : null, [g.color, 'Selecciona las tallas'].filter(Boolean).join(' · ')),
+    g.color ? h('p', { class: 'tallas-sub' }, h('i', { class: 'punto-color grande', style: color ? `--pc:${color}` : '' }), g.color) : null, // v1.94: sin «Selecciona las tallas»
     lista);
   const v = abrirVentana({ titulo: g.titulo, contenido: cont, acciones: agregar, clase: 'ventana-tallas' });
   agregar.onclick = () => {
@@ -364,16 +365,50 @@ registrarVista('/vender', {
     const filtros = h('div', { class: 'filtros' });
     const rejilla = h('div', { class: 'rejilla' });
     const lado = h('aside', { class: 'lado-carrito' });
-    const barra = h('button', { class: 'barra-carrito', onclick: () => {
-      const hj = abrirHoja({ titulo: 'Carrito', contenido: h('div', { class: 'hoja-carrito' }), lado: 'abajo', sinTitulo: true });
-      const repintar = () => { ponerCarrito(hj.el.querySelector('.hoja-carrito'), panelCarrito(ctx, { enHoja: true })); if (!carrito(ctx).lineas.length) hj.cerrar(); };
-      repintar();
-      window.addEventListener('pos:carrito', repintar);
-      hj.alCerrar = () => window.removeEventListener('pos:carrito', repintar);
-    }, type: 'button', 'aria-label': 'Abrir carrito' });
-    // v1.92: la barra parece el borde de la hoja del carrito (barrita, flecha hacia arriba); también se abre deslizando hacia arriba.
-    { let y0 = null; barra.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
-      barra.addEventListener('touchmove', e => { if (y0 != null && y0 - e.touches[0].clientY > 24) { y0 = null; barra.click(); } }, { passive: true }); }
+    // Panel del carrito en el teléfono (v1.94): la barra de abajo es la cabecera del propio panel; al tocarla (o
+    // deslizarla hacia arriba) el panel entero sube y se despliega, sin abrir otra hoja encima. Se baja con el dedo
+    // como la hoja del Inventario; Atrás y Esc lo bajan; mientras está abierto la pantalla de abajo no se desplaza.
+    const barra = h('button', { class: 'barra-carrito', type: 'button', 'aria-label': 'Abrir carrito', 'aria-expanded': 'false' });
+    const hojaCarrito = h('div', { class: 'hoja-carrito' });
+    const cuerpoPanel = h('div', { class: 'pc-cuerpo' }, hojaCarrito);
+    const panel = h('div', { class: 'panel-carrito', hidden: true }, barra, cuerpoPanel);
+    const velo = h('div', { class: 'pc-velo' });
+    let abierto = false, capaPanel = null, tVelo = 0;
+    const asomar = () => { if (abierto) return; const nav = document.querySelector('.side'); panel.style.setProperty('--asoma', `${barra.offsetHeight + (nav && esTelefono() ? nav.offsetHeight : 0)}px`); };
+    const bajarPanel = () => { // la llama la pila de capas (Atrás, Esc, tocar el fondo, bajar con el dedo)
+      abierto = false; capaPanel = null;
+      panel.classList.remove('abierto', 'drag'); panel.style.transform = ''; velo.classList.remove('on'); velo.style.opacity = '';
+      barra.setAttribute('aria-expanded', 'false'); barra.setAttribute('aria-label', 'Abrir carrito');
+      clearTimeout(tVelo); tVelo = setTimeout(() => { if (!abierto) { panel.classList.remove('alto'); velo.remove(); } }, 250);
+    };
+    const subirPanel = () => {
+      if (abierto || panel.hidden) return;
+      abierto = true; clearTimeout(tVelo);
+      panel.classList.add('alto'); velo.style.opacity = '';
+      capaPanel = abrirCapaPropia(velo, bajarPanel);
+      void panel.offsetHeight; panel.classList.add('abierto'); velo.classList.add('on');
+      barra.setAttribute('aria-expanded', 'true'); barra.setAttribute('aria-label', 'Ocultar carrito');
+      cuerpoPanel.scrollTop = 0;
+    };
+    const cerrarPanel = () => capaPanel?.cerrar();
+    barra.addEventListener('click', () => (abierto ? cerrarPanel() : subirPanel()));
+    velo.addEventListener('click', cerrarPanel);
+    { // Gesto: cerrado, deslizar hacia arriba abre; abierto, arrastrar hacia abajo baja (copiado de la hoja del Inventario).
+      let y0 = 0, dy = 0, off = 0, t0 = 0, on = false, can = false, raf = 0;
+      const pintarArrastre = () => { raf = 0; const d = Math.max(0, dy - off); panel.style.transform = `translate3d(0,${d}px,0)`; velo.style.opacity = String(Math.max(0, 1 - d / (panel.offsetHeight || 600))); };
+      const soltar = () => { cancelAnimationFrame(raf); raf = 0; panel.classList.remove('drag'); panel.style.transform = ''; velo.style.opacity = ''; };
+      panel.addEventListener('touchstart', e => { if (e.touches.length !== 1) return; y0 = e.touches[0].clientY; t0 = Date.now(); dy = 0; off = 0; on = false; can = abierto && (cuerpoPanel.scrollTop <= 0 || !!e.target.closest('.barra-carrito')); }, { passive: true });
+      panel.addEventListener('touchmove', e => {
+        dy = e.touches[0].clientY - y0;
+        if (!abierto) { if (dy < -24 && e.target.closest('.barra-carrito')) { y0 = e.touches[0].clientY; subirPanel(); } return; }
+        if (!can) return;
+        if (!on) { if (dy > 8 && cuerpoPanel.scrollTop <= 0) { on = true; off = dy; panel.classList.add('drag'); } else if (dy < -4) { can = false; return; } else return; }
+        e.preventDefault(); if (!raf) raf = requestAnimationFrame(pintarArrastre);
+      }, { passive: false });
+      panel.addEventListener('touchend', () => { if (!on) return; on = false; const d = dy - off, v = d / Math.max(1, Date.now() - t0); if (d > 110 || (d > 40 && v > 0.5)) { soltar(); cerrarPanel(); } else soltar(); });
+      panel.addEventListener('touchcancel', () => { if (on) { on = false; soltar(); } });
+    }
+    addEventListener('resize', asomar);
     const sinCaja = h('div', { class: 'aviso sin-caja' }, icono('cartera'), h('span', {}, 'Abre tu caja para vender'), h('span', { class: 'sp' }), h('button', { class: 'btn primary', onclick: () => abrirCajaVentana(ctx) }, 'Abrir caja'));
 
     // El mismo escáner del Inventario (cámara, foto del código o escribirlo / lector USB): lo leído se agrega al carrito.
@@ -406,12 +441,14 @@ registrarVista('/vender', {
       rejilla.querySelectorAll('.tarjeta-prenda').forEach(el => { const g = porGrupo.get(el.dataset.grupo); if (g) el.replaceWith(tarjeta(ctx, g)); });
       ponerCarrito(lado, panelCarrito(ctx));
       const r = resumenCarrito(ctx);
-      barra.hidden = !r.unidades;
-      barra.replaceChildren(h('span', { class: 'bc-agarre', 'aria-hidden': 'true' }),
+      panel.hidden = !r.unidades;
+      if (!r.unidades && abierto) cerrarPanel();
+      barra.replaceChildren(h('span', { class: 'bc-flecha', 'aria-hidden': 'true' }, icono('abajo')),
         h('span', { class: 'bc-ic' }, icono('carrito'), h('span', { class: 'bc-n num' }, String(r.unidades))),
         h('span', { class: 'bc-tx' }, h('b', {}, 'Ver carrito'), h('small', {}, `${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`)),
-        h('span', { class: 'bc-total' }, h('b', { class: 'num' }, fmtCop(r.total)), h('small', {}, 'COP')),
-        h('span', { class: 'bc-abrir' }, icono('abajo')));
+        h('span', { class: 'bc-total' }, h('b', { class: 'num' }, fmtCop(r.total)), h('small', {}, 'COP')));
+      if (r.unidades && esTelefono()) ponerCarrito(hojaCarrito, panelCarrito(ctx, { enHoja: true })); else if (!esTelefono()) hojaCarrito.replaceChildren();
+      requestAnimationFrame(asomar);
       sinCaja.hidden = !!ctx.miCaja || !ctx.puedeVer('cajaFisica');
     }
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
@@ -431,9 +468,9 @@ registrarVista('/vender', {
     window.addEventListener('pos:carrito', pintarCarrito);
 
     cont.classList.add('vender');
-    cont.append(h('div', { class: 'vender-main' }, sinCaja, h('div', { class: 'buscador' }, campoBusqueda(buscar), escanear), filtros, rejilla), lado, barra);
+    cont.append(h('div', { class: 'vender-main' }, sinCaja, h('div', { class: 'buscador' }, campoBusqueda(buscar), escanear), filtros, rejilla), lado, panel);
     pintar();
     if (!esTelefono()) setTimeout(() => buscar.focus(), 50);
-    return () => { document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
+    return () => { if (abierto) cerrarPanel(); velo.remove(); removeEventListener('resize', asomar); document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
   },
 });
