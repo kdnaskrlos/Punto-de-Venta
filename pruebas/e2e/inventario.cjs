@@ -18,7 +18,8 @@ const vis = (p, s) => p.innerText(s).then(t => t.replace(/\s+/g, ' ').trim());
 casos('inventario', [
   ['Lista como la app de stock: resumen, segmentos, una tarjeta por variante con precio · género · unidades y foto', async (env, a) => {
     const p = await env.pagina({ ancho: 390, alto: 844, ruta: '/inventario' });
-    a.match(await vis(p, '.stk .brand'), /^Stock, Comic Shop Inventario del punto de venta · v\d+\.\d+$/);
+    a.strictEqual(await p.$('.stk .brand, #bTheme'), null, 'sin título ni selector de tema');
+    a.ok(await p.evaluate(() => document.documentElement.classList.contains('stk-sin-barra')), 'sin barra de desplazamiento');
     a.strictEqual(await vis(p, '#tiles'), '145 unidades en stock 21 variantes registradas');
     a.strictEqual(await vis(p, '#seg'), '21 Todos 2 Stock bajo 2 Agotados');
     a.strictEqual(await p.$$eval('.stk .item', e => e.length), 21);
@@ -33,6 +34,8 @@ casos('inventario', [
     a.strictEqual(await vis(p, '#meta'), '2 resultados');
     await p.selectOption('#fCat', '');
     await p.fill('#q', 'zzzz'); await p.waitForSelector('text=Nada coincide con esos filtros.');
+    await p.evaluate(() => { location.hash = '/inicio'; });
+    await p.waitForFunction(() => !document.documentElement.classList.contains('stk-sin-barra'));
     a.deepStrictEqual(p.errores, []);
   }],
   ['Detalle en hoja inferior: stock, código de barras, precios y ficha; se cierra con Atrás sin salir del inventario', async (env, a) => {
@@ -226,6 +229,14 @@ casos('inventario', [
     await p.click('#det-historial');
     await p.waitForSelector('.mov');
     a.match(await p.innerText('.capa:last-of-type'), /Existencia inicial/);
+  }],
+  ['Escritorio: tarjetas en varias columnas, centradas junto a la barra lateral, con Fotos y Sincronizar en la cabecera', async (env, a) => {
+    const p = await env.pagina({ ancho: 1280, alto: 860, usuario: 'admin', ruta: '/inventario' });
+    const cols = await p.$$eval('.stk .item', e => new Set(e.slice(0, 6).map(x => Math.round(x.getBoundingClientRect().left))).size);
+    a.ok(cols >= 3, `columnas: ${cols}`);
+    const { izq, der } = await p.$eval('.stk .wrap', w => { const r = w.getBoundingClientRect(), side = document.querySelector('.side').getBoundingClientRect().right; return { izq: r.left - side, der: innerWidth - r.right }; });
+    a.ok(Math.abs(izq - der) <= 2, `centrado: ${izq} vs ${der}`);
+    a.ok(await p.isVisible('.stk .adm #bSync') && await p.isVisible('.stk .adm #bData'));
   }],
   ['Paginación: muestra 80 y luego «Mostrar N más»', async (env, a) => {
     const p = await env.pagina({ ruta: '/inventario' });

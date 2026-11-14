@@ -2,7 +2,6 @@
 // ofertas, sincronizar con la Carga Masiva y fotos por código de imagen.
 import { h, icono, abrirVentana, abrirCapaPropia, toast, esTelefono, pedirMotivo, sin, unaVez } from '../ui.js';
 import { titulo, grupoDe, detalle, textoBusqueda, fotoDe, nombreVariante } from '../nucleo/producto.js';
-import { APP_VERSION } from '../version.js';
 import { abrirEscaner } from './escaner.js';
 import { registrarVista } from '../app.js';
 import { leerInventario, planImportacion, detalleCambios } from '../nucleo/importar.js';
@@ -227,12 +226,12 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const fmtN = n => { const r = Math.round((Number(n) || 0) * 100) / 100; return r.toLocaleString('es-VE', { maximumFractionDigits: 2 }); };
 const st = p => (p.existencia <= 0 ? 'out' : p.existencia <= (p.minimo || 0) ? 'low' : 'ok');
 const checkDigit = b => { let s = 0; for (let i = 0; i < 12; i++) s += (+b[i]) * (i % 2 ? 3 : 1); return (10 - (s % 10)) % 10; };
-const CLAVE_TEMA = 'pos.temaInventario';
-const leerTema = () => { try { const t = localStorage.getItem(CLAVE_TEMA); return t === 'light' || t === 'dark' ? t : ''; } catch { return ''; } };
+// Siempre en claro, como el resto del POS (sin selector de tema).
+const TEMA = 'light';
+try { localStorage.removeItem('pos.temaInventario'); } catch { /* sin almacenamiento */ }
 
 const SVG = {
   sync: '<svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 0 1-14.7 5.8L3.5 15.5"/><path d="M3.5 12a8.5 8.5 0 0 1 14.7-5.8l2.3 2.3"/><path d="M20.5 3.5v5h-5M3.5 20.5v-5h5"/></svg>',
-  tema: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/></svg>',
   datos: '<svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4.5 14v4.5a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V14"/></svg>',
   scan: '<svg viewBox="0 0 24 24"><path d="M3.5 8V5.5a2 2 0 0 1 2-2H8M16 3.5h2.5a2 2 0 0 1 2 2V8M20.5 16v2.5a2 2 0 0 1-2 2H16M8 20.5H5.5a2 2 0 0 1-2-2V16M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>',
   imagen: '<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-4.5-4.5L6.5 19.5"/></svg>',
@@ -353,19 +352,14 @@ function botonFotoCodigo(ctx, codigo, tiene) {
 registrarVista('/inventario', {
   montar(cont, ctx) {
     cont.classList.add('stk', 'stk-vista');
-    let tema = leerTema();
-    if (tema) cont.dataset.theme = tema;
+    cont.dataset.theme = TEMA;
+    // Sin barra de desplazamiento visible mientras se ve el inventario (se sigue desplazando igual).
+    document.documentElement.classList.add('stk-sin-barra');
     let costos = {}, detalleAbierto = null;
     const F = { q: '', st: 'all', cat: '', brand: '', sort: 'name', shown: 80 };
     const admSinc = puedeAdmin(ctx, 'importar'), admFotos = puedeAdmin(ctx, 'fotosMasivas');
     cont.innerHTML = `<div class="wrap">
-  <header class="top">
-    <div class="bar">
-      <div class="brand"><b>Stock, <em>Comic Shop</em></b><span>Inventario del punto de venta · <span class="sver" title="Versión del POS">${esc(APP_VERSION)}</span></span></div>
-      ${admSinc ? `<button class="ib" id="bSync" type="button" aria-label="Sincronizar inventario con la Carga Masiva">${SVG.sync}</button>` : ''}
-      <button class="ib" id="bTheme" type="button" aria-label="Cambiar entre modo claro y oscuro">${SVG.tema}</button>
-      ${admFotos ? `<button class="ib" id="bData" type="button" aria-label="Subir fotos de productos">${SVG.datos}</button>` : ''}
-    </div>
+  <header class="top${admSinc || admFotos ? ' con-adm' : ''}">
     <div class="stiles" id="tiles"></div>
     <div class="seg" id="seg" role="group" aria-label="Estado del stock"></div>
     <div class="search">
@@ -377,6 +371,10 @@ registrarVista('/inventario', {
       <select id="fBrand" aria-label="Marca"></select>
       <select id="fSort" aria-label="Orden"><option value="name">A–Z</option><option value="lo">Menos stock</option><option value="hi">Más stock</option><option value="sku">Por SKU</option></select>
     </div>
+    ${admSinc || admFotos ? `<div class="adm">
+      ${admFotos ? `<button class="sbtn" id="bData" type="button">${SVG.datos}<span>Fotos</span></button>` : ''}
+      ${admSinc ? `<button class="sbtn primary" id="bSync" type="button" title="Sincronizar inventario con la Carga Masiva">${SVG.sync}<span>Sincronizar</span></button>` : ''}
+    </div>` : ''}
   </header>
   <main>
     <div class="meta" id="meta"></div>
@@ -423,7 +421,7 @@ registrarVista('/inventario', {
       else if (!list.length) $('#list').innerHTML = '<li class="muted" style="padding:18px 4px">Nada coincide con esos filtros.</li>';
       cont.querySelector('.search').style.opacity = has ? 1 : 0.55;
     };
-    const abrir = sku => { detalleAbierto = abrirDetalle(ctx, sku, costos, cont.dataset.theme || ''); };
+    const abrir = sku => { detalleAbierto = abrirDetalle(ctx, sku, costos, TEMA); };
     // Código leído o escrito: un producto → su detalle; varios → filtra la lista.
     const lookup = (raw, desdeBuscador) => {
       const hit = buscarCodigo(filas(), raw);
@@ -453,12 +451,7 @@ registrarVista('/inventario', {
     $('#fSort').onchange = e => { F.sort = e.target.value; render(); };
     $('#bScan').onclick = () => {
       if (!filas().length) { toast('Primero sincroniza el inventario'); return; }
-      abrirEscaner({ tema: cont.dataset.theme || '', alLeer: c => lookup(c, false) });
-    };
-    $('#bTheme').onclick = () => {
-      const dark = cont.dataset.theme ? cont.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-      tema = dark ? 'light' : 'dark'; cont.dataset.theme = tema;
-      try { localStorage.setItem(CLAVE_TEMA, tema); } catch { /* sin almacenamiento */ }
+      abrirEscaner({ tema: TEMA, alLeer: c => lookup(c, false) });
     };
     if (admSinc) $('#bSync').onclick = () => abrirSincronizar(ctx, costos, () => render());
     if (admFotos) $('#bData').onclick = () => abrirFotos(ctx);
@@ -472,6 +465,6 @@ registrarVista('/inventario', {
     };
     window.addEventListener('pos:datos', alDatos);
     build(); render();
-    return () => { quitar(); window.removeEventListener('pos:datos', alDatos); };
+    return () => { quitar(); window.removeEventListener('pos:datos', alDatos); document.documentElement.classList.remove('stk-sin-barra'); };
   },
 });
