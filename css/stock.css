@@ -160,15 +160,21 @@ body.stk-lock{overflow:hidden}
 /* Todos / Stock bajo / Agotados con el estilo de las tarjetas de resumen de la app (fondo de color suave,
    cifra grande en mono y etiqueta debajo). La opción elegida lleva un borde de su color. */
 .stk .seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.stk .seg button{--c:var(--violet);min-width:0;border:0;border-radius:12px;padding:10px 14px;min-height:62px;background:var(--violet-soft);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;line-height:1.1;box-shadow:none;transition:box-shadow .14s ease-out,transform .14s ease-out}
-.stk .seg button.w{--c:var(--warn);background:var(--warn-soft)}
-.stk .seg button.x{--c:var(--bad);background:var(--bad-soft)}
+.stk .seg button{--c:var(--violet);min-width:0;border:0;border-radius:12px;padding:10px 14px;min-height:62px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;line-height:1.1;box-shadow:none;transition:box-shadow .14s ease-out,transform .14s ease-out}
+.stk .seg button.w{--c:var(--warn)}
+.stk .seg button.x{--c:var(--bad)}
 .stk .seg button b{font-family:var(--f-mono);font-weight:500;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--ink)}
 .stk .seg button.w b{color:var(--warn)}
 .stk .seg button.x b{color:var(--bad)}
-.stk .seg button span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.stk .seg button span:not(.ic){font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 @media (max-width:380px){.stk .seg button{padding:10px}.stk .seg button b{font-size:20px}}
-.stk .seg button[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--c)}
+/* Degradado como las tarjetas de Inicio: color suave a la izquierda que se funde con la superficie, borde
+   del mismo color e ícono grande y tenue de fondo. */
+.stk .seg button{position:relative;overflow:hidden;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 9%,var(--surface)) 0%,var(--surface) 75%);border:1px solid color-mix(in srgb,var(--c) 28%,var(--line))}
+.stk .seg button .ic{position:absolute;right:-10px;top:-10px;width:60px;height:60px;color:var(--c);opacity:.06;pointer-events:none}
+.stk .seg button .ic svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.stk .seg button b,.stk .seg button span:not(.ic){position:relative}
+.stk .seg button[aria-pressed="true"]{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
 .stk .seg button:active{transform:scale(.97)}
 /* Botones del administrador (Fotos / Sincronizar): al estilo del POS, con la letra y colores de esta sección. */
 .stk .adm{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}

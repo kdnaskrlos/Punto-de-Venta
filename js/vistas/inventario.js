@@ -234,6 +234,9 @@ const SVG = {
   sync: '<svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 0 1-14.7 5.8L3.5 15.5"/><path d="M3.5 12a8.5 8.5 0 0 1 14.7-5.8l2.3 2.3"/><path d="M20.5 3.5v5h-5M3.5 20.5v-5h5"/></svg>',
   datos: '<svg viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4.5 14v4.5a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V14"/></svg>',
   scan: '<svg viewBox="0 0 24 24"><path d="M3.5 8V5.5a2 2 0 0 1 2-2H8M16 3.5h2.5a2 2 0 0 1 2 2V8M20.5 16v2.5a2 2 0 0 1-2 2H16M8 20.5H5.5a2 2 0 0 1-2-2V16M7 8v8M10.5 8v8M14 8v8M17 8v8"/></svg>',
+  caja: '<svg viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>',
+  alerta: '<svg viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  agotado: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg>',
   imagen: '<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-4.5-4.5L6.5 19.5"/></svg>',
 };
 
@@ -402,8 +405,8 @@ registrarVista('/inventario', {
     const render = () => {
       const R = filas(), has = R.length > 0;
       const low = R.filter(p => st(p) === 'low').length, out = R.filter(p => st(p) === 'out').length;
-      const seg = [['all', 'Todos', R.length, ''], ['low', 'Stock bajo', low, 'w'], ['out', 'Agotados', out, 'x']];
-      $('#seg').innerHTML = seg.map(([k, l, n, c]) => `<button type="button" class="${c}" data-st="${k}" aria-pressed="${F.st === k}"><b>${fmtN(n)}</b><span>${l}</span></button>`).join('');
+      const seg = [['all', 'Todos', R.length, '', SVG.caja], ['low', 'Stock bajo', low, 'w', SVG.alerta], ['out', 'Agotados', out, 'x', SVG.agotado]];
+      $('#seg').innerHTML = seg.map(([k, l, n, c, ic]) => `<button type="button" class="${c}" data-st="${k}" aria-pressed="${F.st === k}"><span class="ic" aria-hidden="true">${ic}</span><b>${fmtN(n)}</b><span>${l}</span></button>`).join('');
       $('#qc').hidden = !F.q;
       const list = has ? filtered() : [], part = list.slice(0, F.shown);
       $('#list').innerHTML = part.map(p => {
