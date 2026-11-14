@@ -377,3 +377,4 @@ Suite final: npm test 99/99 · e2e 59/59
 - «Última sincronización: <fecha y hora>» junto al botón; se guarda en Ajustes (ultimaSincronizacion y archivoSincronizado).
 - Sin internet, error de descarga o archivo dañado / sin columnas obligatorias: mensaje claro y no se cambia nada. Las filas con error no se aplican; las válidas sí.
 - Prueba con el inventario real (1.369 filas): primera vez 1.369 nuevos, 0 actualizados, 0 sin cambios, 0 con error; segunda vez con el mismo archivo 0 / 0 / 1.369 / 0.
+- v1.72: el último tramo empieza en 48 (precio4 = 24–47, precio5 = 48+), como el Tarifario. Si en Ajustes quedaron guardados los tramos viejos exactos (1, 6, 12, 24, 49) se corrigen solos a 48; unos personalizados se respetan.

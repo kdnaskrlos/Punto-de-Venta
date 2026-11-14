@@ -2,7 +2,7 @@
 // Cada cambio emite el evento 'pos:datos' para que la pantalla visible se repinte.
 import { tasasVigentes } from '../nucleo/tasas.js';
 import { FORMAS_PAGO_DEFECTO, normalizarFormas } from '../nucleo/formas.js';
-import { LIMITES_DEFECTO } from '../nucleo/tramos.js';
+import { LIMITES_DEFECTO, normalizarTramos } from '../nucleo/tramos.js';
 import { COMISIONES_DEFECTO } from '../nucleo/comisiones.js';
 import { leerTasaRemota } from './tasa-remota.js';
 import { puede } from '../nucleo/permisos.js';
@@ -41,6 +41,7 @@ export function iniciarDatos(ctx) {
       const por = Object.fromEntries(lista.map(d => [d.id, d]));
       ctx.ajustes = { ...AJUSTES_DEFECTO, ...(por.general || {}) };
       ctx.ajustes.formasPago = normalizarFormas(ctx.ajustes.formasPago);
+      ctx.ajustes.tramos = normalizarTramos(ctx.ajustes.tramos);
       ctx.ajustesTasas = por.tasas || {};
       ctx.recalcularTasas();
       emitir('ajustes');

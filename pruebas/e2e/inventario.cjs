@@ -17,7 +17,7 @@ casos('inventario', [
     await p.fill('#buscar-inv', 'jogger');
     await p.click('.grupo-inv[data-nombre="Jogger Texcol Caballero Negro"]');
     const t = await texto(p, '.capa');
-    for (const x of ['Talla M', '5', '42.000', '40.000', '38.000', '36.000', '34.000', '49+']) a.ok(t.includes(x), `falta ${x}`);
+    for (const x of ['Talla M', '5', '42.000', '40.000', '38.000', '36.000', '34.000', '48+']) a.ok(t.includes(x), `falta ${x}`);
     a.ok(!t.includes('Costo'), 'la vendedora no ve costos');
     for (const b of ['Sincronizar inventario', 'Fotos', 'Ajustar', 'Oferta']) a.strictEqual(await p.$(`button:has-text("${b}")`), null, b);
   }],
@@ -127,7 +127,7 @@ casos('inventario', [
     await p.waitForSelector('.detalle-grupo');
     a.strictEqual(await p.$$eval('.detalle-grupo .precio-tramo:not(.costo)', e => e.length), 5);
     a.strictEqual(await p.$$eval('.detalle-grupo .talla-fila', e => e.length), 4);
-    // Sin precio propio, el tramo 49+ muestra el que se cobra (el de 24–48), nunca «—»
+    // Sin precio propio, el tramo 48+ muestra el que se cobra (el de 24–47), nunca «—»
     a.deepStrictEqual(await p.$$eval('.detalle-grupo .precio-tramo:not(.costo) b', e => e.map(x => x.textContent)), ['25.000', '24.000', '22.500', '20.000', '20.000']);
   }],
   ['La tarjeta del inventario no lista tallas: total, estado y cuántas tallas', async (env, a) => {

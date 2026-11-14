@@ -205,7 +205,7 @@ casos('gestion', [
     a.strictEqual(await p.isVisible('#aj-com-0-normal'), false, 'la comisión va plegada');
     await p.click('#aj-comision summary');
     a.strictEqual(await p.inputValue('#aj-com-0-normal'), '4.000');
-    a.match(await p.getAttribute('#aj-com-4-normal', 'placeholder'), /Igual que 24–48/);
+    a.match(await p.getAttribute('#aj-com-4-normal', 'placeholder'), /Igual que 24–47/);
     const cortados = await p.$$eval('.forma-aj input.inp', els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.value));
     a.deepStrictEqual(cortados, []);
   }],

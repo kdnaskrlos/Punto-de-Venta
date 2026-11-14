@@ -11,8 +11,8 @@ const P = {
 const opts = { limites: LIMITES_DEFECTO, redondeo: 100 };
 
 test('tramoDe y etiquetas con los tramos del Tarifario', () => {
-  assert.deepEqual([1, 5, 6, 11, 12, 23, 24, 48, 49, 200].map(n => tramoDe(n, LIMITES_DEFECTO)), [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
-  assert.deepEqual([0, 1, 2, 3, 4].map(i => etiquetaTramo(i, LIMITES_DEFECTO)), ['1–5', '6–11', '12–23', '24–48', '49+']);
+  assert.deepEqual([1, 5, 6, 11, 12, 23, 24, 47, 48, 200].map(n => tramoDe(n, LIMITES_DEFECTO)), [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+  assert.deepEqual([0, 1, 2, 3, 4].map(i => etiquetaTramo(i, LIMITES_DEFECTO)), ['1–5', '6–11', '12–23', '24–47', '48+']);
 });
 
 test('el mix suma prendas de distintos productos', () => {
@@ -29,8 +29,8 @@ test('«separado» se guarda pero todavía no cambia el tramo: todo cuenta en el
   assert.deepEqual(s.lineas.map(l => l.tramo), [1, 1]);
 });
 
-test('tramo +49 sin precio 5 usa el del tramo 4', () => {
-  assert.equal(calcularCarrito([{ sku: 'F', cantidad: 49 }], P, opts).lineas[0].precioUnit, 20000);
+test('tramo 48+ sin precio 5 usa el del tramo 4', () => {
+  assert.equal(calcularCarrito([{ sku: 'F', cantidad: 48 }], P, opts).lineas[0].precioUnit, 20000);
 });
 
 test('oferta 10% sobre el precio del tramo, redondeada a 100', () => {
@@ -75,4 +75,10 @@ test('precio de tramo vacío o 0 cae al tramo inferior con valor (Review Focus 4
   const r = calcularCarrito([{ sku: 'F', cantidad: 1 }], sinNada, opts);
   assert.equal(r.lineas.length, 0);
   assert.ok(Number.isFinite(r.subtotal));
+});
+
+test('los tramos guardados con el 49 viejo pasan a 48; otros personalizados se respetan', async () => {
+  const { normalizarTramos } = await import('../../js/nucleo/tramos.js');
+  assert.deepEqual(normalizarTramos([1, 6, 12, 24, 49]), [1, 6, 12, 24, 48]);
+  assert.deepEqual(normalizarTramos([1, 5, 10, 20, 40]), [1, 5, 10, 20, 40]);
 });

@@ -1,7 +1,10 @@
 // Precio por cantidad (tramos del Tarifario) con la regla del mix.
 import { redondear } from './dinero.js';
 
-export const LIMITES_DEFECTO = [1, 6, 12, 24, 49];
+// Tramos del Tarifario: precio1 = 1-5, precio2 = 6-11, precio3 = 12-23, precio4 = 24-47, precio5 = 48 o más.
+export const LIMITES_DEFECTO = [1, 6, 12, 24, 48];
+// Hasta la v1.71 el último tramo empezaba en 49: si quedó guardado así en Ajustes, se corrige a 48.
+export const normalizarTramos = t => (Array.isArray(t) && t.join(',') === '1,6,12,24,49' ? [...LIMITES_DEFECTO] : t);
 
 export function tramoDe(cantidad, limites = LIMITES_DEFECTO) {
   let t = 0;
