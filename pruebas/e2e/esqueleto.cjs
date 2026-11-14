@@ -114,4 +114,21 @@ casos('esqueleto', [
     await p.reload(); await p.waitForFunction(() => window.__pos?.ctx?.tasas?.copPorUsd);
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.tasas.copPorUsd), 3200, 'la demostración conserva lo guardado');
   }],
+  ['Al abrir una ventana sola (sin tocar nada antes) la X no queda marcada con el círculo de foco', async (env, a) => {
+    for (const ancho of [390, 1280]) {
+      const p = await env.pagina({ ancho, alto: 800, ruta: '/inicio' });
+      await p.evaluate(async () => { const ui = await import('/js/ui.js'); ui.abrirVentana({ titulo: 'Prueba', contenido: ui.h('p', {}, 'Hola') }); });
+      await p.waitForTimeout(150);
+      a.strictEqual(await p.evaluate(() => !!document.querySelector('.capa .cerrar:focus, .capa .cerrar:focus-visible')), false, `X sin foco (${ancho})`);
+      a.ok(await p.evaluate(() => !!document.activeElement.closest('.capa')), `el foco queda dentro de la ventana (${ancho})`);
+      await p.close();
+    }
+  }],
+  ['Hoja de detalle del inventario: la X no queda marcada al abrir', async (env, a) => {
+    const p = await env.pagina({ ancho: 1280, alto: 860, ruta: '/inventario' });
+    await p.evaluate(() => document.querySelector('.stk .item').click());
+    await p.waitForSelector('.stk-capa .sheet.in'); await p.waitForTimeout(150);
+    a.strictEqual(await p.evaluate(() => document.activeElement.matches('.x')), false);
+    a.ok(await p.evaluate(() => !!document.activeElement.closest('.stk-capa')));
+  }],
 ]);

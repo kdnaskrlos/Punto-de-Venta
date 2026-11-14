@@ -21,6 +21,7 @@ casos('inventario', [
     a.strictEqual(await p.$('.stk .brand, #bTheme'), null, 'sin título ni selector de tema');
     a.ok(await p.evaluate(() => document.documentElement.classList.contains('stk-sin-barra')), 'sin barra de desplazamiento');
     a.strictEqual(await p.$('#tiles, .stile'), null, 'sin tarjetas de unidades ni variantes');
+    a.deepStrictEqual(await p.evaluate(() => ['.stk .item .nm', '.stk .item .sk', '.stk .seg b'].map(x => getComputedStyle(document.querySelector(x)).fontFamily.split(',')[0].replace(/"/g, ''))), ['Plus Jakarta Sans', 'Plus Jakarta Sans', 'Plus Jakarta Sans'], 'letra del POS');
     a.strictEqual(await vis(p, '#seg'), '21 Todos 2 Stock bajo 2 Agotados');
     a.strictEqual(await p.$$eval('.stk .item', e => e.length), 21);
     a.strictEqual(await texto(p, '.stk .item[data-sku="J-M"] .pr'), '42.000 · Caballero · 5 uds');
@@ -42,8 +43,9 @@ casos('inventario', [
     const p = await env.pagina({ ancho: 390, alto: 844, usuario: 'vendedora', ruta: '/inventario' });
     await abrirSku(p, 'J-M');
     const t = await hoja(p);
-    for (const x of ['Jogger Texcol Caballero M Negro', 'J-M', 'Stock', '5', 'en total', 'Código de barras', 'Copiar código', 'Precio 1', '42.000', 'Precio 5', '34.000', 'Tipo', 'Jogger', 'Talla', 'M']) a.ok(t.includes(x), `falta ${x}: ${t}`);
+    for (const x of ['Jogger Texcol Caballero M Negro', 'J-M', 'Stock', '5', 'en total', 'Precio 1', '42.000', 'Precio 5', '34.000', 'Tipo', 'Jogger', 'Talla', 'M']) a.ok(t.includes(x), `falta ${x}: ${t}`);
     a.ok(!t.includes('Costo'), 'la vendedora no ve costos');
+    a.ok(!/Código de barras|Copiar/.test(t), 'sin código de barras ni botones de copiar');
     a.strictEqual(await p.$('#det-acciones:not([hidden])'), null, 'sin acciones');
     a.ok(await p.evaluate(() => document.body.classList.contains('stk-lock')), 'el fondo no hace scroll');
     await p.goBack();

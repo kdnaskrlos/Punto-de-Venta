@@ -1,12 +1,13 @@
 /* Inventario: copia visual de la app «Stock, Comic Shop» (kdnaskrlos/App-Inventario, movil/index.html, v14).
-   Todo va dentro de .stk (la vista y las capas que se abren desde ella) para no tocar el resto del POS.
+   Letra: la del POS (desde v1.86). Todo va dentro de .stk (la vista y las capas que se abren desde ella) para no tocar el resto del POS.
    Clases renombradas para no chocar con el POS: .btn→.sbtn, .tile(s)→.stile(s), .ver→.sver. */
 .stk{
   --bg:#f5f8f7; --surface:#ffffff; --surface2:#f3f6f6; --ink:#0f172a; --muted:#5b6678; --line:#e3e8ec; --line2:#edf1f3;
   --accent:#0e8a4f; --accent-ink:#ffffff; --accent-soft:#e2f6ec; --blue:#2f6df0; --blue-soft:#e9f1ff; --violet:#6a4de8; --violet-soft:#f0edff;
   --bad:#c92a2a; --bad-soft:#fde8e8; --warn:#a85d00; --warn-soft:#fff0d6; --good:#0e8a4f; --good-soft:#dff5e8;
   --shadow:0 1px 2px rgba(15,23,42,.05),0 8px 24px rgba(15,23,42,.08); --scrim:rgba(15,23,42,.45);
-  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  /* Letra del resto del POS (Plus Jakarta Sans) también para cifras y SKU, con números de ancho fijo. */
+  --f-body:var(--f); --f-mono:var(--f);
 }
 @media (prefers-color-scheme: dark){.stk:not([data-theme="light"]){
   --bg:#0c1210; --surface:#141c19; --surface2:#1a2420; --ink:#e7f0ec; --muted:#98a8a1; --line:#263530; --line2:#1f2c27;
@@ -20,7 +21,7 @@
   --bad:#ff8a8a; --bad-soft:#401a22; --warn:#ffbe5c; --warn-soft:#41300f; --good:#5fd596; --good-soft:#12382a;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.4); --scrim:rgba(0,0,0,.6);
   color-scheme:dark}
-.stk{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+.stk{font-variant-numeric:tabular-nums;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
 .stk *{-webkit-tap-highlight-color:transparent}
 .stk button,.stk label,.stk select,.stk summary{-webkit-touch-callout:none}
 .stk button,.stk input,.stk select,.stk textarea{font:inherit;color:inherit}

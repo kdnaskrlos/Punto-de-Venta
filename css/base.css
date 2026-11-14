@@ -59,3 +59,4 @@ button.pill>span{border:1px solid var(--line);background:var(--surface-2);border
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 .logo-img{width:28px;height:28px;object-fit:contain;display:block}
 .entrar-logo .logo-img{width:34px;height:34px}
+.sin-marco:focus{outline:none}

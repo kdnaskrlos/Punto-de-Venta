@@ -123,9 +123,13 @@ function abrirCapa(el, salir = null) {
   const capa = { el, cerrada: false, alCerrar: null, salir };
   pila.push(capa);
   entrarHistorial();
-  // En el teléfono no se enfoca un campo al abrir (abriría el teclado y taparía la ventana); solo si lo pide [autofocus].
-  const foco = el.querySelector('[autofocus]') || (esTelefono() ? el.querySelector('.cerrar') : el.querySelector('input, button:not(.cerrar), .cerrar'));
-  setTimeout(() => foco && foco.focus(), 30);
+  // Foco al abrir: el campo con [autofocus] o, en la computadora, el primer campo. Si no hay campo, el foco va a
+  // la propia ventana (sin marco) y no a un botón: así la X no aparece marcada con el círculo de foco.
+  // En el teléfono no se enfoca ningún campo (abriría el teclado y taparía la ventana).
+  const foco = el.querySelector('[autofocus]') || (esTelefono() ? null : el.querySelector('input:not([type=hidden]):not([type=file]), select, textarea'))
+    || el.querySelector(':scope > .caja, [role="dialog"]:not(.capa), .sheet, .scan') || el;
+  if (!foco.matches('input, select, textarea, button, a[href], [tabindex]')) { foco.setAttribute('tabindex', '-1'); foco.classList.add('sin-marco'); }
+  setTimeout(() => foco.isConnected && foco.focus({ preventScroll: true }), 30);
   const cerrar = () => {
     if (capa.cerrada) return;
     quitar(capa);

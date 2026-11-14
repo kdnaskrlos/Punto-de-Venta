@@ -240,19 +240,6 @@ const SVG = {
   imagen: '<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-4.5-4.5L6.5 19.5"/></svg>',
 };
 
-// Código de barras EAN-13 dibujado (igual que en la app).
-const L = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
-const G = ['0100111', '0110011', '0011011', '0100001', '0011101', '0111001', '0000101', '0010001', '0001001', '0010111'];
-const Rr = ['1110010', '1100110', '1101100', '1000010', '1011100', '1001110', '1010000', '1000100', '1001000', '1110100'];
-const PAR = ['LLLLLL', 'LLGLGG', 'LLGGLG', 'LLGGGL', 'LGLLGG', 'LGGLLG', 'LGGGLL', 'LGLGLG', 'LGLGGL', 'LGGLGL'];
-function eanBits(c) { let b = '101'; const p = PAR[+c[0]]; for (let i = 0; i < 6; i++) b += (p[i] === 'L' ? L : G)[+c[i + 1]]; b += '01010'; for (let i = 7; i < 13; i++) b += Rr[+c[i]]; return b + '101'; }
-function drawEan(cv, code) {
-  const m = 4, q = 11, w = (95 + q * 2) * m, hh = 150; cv.width = w; cv.height = hh; const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, hh); x.fillStyle = '#000';
-  const bits = eanBits(code); for (let i = 0; i < 95; i++) if (bits[i] === '1') { const guard = i < 3 || (i >= 45 && i < 50) || i >= 92; x.fillRect((q + i) * m, 8, m, guard ? hh - 24 : hh - 34); }
-  x.font = '600 22px "JetBrains Mono",monospace'; x.textBaseline = 'alphabetic'; x.textAlign = 'center';
-  x.fillText(code[0], (q - 5) * m, hh - 4); for (let i = 0; i < 6; i++) x.fillText(code[i + 1], (q + 3 + i * 7 + 3.5) * m, hh - 4); for (let i = 0; i < 6; i++) x.fillText(code[i + 7], (q + 50 + i * 7 + 3.5) * m, hh - 4);
-}
-
 // Busca por código de barras (también sin el dígito verificador o con un 0 delante) o por sku.
 export function buscarCodigo(productos, raw) {
   const c = String(raw ?? '').trim().replace(/\s/g, ''); if (!c) return [];
@@ -294,7 +281,6 @@ function abrirHojaStock({ tema, llenar }) {
   return { cerrar, sh };
 }
 
-const copiar = async (t, l) => { try { await navigator.clipboard.writeText(t); toast(l + ' copiado'); } catch { toast('No se pudo copiar'); } };
 
 // Tarjeta de detalle del producto: la de la app, más la foto (si hay) y las acciones del POS.
 function abrirDetalle(ctx, sku, costos, tema) {
@@ -307,19 +293,15 @@ function abrirDetalle(ctx, sku, costos, tema) {
     const oferta = p.oferta?.activa ? ` <span class="oferta">· Oferta ${p.oferta.pct}%</span>` : '';
     const costo = costos[p.sku]?.costo;
     const verCostos = ctx.puedeVer('verCostos');
-    const ean = p.codigo && /^\d{13}$/.test(p.codigo);
     sh.innerHTML = `<div class="grab"></div><div class="sh"><h2>${esc(nombreVariante(p))}</h2><button class="x" type="button" data-act="close" aria-label="Cerrar">×</button></div>
   <div class="mono muted" style="font-size:12.5px;margin-top:4px;overflow-wrap:anywhere">${esc(p.sku)}</div>
   ${foto ? `<div class="card fotocard"><img src="${esc(foto)}" alt="Foto de ${esc(titulo(p))}"></div>` : ''}
   <div class="card"><h3>Stock</h3><div class="big"><div class="stk ${k}"><b>${fmtN(p.existencia)}</b><span>${k === 'out' ? 'agotado' : k === 'low' ? 'stock bajo' : 'en total'}</span></div>
    <dl class="kv" style="flex:1"><dt>Existencia</dt><dd class="mono">${fmtN(p.existencia)}</dd><dt>Mínimo</dt><dd class="mono">${fmtN(p.minimo || 0)}</dd></dl></div></div>
-  ${ean ? `<div class="card"><h3>Código de barras</h3><div class="bc"><canvas id="bcv" aria-label="Código de barras ${esc(p.codigo)}"></canvas></div><div class="row" style="margin-top:10px"><button class="sbtn" type="button" data-copy="${esc(p.codigo)}" data-l="Código">Copiar código</button><button class="sbtn" type="button" data-copy="${esc(p.sku)}" data-l="SKU">Copiar SKU</button></div></div>`
-    : `<div class="card"><h3>Código de barras</h3><p class="hint">Este producto no tiene código en el archivo.</p><div class="row" style="margin-top:10px"><button class="sbtn" type="button" data-copy="${esc(p.sku)}" data-l="SKU">Copiar SKU</button></div></div>`}
   <div class="card"><h3>Precios${oferta}</h3><div class="prices">${pri.map(o => `<div><span>Precio ${o.i + 1}</span><b>${o.v ? fmtCop(o.v) : '—'}</b></div>`).join('')}</div></div>
   <div class="card"><h3>Ficha</h3><dl class="kv">${kv('Tipo', p.tipo)}${kv('Tela', p.tela)}${kv('Color', p.color)}${kv('Talla', p.talla)}${kv('Género', p.genero)}${kv('Marca', p.marca)}${kv('Modelo', p.modelo)}${kv('Código de imagen', p.id_imagen, true)}
    ${verCostos ? `<dt>Costo</dt><dd><button class="reveal" type="button" data-cost="${costo != null ? fmtCop(costo) : '—'}">Mostrar</button></dd>` : ''}</dl></div>
   <div class="card" id="det-acciones" hidden><h3>Acciones</h3><div class="acc"></div></div>`;
-    if (ean) requestAnimationFrame(() => { const cv = sh.querySelector('#bcv'); cv && drawEan(cv, p.codigo); });
     const variantes = Object.values(ctx.productos).filter(x => x.activo !== false && grupoDe(x) === grupoDe(p));
     const g = { grupo: grupoDe(p), titulo: titulo(p), color: p.color, tela: p.tela, variantes, id_imagen: p.id_imagen, foto };
     const acc = sin(
@@ -331,7 +313,6 @@ function abrirDetalle(ctx, sku, costos, tema) {
   };
   hoja = abrirHojaStock({ tema, llenar: pintar });
   hoja.sh.addEventListener('click', e => {
-    const cp = e.target.closest('[data-copy]'); if (cp) { copiar(cp.dataset.copy, cp.dataset.l); return; }
     const co = e.target.closest('[data-cost]'); if (co) { co.outerHTML = `<b class="mono">${esc(co.dataset.cost)}</b>`; }
   });
   return { repintar: () => pintar(hoja.sh), cerrar: hoja.cerrar, sku };
