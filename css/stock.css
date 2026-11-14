@@ -289,3 +289,9 @@ html.stk-sin-barra::-webkit-scrollbar,html.stk-sin-barra body::-webkit-scrollbar
   .stk .filters{align-items:center}
   .stk .filtro-menu{flex:none;min-width:150px;min-height:34px}
 }
+/* v1.93 · Botones pequeños por talla: Ajustar existencia (admin) e Historial (quien ve costos). */
+.stk .talla-inv .ti-acc{display:flex;gap:6px;margin-left:4px}
+.stk .ti-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--muted);display:grid;place-items:center;padding:0;position:relative}
+.stk .ti-btn::after{content:"";position:absolute;inset:-4px}
+.stk .ti-btn:active{transform:scale(.92)}
+.stk .ti-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}

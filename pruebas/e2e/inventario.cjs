@@ -281,4 +281,21 @@ casos('inventario', [
     a.strictEqual(await p.$$eval('.stk .tarjeta-prenda', e => e.length), 106);
     a.ok(await p.isHidden('#more'));
   }],
+  ['v1.93 · Botones por talla: Ajustar (admin en computadora) e Historial (quien ve costos); la vendedora no ve ninguno', async (env, a) => {
+    const p = await env.pagina({ ancho: 1280, alto: 860, usuario: 'admin', ruta: '/inventario' });
+    await abrirPrenda(p, 'J-M');
+    a.strictEqual(await p.$$eval('.stk-capa .talla-inv .ti-btn[data-acc="ajustar"]', e => e.length), 5);
+    await p.click('.stk-capa .ti-btn[data-acc="ajustar"][data-sku="J-M"]');
+    await p.waitForSelector('#ajuste-cantidad');
+    a.strictEqual(await p.$$eval('.stk-capa .sheet', e => e.length), 1, 'no abre otra hoja');
+    await p.keyboard.press('Escape'); await p.waitForSelector('#ajuste-cantidad', { state: 'detached' });
+    await p.click('.stk-capa .ti-btn[data-acc="historial"][data-sku="J-M"]');
+    await p.waitForSelector('.capa:has-text("Historial · Talla M")');
+    const t = await env.pagina({ ancho: 390, alto: 844, usuario: 'encargada', ruta: '/inventario' });
+    await abrirPrenda(t, 'J-M');
+    a.deepStrictEqual(await t.$$eval('.stk-capa .ti-btn', e => [...new Set(e.map(x => x.dataset.acc))]), ['historial'], 'encargada en el teléfono: solo Historial');
+    const v = await env.pagina({ ancho: 390, alto: 844, usuario: 'vendedora', ruta: '/inventario' });
+    await abrirPrenda(v, 'J-M');
+    a.strictEqual(await v.$('.stk-capa .ti-btn'), null);
+  }],
 ]);

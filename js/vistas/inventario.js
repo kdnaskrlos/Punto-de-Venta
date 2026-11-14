@@ -242,6 +242,8 @@ const SVG = {
   alerta: '<svg viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
   agotado: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg>',
   ir: '<svg viewBox="0 0 24 24" class="ti-ir"><path d="m9 6 6 6-6 6"/></svg>',
+  ajustar: '<svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+  historial: '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>',
   imagen: '<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-4.5-4.5L6.5 19.5"/></svg>',
 };
 
@@ -349,12 +351,15 @@ function abrirPrenda(ctx, clave, costos, tema, abrirTalla) {
     const pri = (p.precios || []).map((v, i) => ({ v, i })).filter(o => o.v || o.i === 0);
     const oferta = p.oferta?.activa ? ` <span class="oferta">· Oferta ${p.oferta.pct}%</span>` : '';
     const verCostos = ctx.puedeVer('verCostos'), costo = costos[p.sku]?.costo;
+    // v1.93: en cada talla, botones pequeños de Ajustar existencia (administrador) e Historial (quien ve costos).
+    const puedeAjustar = puedeAdmin(ctx, 'ajustarInventario');
+    const accTalla = v => (puedeAjustar || verCostos ? `<span class="ti-acc">${puedeAjustar ? `<button type="button" class="ti-btn" data-acc="ajustar" data-sku="${esc(v.sku)}" aria-label="Ajustar existencia talla ${esc(v.talla || 'única')}" title="Ajustar existencia">${SVG.ajustar}</button>` : ''}${verCostos ? `<button type="button" class="ti-btn" data-acc="historial" data-sku="${esc(v.sku)}" aria-label="Historial talla ${esc(v.talla || 'única')}" title="Historial">${SVG.historial}</button>` : ''}</span>` : '');
     sh.innerHTML = `<div class="grab"></div><div class="sh"><h2>${esc(x.nombre)}</h2><button class="x" type="button" data-act="close" aria-label="Cerrar">×</button></div>
   <div class="muted" style="font-size:12.5px;margin-top:4px">${esc([p.tela, `${x.vs.length} ${x.vs.length === 1 ? 'talla' : 'tallas'}`].filter(Boolean).join(' · '))}</div>
   ${foto ? `<div class="card fotocard"><img src="${esc(foto)}" alt="Foto de ${esc(x.nombre)}"></div>` : ''}
   <div class="card"><h3>Stock</h3><div class="big"><div class="stk ${x.st}"><b>${fmtN(x.total)}</b><span>${x.st === 'out' ? 'agotado' : x.st === 'low' ? 'stock bajo' : 'en total'}</span></div>
    <dl class="kv" style="flex:1"><dt>Unidades</dt><dd class="mono">${fmtN(x.total)}</dd><dt>Tallas</dt><dd class="mono">${x.vs.length}</dd></dl></div></div>
-  <div class="card"><h3>Tallas</h3><div class="tallas-inv">${x.vs.map(v => { const k = st(v); return `<div class="talla-inv" data-sku="${esc(v.sku)}"><span class="ti-t"><b>${esc(v.talla ? 'Talla ' + v.talla : 'Talla única')}</b></span><span class="ti-u ${k}"><b>${k === 'out' ? 'Agotada' : fmtN(v.existencia) + ' uds'}</b><span>mín. ${fmtN(v.minimo || 0)}</span></span></div>`; }).join('')}</div></div>
+  <div class="card"><h3>Tallas</h3><div class="tallas-inv">${x.vs.map(v => { const k = st(v); return `<div class="talla-inv" data-sku="${esc(v.sku)}"><span class="ti-t"><b>${esc(v.talla ? 'Talla ' + v.talla : 'Talla única')}</b></span><span class="ti-u ${k}"><b>${k === 'out' ? 'Agotada' : fmtN(v.existencia) + ' uds'}</b><span>mín. ${fmtN(v.minimo || 0)}</span></span>${accTalla(v)}</div>`; }).join('')}</div></div>
   <div class="card"><h3>Precios${oferta}</h3><div class="prices">${pri.map(o => `<div><span>Precio ${o.i + 1}</span><b>${o.v ? fmtCop(o.v) : '—'}</b></div>`).join('')}</div></div>
   <div class="card"><h3>Ficha</h3><dl class="kv">${kv('Tipo', p.tipo)}${kv('Tela', p.tela)}${kv('Color', p.color)}${kv('Género', p.genero)}${kv('Marca', p.marca)}${kv('Modelo', p.modelo)}${kv('Código de imagen', p.id_imagen)}
    ${verCostos ? `<dt>Costo</dt><dd><button class="reveal" type="button" data-cost="${costo != null ? fmtCop(costo) : '—'}">Mostrar</button></dd>` : ''}</dl></div>
@@ -367,6 +372,8 @@ function abrirPrenda(ctx, clave, costos, tema, abrirTalla) {
   };
   const hoja = abrirHojaStock({ tema, llenar: pintar });
   hoja.sh.addEventListener('click', e => {
+    const ac = e.target.closest('[data-acc]');
+    if (ac) { const v = ctx.productos[ac.dataset.sku]; if (v) (ac.dataset.acc === 'ajustar' ? abrirAjuste : abrirHistorial)(ctx, v); return; }
     const co = e.target.closest('[data-cost]'); if (co) { co.outerHTML = `<b class="mono">${esc(co.dataset.cost)}</b>`; }
   });
   return { repintar: () => pintar(hoja.sh), cerrar: hoja.cerrar, sh: hoja.sh };
