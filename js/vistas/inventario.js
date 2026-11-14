@@ -318,7 +318,7 @@ registrarVista('/inventario', {
         return h('button', { class: 'grupo-inv', 'data-grupo': g.grupo, 'data-nombre': [g.titulo, g.color].filter(Boolean).join(' '), onclick: () => abrirGrupo(ctx, g, costos) },
           miniatura(g, 'miniatura'),
           h('span', { class: 'gi-info' }, h('b', {}, g.titulo),
-            h('span', { class: 'gi-linea' }, g.color ? h('span', { class: 'gi-color' }, h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }), g.color) : null,
+            h('span', { class: 'gi-linea' }, g.color || g.tela ? h('span', { class: 'gi-color' }, g.color ? h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }) : null, detalle(g)) : null,
               h('span', {}, `${g.variantes.length} ${g.variantes.length === 1 ? 'talla' : 'tallas'}`)),
             h('span', { class: 'gi-salud', 'aria-hidden': 'true' }, ...g.variantes.map(p => h('i', { class: colorExistencia(p) })))),
           h('span', { class: 'gi-total' }, h('b', { class: 'num' }, String(total)),

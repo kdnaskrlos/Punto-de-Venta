@@ -87,7 +87,7 @@ function contador(ctx, l) {
 function lineaCarrito(ctx, l, aj, compacta) {
   const p = ctx.productos[l.sku];
   const g = { titulo: titulo(p), tipo: p.tipo, genero: p.genero, foto: fotoDe(p, ctx.imagenes) };
-  const variante = [p.color, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku;
+  const variante = [p.color, p.tela, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku;
   const alternar = () => { const c = carrito(ctx); c.abierta = c.abierta === l.sku ? null : l.sku; window.dispatchEvent(new CustomEvent('pos:carrito')); };
   if (compacta) return h('div', { class: 'linea mini', 'data-sku': l.sku, role: 'button', tabindex: '0', 'aria-expanded': 'false', onclick: alternar, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } } },
     h('span', { class: 'lc-q num' }, String(l.cantidad)),
@@ -321,7 +321,7 @@ function tarjeta(ctx, g) {
     h('span', { class: 'info' },
       h('b', {}, g.titulo),
       h('span', { class: 'tp-linea' },
-        g.color ? h('span', { class: 'tp-color' }, h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }), g.color) : null,
+        g.color || g.tela ? h('span', { class: 'tp-color' }, g.color ? h('i', { class: 'punto-color', style: color ? `--pc:${color}` : '' }) : null, [g.color, g.tela].filter(Boolean).join(' · ')) : null,
         h('span', { class: 'tp-tallas' }, h('span', { class: 'tp-pal' }, 'Tallas: '), ...tallas.slice(0, 5).flatMap((p, i) => [i ? ' · ' : '', h('span', { class: p.existencia > 0 ? '' : 'sin' }, p.talla || 'Única')]),
           // Con muchas tallas, las 5 primeras y «+N»: la fila nunca se parte en dos líneas.
           tallas.length > 5 ? h('span', { class: 'tp-mas', 'aria-label': `y ${tallas.length - 5} tallas más` }, ` +${tallas.length - 5}`) : null))),
