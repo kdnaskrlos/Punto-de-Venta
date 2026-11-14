@@ -35,11 +35,11 @@
 .cerrar,.hoja .cab .cerrar{width:48px;height:48px;border-radius:50%;background:none;color:var(--muted)}
 .cab{min-height:56px}
 .caja .cab{padding:4px 4px 4px 16px}
-.cab h2{font-size:20px;font-weight:800}
+.cab h2{font-size:20px;font-weight:700}
 
 /* Títulos de sección: un solo estilo (15/16 px, sin mayúsculas, ícono opcional en gris) */
-.sec-t,.ap-det-t,.dg-t,.rep .sec-t{font-size:16px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--ink)}
-.sec-m,.sub-t{font-size:14px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--ink)}
+.sec-t,.ap-det-t,.dg-t,.rep .sec-t{font-size:16px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink)}
+.sec-m,.sub-t{font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink)}
 .sec-t svg.i,.ap-det-t svg.i{width:20px;height:20px;color:var(--muted)}
 
 /* Superficies: tarjetas con borde, radio 12 y sin sombra; ventanas y hojas con sombra nivel 2; barra del carrito nivel 1 */
@@ -82,7 +82,7 @@
 .btn.cargando::before{content:"";width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:gira .7s linear infinite}
 @keyframes gira{to{transform:rotate(360deg)}}
 /* Límite de existencia en tallas */
-.tf-max{display:block;font-size:12px;font-weight:700;color:var(--y-tx)}
+.tf-max{display:block;font-size:12px;font-weight:600;color:var(--y-tx)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.btn.cargando::before{animation:none}}
 .tasa-entrada{gap:8px;padding:0 16px}
 
@@ -90,7 +90,7 @@
 .forma-acc{display:block}
 .menu-acc{position:absolute;right:0;top:44px;z-index:5;min-width:160px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--sombra-2);display:flex;flex-direction:column}
 .menu-acc[hidden]{display:none}
-.menu-acc button{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 12px;border:0;border-radius:8px;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--ink);text-align:left;cursor:pointer}
+.menu-acc button{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 12px;border:0;border-radius:8px;background:none;font:inherit;font-size:14px;font-weight:500;color:var(--ink);text-align:left;cursor:pointer}
 .menu-acc button svg.i{width:18px;height:18px;color:var(--muted)}
 .menu-acc button.peligro,.menu-acc button.peligro svg.i{color:var(--r-tx)}
 @media (hover:hover){.menu-acc button:hover{background:var(--surface-2)}}
@@ -120,7 +120,7 @@
 .total-cop[data-largo=xl],.tiles .tile .val[data-largo=xl]{font-size:16px!important}
 .caja-total .total-cop[data-largo=l],.com-monto[data-largo=l],.ap-det-cifras b.grande[data-largo=l],.tiles .tile.principal .val[data-largo=l]{font-size:24px!important}
 .caja-total .total-cop[data-largo=xl],.com-monto[data-largo=xl],.ap-det-cifras b.grande[data-largo=xl],.tiles .tile.principal .val[data-largo=xl]{font-size:20px!important}
-.tp-mas{color:var(--muted);font-weight:700}
+.tp-mas{color:var(--muted);font-weight:600}
 /* Ventanas adaptables (Material 3): compacto < 600, mediano 600–839, expandido ≥ 840.
    Vender: una columna en el teléfono, dos en la tableta, rejilla libre en la computadora. */
 @media (min-width:600px) and (max-width:839px){.rejilla{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -132,7 +132,7 @@
 
 /* v1.45 — Consistencia en todo el sistema */
 /* Títulos y nombres: peso 700 en todas las pantallas (el 800 queda solo para cifras) */
-.saludo,.cab h2,.caja .cab h2,.listo h2,.entrar h1,.sec-t,.ap-nombre,.ap-det-nombre,.tf-talla,.stepper .cant,.lc-cont .cant,.lc-q{font-weight:700!important}
+.saludo,.cab h2,.caja .cab h2,.listo h2,.entrar h1,.sec-t,.ap-nombre,.ap-det-nombre,.tf-talla,.stepper .cant,.lc-cont .cant,.lc-q{font-weight:600!important}
 /* Nombres en tarjetas de lista: mismo tamaño en Vender, Inventario y Apartados */
 .ap-nombre,.gi-info b,.tarjeta-prenda .info b{font-size:16px}
 /* Alturas: 48 normal, 56 acción final de ancho completo y campos de cifra grande */
@@ -160,7 +160,7 @@
 .apartado .ap-l1 .est{flex:none;line-height:1.2}
 .apartado .ap-l3{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .apartado .ap-fecha{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.apartado .ap-saldo{flex:none;font-size:16px;font-weight:800;color:var(--r-tx);white-space:nowrap}
+.apartado .ap-saldo{flex:none;font-size:16px;font-weight:700;color:var(--r-tx);white-space:nowrap}
 .apartado .ap-saldo.cerrado{color:var(--ink)}
 .apartado .ap-saldo{line-height:1.2}
 /* Pastilla de fecha en Reportes/Comisiones: caja del tamaño de lo que se ve; el área de toque de 48 la da ::after */
@@ -190,15 +190,15 @@
 .lc-chip.tramo:not(.oferta){background:var(--surface-2);color:var(--muted)}
 /* Total en recuadro neutro */
 .caja-total{background:var(--g-bg)}
-.caja-total .et-total{font-weight:700}
+.caja-total .et-total{font-weight:600}
 .fila-total .desc-et{display:inline-flex;align-items:center;gap:8px}
 /* El nombre puede usar dos líneas antes de cortarse (el contador ocupa la esquina) */
 .linea-info b{white-space:normal!important;display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.25}
 
 /* v1.55 — Aviso discreto de cambios sin guardar en Ajustes */
-.aviso-guardar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;padding:4px 4px 4px 16px;border:1px solid var(--line);border-radius:99px;background:var(--surface);box-shadow:var(--sombra-2);font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;animation:avisoEntra .22s var(--ease)}
+.aviso-guardar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;padding:4px 4px 4px 16px;border:1px solid var(--line);border-radius:99px;background:var(--surface);box-shadow:var(--sombra-2);font-size:13px;font-weight:500;color:var(--ink);white-space:nowrap;animation:avisoEntra .22s var(--ease)}
 .aviso-guardar[hidden]{display:none}
-.aviso-guardar .btn.texto{min-height:40px;color:var(--accent);font-weight:700}
+.aviso-guardar .btn.texto{min-height:40px;color:var(--accent);font-weight:600}
 @media (max-width:839px){.aviso-guardar{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 @keyframes avisoEntra{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
 /* Ajustes → Pagos: nombre y moneda alineados a la derecha */
@@ -209,17 +209,17 @@
 .apartado .ap-l1,.apartado .ap-l2,.apartado .ap-l3{display:flex;justify-content:space-between;align-items:baseline;gap:12px;min-width:0}
 .apartado .ap-l1{align-items:center}
 .apartado .ap-nombre{font-size:16px;line-height:1.3}
-.apartado .ap-meta{min-width:0;font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.apartado .ap-et{flex:none;font-size:12px;font-weight:600;color:var(--muted)}
-.apartado .ap-abono{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
-.apartado .ap-abono b{color:var(--ink);font-weight:700}
+.apartado .ap-meta{min-width:0;font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apartado .ap-et{flex:none;font-size:12px;font-weight:400;color:var(--muted)}
+.apartado .ap-abono{font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap}
+.apartado .ap-abono b{color:var(--ink);font-weight:600}
 .apartado .ap-l3 .ap-saldo{font-size:20px;line-height:1.1}
 .apartado .ap-l2,.apartado .ap-l3{line-height:1.3}
 /* Descuento: monto descontado en rojo, sin X (se quita desde la ventana Descuento) */
 .totales .fila-total .desc-monto,.totales .fila-total .desc-monto .c-cop.moneda{color:var(--r-tx)!important}
 .desc-entrada{position:relative}
 .desc-entrada .inp{padding-right:56px;text-align:right}
-.desc-entrada .desc-moneda{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:700}
+.desc-entrada .desc-moneda{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:600}
 .desc-equiv{text-align:right;margin:4px 0 0}
 .desc-equiv:empty{display:none}
 /* Calendario: tira de tres meses que se desliza como en Pedidos */
@@ -244,12 +244,12 @@
 .pagos .pago .forma-ic svg.i{width:20px!important;height:20px!important}
 .pagos .pago-nombre{flex-direction:column!important;align-items:flex-start!important;gap:2px!important}
 .pagos .pago-nombre b{font-size:16px!important;max-width:100%}
-.pagos .pago-nombre .equiv{margin:0!important;font-size:13px!important;font-weight:600;color:var(--muted)}
+.pagos .pago-nombre .equiv{margin:0!important;font-size:13px!important;font-weight:400;color:var(--muted)}
 .pagos .pago-nombre .equiv:empty{display:none}
 .pagos .pago-monto{display:flex!important;align-items:baseline;gap:4px!important;height:48px;padding:0 12px!important;border:1px solid #c4cad3;border-radius:12px;background:var(--surface);cursor:text}
 .pagos .pago-monto:focus-within{border-color:var(--sel-neu);box-shadow:inset 0 0 0 1px var(--sel-neu)}
-.pagos .pago-monto .inp{border:0!important;box-shadow:none!important;background:none!important;padding:0!important;min-height:0!important;height:46px;font-size:20px!important;font-weight:800!important;text-align:right;color:var(--ink)}
-.pagos .pago-monto .moneda{flex:none;min-width:0!important;font-size:13px!important;font-weight:700!important;color:var(--muted)!important}
+.pagos .pago-monto .inp{border:0!important;box-shadow:none!important;background:none!important;padding:0!important;min-height:0!important;height:46px;font-size:20px!important;font-weight:700!important;text-align:right;color:var(--ink)}
+.pagos .pago-monto .moneda{flex:none;min-width:0!important;font-size:13px!important;font-weight:600!important;color:var(--muted)!important}
 .pago-quitar{position:absolute;top:-10px;right:-10px;width:28px;height:28px;border-radius:50%;border:0;display:grid;place-items:center;background:var(--r-bg);color:var(--r-tx);box-shadow:var(--sombra-1);cursor:pointer;z-index:1}
 .pago-quitar svg.i{width:16px;height:16px;stroke-width:3}
 .pago-quitar::after{content:"";position:absolute;inset:-10px}
@@ -268,19 +268,19 @@
 .exito-sub{margin:-8px 0 0;font-size:14px}
 .exito-sub:empty{display:none}
 .exito-total{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px;border-radius:16px;background:var(--g-bg);border:1px solid var(--g-bd);animation:entra .3s .25s var(--ease) both}
-.exito-total .et{font-size:13px;font-weight:600;color:var(--g-tx)}
+.exito-total .et{font-size:13px;font-weight:500;color:var(--g-tx)}
 .exito-total .total{display:flex;align-items:baseline;gap:8px}
-.exito-total .total-cop{font-size:32px;font-weight:800;line-height:1.1}
-.exito-total .moneda{font-size:13px;font-weight:700}
+.exito-total .total-cop{font-size:32px;font-weight:700;line-height:1.1}
+.exito-total .moneda{font-size:13px;font-weight:600}
 .exito-pagos{width:100%;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;padding:4px 16px;animation:entra .3s .32s var(--ease) both}
-.exito-fila{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0;font-size:14px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--line)}
+.exito-fila{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0;font-size:14px;font-weight:400;color:var(--muted);border-bottom:1px solid var(--line)}
 .exito-fila:last-child{border-bottom:0}
 .exito-fila b{color:var(--ink);font-size:16px}
 .exito-fila .moneda{font-size:12px;color:var(--muted)}
 .exito-fila.vuelto,.exito-fila.vuelto b{color:var(--y-tx)}
 .exito-acc{width:100%;display:flex;flex-direction:column;gap:8px;margin-top:4px}
 .exito-acc .btn{max-width:none!important}
-.exito-cuenta{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--muted);margin-top:4px}
+.exito-cuenta{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12px;font-weight:400;color:var(--muted);margin-top:4px}
 .exito-barra{width:100%;height:4px;border-radius:99px;background:var(--surface-2);overflow:hidden}
 .exito-barra i{display:block;height:100%;background:var(--accent);transform-origin:left center}
 .exito-cuenta.parada .exito-barra{display:none}
@@ -289,13 +289,13 @@
 .apartado{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto;align-items:center!important;gap:0!important;padding:12px 4px 12px 16px!important;min-height:72px}
 .apartado .ap-izq{display:flex;flex-direction:column;gap:4px;min-width:0;padding-right:12px}
 .apartado .ap-nombre{font-size:16px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.apartado .ap-meta{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:13px;font-weight:600;color:var(--muted);line-height:1.3}
+.apartado .ap-meta{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:13px;font-weight:400;color:var(--muted);line-height:1.3}
 .apartado .ap-dato{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .apartado .ap-dato svg.i{width:14px;height:14px}
 .apartado .ap-dato.viejo{color:var(--r-tx)}
 .apartado .ap-col{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:0 12px;border-left:1px solid var(--line);align-self:stretch;justify-content:center}
-.apartado .ap-et{font-size:12px;font-weight:600;color:var(--muted);line-height:1.2}
-.apartado .ap-col b{font-size:16px;font-weight:800;line-height:1.2;white-space:nowrap;color:var(--ink)}
+.apartado .ap-et{font-size:12px;font-weight:400;color:var(--muted);line-height:1.2}
+.apartado .ap-col b{font-size:16px;font-weight:700;line-height:1.2;white-space:nowrap;color:var(--ink)}
 .apartado .ap-col .ap-saldo{color:var(--r-tx)}
 .apartado .ap-col .ap-saldo.cerrado{color:var(--ink)}
 @media (min-width:600px){.apartado .ap-col{padding:0 16px}.apartado .ap-col b{font-size:20px}}
@@ -318,14 +318,14 @@
 .apartado{display:grid!important;grid-template-columns:minmax(0,1fr) 84px 84px!important;grid-template-rows:auto auto auto;row-gap:4px!important;column-gap:0!important;align-items:baseline!important;padding:12px 16px!important;min-height:0}
 .apartado > *{min-width:0}
 .apartado .ap-nombre{grid-column:1/-1;grid-row:1;font-size:16px;line-height:1.3;white-space:normal!important;display:block!important;-webkit-line-clamp:unset;overflow:visible;margin-bottom:4px}
-.apartado .ap-hace{grid-column:1;grid-row:2;font-size:12px;font-weight:600;color:var(--muted);line-height:1.2}
+.apartado .ap-hace{grid-column:1;grid-row:2;font-size:12px;font-weight:400;color:var(--muted);line-height:1.2}
 .apartado .ap-hace.viejo{color:var(--r-tx)}
-.apartado .ap-et{grid-row:2;font-size:12px;font-weight:600;color:var(--muted);line-height:1.2;padding-left:12px;white-space:nowrap}
+.apartado .ap-et{grid-row:2;font-size:12px;font-weight:400;color:var(--muted);line-height:1.2;padding-left:12px;white-space:nowrap}
 .apartado .ap-et-abono{grid-column:2}
 .apartado .ap-et-saldo{grid-column:3}
-.apartado .ap-fecha{grid-column:1;grid-row:3;display:inline-flex;align-items:baseline;gap:4px;font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;line-height:1.2}
+.apartado .ap-fecha{grid-column:1;grid-row:3;display:inline-flex;align-items:baseline;gap:4px;font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap;line-height:1.2}
 .apartado .ap-fecha svg.i{width:14px;height:14px;align-self:center}
-.apartado .ap-abono,.apartado .ap-saldo{grid-row:3;padding-left:12px;font-size:16px!important;font-weight:800;line-height:1.2;white-space:nowrap}
+.apartado .ap-abono,.apartado .ap-saldo{grid-row:3;padding-left:12px;font-size:16px!important;font-weight:700;line-height:1.2;white-space:nowrap}
 .apartado .ap-abono{grid-column:2;color:var(--ink)}
 .apartado .ap-saldo{grid-column:3;color:var(--r-tx)}
 .apartado .ap-saldo.cerrado{color:var(--ink)}
@@ -362,7 +362,7 @@
 .sinc-check input{width:20px;height:20px;margin:2px 0 0;flex:none;accent-color:var(--sel-neu)}
 .sinc-check > span{display:flex;flex-direction:column;gap:4px}
 .sinc-check .nota{margin:0}
-.sinc-lista summary{cursor:pointer;font-weight:700;font-size:14px;min-height:40px;display:flex;align-items:center}
+.sinc-lista summary{cursor:pointer;font-weight:600;font-size:14px;min-height:40px;display:flex;align-items:center}
 .sinc-cambio{display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
 .sinc-cambio:last-child{border-bottom:0}
 .sinc-cambio b{color:var(--ink);font-size:13px}
@@ -380,3 +380,28 @@
 .aviso-demo svg.i{width:16px;height:16px;flex:none}
 .demo-roles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .demo-roles .btn{min-height:52px;justify-content:center}
+
+/* v1.87 · Lineamiento de tarjetas (Apartados, Carrito e Inventario), con los tamaños de la app «Stock, Comic Shop»:
+   nombre 14,5 px/600 completo (sin cortar) · detalle 12,5 px/400 · datos y etiquetas 12 px/400–500 ·
+   cifra principal de la tarjeta 14,5 px/600 · foto 58 px · relleno 10 px 12 px, alto mínimo 68 px. */
+.apartado{padding:10px 12px!important;min-height:68px}
+.apartado .ap-nombre{font-size:14.5px!important;font-weight:600!important;line-height:1.25!important;white-space:normal!important;overflow:visible!important}
+.apartado .ap-hace{font-size:12px;font-weight:400}
+.apartado .ap-hace.viejo{font-weight:500}
+.apartado .ap-et{font-size:12px;font-weight:400}
+.apartado .ap-fecha{font-size:12.5px;font-weight:400}
+.apartado .ap-abono,.apartado .ap-saldo{font-size:14.5px!important;font-weight:600}
+@media (min-width:600px){.apartado .ap-abono,.apartado .ap-saldo{font-size:14.5px!important}}
+.carrito .linea:not(.mini),.hoja-carrito .linea:not(.mini){padding:10px 12px;min-height:68px;grid-template-columns:58px minmax(0,1fr) auto}
+.linea > .foto{width:58px!important;height:58px!important;border-radius:10px!important}
+.linea-info b{font-size:14.5px!important;font-weight:600!important;line-height:1.25!important;white-space:normal!important;display:block!important;-webkit-line-clamp:unset!important;overflow:visible!important}
+.linea-info .lc-chip{font-size:12.5px;font-weight:400;white-space:normal}
+.linea-info .lc-chip.tramo{font-size:12px;font-weight:500}
+.linea-der .monto,.lc-monto .monto{font-size:14.5px;font-weight:600}
+.lc-cu{font-size:12px;font-weight:400}
+/* Líneas compactas del carrito: el nombre y la variante se ven completos (pueden ocupar dos líneas). */
+.linea.mini{padding:10px 12px;min-height:56px}
+.lc-t{white-space:normal;overflow:visible;text-overflow:clip;font-size:14.5px;line-height:1.3}
+.lc-t b{font-weight:600}
+.lc-t small{font-size:12.5px;font-weight:400}
+.linea.mini .lc-monto .monto{font-size:14.5px;font-weight:600}

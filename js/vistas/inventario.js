@@ -3,6 +3,7 @@
 import { h, icono, abrirVentana, abrirCapaPropia, toast, esTelefono, pedirMotivo, sin, unaVez } from '../ui.js';
 import { titulo, grupoDe, detalle, textoBusqueda, fotoDe, nombreVariante } from '../nucleo/producto.js';
 import { abrirEscaner } from './escaner.js';
+import { compararTallas } from '../nucleo/tipo-prenda.js';
 import { registrarVista } from '../app.js';
 import { leerInventario, planImportacion, detalleCambios } from '../nucleo/importar.js';
 import { emparejarFotos } from '../nucleo/fotos.js';
@@ -237,6 +238,7 @@ const SVG = {
   caja: '<svg viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>',
   alerta: '<svg viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
   agotado: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg>',
+  ir: '<svg viewBox="0 0 24 24" class="ti-ir"><path d="m9 6 6 6-6 6"/></svg>',
   imagen: '<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m20.5 16-4.5-4.5L6.5 19.5"/></svg>',
 };
 
@@ -302,20 +304,70 @@ function abrirDetalle(ctx, sku, costos, tema) {
   <div class="card"><h3>Ficha</h3><dl class="kv">${kv('Tipo', p.tipo)}${kv('Tela', p.tela)}${kv('Color', p.color)}${kv('Talla', p.talla)}${kv('Género', p.genero)}${kv('Marca', p.marca)}${kv('Modelo', p.modelo)}${kv('Código de imagen', p.id_imagen, true)}
    ${verCostos ? `<dt>Costo</dt><dd><button class="reveal" type="button" data-cost="${costo != null ? fmtCop(costo) : '—'}">Mostrar</button></dd>` : ''}</dl></div>
   <div class="card" id="det-acciones" hidden><h3>Acciones</h3><div class="acc"></div></div>`;
-    const variantes = Object.values(ctx.productos).filter(x => x.activo !== false && grupoDe(x) === grupoDe(p));
-    const g = { grupo: grupoDe(p), titulo: titulo(p), color: p.color, tela: p.tela, variantes, id_imagen: p.id_imagen, foto };
     const acc = sin(
       verCostos ? h('button', { class: 'sbtn', type: 'button', id: 'det-historial', onclick: () => abrirHistorial(ctx, p) }, 'Historial') : null,
       puedeAdmin(ctx, 'ajustarInventario') ? h('button', { class: 'sbtn', type: 'button', id: 'det-ajustar', onclick: () => abrirAjuste(ctx, p) }, 'Ajustar existencia') : null,
-      puedeAdmin(ctx, 'ofertas') ? h('button', { class: 'sbtn', type: 'button', id: 'det-oferta', onclick: () => abrirOferta(ctx, g) }, 'Oferta') : null,
-      puedeAdmin(ctx, 'fotosMasivas') && p.id_imagen ? botonFotoCodigo(ctx, p.id_imagen, !!foto) : null);
+      null);
     if (acc.length) { sh.querySelector('#det-acciones').hidden = false; sh.querySelector('.acc').append(...acc); }
   };
   hoja = abrirHojaStock({ tema, llenar: pintar });
   hoja.sh.addEventListener('click', e => {
     const co = e.target.closest('[data-cost]'); if (co) { co.outerHTML = `<b class="mono">${esc(co.dataset.cost)}</b>`; }
   });
-  return { repintar: () => pintar(hoja.sh), cerrar: hoja.cerrar, sku };
+  return { repintar: () => pintar(hoja.sh), cerrar: hoja.cerrar, sh: hoja.sh, sku };
+}
+
+// Prendas: las variantes agrupadas como en Vender (tipo, tela, marca, género, modelo y color), con sus tallas
+// en orden. Estado de la prenda: «out» si no queda ninguna unidad; «low» si alguna talla está en el mínimo o
+// menos (o agotada); si no, «ok».
+export function prendas(R) {
+  const g = new Map();
+  for (const p of R) { const k = grupoDe(p); let x = g.get(k); if (!x) g.set(k, x = { k, vs: [] }); x.vs.push(p); }
+  for (const x of g.values()) {
+    x.vs.sort((a, b) => compararTallas(a.talla || '', b.talla || '') || a.sku.localeCompare(b.sku));
+    x.p = x.vs[0];
+    x.total = x.vs.reduce((n, p) => n + Math.max(0, p.existencia), 0);
+    x.st = x.vs.every(p => st(p) === 'out') ? 'out' : x.vs.some(p => st(p) !== 'ok') ? 'low' : 'ok';
+    x.nombre = [titulo(x.p), x.p.color].filter(Boolean).join(' ');
+    x.tallas = x.vs.map(p => p.talla).filter(Boolean);
+  }
+  return [...g.values()];
+}
+const unidades = x => (x.st === 'out' ? 'agotado' : x.st === 'low' ? `${fmtN(x.total)} uds · stock bajo` : `${fmtN(x.total)} uds`);
+
+// Tarjeta de detalle de una prenda: stock total, sus tallas (cada una abre su detalle para ajustar o ver
+// el historial), precios, ficha y acciones de la prenda (oferta y foto).
+function abrirPrenda(ctx, clave, costos, tema, abrirTalla) {
+  const pintar = sh => {
+    const x = prendas(Object.values(ctx.productos).filter(p => p.activo !== false && grupoDe(p) === clave))[0];
+    if (!x) return;
+    const p = x.p, foto = fotoDe(p, ctx.imagenes);
+    const kv = (a, b) => (b ? `<dt>${a}</dt><dd>${esc(b)}</dd>` : '');
+    const pri = (p.precios || []).map((v, i) => ({ v, i })).filter(o => o.v || o.i === 0);
+    const oferta = p.oferta?.activa ? ` <span class="oferta">· Oferta ${p.oferta.pct}%</span>` : '';
+    const verCostos = ctx.puedeVer('verCostos'), costo = costos[p.sku]?.costo;
+    sh.innerHTML = `<div class="grab"></div><div class="sh"><h2>${esc(x.nombre)}</h2><button class="x" type="button" data-act="close" aria-label="Cerrar">×</button></div>
+  <div class="muted" style="font-size:12.5px;margin-top:4px">${esc([p.tela, `${x.vs.length} ${x.vs.length === 1 ? 'talla' : 'tallas'}`].filter(Boolean).join(' · '))}</div>
+  ${foto ? `<div class="card fotocard"><img src="${esc(foto)}" alt="Foto de ${esc(x.nombre)}"></div>` : ''}
+  <div class="card"><h3>Stock</h3><div class="big"><div class="stk ${x.st}"><b>${fmtN(x.total)}</b><span>${x.st === 'out' ? 'agotado' : x.st === 'low' ? 'stock bajo' : 'en total'}</span></div>
+   <dl class="kv" style="flex:1"><dt>Unidades</dt><dd class="mono">${fmtN(x.total)}</dd><dt>Tallas</dt><dd class="mono">${x.vs.length}</dd></dl></div></div>
+  <div class="card"><h3>Tallas</h3><div class="tallas-inv">${x.vs.map(v => { const k = st(v); return `<button type="button" class="talla-inv" data-sku="${esc(v.sku)}"><span class="ti-t"><b>${esc(v.talla ? 'Talla ' + v.talla : 'Talla única')}</b><span>${esc(v.sku)}</span></span><span class="ti-u ${k}"><b>${k === 'out' ? 'Agotada' : fmtN(v.existencia) + ' uds'}</b><span>mín. ${fmtN(v.minimo || 0)}</span></span>${SVG.ir}</button>`; }).join('')}</div></div>
+  <div class="card"><h3>Precios${oferta}</h3><div class="prices">${pri.map(o => `<div><span>Precio ${o.i + 1}</span><b>${o.v ? fmtCop(o.v) : '—'}</b></div>`).join('')}</div></div>
+  <div class="card"><h3>Ficha</h3><dl class="kv">${kv('Tipo', p.tipo)}${kv('Tela', p.tela)}${kv('Color', p.color)}${kv('Género', p.genero)}${kv('Marca', p.marca)}${kv('Modelo', p.modelo)}${kv('Código de imagen', p.id_imagen)}
+   ${verCostos ? `<dt>Costo</dt><dd><button class="reveal" type="button" data-cost="${costo != null ? fmtCop(costo) : '—'}">Mostrar</button></dd>` : ''}</dl></div>
+  <div class="card" id="prenda-acciones" hidden><h3>Acciones</h3><div class="acc"></div></div>`;
+    const g = { grupo: clave, titulo: titulo(p), color: p.color, tela: p.tela, variantes: x.vs, id_imagen: p.id_imagen, foto };
+    const acc = sin(
+      puedeAdmin(ctx, 'ofertas') ? h('button', { class: 'sbtn', type: 'button', id: 'det-oferta', onclick: () => abrirOferta(ctx, g) }, 'Oferta') : null,
+      puedeAdmin(ctx, 'fotosMasivas') && p.id_imagen ? botonFotoCodigo(ctx, p.id_imagen, !!foto) : null);
+    if (acc.length) { sh.querySelector('#prenda-acciones').hidden = false; sh.querySelector('.acc').append(...acc); }
+  };
+  const hoja = abrirHojaStock({ tema, llenar: pintar });
+  hoja.sh.addEventListener('click', e => {
+    const t = e.target.closest('.talla-inv'); if (t) { abrirTalla(t.dataset.sku); return; }
+    const co = e.target.closest('[data-cost]'); if (co) { co.outerHTML = `<b class="mono">${esc(co.dataset.cost)}</b>`; }
+  });
+  return { repintar: () => pintar(hoja.sh), cerrar: hoja.cerrar, sh: hoja.sh };
 }
 
 // «Foto» / «Cambiar foto»: se sube una sola vez al código de imagen y la muestran todas sus variantes.
@@ -339,7 +391,7 @@ registrarVista('/inventario', {
     cont.dataset.theme = TEMA;
     // Sin barra de desplazamiento visible mientras se ve el inventario (se sigue desplazando igual).
     document.documentElement.classList.add('stk-sin-barra');
-    let costos = {}, detalleAbierto = null;
+    let costos = {}; const abiertas = new Set();
     const F = { q: '', st: 'all', cat: '', brand: '', sort: 'name', shown: 80 };
     const admSinc = puedeAdmin(ctx, 'importar'), admFotos = puedeAdmin(ctx, 'fotosMasivas');
     cont.innerHTML = `<div class="wrap">
@@ -373,37 +425,40 @@ registrarVista('/inventario', {
       const R = filas(), orden = xs => [...new Set(xs.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
       opts('#fCat', 'Géneros', orden(R.map(p => p.genero)), F.cat); opts('#fBrand', 'Marcas', orden(R.map(p => p.marca)), F.brand);
     };
-    const filtered = () => {
+    // Filtra prendas: una prenda entra si alguna de sus tallas coincide con la búsqueda.
+    const filtered = G => {
       const terms = norm(F.q).split(/\s+/).filter(Boolean);
-      const a = filas().filter(p => {
-        if (F.st !== 'all' && st(p) !== F.st) return false; if (F.cat && p.genero !== F.cat) return false; if (F.brand && p.marca !== F.brand) return false;
-        if (!terms.length) return true; const t = norm(textoBusqueda(p)); return terms.every(x => t.includes(x));
+      const a = G.filter(x => {
+        if (F.st !== 'all' && x.st !== F.st) return false; if (F.cat && x.p.genero !== F.cat) return false; if (F.brand && x.p.marca !== F.brand) return false;
+        if (!terms.length) return true; return x.vs.some(p => { const t = norm(textoBusqueda(p)); return terms.every(w => t.includes(w)); });
       });
-      const nm = p => nombreVariante(p);
-      const cmp = { name: (x, y) => nm(x).localeCompare(nm(y), 'es', { numeric: true }), sku: (x, y) => x.sku.localeCompare(y.sku, 'es', { numeric: true }), lo: (x, y) => x.existencia - y.existencia || nm(x).localeCompare(nm(y), 'es'), hi: (x, y) => y.existencia - x.existencia || nm(x).localeCompare(nm(y), 'es') }[F.sort];
+      const nm = x => x.nombre;
+      const cmp = { name: (x, y) => nm(x).localeCompare(nm(y), 'es', { numeric: true }), sku: (x, y) => x.p.sku.localeCompare(y.p.sku, 'es', { numeric: true }), lo: (x, y) => x.total - y.total || nm(x).localeCompare(nm(y), 'es'), hi: (x, y) => y.total - x.total || nm(x).localeCompare(nm(y), 'es') }[F.sort];
       return a.sort(cmp);
     };
     const render = () => {
-      const R = filas(), has = R.length > 0;
-      const low = R.filter(p => st(p) === 'low').length, out = R.filter(p => st(p) === 'out').length;
-      const seg = [['all', 'Todos', R.length, '', SVG.caja], ['low', 'Stock bajo', low, 'w', SVG.alerta], ['out', 'Agotados', out, 'x', SVG.agotado]];
+      const R = filas(), has = R.length > 0, G = prendas(R);
+      const low = G.filter(x => x.st === 'low').length, out = G.filter(x => x.st === 'out').length;
+      const seg = [['all', 'Todos', G.length, '', SVG.caja], ['low', 'Stock bajo', low, 'w', SVG.alerta], ['out', 'Agotados', out, 'x', SVG.agotado]];
       $('#seg').innerHTML = seg.map(([k, l, n, c, ic]) => `<button type="button" class="${c}" data-st="${k}" aria-pressed="${F.st === k}"><span class="ic" aria-hidden="true">${ic}</span><b>${fmtN(n)}</b><span>${l}</span></button>`).join('');
       $('#qc').hidden = !F.q;
-      const list = has ? filtered() : [], part = list.slice(0, F.shown);
-      $('#list').innerHTML = part.map(p => {
-        const k = st(p), foto = fotoDe(p, ctx.imagenes);
-        const u = k === 'out' ? 'agotado' : k === 'low' ? `${fmtN(p.existencia)} bajo` : `${fmtN(p.existencia)} uds`;
-        return `<li><button type="button" class="item" data-sku="${esc(p.sku)}"><div class="tx"><div class="nm">${esc(nombreVariante(p) || '(sin nombre)')}</div><div class="sk">${esc(p.sku)}</div><div class="pr">${p.precios?.[0] ? fmtCop(p.precios[0]) : '—'}${p.genero ? ' · ' + esc(p.genero) : ''} · <span class="u ${k}">${u}</span></div></div><div class="foto">${foto ? `<img src="${esc(foto)}" alt="" loading="lazy" width="58" height="58">` : SVG.imagen}</div></button></li>`;
+      const list = has ? filtered(G) : [], part = list.slice(0, F.shown);
+      $('#list').innerHTML = part.map(x => {
+        const p = x.p, foto = fotoDe(p, ctx.imagenes);
+        const linea2 = [p.tela, x.tallas.length ? 'Tallas ' + x.tallas.join(' · ') : 'Talla única'].filter(Boolean).join(' · ');
+        return `<li><button type="button" class="item" data-grupo="${esc(x.k)}" data-skus="${esc(x.vs.map(v => v.sku).join(" "))}"><div class="tx"><div class="nm">${esc(x.nombre || '(sin nombre)')}</div><div class="sk">${esc(linea2)}</div><div class="pr">${p.precios?.[0] ? fmtCop(p.precios[0]) : '—'}${p.genero ? ' · ' + esc(p.genero) : ''} · <span class="u ${x.st}">${unidades(x)}</span></div></div><div class="foto">${foto ? `<img src="${esc(foto)}" alt="" loading="lazy" width="58" height="58">` : SVG.imagen}</div></button></li>`;
       }).join('');
       const m = $('#more'); m.hidden = list.length <= part.length; m.textContent = `Mostrar ${Math.min(100, list.length - part.length)} más`;
       const f = ctx.ajustes?.ultimaSincronizacion;
-      $('#meta').innerHTML = has ? `<span>${fmtN(list.length)} resultado${list.length === 1 ? '' : 's'}</span><span>${f ? 'Sincronizado ' + new Date(f).toLocaleDateString('es-VE', { day: '2-digit', month: 'short' }) + ' ' + new Date(f).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : ''}</span>` : '';
+      $('#meta').innerHTML = has ? `<span>${fmtN(list.length)} ${list.length === 1 ? 'prenda' : 'prendas'}</span><span>${f ? 'Sincronizado ' + new Date(f).toLocaleDateString('es-VE', { day: '2-digit', month: 'short' }) + ' ' + new Date(f).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : ''}</span>` : '';
       const e = $('#empty'); e.hidden = has;
       if (!has) e.innerHTML = `<p class="muted" style="margin:0;text-align:center">Sin inventario.${admSinc ? ' Toca el icono de arriba a la derecha para sincronizarlo.' : ''}</p>`;
       else if (!list.length) $('#list').innerHTML = '<li class="muted" style="padding:18px 4px">Nada coincide con esos filtros.</li>';
       cont.querySelector('.search').style.opacity = has ? 1 : 0.55;
     };
-    const abrir = sku => { detalleAbierto = abrirDetalle(ctx, sku, costos, TEMA); };
+    const seguir = d => { abiertas.add(d); const c = d.cerrar; d.cerrar = () => { abiertas.delete(d); c(); }; return d; };
+    const abrir = sku => seguir(abrirDetalle(ctx, sku, costos, TEMA));
+    const abrirGrupo = clave => seguir(abrirPrenda(ctx, clave, costos, TEMA, abrir));
     // Código leído o escrito: un producto → su detalle; varios → filtra la lista.
     const lookup = (raw, desdeBuscador) => {
       const hit = buscarCodigo(filas(), raw);
@@ -415,7 +470,7 @@ registrarVista('/inventario', {
 
     cont.addEventListener('click', e => {
       const t = e.target;
-      const it = t.closest('.item'); if (it) { abrir(it.dataset.sku); return; }
+      const it = t.closest('.item'); if (it) { abrirGrupo(it.dataset.grupo); return; }
       const sg = t.closest('[data-st]'); if (sg) { F.st = sg.dataset.st; F.shown = 80; render(); }
     });
     $('#more').onclick = () => { F.shown += 100; render(); };
@@ -443,7 +498,7 @@ registrarVista('/inventario', {
       if (!['productos', 'ajustes'].includes(e.detail.que)) return;
       if (e.detail.que === 'productos') build();
       render();
-      if (detalleAbierto && document.body.contains(cont)) detalleAbierto.repintar();
+      if (document.body.contains(cont)) for (const d of abiertas) { if (!d.sh.isConnected) abiertas.delete(d); else d.repintar(); }
     };
     window.addEventListener('pos:datos', alDatos);
     build(); render();

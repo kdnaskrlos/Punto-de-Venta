@@ -206,3 +206,23 @@ html.stk-sin-barra::-webkit-scrollbar,html.stk-sin-barra body::-webkit-scrollbar
   .stk .sheet{left:calc(var(--side,84px) + env(safe-area-inset-left,0px))}
 }
 @media (prefers-reduced-motion:reduce){.stk .sheet,.stk .scrim,.stk .item,.stk .ib,.stk .seg button{transition:none!important}.stk .item:active{transform:none}}
+
+/* v1.87 · Tarjetas (lineamiento común con Apartados y Carrito): nombre 14,5/600 completo, detalle 12,5/400
+   que puede ocupar varias líneas, datos 12/400 con las unidades en 500. Nada se corta con «…». */
+.stk .item .nm{display:block;-webkit-line-clamp:unset;overflow:visible;overflow-wrap:break-word}
+.stk .item .sk{font-size:12.5px;white-space:normal;overflow:visible;line-height:1.3}
+.stk .item .pr .u{font-weight:500}
+/* Tallas de la prenda en su tarjeta de detalle: cada fila abre el detalle de esa talla. */
+.stk .tallas-inv{display:flex;flex-direction:column}
+.stk .talla-inv{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:8px 2px;border:0;border-top:1px solid var(--line2);background:none;text-align:left;transition:transform .14s ease-out}
+.stk .talla-inv:first-child{border-top:0}
+.stk .talla-inv:active{transform:scale(.97)}
+.stk .talla-inv .ti-t{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.stk .talla-inv .ti-t b{font-weight:600;font-size:14.5px}
+.stk .talla-inv .ti-t span{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.stk .talla-inv .ti-u{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25;white-space:nowrap}
+.stk .talla-inv .ti-u b{font-weight:600;font-size:14.5px;color:var(--good)}
+.stk .talla-inv .ti-u.low b{color:var(--warn)}
+.stk .talla-inv .ti-u.out b{color:var(--bad)}
+.stk .talla-inv .ti-u span{font-size:12px;color:var(--muted)}
+.stk .talla-inv .ti-ir{width:18px;height:18px;flex:none;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}

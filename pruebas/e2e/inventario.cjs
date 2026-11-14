@@ -11,35 +11,42 @@ async function servirInventario(p, datos) {
   await p.route(/App-Inventario\/data\/inventario\.json/, r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(datos) }));
 }
 
-const abrirSku = async (p, sku) => { await p.fill('#q', sku); await p.click(`.stk .item[data-sku="${sku}"]`); await p.waitForSelector('.stk-capa .sheet.in'); };
-const hoja = p => texto(p, '.stk-capa .sheet');
+// El inventario agrupa por prenda: la tarjeta de la prenda tiene data-skus con sus tallas.
+const itemDe = sku => `.stk .item[data-skus~="${sku}"]`;
+const abrirPrenda = async (p, sku) => { await p.fill('#q', sku); await p.click(itemDe(sku)); await p.waitForFunction(() => document.querySelectorAll('.stk-capa .sheet.in').length === 1); };
+// Abre la prenda y luego la talla (segunda hoja, con Historial y Ajustar).
+const abrirSku = async (p, sku) => { await abrirPrenda(p, sku); await p.click(`.stk-capa .talla-inv[data-sku="${sku}"]`); await p.waitForFunction(() => document.querySelectorAll('.stk-capa .sheet.in').length === 2); };
+const hoja = p => p.evaluate(() => { const hs = document.querySelectorAll('.stk-capa .sheet'); return hs[hs.length - 1].textContent.replace(/\s+/g, ' ').trim(); });
 const vis = (p, s) => p.innerText(s).then(t => t.replace(/\s+/g, ' ').trim());
 
 casos('inventario', [
-  ['Lista como la app de stock: resumen, segmentos, una tarjeta por variante con precio · género · unidades y foto', async (env, a) => {
+  ['Lista agrupada por prenda: segmentos por prenda, tarjeta con tallas, precio · género · unidades y foto', async (env, a) => {
     const p = await env.pagina({ ancho: 390, alto: 844, ruta: '/inventario' });
     a.strictEqual(await p.$('.stk .brand, #bTheme'), null, 'sin título ni selector de tema');
     a.ok(await p.evaluate(() => document.documentElement.classList.contains('stk-sin-barra')), 'sin barra de desplazamiento');
     a.strictEqual(await p.$('#tiles, .stile'), null, 'sin tarjetas de unidades ni variantes');
     a.deepStrictEqual(await p.evaluate(() => ['.stk .item .nm', '.stk .item .sk', '.stk .seg b'].map(x => getComputedStyle(document.querySelector(x)).fontFamily.split(',')[0].replace(/"/g, ''))), ['Plus Jakarta Sans', 'Plus Jakarta Sans', 'Plus Jakarta Sans'], 'letra del POS');
-    a.strictEqual(await vis(p, '#seg'), '21 Todos 2 Stock bajo 2 Agotados');
-    a.strictEqual(await p.$$eval('.stk .item', e => e.length), 21);
-    a.strictEqual(await texto(p, '.stk .item[data-sku="J-M"] .pr'), '42.000 · Caballero · 5 uds');
-    a.strictEqual(await texto(p, '.stk .item[data-sku="B-L"] .pr .u.low'), '1 bajo');
-    a.strictEqual(await texto(p, '.stk .item[data-sku="R-M"] .pr .u.out'), 'agotado');
-    a.ok(await p.$('.stk .item[data-sku="J-M"] .foto svg'), 'sin foto: recuadro con ícono');
+    a.strictEqual(await vis(p, '#seg'), '6 Todos 1 Stock bajo 1 Agotados');
+    a.strictEqual(await p.$$eval('.stk .item', e => e.length), 6);
+    const totalJ = await p.evaluate(() => Object.values(window.__pos.ctx.productos).filter(x => x.sku.startsWith('J-')).reduce((n, x) => n + x.existencia, 0));
+    a.strictEqual(await texto(p, itemDe('J-M') + ' .nm'), 'Jogger Texcol Caballero Negro');
+    a.strictEqual(await texto(p, itemDe('J-M') + ' .sk'), 'Tallas S · M · L · XL · XXL');
+    a.strictEqual(await texto(p, itemDe('J-M') + ' .pr'), `42.000 · Caballero · ${totalJ} uds`);
+    a.match(await texto(p, itemDe('B-L') + ' .pr .u.low'), /uds · stock bajo$/);
+    a.strictEqual(await texto(p, itemDe('R-M') + ' .pr .u.out'), 'agotado');
+    a.ok(await p.$(itemDe('J-M') + ' .foto svg'), 'sin foto: recuadro con ícono');
     await p.click('#seg [data-st="out"]');
-    a.deepStrictEqual(await p.$$eval('.stk .item', e => e.map(x => x.dataset.sku).sort()), ['R-L', 'R-M']);
+    a.deepStrictEqual(await p.$$eval('.stk .item', e => e.map(x => x.dataset.skus)), ['R-M R-L']);
     await p.click('#seg [data-st="all"]');
     await p.selectOption('#fCat', 'Dama');
-    a.strictEqual(await vis(p, '#meta'), '2 resultados');
+    a.strictEqual(await vis(p, '#meta'), '1 prenda');
     await p.selectOption('#fCat', '');
     await p.fill('#q', 'zzzz'); await p.waitForSelector('text=Nada coincide con esos filtros.');
     await p.evaluate(() => { location.hash = '/inicio'; });
     await p.waitForFunction(() => !document.documentElement.classList.contains('stk-sin-barra'));
     a.deepStrictEqual(p.errores, []);
   }],
-  ['Detalle en hoja inferior: stock, código de barras, precios y ficha; se cierra con Atrás sin salir del inventario', async (env, a) => {
+  ['Detalle: la prenda con sus tallas y, al tocar una, su hoja con stock, precios y ficha; Atrás cierra de a una sin salir del inventario', async (env, a) => {
     const p = await env.pagina({ ancho: 390, alto: 844, usuario: 'vendedora', ruta: '/inventario' });
     await abrirSku(p, 'J-M');
     const t = await hoja(p);
@@ -48,6 +55,9 @@ casos('inventario', [
     a.ok(!/Código de barras|Copiar/.test(t), 'sin código de barras ni botones de copiar');
     a.strictEqual(await p.$('#det-acciones:not([hidden])'), null, 'sin acciones');
     a.ok(await p.evaluate(() => document.body.classList.contains('stk-lock')), 'el fondo no hace scroll');
+    await p.goBack();
+    await p.waitForFunction(() => document.querySelectorAll('.stk-capa .sheet').length === 1, null, { timeout: 3000 });
+    a.match(await hoja(p), /Tallas.*Talla S/, 'Atrás vuelve a la prenda');
     await p.goBack();
     await p.waitForSelector('.stk-capa', { state: 'detached' });
     a.strictEqual(await p.evaluate(() => location.hash), '#/inventario');
@@ -137,14 +147,14 @@ casos('inventario', [
     await p.selectOption('#ajuste-motivo', 'Llegó del taller');
     await p.click('#ajuste-final');
     await p.waitForFunction(() => window.__pos.ctx.productos['J-M'].existencia === 8);
-    await p.waitForFunction(() => document.querySelector('.stk-capa .big .stk b')?.textContent === '8');
+    await p.waitForFunction(() => { const hs = document.querySelectorAll('.stk-capa .sheet'); return hs[hs.length - 1].querySelector('.big .stk b')?.textContent === '8'; });
     await p.click('#det-historial');
     await p.waitForSelector('.mov');
     a.ok((await texto(p, '.capa:last-of-type')).includes('Llegó del taller'));
   }],
   ['Admin: oferta del 10% cambia el precio en Vender', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', caja: true, ruta: '/inventario' });
-    await abrirSku(p, 'J-M');
+    await abrirPrenda(p, 'J-M');
     await p.click('#det-oferta');
     await p.fill('#oferta-pct', '10');
     await p.click('#oferta-final');
@@ -168,12 +178,12 @@ casos('inventario', [
     await p.waitForSelector('text=1 foto subida · 4 de 21 productos con foto · 4 códigos de imagen sin foto');
     const estado = await p.evaluate(() => { const c = window.__pos.ctx; return { img: !!c.imagenes['img-0001'], fotosSku: Object.values(c.productos).filter(x => x.foto).length }; });
     a.deepStrictEqual(estado, { img: true, fotosSku: 0 }, 'la foto queda en el código');
-    a.strictEqual(await p.$$eval('.stk .item .foto img', e => e.length), 4, 'las 4 tallas de img-0001 muestran la foto');
-    a.ok(await p.$('.stk .item[data-sku="F-B-8"] .foto img'));
-    a.strictEqual(await p.$('.stk .item[data-sku="F-N-8"] .foto img'), null, 'otro código sigue sin foto');
+    a.strictEqual(await p.$$eval('.stk .item .foto img', e => e.length), 1, 'la prenda de img-0001 muestra la foto');
+    a.ok(await p.$(itemDe('F-B-8') + ' .foto img'));
+    a.strictEqual(await p.$(itemDe('F-N-8') + ' .foto img'), null, 'otro código sigue sin foto');
     await abrirSku(p, 'F-B-8');
-    a.ok(await p.$('.stk-capa .fotocard img'), 'la tarjeta de detalle muestra la foto arriba');
-    await p.keyboard.press('Escape'); await p.waitForSelector('.stk-capa', { state: 'detached' });
+    a.strictEqual(await p.$$eval('.stk-capa .fotocard img', e => e.length), 2, 'la prenda y la talla muestran la foto arriba');
+    await p.keyboard.press('Escape'); await p.keyboard.press('Escape'); await p.waitForSelector('.stk-capa', { state: 'detached' });
     await p.evaluate(() => { location.hash = '/vender'; });
     await p.waitForSelector('.tarjeta-prenda[data-nombre="Franela AS Niño Blanco"] img');
     a.deepStrictEqual(p.errores, []);
@@ -181,7 +191,7 @@ casos('inventario', [
   ['Admin: «Subir foto» en la tarjeta de detalle sube la foto a su código de imagen', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
     const png = await sharp({ create: { width: 40, height: 40, channels: 3, background: '#888' } }).png().toBuffer();
-    await abrirSku(p, 'B-M');
+    await abrirPrenda(p, 'B-M');
     a.match(await hoja(p), /Código de imagen\s*img-0003/);
     a.strictEqual(await p.$('.stk-capa .fotocard'), null, 'sin foto no hay tarjeta de foto');
     await p.setInputFiles('#foto-codigo-archivo', { name: 'cualquiera.png', mimeType: 'image/png', buffer: png });
@@ -220,7 +230,7 @@ casos('inventario', [
     const p = await env.pagina({ usuario: 'encargada', ruta: '/inventario' });
     for (const b of ['#bSync', '#bData']) a.strictEqual(await p.$(b), null, b);
     await abrirSku(p, 'J-M');
-    await p.click('.stk-capa .reveal');
+    await p.evaluate(() => { const hs = document.querySelectorAll('.stk-capa .sheet'); hs[hs.length - 1].querySelector('.reveal').click(); });
     a.match(await hoja(p), /Costo\s*17\.000/);
     for (const b of ['#det-ajustar', '#det-oferta', '#foto-codigo']) a.strictEqual(await p.$(b), null, b);
     a.ok(await p.$('#det-historial'));
@@ -244,20 +254,20 @@ casos('inventario', [
     a.strictEqual(await p.$eval('.stk .seg', e => Math.round(e.getBoundingClientRect().top)), await p.$eval('.topbar', e => Math.round(e.getBoundingClientRect().bottom)) + 16, 'mismo espacio arriba que las demás pantallas');
     a.ok(await p.isVisible('.stk .adm #bSync') && await p.isVisible('.stk .adm #bData'));
   }],
-  ['Teléfono angosto (320 px) con muchas variantes: centrado, nada se sale por la derecha', async (env, a) => {
+  ['Teléfono angosto (320 px) con muchas prendas: centrado, nada se sale por la derecha', async (env, a) => {
     const p = await env.pagina({ ancho: 320, alto: 658, ruta: '/inventario' });
-    await p.evaluate(() => { const c = window.__pos.ctx, base = c.productos['J-M']; for (let i = 0; i < 1400; i++) c.productos['X-' + i] = { ...base, sku: 'X-' + i }; window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que: 'productos' } })); });
-    await p.waitForFunction(() => /1\.421/.test(document.querySelector('#seg').textContent));
+    await p.evaluate(() => { const c = window.__pos.ctx, base = c.productos['J-M']; for (let i = 0; i < 1400; i++) c.productos['X-' + i] = { ...base, sku: 'X-' + i, color: 'Color ' + i, grupo: undefined }; window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que: 'productos' } })); });
+    await p.waitForFunction(() => /1\.406/.test(document.querySelector('#seg').textContent));
     const r = await p.evaluate(() => { const x = document.querySelector('.stk .wrap').getBoundingClientRect(); return { izq: Math.round(x.left), der: Math.round(innerWidth - x.right), sobra: document.querySelector('.vista').scrollWidth - document.querySelector('.vista').clientWidth }; });
     a.deepStrictEqual(r, { izq: 16, der: 16, sobra: 0 });
   }],
   ['Paginación: muestra 80 y luego «Mostrar N más»', async (env, a) => {
     const p = await env.pagina({ ruta: '/inventario' });
-    await p.evaluate(() => { const c = window.__pos.ctx, base = c.productos['J-M']; for (let i = 0; i < 100; i++) c.productos['X-' + i] = { ...base, sku: 'X-' + i }; window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que: 'productos' } })); });
+    await p.evaluate(() => { const c = window.__pos.ctx, base = c.productos['J-M']; for (let i = 0; i < 100; i++) c.productos['X-' + i] = { ...base, sku: 'X-' + i, color: 'Color ' + i, grupo: undefined }; window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que: 'productos' } })); });
     await p.waitForFunction(() => document.querySelectorAll('.stk .item').length === 80);
-    a.strictEqual(await texto(p, '#more'), 'Mostrar 41 más');
+    a.strictEqual(await texto(p, '#more'), 'Mostrar 26 más');
     await p.click('#more');
-    a.strictEqual(await p.$$eval('.stk .item', e => e.length), 121);
+    a.strictEqual(await p.$$eval('.stk .item', e => e.length), 106);
     a.ok(await p.isHidden('#more'));
   }],
 ]);
