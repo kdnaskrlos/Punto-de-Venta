@@ -204,6 +204,7 @@ casos('vender', [
     a.deepStrictEqual(anchoPanel, [0, 0], 'de borde a borde');
     await p.tap('.barra-carrito'); await p.waitForSelector('.panel-carrito.abierto'); await p.waitForTimeout(350);
     a.strictEqual(await p.$eval('.barra-carrito .bc-total', e => getComputedStyle(e).opacity), '0', 'abierto, la cabecera se recoge');
+    a.ok(await p.evaluate(() => document.body.classList.contains('panel-abierto') && getComputedStyle(document.querySelector('.side')).transform !== 'none'), 'abierto, la barra de íconos baja');
     a.strictEqual(await p.$$eval('.capa.hoja', e => e.length), 0, 'no abre otra hoja');
     a.deepStrictEqual(await p.evaluate(() => [document.documentElement.classList.contains('con-capa'), getComputedStyle(document.documentElement).overscrollBehaviorY]), [true, 'none']);
     // Tarjetas cobrar: color y talla en texto (sin pastilla); «Precio 1–5» en pastilla con el c/u al lado; monto en su línea base.
@@ -217,6 +218,7 @@ casos('vender', [
     await t('touchStart', b.y); for (let i = 1; i <= 10; i++) { await t('touchMove', b.y + i * 25); await p.waitForTimeout(16); } await t('touchEnd');
     await p.waitForFunction(() => !document.querySelector('.panel-carrito').classList.contains('abierto'));
     a.strictEqual(await p.evaluate(() => document.documentElement.classList.contains('con-capa')), false, 'al bajarlo se desbloquea');
+    await p.waitForFunction(() => getComputedStyle(document.querySelector('.side')).transform === 'none' || getComputedStyle(document.querySelector('.side')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.length), 1, 'bajarlo no vacía el carrito');
   }],
   ['v1.91 · Ventana de tallas: la cantidad elegida sin fondo verde', async (env, a) => {

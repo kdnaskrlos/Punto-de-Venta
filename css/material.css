@@ -621,3 +621,13 @@ button.pill:not(.demo){border-color:transparent!important}
   .panel-carrito.abierto .barra-carrito{max-height:30px;min-height:30px;padding-top:30px;padding-bottom:0}
   .panel-carrito.abierto .barra-carrito > :not(.bc-flecha){opacity:0;transform:translateY(-10px);pointer-events:none}
 }
+/* v1.95 · Panel del carrito: mientras está abierto, la barra de íconos baja y se esconde; al ocultarlo vuelve a subir
+   con la misma transición. El panel queda debajo de la barra (z 19 < 20) y el fondo oscuro debajo de ambos, así la
+   barra entra por encima del panel mientras este baja. */
+@media (max-width:839px){
+  .side{transition:transform .24s cubic-bezier(.22,.9,.28,1);will-change:transform}
+  body.panel-abierto .side{transform:translate3d(0,100%,0)}
+  .panel-carrito,.panel-carrito.alto{z-index:19}
+  .pc-velo{z-index:17}
+}
+@media (max-width:839px) and (prefers-reduced-motion:reduce){.side{transition:none}}

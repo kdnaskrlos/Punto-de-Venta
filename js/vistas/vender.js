@@ -377,6 +377,7 @@ registrarVista('/vender', {
     const asomar = () => { if (abierto) return; const nav = document.querySelector('.side'); panel.style.setProperty('--asoma', `${barra.offsetHeight + (nav && esTelefono() ? nav.offsetHeight : 0)}px`); };
     const bajarPanel = () => { // la llama la pila de capas (Atrás, Esc, tocar el fondo, bajar con el dedo)
       abierto = false; capaPanel = null;
+      document.body.classList.remove('panel-abierto'); // la barra de íconos vuelve a subir, con transición
       panel.classList.remove('abierto', 'drag'); panel.style.transform = ''; velo.classList.remove('on'); velo.style.opacity = '';
       barra.setAttribute('aria-expanded', 'false'); barra.setAttribute('aria-label', 'Abrir carrito');
       clearTimeout(tVelo); tVelo = setTimeout(() => { if (!abierto) { panel.classList.remove('alto'); velo.remove(); } }, 250);
@@ -385,6 +386,7 @@ registrarVista('/vender', {
       if (abierto || panel.hidden) return;
       abierto = true; clearTimeout(tVelo);
       panel.classList.add('alto'); velo.style.opacity = '';
+      document.body.classList.add('panel-abierto'); // la barra de íconos baja mientras el panel está abierto
       capaPanel = abrirCapaPropia(velo, bajarPanel);
       void panel.offsetHeight; panel.classList.add('abierto'); velo.classList.add('on');
       barra.setAttribute('aria-expanded', 'true'); barra.setAttribute('aria-label', 'Ocultar carrito');
@@ -471,6 +473,6 @@ registrarVista('/vender', {
     cont.append(h('div', { class: 'vender-main' }, sinCaja, h('div', { class: 'buscador' }, campoBusqueda(buscar), escanear), filtros, rejilla), lado, panel);
     pintar();
     if (!esTelefono()) setTimeout(() => buscar.focus(), 50);
-    return () => { if (abierto) cerrarPanel(); velo.remove(); removeEventListener('resize', asomar); document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
+    return () => { document.body.classList.remove('panel-abierto'); if (abierto) cerrarPanel(); velo.remove(); removeEventListener('resize', asomar); document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
   },
 });

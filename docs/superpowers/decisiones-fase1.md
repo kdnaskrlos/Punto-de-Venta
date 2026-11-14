@@ -442,3 +442,4 @@ Suite final: npm test 99/99 · e2e 59/59
   - Reportes: Ventas y Ganancia en dos columnas iguales con espacio, letra más chica desde 8 caracteres.
   - Calculadora de tasas: 40 px de aire al final.
   - Animaciones de todo el sistema un 30 % más cortas (hojas y paneles 240 ms, ventanas 130–180 ms, desplegables ~200 ms).
+- v1.95: con el panel del carrito abierto la barra de íconos de abajo baja y se esconde; al ocultar el panel vuelve a subir con la misma transición (240 ms). El panel queda bajo la barra (z 19 < 20) y el fondo oscuro debajo de ambos, para que la barra entre por encima mientras el panel baja.
