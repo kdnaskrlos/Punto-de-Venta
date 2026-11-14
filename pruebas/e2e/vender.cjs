@@ -227,4 +227,17 @@ casos('vender', [
     a.strictEqual(await p.$eval('.capa .talla-fila-v[data-sku="J-M"] .tf-cant', e => getComputedStyle(e).backgroundColor), 'rgb(255, 255, 255)');
   }],
 
+  ['v1.96 · Teléfono: Tarjetas listado en dos columnas, alineadas; la agotada muestra el precio; el precio largo no toca la foto', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 800, usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.evaluate(() => { const c = window.__pos.ctx; c.productos['J-M'] = { ...c.productos['J-M'], precios: [1250000, 1250000, 1250000, 1250000, 1250000] }; window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que: 'productos' } })); });
+    await p.waitForTimeout(300);
+    const m = await p.$$eval('.vender-main .rejilla .tarjeta-prenda', cs => cs.map(c => { const r = c.getBoundingClientRect(), fo = c.querySelector('.foto').getBoundingClientRect(), pr = c.querySelector('.precio')?.getBoundingClientRect(), nm = c.querySelector('.info b').getBoundingClientRect();
+      return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), nom: Math.round(nm.top - r.top), esp: pr ? Math.round(pr.left - fo.right) : null }; }));
+    a.strictEqual(new Set(m.map(x => x.x)).size, 2, 'dos columnas');
+    a.ok(m.every(x => x.nom === m[0].nom), 'el nombre empieza a la misma altura en todas');
+    a.ok(m.every(x => x.esp === null || x.esp >= 0), 'ningún precio toca la foto: ' + JSON.stringify(m.map(x => x.esp)));
+    a.ok(await p.$(`${GRUPO('Franela Rockdreams Dama Gris')} .precio`), 'la agotada muestra el precio');
+    const i = await env.pagina({ ancho: 360, alto: 800, usuario: 'vendedora', ruta: '/inventario' });
+    a.strictEqual(new Set(await i.$$eval('.stk .rejilla .tarjeta-prenda', cs => cs.map(c => Math.round(c.getBoundingClientRect().left)))).size, 1, 'el Inventario sigue en una columna');
+  }],
 ]);

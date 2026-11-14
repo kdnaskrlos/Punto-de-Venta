@@ -351,7 +351,9 @@ export function tarjetaPrenda(ctx, g, { alTocar, carrito: conCarrito = false, po
     h('span', { class: 'tp-der' },
       agotada ? h('span', { class: 'est r tp-estado' }, icono('alerta'), 'Agotada')
         : h('span', { class: 'est tp-disp ' + (pocas ? 'y' : 'g') }, `${existencia} disp.`),
-      agotada ? null : h('span', { class: 'num precio' }, Number.isFinite(precio) ? fmtCop(precio) : '—'),
+      // v1.96: en Vender la agotada también muestra el precio (en gris) para conservar la forma de la tarjeta;
+      // con 9 caracteres o más el precio va más pequeño (data-largo) para no tocar la foto.
+      agotada && !conCarrito ? null : (() => { const t = Number.isFinite(precio) ? fmtCop(precio) : '—'; return h('span', { class: 'num precio', 'data-largo': t.length >= 9 ? 'l' : null }, t); })(),
       !agotada && oferta ? h('span', { class: 'tp-estado tp-oferta' }, 'oferta') : null));
 }
 function tarjeta(ctx, g) {
