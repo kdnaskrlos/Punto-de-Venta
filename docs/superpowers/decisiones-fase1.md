@@ -384,3 +384,4 @@ Suite final: npm test 99/99 · e2e 59/59
   - En Inventario: «Fotos» empareja los archivos por código (img-0001.jpg/.png/.webp) y si no, por sku; muestra «N de M productos con foto · K códigos de imagen sin foto». En el detalle de cada prenda, botón «Foto» / «Cambiar foto» que sube al código de esa tarjeta.
   - Inventario real: 1.369 productos, 346 códigos de imagen, ninguno vacío; sin fotos subidas todavía (0 con foto, 346 códigos sin foto).
 - v1.74: ícono de la app con esquinas redondeadas como el del Tarifario (radio 112 de 512, fondo transparente) para «any»; aparte icono-maskable-512.png cuadrado para Android y apple-touch-icon.png de 180 px para el iPhone.
+- v1.75: la nota de «Fotos» siempre pide nombrar el archivo con el código de imagen (img-0001.jpg). Si los productos aún no traen id_imagen (cargados antes de la v1.73), aparece un aviso para pulsar «Sincronizar inventario»; el sku sigue funcionando como respaldo.

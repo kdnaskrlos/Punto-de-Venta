@@ -252,7 +252,9 @@ function abrirFotos(ctx) {
   const pintarResumen = () => { resumen.textContent = textoResumen(resumenFotos(ctx.productos, ctx.imagenes)); };
   const entrada = h('input', { type: 'file', id: 'fotos-archivos', multiple: true, accept: 'image/*', class: 'sr' });
   const zona = h('label', { class: 'zona-fotos', for: 'fotos-archivos' }, icono('imagen'), h('b', {}, 'Arrastra aquí las fotos o toca para elegirlas'),
-    h('span', { class: 'nota' }, codigos.length ? 'Nombra cada archivo con su código de imagen, por ejemplo img-0001.jpg. Una foto sirve para todas las prendas con ese código.' : 'El nombre de cada archivo debe ser el sku de la variante, por ejemplo Fran-AS-Niño-4-Bla-Alg.jpg'));
+    h('span', { class: 'nota' }, 'Nombra cada archivo con su código de imagen, por ejemplo img-0001.jpg. Una foto sirve para todas las prendas con ese código.'));
+  // Productos cargados antes de la v1.73 no traen id_imagen: hay que sincronizar para recibir los códigos.
+  const sinCodigos = codigos.length ? null : h('div', { class: 'aviso', id: 'fotos-sin-codigos' }, icono('alerta'), 'Los productos todavía no tienen código de imagen. Pulsa «Sincronizar inventario» para traerlos de la Carga Masiva.');
   const info = h('div', { class: 'pila' });
   const b = h('button', { class: 'btn primary', id: 'fotos-final', disabled: true }, icono('subir'), 'Subir fotos');
   const pintar = () => {
@@ -272,7 +274,7 @@ function abrirFotos(ctx) {
   zona.addEventListener('dragleave', () => zona.classList.remove('encima'));
   zona.addEventListener('drop', e => { e.preventDefault(); zona.classList.remove('encima'); cargar(e.dataTransfer.files); });
   pintarResumen();
-  const v = abrirVentana({ titulo: 'Fotos de productos', contenido: h('div', { class: 'pila' }, resumen, entrada, zona, info), acciones: h('div', { class: 'acciones' }, b) });
+  const v = abrirVentana({ titulo: 'Fotos de productos', contenido: h('div', { class: 'pila' }, ...sin(resumen, sinCodigos, entrada, zona, info)), acciones: h('div', { class: 'acciones' }, b) });
   b.addEventListener('click', async () => {
     const elegidas = Object.entries(manual).filter(([, x]) => x).map(([archivo, x]) => (x.startsWith('c:') ? { archivo, codigo: x.slice(2) } : { archivo, sku: x.slice(2) }));
     const tareas = [...res.asignadas, ...elegidas];

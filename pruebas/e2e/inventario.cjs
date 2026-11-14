@@ -133,6 +133,17 @@ casos('inventario', [
     a.ok(await p.evaluate(() => !!window.__pos.ctx.imagenes['img-0003']), 'registro');
     a.deepStrictEqual(p.errores, []);
   }],
+  ['Fotos: la nota siempre pide el código de imagen; sin códigos avisa que hay que sincronizar', async (env, a) => {
+    const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
+    await p.click('button:has-text("Fotos")');
+    a.match(await texto(p, '.zona-fotos .nota'), /código de imagen, por ejemplo img-0001\.jpg/);
+    a.strictEqual(await p.$('#fotos-sin-codigos'), null);
+    await p.click('.capa .cerrar, .capa [aria-label="Cerrar"]').catch(() => p.keyboard.press('Escape'));
+    await p.evaluate(() => { for (const x of Object.values(window.__pos.ctx.productos)) x.id_imagen = ''; });
+    await p.click('button:has-text("Fotos")');
+    a.match(await texto(p, '#fotos-sin-codigos'), /Sincronizar inventario/);
+    a.match(await texto(p, '.capa:last-of-type .zona-fotos .nota'), /img-0001\.jpg/);
+  }],
   ['Admin: fotos por sku (nombre del archivo); las que no coinciden quedan sin asignar', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
     const png = await sharp({ create: { width: 40, height: 40, channels: 3, background: '#888' } }).png().toBuffer();
