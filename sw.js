@@ -1,8 +1,8 @@
 // Permite instalar la app y abrirla sin internet. Las ventas las guarda Firebase (con su propia caché).
-const CACHE = 'pos-v1.73';
+const CACHE = 'pos-v1.74';
 const LIBS = 'libs-v1'; // Firebase y la fuente: archivos con versión fija
 const FOTOS = 'fotos-v1';
-const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icono-192.png', './icono-512.png', './logo-carrito.png',
+const SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icono-192.png', './icono-512.png', './icono-maskable-512.png', './apple-touch-icon.png', './logo-carrito.png',
   './css/tokens.css', './css/base.css', './css/componentes.css', './css/material.css',
   './js/principal.js', './js/app.js', './js/ui.js', './js/version.js'];
 
