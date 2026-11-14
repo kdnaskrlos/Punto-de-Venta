@@ -361,8 +361,11 @@ registrarVista('/vender', {
 
     function pintar() {
       const todos = grupos(ctx);
-      const generos = [...new Set(todos.map(g => g.genero).filter(Boolean))].sort();
-      filtros.replaceChildren(...['', ...generos].map(c => h('button', { class: 'chip' + (c === genero ? ' activo' : ''), onclick: () => { genero = c; pintar(); } }, c || 'Todo')));
+      // Orden pedido: Unisex / Dama / Niño / Niña (otros géneros después, por nombre) y «Todo» al final.
+      const ORDEN_GENERO = ['Unisex', 'Dama', 'Niño', 'Niña'];
+      const pos = g => { const i = ORDEN_GENERO.indexOf(g); return i < 0 ? ORDEN_GENERO.length : i; };
+      const generos = [...new Set(todos.map(g => g.genero).filter(Boolean))].sort((a, b) => pos(a) - pos(b) || a.localeCompare(b, 'es'));
+      filtros.replaceChildren(...[...generos, ''].map(c => h('button', { class: 'chip' + (c === genero ? ' activo' : ''), onclick: () => { genero = c; pintar(); } }, c || 'Todo')));
       const q = norm(busqueda);
       const vis = todos.filter(g => (!genero || g.genero === genero) && (!q || g.variantes.some(p => norm(textoBusqueda(p)).includes(q))));
       rejilla.replaceChildren(...(vis.length ? vis.map(g => tarjeta(ctx, g)) : [h('div', { class: 'vacio' }, q ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos. El administrador los importa desde la Carga Masiva.')]));

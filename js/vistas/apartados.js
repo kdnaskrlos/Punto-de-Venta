@@ -112,13 +112,13 @@ function tarjeta(ctx, ap, filtro) {
   const viejo = pendiente && dias >= 15;
   const abonado = ap.total - ap.saldo;
   return h('button', { type: 'button', class: `apartado ap-${ap.estado}${viejo ? ' viejo' : ''}`, 'data-id': ap.id, onclick: () => abrirDetalle(ctx, ap) },
-    // Tres líneas (boceto aprobado): 1) nombre a todo el ancho; 2) «Hace N días» | Abonado | Saldo;
-    // 3) fecha | monto abonado | saldo, en la misma línea base. Una sola línea divisoria, continua, entre Abonado y Saldo.
+    // Dos líneas: 1) nombre | «Abono» | «Saldo»; 2) fecha / «Hace N días» | monto abonado | saldo.
+    // Abono y saldo alineados a la derecha, con una línea divisoria continua entre ellos.
     h('b', { class: 'ap-nombre' }, nombre),
-    h('span', { class: 'ap-hace' + (viejo ? ' viejo' : '') }, dias <= 0 ? 'Hoy' : `Hace ${dias} ${dias === 1 ? 'día' : 'días'}`),
-    h('span', { class: 'ap-et ap-et-abono' }, 'Abonado'),
+    h('span', { class: 'ap-et ap-et-abono' }, 'Abono'),
     h('span', { class: 'ap-et ap-et-saldo' }, pendiente ? 'Saldo' : etiqueta),
-    h('span', { class: 'ap-fecha' }, icono('calendario'), diaCorto(ap.fecha)),
+    h('span', { class: 'ap-fecha' }, icono('calendario'), diaCorto(ap.fecha), h('span', { class: 'ap-sep', 'aria-hidden': 'true' }, '/'),
+      h('span', { class: 'ap-hace' + (viejo ? ' viejo' : '') }, dias <= 0 ? 'Hoy' : `Hace ${dias} ${dias === 1 ? 'día' : 'días'}`)),
     h('b', { class: 'num ap-abono' }, fmtCop(abonado)),
     h('b', { class: 'num ap-saldo' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total)),
     h('span', { class: 'ap-linea', 'aria-hidden': 'true' }));

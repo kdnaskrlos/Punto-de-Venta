@@ -97,6 +97,15 @@ casos('vender', [
     const fondo = await p.evaluate(() => window.__pos.ctx.miCaja.fondo);
     a.deepStrictEqual(fondo, { COP: 10000, USD: 0, BS: 0 });
   }],
+  ['Géneros en el orden Unisex / Dama / Niño / Niña, «Todo» al final; filtros con esquinas de 10 px', async (env, a) => {
+    const p = await env.pagina({ ancho: 390, alto: 780, ruta: '/vender', caja: true });
+    const t = await p.$$eval('.filtros .chip', e => e.map(x => x.textContent));
+    const esperado = ['Unisex', 'Dama', 'Niño', 'Niña'].filter(g => t.includes(g));
+    a.deepStrictEqual(t.slice(0, esperado.length), esperado, t.join(' / '));
+    a.strictEqual(t[t.length - 1], 'Todo');
+    a.ok(await p.$eval('.filtros .chip:last-child', e => e.classList.contains('activo')), '«Todo» sigue elegido al entrar');
+    a.strictEqual(await p.$eval('.filtros .chip', e => getComputedStyle(e).borderTopLeftRadius), '10px');
+  }],
   ['Teléfono: los géneros van en una sola fila deslizable', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/vender', caja: true });
     const tops = await p.$$eval('.filtros .chip', e => [...new Set(e.map(x => Math.round(x.getBoundingClientRect().top)))]);

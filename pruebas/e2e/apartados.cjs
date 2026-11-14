@@ -25,7 +25,11 @@ casos('apartados', [
     a.strictEqual(await p.$('.lado-carrito .linea'), null);
     await p.click('.side .nav[aria-label="Apartados"]'); await p.waitForSelector('.apartado');
     const t = await texto(p, '.apartado');
-    for (const x of ['Ana Pérez', '84.000', 'Abonado', 'Saldo', 'Hoy']) a.ok(t.includes(x), `falta ${x} en ${t}`);
+    for (const x of ['Ana Pérez', '84.000', 'Abono', 'Saldo', 'Hoy']) a.ok(t.includes(x), `falta ${x} en ${t}`);
+    a.ok(!t.includes('Abonado'), 'dice «Abono»');
+    a.match(await texto(p, '.apartado .ap-fecha'), /\/\s*Hoy$/, 'los días van junto a la fecha');
+    const filas = await p.$eval('.apartado', e => { const tops = [...e.children].filter(c => c.getBoundingClientRect().height > 0 && !c.classList.contains('ap-linea')).map(c => c.getBoundingClientRect().top).sort((x, y) => x - y); return tops.reduce((n, t, i) => n + (i && t - tops[i - 1] > 10 ? 1 : 0), 1); });
+    a.ok(filas <= 2, `la tarjeta ocupa ${filas} líneas`);
     await p.click('.apartado');
     const d = await texto(p, '.ap-det');
     for (const x of ['Pendiente', 'Saldo pendiente', '84.000', 'Prendas']) a.ok(d.includes(x), `falta ${x} en el detalle: ${d}`);
