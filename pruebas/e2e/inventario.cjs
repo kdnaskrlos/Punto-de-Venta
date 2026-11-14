@@ -19,26 +19,65 @@ casos('inventario', [
     const t = await texto(p, '.capa');
     for (const x of ['Talla M', '5', '42.000', '40.000', '38.000', '36.000', '34.000', '49+']) a.ok(t.includes(x), `falta ${x}`);
     a.ok(!t.includes('Costo'), 'la vendedora no ve costos');
-    for (const b of ['Importar', 'Fotos', 'Ajustar', 'Oferta']) a.strictEqual(await p.$(`button:has-text("${b}")`), null, b);
+    for (const b of ['Sincronizar inventario', 'Fotos', 'Ajustar', 'Oferta']) a.strictEqual(await p.$(`button:has-text("${b}")`), null, b);
   }],
-  ['Admin: importar con vista previa crea productos; reimportar no toca existencias', async (env, a) => {
+  ['Admin: sincronizar muestra la vista previa y solo guarda al aplicar; la existencia de los que ya existen no se pisa', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
     await servirInventario(p, INV);
-    await p.click('button:has-text("Importar")');
+    a.match(await texto(p, '#sinc-ultima'), /Aún no se ha sincronizado/);
+    await p.click('#sinc-abrir');
     await p.waitForFunction(() => document.querySelector('.resumen-imp.g')?.innerText.replace(/\s+/g, ' ').trim() === '3 nuevos');
-    await p.click('#importar-final');
-    await p.waitForSelector('text=Importación lista');
+    a.match(await texto(p, '.sinc-fecha'), /Archivo del .*· 3 filas/);
+    a.strictEqual(await p.evaluate(() => !!window.__pos.ctx.productos['Fran-AS-Niño-4-Bla-Alg']), false, 'nada se guarda antes de aplicar');
+    await p.click('#sinc-cancelar');
+    a.strictEqual(await p.evaluate(() => !!window.__pos.ctx.productos['Fran-AS-Niño-4-Bla-Alg']), false, 'cancelar no guarda');
+    await p.click('#sinc-abrir');
+    await p.click('#sinc-aplicar');
+    await p.waitForSelector('text=Inventario sincronizado');
     a.strictEqual(await existencia(p, 'Fran-AS-Niño-4-Bla-Alg'), 12);
+    a.match(await texto(p, '#sinc-ultima'), /Última sincronización: /);
     await p.evaluate(() => { window.__pos.ctx.almacen._estado('productos').get('Fran-AS-Niño-4-Bla-Alg').existencia = 3; });
     const cambiado = JSON.parse(JSON.stringify(INV));
-    cambiado.rows[0][cambiado.head.indexOf('precio1')] = '26000';
+    cambiado.rows[0][cambiado.head.indexOf('precio1')] = '27000';
+    cambiado.rows[0][cambiado.head.indexOf('minimo')] = '4';
     await p.unroute(/App-Inventario/); await servirInventario(p, cambiado);
-    await p.click('button:has-text("Importar")');
+    await p.click('#sinc-abrir');
     await p.waitForFunction(() => document.querySelector('.resumen-imp.b')?.innerText.replace(/\s+/g, ' ').trim() === '1 actualizado');
-    await p.click('#importar-final');
-    await p.waitForSelector('text=Importación lista');
-    await p.waitForFunction(() => window.__pos.ctx.productos['Fran-AS-Niño-4-Bla-Alg'].precios[0] === 26000);
-    a.strictEqual(await existencia(p, 'Fran-AS-Niño-4-Bla-Alg'), 3);
+    await p.click('.sinc-lista summary');
+    const det = await texto(p, '.sinc-lista');
+    a.ok(det.includes('precio1 25000 → 27000') && det.includes('minimo 5 → 4'), det);
+    a.strictEqual(await p.isChecked('#sinc-existencia'), false, 'casilla desmarcada por defecto');
+    await p.click('#sinc-aplicar');
+    await p.waitForSelector('text=Inventario sincronizado');
+    await p.waitForFunction(() => window.__pos.ctx.productos['Fran-AS-Niño-4-Bla-Alg'].precios[0] === 27000);
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.productos['Fran-AS-Niño-4-Bla-Alg'].minimo), 4, 'mínimo sí se actualiza');
+    a.strictEqual(await existencia(p, 'Fran-AS-Niño-4-Bla-Alg'), 3, 'existencia del POS intacta');
+  }],
+  ['Admin: con «Actualizar también existencia» la del archivo reemplaza la del POS', async (env, a) => {
+    const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
+    await servirInventario(p, INV);
+    await p.click('#sinc-abrir'); await p.click('#sinc-aplicar'); await p.waitForSelector('text=Inventario sincronizado');
+    await p.evaluate(() => window.__pos.ctx.almacen.ajustarExistencia('Fran-AS-Niño-4-Bla-Alg', -9, 'Venta', 'prueba')); // como si se hubieran vendido 9
+    await p.waitForFunction(() => window.__pos.ctx.productos['Fran-AS-Niño-4-Bla-Alg'].existencia === 3);
+    await p.click('#sinc-abrir');
+    await p.waitForSelector('#sinc-existencia');
+    a.match(await texto(p, '.capa:last-of-type .sinc-check'), /1 producto que ya existe tiene otra existencia/);
+    await p.check('#sinc-existencia');
+    await p.click('#sinc-aplicar'); await p.waitForSelector('text=Inventario sincronizado');
+    a.strictEqual(await existencia(p, 'Fran-AS-Niño-4-Bla-Alg'), 12);
+  }],
+  ['Sin internet o archivo dañado: mensaje claro y no cambia nada', async (env, a) => {
+    const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
+    await p.route(/App-Inventario\/data\/inventario\.json/, r => r.fulfill({ status: 200, contentType: 'application/json', body: '{roto' }));
+    await p.click('#sinc-abrir');
+    await p.waitForSelector('text=no es un inventario válido');
+    a.ok(await p.isDisabled('#sinc-aplicar'));
+    await p.click('#sinc-cancelar');
+    await p.unroute(/App-Inventario/);
+    await p.route(/App-Inventario\/data\/inventario\.json/, r => r.abort());
+    await p.click('#sinc-abrir');
+    await p.waitForSelector('text=No se cambió nada en el punto de venta');
+    a.match(await texto(p, '.capa:last-of-type'), /Sin conexión/);
   }],
   ['Admin: ajuste +3 "Llegó del taller" y queda en el historial', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
@@ -80,7 +119,7 @@ casos('inventario', [
     const p = await env.pagina({ usuario: 'encargada', ruta: '/inventario' });
     await p.click('.grupo-inv[data-nombre="Jogger Texcol Caballero Negro"]');
     a.ok((await texto(p, '.capa')).includes('Costo'));
-    for (const b of ['Importar', 'Fotos', 'Ajustar', 'Oferta']) a.strictEqual(await p.$(`button:has-text("${b}")`), null, b);
+    for (const b of ['Sincronizar inventario', 'Fotos', 'Ajustar', 'Oferta']) a.strictEqual(await p.$(`button:has-text("${b}")`), null, b);
   }],
   ['Detalle de una prenda: los precios salen una sola vez si son iguales en todas las tallas', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inventario' });

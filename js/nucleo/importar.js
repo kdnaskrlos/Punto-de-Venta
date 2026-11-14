@@ -79,9 +79,10 @@ const CAMPOS = ['nombre', 'tipo', 'tela', 'color', 'talla', 'genero', 'marca', '
 
 // El costo vive en costos/{sku} (solo admin y encargada lo leen), por eso se compara aparte.
 // Upsert por sku: nuevos se crean, los que cambiaron se actualizan; los que no vienen en el archivo
-// solo se listan (nunca se borran sin preguntar).
+// solo se listan (nunca se borran). La existencia de los que ya existen va aparte (`existencias`):
+// solo se aplica si Carlos marca «Actualizar también existencia».
 export function planImportacion(entrantes, actualesPorSku, costosPorSku = {}) {
-  const nuevos = [], cambios = [], iguales = [];
+  const nuevos = [], cambios = [], iguales = [], existencias = [];
   const vistos = new Set();
   for (const p of entrantes) {
     vistos.add(p.sku);
@@ -90,8 +91,24 @@ export function planImportacion(entrantes, actualesPorSku, costosPorSku = {}) {
     const campos = {};
     for (const c of CAMPOS) if (JSON.stringify(p[c] ?? null) !== JSON.stringify(a[c] ?? null)) campos[c] = p[c];
     if (p.costo != null && p.costo !== (costosPorSku[p.sku]?.costo ?? null)) campos.costo = p.costo;
+    if ((p.existencia ?? 0) !== (a.existencia ?? 0)) existencias.push({ sku: p.sku, antes: a.existencia ?? 0, despues: p.existencia ?? 0 });
     if (Object.keys(campos).length) cambios.push({ sku: p.sku, campos }); else iguales.push(p.sku);
   }
   const faltantes = Object.values(actualesPorSku).filter(a => !vistos.has(a.sku) && a.activo !== false).map(a => a.sku);
-  return { nuevos, cambios, iguales, faltantes };
+  return { nuevos, cambios, iguales, existencias, faltantes };
+}
+
+// «precio1 25000 → 27000»: qué cambia en un producto, campo por campo (los precios por separado).
+// Los campos internos (grupo, titulo) no se muestran: cambian solos cuando cambia tipo, tela, etc.
+const OCULTOS = ['grupo', 'titulo'];
+const valor = v => (v == null || v === '' ? '—' : typeof v === 'boolean' ? (v ? 'sí' : 'no') : String(v));
+export function detalleCambios({ campos }, actual = {}, costoActual = null) {
+  const lineas = [];
+  for (const [c, nuevo] of Object.entries(campos)) {
+    if (OCULTOS.includes(c)) continue;
+    if (c === 'precios') {
+      nuevo.forEach((n, i) => { const v = actual.precios?.[i] ?? null; if (v !== n) lineas.push(`precio${i + 1} ${valor(v)} → ${valor(n)}`); });
+    } else lineas.push(`${c} ${valor(c === 'costo' ? costoActual : actual[c])} → ${valor(nuevo)}`);
+  }
+  return lineas;
 }

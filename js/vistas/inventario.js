@@ -1,12 +1,12 @@
 // Inventario (§7): consulta, ajustes con motivo, ofertas, importar desde la Carga Masiva y fotos masivas.
-import { h, icono, abrirVentana, toast, esTelefono, pedirMotivo, sin } from '../ui.js';
+import { h, icono, abrirVentana, toast, esTelefono, pedirMotivo, sin, unaVez } from '../ui.js';
 import { titulo, grupoDe, detalle, textoBusqueda } from '../nucleo/producto.js';
 import { registrarVista } from '../app.js';
 import { miniatura } from './vender.js';
 import { colorPrenda } from '../nucleo/colores.js';
 import { compararTallas } from '../nucleo/tipo-prenda.js';
 import { etiquetaTramo, precioDeTramo } from '../nucleo/tramos.js';
-import { leerInventario, planImportacion } from '../nucleo/importar.js';
+import { leerInventario, planImportacion, detalleCambios } from '../nucleo/importar.js';
 import { emparejarFotos } from '../nucleo/fotos.js';
 import { fmtCop } from '../nucleo/dinero.js';
 import { fechaHora } from '../nucleo/fechas.js';
@@ -114,46 +114,78 @@ function abrirGrupo(ctx, g, costos) {
   abrirVentana({ titulo: `${g.titulo}${detalle(g) ? ' · ' + detalle(g) : ''}`, contenido: cont, acciones });
 }
 
-async function abrirImportar(ctx, costos) {
-  const cuerpo = h('div', { class: 'pila' }, h('p', { class: 'nota' }, 'Leyendo el inventario de la Carga Masiva…'));
-  const b = h('button', { class: 'btn primary', id: 'importar-final', disabled: true }, 'Aplicar');
-  const archivo = h('input', { type: 'file', accept: '.json,application/json', class: 'sr', id: 'importar-archivo' });
-  const elegir = h('label', { class: 'btn', for: 'importar-archivo' }, icono('subir'), 'Elegir archivo');
-  const v = abrirVentana({ titulo: 'Importar desde la Carga Masiva', contenido: cuerpo, acciones: h('div', { class: 'acciones' }, archivo, elegir, b) });
-  let plan = null;
-  const mostrar = json => {
-    const { productos, errores, avisos, filas } = leerInventario(json);
-    plan = planImportacion(productos, ctx.productos, costos);
-    const fila = (n, txt, cls) => h('div', { class: `resumen-imp ${cls}` }, h('b', { class: 'num' }, String(n)), txt);
-    cuerpo.replaceChildren(...sin(
-      h('p', { class: 'nota' }, `${plural(filas, 'fila leída', 'filas leídas')}${json?.at ? ` · publicado ${new Date(json.at).toLocaleString('es', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}`),
-      h('div', { class: 'resumenes' },
-        fila(plan.nuevos.length, plan.nuevos.length === 1 ? 'nuevo' : 'nuevos', 'g'),
-        fila(plan.cambios.length, plan.cambios.length === 1 ? 'actualizado' : 'actualizados', 'b'),
-        fila(plan.iguales.length, 'sin cambios', 'n'),
-        fila(errores.length, errores.length === 1 ? 'con error' : 'con errores', errores.length ? 'r' : 'n')),
-      h('p', { class: 'nota' }, 'Los productos nuevos toman la existencia del archivo; los que ya están en el punto de venta conservan la suya.'),
-      plan.faltantes.length ? h('div', { class: 'aviso' }, icono('alerta'), `${plural(plan.faltantes.length, 'producto del punto de venta no viene', 'productos del punto de venta no vienen')} en el archivo. No se borran.`) : null,
-      ...avisos.map(a => h('div', { class: 'aviso' }, icono('alerta'), a)),
-      errores.length ? h('details', { class: 'imp-errores', open: true }, h('summary', {}, `Filas con error (${errores.length}): no se importan`),
-        h('div', { class: 'nota' }, ...errores.slice(0, 100).map(e => h('div', {}, `Fila ${e.fila}${e.sku ? ` · ${e.sku}` : ''}: ${e.motivo}`)))) : null,
-      plan.cambios.length ? h('details', {}, h('summary', {}, 'Ver qué cambia'), h('div', { class: 'nota' }, ...plan.cambios.slice(0, 50).map(c => h('div', {}, `${c.sku}: ${Object.keys(c.campos).join(', ')}`)))) : null));
-    b.disabled = !plan.nuevos.length && !plan.cambios.length;
-  };
-  archivo.addEventListener('change', async () => { try { mostrar(JSON.parse(await archivo.files[0].text())); } catch { cuerpo.replaceChildren(h('div', { class: 'aviso' }, icono('alerta'), 'Ese archivo no es un inventario válido')); } });
-  b.addEventListener('click', async () => {
-    b.disabled = true; b.textContent = 'Aplicando…';
-    const r = await ctx.almacen.aplicarImportacion(plan);
-    if (!r.ok) { b.disabled = false; b.textContent = 'Aplicar'; toast('No se pudo importar', { malo: true }); return; }
-    v.cerrar(); toast('Importación lista');
-  });
+// Sincronizar inventario (solo cuando el administrador lo pulsa): descarga el inventario.json de la
+// Carga Masiva, muestra la vista previa y únicamente al «Aplicar cambios» guarda (upsert por sku).
+const fechaHoraCorta = iso => new Date(iso).toLocaleString('es', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?([ap])\.?\s?m\.?/i, ' $1m');
+function haceCuanto(iso) {
+  const min = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (!Number.isFinite(min) || min < 0) return '';
+  if (min < 1) return 'hace un momento';
+  if (min < 60) return `hace ${min} min`;
+  const horas = Math.round(min / 60);
+  return horas < 24 ? `hace ${horas} h` : `hace ${Math.round(horas / 24)} ${Math.round(horas / 24) === 1 ? 'día' : 'días'}`;
+}
+
+async function abrirSincronizar(ctx, costos, alTerminar) {
+  const cuerpo = h('div', { class: 'pila sinc' }, h('p', { class: 'nota' }, 'Descargando el inventario de la Carga Masiva…'));
+  const aplicar = h('button', { class: 'btn primary', id: 'sinc-aplicar', disabled: true }, icono('check'), 'Aplicar cambios');
+  const cancelar = h('button', { class: 'btn', id: 'sinc-cancelar' }, 'Cancelar');
+  const v = abrirVentana({ titulo: 'Sincronizar inventario', contenido: cuerpo, acciones: h('div', { class: 'acciones' }, cancelar, aplicar) });
+  cancelar.onclick = () => v.cerrar();
+  const fallo = texto => cuerpo.replaceChildren(h('div', { class: 'aviso' }, icono('alerta'), texto), h('p', { class: 'nota' }, 'No se cambió nada en el punto de venta.'));
+
+  let json;
   try {
+    if (!navigator.onLine) throw Object.assign(new Error(), { motivo: 'red' });
     const r = await fetch(`${URL_INVENTARIO}?t=${Date.now()}`, { cache: 'no-store' });
-    if (!r.ok) throw new Error();
-    mostrar(await r.json());
-  } catch {
-    cuerpo.replaceChildren(h('div', { class: 'aviso' }, icono('alerta'), 'No se pudo leer el inventario publicado. Elige el archivo inventario.json.'));
+    if (!r.ok) throw Object.assign(new Error(), { motivo: `http ${r.status}` });
+    try { json = await r.json(); } catch { throw Object.assign(new Error(), { motivo: 'json' }); }
+  } catch (e) {
+    fallo(e.motivo === 'red' || !e.motivo ? 'Sin conexión: no se pudo descargar el inventario de la Carga Masiva. Revisa el internet e inténtalo de nuevo.'
+      : e.motivo === 'json' ? 'El archivo publicado no es un inventario válido (no se pudo leer).'
+      : `No se pudo descargar el inventario (respuesta ${e.motivo.replace('http ', '')}). Inténtalo más tarde.`);
+    return;
   }
+
+  const { productos, errores, avisos, filas } = leerInventario(json);
+  if (!productos.length && errores.length && errores[0].fila === 0) { fallo(errores[0].motivo + '. Publícalo de nuevo desde la Carga Masiva.'); return; }
+  const plan = planImportacion(productos, ctx.productos, costos);
+  const fila = (n, txt, cls) => h('div', { class: `resumen-imp ${cls}` }, h('b', { class: 'num' }, String(n)), txt);
+  const conExist = h('input', { type: 'checkbox', id: 'sinc-existencia' });
+  const pintarBoton = () => { aplicar.disabled = !plan.nuevos.length && !plan.cambios.length && !(conExist.checked && plan.existencias.length); };
+  conExist.addEventListener('change', pintarBoton);
+  const actualizados = plan.cambios.slice(0, 200).map(c => h('div', { class: 'sinc-cambio' }, h('b', {}, c.sku),
+    ...detalleCambios(c, ctx.productos[c.sku], costos[c.sku]?.costo ?? null).map(t => h('span', {}, t))));
+  cuerpo.replaceChildren(...sin(
+    h('p', { class: 'nota sinc-fecha' }, json?.at ? `Archivo del ${fechaHoraCorta(json.at)} (${haceCuanto(json.at)}) · ${filas} filas` : `${filas} filas`),
+    h('div', { class: 'resumenes' },
+      fila(plan.nuevos.length, plan.nuevos.length === 1 ? 'nuevo' : 'nuevos', 'g'),
+      fila(plan.cambios.length, plan.cambios.length === 1 ? 'actualizado' : 'actualizados', 'b'),
+      fila(plan.iguales.length, 'sin cambios', 'n'),
+      fila(errores.length, errores.length === 1 ? 'con error' : 'con errores', errores.length ? 'r' : 'n')),
+    h('label', { class: 'check sinc-check' }, conExist, h('span', {}, h('b', {}, 'Actualizar también existencia'),
+      h('span', { class: 'nota' }, plan.existencias.length
+        ? `${plural(plan.existencias.length, 'producto que ya existe tiene', 'productos que ya existen tienen')} otra existencia en el archivo. Si no lo marcas, conservan la del punto de venta (con las ventas ya descontadas). Los nuevos siempre toman la del archivo.`
+        : 'Las existencias del archivo coinciden con las del punto de venta. Los nuevos toman la del archivo.'))),
+    plan.faltantes.length ? h('div', { class: 'aviso' }, icono('alerta'), `${plural(plan.faltantes.length, 'producto del punto de venta no viene', 'productos del punto de venta no vienen')} en el archivo. No se borran.`) : null,
+    ...avisos.map(a => h('div', { class: 'aviso' }, icono('alerta'), a)),
+    plan.cambios.length ? h('details', { class: 'sinc-lista' }, h('summary', {}, `Ver qué cambia en los actualizados (${plan.cambios.length})`),
+      h('div', { class: 'pila' }, ...actualizados, plan.cambios.length > 200 ? h('p', { class: 'nota' }, `Y ${plan.cambios.length - 200} más.`) : null)) : null,
+    errores.length ? h('details', { class: 'sinc-lista imp-errores', open: true }, h('summary', {}, `Filas con error (${errores.length}): no se aplican`),
+      h('div', { class: 'pila' }, ...errores.slice(0, 200).map(e => h('div', { class: 'sinc-cambio' }, h('b', {}, `Fila ${e.fila}${e.sku ? ' · ' + e.sku : ''}`), h('span', {}, e.motivo))))) : null));
+  pintarBoton();
+
+  aplicar.addEventListener('click', unaVez(aplicar, async () => {
+    aplicar.replaceChildren(icono('check'), 'Aplicando…');
+    const conExistencias = conExist.checked;
+    const r = await ctx.almacen.aplicarImportacion(plan, { existencias: conExistencias });
+    if (!r.ok) { aplicar.replaceChildren(icono('check'), 'Aplicar cambios'); toast(r.error === 'permiso' ? 'Firebase no dio permiso para guardar' : 'No se pudo sincronizar. No se cambió nada.', { malo: true }); return; }
+    const cuando = new Date().toISOString();
+    await ctx.almacen.guardarAjustes('general', { ultimaSincronizacion: cuando, archivoSincronizado: json.at || null });
+    v.cerrar();
+    toast(`Inventario sincronizado: ${plan.nuevos.length} nuevos · ${plan.cambios.length} actualizados${conExistencias && plan.existencias.length ? ` · ${plan.existencias.length} existencias` : ''}`);
+    alTerminar && alTerminar(cuando);
+  }));
 }
 
 function abrirFotos(ctx) {
@@ -240,14 +272,20 @@ registrarVista('/inventario', {
       }) : [h('div', { class: 'vacio' }, busqueda || filtro || genero ? 'No hay prendas con ese filtro' : 'Todavía no hay productos')]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
+    // «Última sincronización» junto al botón (se guarda en Ajustes, así la ven todos los equipos del administrador).
+    const ultima = h('span', { class: 'nota sinc-ultima', id: 'sinc-ultima' });
+    const pintarUltima = (f = ctx.ajustes?.ultimaSincronizacion) => { ultima.textContent = f ? `Última sincronización: ${fechaHoraCorta(f)}` : 'Aún no se ha sincronizado'; };
+    pintarUltima();
     const quitar = ctx.almacen.escuchar('costos', l => { costos = Object.fromEntries(l.map(c => [c.sku, c])); pintar(); });
-    const alDatos = e => { if (e.detail.que === 'productos') pintar(); };
+    const alDatos = e => { if (e.detail.que === 'productos') pintar(); if (e.detail.que === 'ajustes') pintarUltima(); };
     window.addEventListener('pos:datos', alDatos);
     cont.append(...sin(
       h('div', { class: 'cab-vista' },
         h('div', { class: 'acciones' },
           puedeAdmin(ctx, 'fotosMasivas') ? h('button', { class: 'btn', onclick: () => abrirFotos(ctx) }, icono('imagen'), 'Fotos') : null,
-          puedeAdmin(ctx, 'importar') ? h('button', { class: 'btn primary', onclick: () => abrirImportar(ctx, costos) }, icono('subir'), 'Importar') : null)),
+          puedeAdmin(ctx, 'importar') ? h('div', { class: 'sinc-acc' },
+            h('button', { class: 'btn primary', id: 'sinc-abrir', onclick: () => abrirSincronizar(ctx, costos, pintarUltima) }, icono('actualizar'), 'Sincronizar inventario'),
+            ultima) : null)),
       h('div', { class: 'buscar-caja' }, icono('buscar'), buscar),
       filtros,
       lista));

@@ -369,3 +369,11 @@ Suite final: npm test 99/99 · e2e 59/59
 - «separado» se guarda pero no tiene lógica: todas las prendas cuentan en el mix hasta que Carlos defina su uso. precio5 se guarda tal cual (sigue siendo el precio del último tramo). Las comisiones por producto ya no vienen en el archivo: se usan las de Ajustes.
 - Variantes sin talla (39 en el inventario real) se muestran como «Talla única». Íconos para Chemis y Bluson.
 - Probado con el inventario real (1.369 filas, con los nombres de columna de la Carga Masiva v45): 1.369 válidas, 0 errores, 346 tarjetas, importación en 0,2 s.
+
+## v1.71 — Botón «Sincronizar inventario»
+- Reemplaza a «Importar» y reutiliza el mismo importador. Solo sincroniza al pulsarlo (nunca automático). Descarga data/inventario.json de la Carga Masiva con ?t=<fecha> y no guarda nada hasta «Aplicar cambios»; «Cancelar» cierra sin cambios.
+- Vista previa: fecha del archivo («at») y hace cuánto, filas, nuevos, actualizados (con el detalle campo por campo, p. ej. «precio1 25000 → 27000»), sin cambios y con error (listados al final). Aviso de los productos del POS que no vienen en el archivo: nunca se borran.
+- Existencia: los nuevos toman la del archivo; en los que ya existen solo se aplica si se marca «Actualizar también existencia» (desmarcada por defecto), con su movimiento «sincronización» en el historial. El mínimo siempre se actualiza.
+- «Última sincronización: <fecha y hora>» junto al botón; se guarda en Ajustes (ultimaSincronizacion y archivoSincronizado).
+- Sin internet, error de descarga o archivo dañado / sin columnas obligatorias: mensaje claro y no se cambia nada. Las filas con error no se aplican; las válidas sí.
+- Prueba con el inventario real (1.369 filas): primera vez 1.369 nuevos, 0 actualizados, 0 sin cambios, 0 con error; segunda vez con el mismo archivo 0 / 0 / 1.369 / 0.

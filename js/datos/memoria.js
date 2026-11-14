@@ -312,7 +312,8 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       escribio(); avisar('productos', 'movimientos');
       return SI();
     },
-    async aplicarImportacion(plan) {
+    // { existencias: true } aplica también la existencia del archivo a los que ya existen (con su movimiento).
+    async aplicarImportacion(plan, { existencias = false } = {}) {
       const e = exigir('importar'); if (e) return NO(e);
       const fecha = ahora();
       const ponerCosto = (sku, costo) => {
@@ -332,6 +333,11 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
         const p = col.productos.get(sku); if (!p) continue;
         Object.assign(p, resto);
         ponerCosto(sku, costo);
+      }
+      if (existencias) for (const { sku, despues } of plan.existencias || []) {
+        const p = col.productos.get(sku); if (!p) continue;
+        const delta = despues - (p.existencia ?? 0);
+        if (delta) mover(sku, delta, 'sincronización', null, 'Existencia de la Carga Masiva');
       }
       escribio(); avisar('productos', 'costos', 'movimientos');
       return SI();

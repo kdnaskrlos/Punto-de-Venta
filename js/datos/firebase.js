@@ -487,7 +487,8 @@ export function crearFirebase(config) {
       return sinEsperar(b.commit());
     },
     // Lotes de hasta 450 escrituras. Si se corta, repetir la importación es seguro: lo ya creado sale como "sin cambios".
-    async aplicarImportacion(plan) {
+    // { existencias: true } aplica también la existencia del archivo a los que ya existen (con su movimiento).
+    async aplicarImportacion(plan, { existencias = false } = {}) {
       const e = exigir('importar'); if (e) return NO(e);
       const fecha = ahora();
       const ops = [];
@@ -501,6 +502,10 @@ export function crearFirebase(config) {
         const { costo, existencia, ...resto } = campos;
         if (Object.keys(resto).length) ops.push(b => b.update(ref('productos', sku), resto));
         if (costo != null) ops.push(b => b.set(ref('costos', sku), { sku, costo, historial: arrayUnion({ costo, desde: fecha }) }, { merge: true }));
+      }
+      if (existencias) for (const { sku, antes, despues } of plan.existencias || []) {
+        ops.push(b => b.update(ref('productos', sku), { existencia: despues }));
+        ops.push(b => b.set(...movimiento(sku, despues - antes, 'sincronización', null, 'Existencia de la Carga Masiva')));
       }
       try {
         for (let i = 0; i < ops.length; i += 450) {

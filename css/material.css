@@ -353,3 +353,17 @@
 .lista-usuarios .u-acc .u-eliminar{grid-column:1/-1;justify-self:start;width:auto;padding-left:4px}
 .entrar-paso{text-align:center;min-height:19px;margin:0}
 .resumen-imp.r{background:var(--r-bg);border-color:var(--r-bd);color:var(--r-tx)}
+
+/* v1.71 — Sincronizar inventario */
+.sinc-acc{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sinc-ultima{margin:0;font-size:12px}
+.sinc-fecha{margin:0}
+.sinc-check{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:12px;cursor:pointer}
+.sinc-check input{width:20px;height:20px;margin:2px 0 0;flex:none;accent-color:var(--sel-neu)}
+.sinc-check > span{display:flex;flex-direction:column;gap:4px}
+.sinc-check .nota{margin:0}
+.sinc-lista summary{cursor:pointer;font-weight:700;font-size:14px;min-height:40px;display:flex;align-items:center}
+.sinc-cambio{display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+.sinc-cambio:last-child{border-bottom:0}
+.sinc-cambio b{color:var(--ink);font-size:13px}
+.sinc .resumenes{display:grid;grid-template-columns:1fr 1fr;gap:8px}

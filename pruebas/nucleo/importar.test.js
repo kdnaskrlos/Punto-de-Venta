@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { leerInventario, planImportacion, claveGrupo, tituloProducto } from '../../js/nucleo/importar.js';
+import { leerInventario, planImportacion, detalleCambios, claveGrupo, tituloProducto } from '../../js/nucleo/importar.js';
 
 // Tres filas reales del inventario.json de la Carga Masiva (columnas en español).
 const INV = JSON.parse(readFileSync(new URL('./ejemplos/inventario.json', import.meta.url)));
@@ -93,6 +93,13 @@ test('upsert por sku: nuevos, actualizados, sin cambios y los que faltan solo se
   assert.deepEqual(plan.cambios, [{ sku: a.sku, campos: { precios: [26000, 24000, 22500, 20000, 18000] } }]);
   assert.deepEqual(plan.iguales, [b.sku]);
   assert.deepEqual(plan.faltantes, ['viejo']);
+  assert.deepEqual(plan.existencias, [{ sku: a.sku, antes: 3, despues: 99 }, { sku: b.sku, antes: 1, despues: 12 }], 'las existencias distintas van aparte');
+});
+
+test('detalle de cambios campo por campo («precio1 25000 → 27000»)', () => {
+  const actual = { precios: [25000, 24000, 22500, 20000, 18000], minimo: 5, color: 'Blanco', grupo: 'x' };
+  const lineas = detalleCambios({ campos: { precios: [27000, 24000, 22500, 20000, null], minimo: 4, grupo: 'y', costo: 9500 } }, actual, 9000);
+  assert.deepEqual(lineas, ['precio1 25000 → 27000', 'precio5 18000 → —', 'minimo 5 → 4', 'costo 9000 → 9500']);
 });
 
 test('título de la tarjeta: tipo, marca, género y modelo', () => {
