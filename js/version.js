@@ -1,2 +1,2 @@
 // Sube en cada cambio publicado, junto con CACHE en sw.js.
-export const APP_VERSION = 'v2.24';
+export const APP_VERSION = 'v2.25';

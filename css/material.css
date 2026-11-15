@@ -1489,3 +1489,33 @@ label[for=aj-redondeo]{font-weight:600!important}
 @media (max-width:839px){.ajustes > section.tarjeta{background:var(--surface)!important;border:1px solid var(--line)!important;border-radius:16px!important;box-shadow:none!important}}
 /* v2.24 · Usuarios: la última tarjeta conserva su borde de abajo (una regla vieja de lista lo quitaba) */
 .lista-usuarios .usuario:last-child{border-bottom:1px solid var(--line)}
+/* v2.25 · Reporte de cierre de caja */
+.caja-cerrada[role=button]{cursor:pointer;border-radius:12px}
+@media (hover:hover){.caja-cerrada[role=button]:hover{background:var(--surface-2)}}
+.ventana-cierre .caja{width:min(620px,calc(100vw - 32px))!important}
+.rep-cierre{gap:14px!important}
+.rep-cierre .rc-quien{display:flex;flex-direction:column;gap:2px}
+.rep-cierre .rc-quien b{font-size:16px}
+.rep-cierre .rc-resultado{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:14px 16px;border-radius:12px;border:1px solid}
+.rep-cierre .rc-resultado > span{font-size:14px;font-weight:600}
+.rep-cierre .rc-resultado > b{font-size:24px;font-weight:800;letter-spacing:-.01em}
+.rep-cierre .rc-resultado > small{font-size:12px;color:var(--muted)}
+.rep-cierre .rc-resultado.g{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
+.rep-cierre .rc-resultado.y{background:var(--y-bg);border-color:var(--y-bd);color:var(--y-tx)}
+.rep-cierre .rc-resultado.r{background:var(--r-bg);border-color:var(--r-bd);color:var(--r-tx)}
+.rep-cierre .rc-tabla{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.rep-cierre .rc-fila{display:grid;grid-template-columns:minmax(0,1.3fr) repeat(3,minmax(0,1fr));gap:8px;padding:9px 12px;font-size:13px;border-top:1px solid var(--line);align-items:baseline}
+.rep-cierre .rc-fila > span:not(.rc-forma){text-align:right}
+.rep-cierre .rc-fila.cab{border-top:0;background:var(--surface-2);font-size:12px;font-weight:600;color:var(--muted)}
+.rep-cierre .rc-forma{font-weight:600}
+.rep-cierre .rc-dif{font-weight:700}
+.rep-cierre .rc-dif small{font-weight:600;color:var(--muted);font-size:11px}
+.rep-cierre .n-leve .rc-dif{color:var(--y-tx)}.rep-cierre .n-grave .rc-dif{color:var(--r-tx)}
+.rep-cierre .rc-resumen{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rep-cierre .rc-dato{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+.rep-cierre .rc-dato span{font-size:12px;color:var(--muted)}
+.rep-cierre .rc-dato b{font-size:14px;font-weight:700}
+.rep-cierre .rc-nota{padding:10px 12px;border-radius:12px;background:var(--surface-2)}
+.rep-cierre .rc-nota span{font-size:12px;color:var(--muted)}.rep-cierre .rc-nota p{margin:2px 0 0;font-size:14px}
+@media (max-width:420px){.rep-cierre .rc-fila{grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,.9fr));font-size:12px;padding:8px 10px}}
+.rep-cierre .rc-fila.cab > span:first-child{text-align:left}

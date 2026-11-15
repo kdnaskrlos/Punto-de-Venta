@@ -51,6 +51,27 @@ casos('caja', [
     a.strictEqual(await p.$('button:has-text("Entrada o salida")'), null);
     a.strictEqual(await p.$('button:has-text("Reabrir")'), null);
   }],
+  ['v2.25 · Reporte de cierre: Faltante con desglose, resumen y nota', async (env, a) => {
+    const p = await env.pagina({ usuario: 'vendedora', ruta: '/caja' });
+    await abrirConFondo(p);
+    await ventaDemo(p);
+    await p.click('button:has-text("Cerrar caja")');
+    await p.fill('#contado-efectivo-cop', '160.000'); await p.fill('#contado-efectivo-usd', '20');
+    await p.fill('#cierre-nota', 'Faltó vuelto');
+    await p.click('#cierre-final');
+    await p.waitForSelector('text=Caja cerrada');
+    await cambiarA(p, 'admin');
+    await p.evaluate(() => { location.hash = '/caja'; });
+    await p.waitForSelector('.caja-cerrada[role=button]');
+    a.match(await p.innerText('.caja-cerrada .est'), /^Faltante/);
+    await p.click('.caja-cerrada[role=button] b');
+    await p.waitForSelector('.rep-cierre');
+    a.match(await p.innerText('.rc-resultado'), /Faltante/);
+    a.ok(await p.$('.rc-fila:not(.cab)'), 'desglose por forma de pago');
+    a.match(await p.innerText('.rep-cierre'), /Faltó vuelto/);
+    a.ok(await p.$('#rc-whatsapp'));
+    a.deepStrictEqual(p.errores, []);
+  }],
   ['Solo el administrador ve Reabrir', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', ruta: '/caja' });
     await abrirConFondo(p);

@@ -5,6 +5,7 @@ import { esperadoCaja, diferenciasCierre } from '../nucleo/caja.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
 import { NOMBRE_MONEDA } from '../nucleo/formas.js';
 import { fechaHora } from '../nucleo/fechas.js';
+import { abrirReporteCierre, resultadoCierre } from './reporte-cierre.js';
 
 const CLASE = { COP: 'c-cop', USD: 'c-usd', BS: 'c-bs' };
 const NIVEL = { ok: 'g', leve: 'y', grave: 'r' };
@@ -234,10 +235,13 @@ function historial(ctx, cajas) {
   return h('div', { class: 'tarjeta' }, h('h2', { class: 'sec-t' }, icono('historial'), 'Cajas cerradas'),
     ...cerradas.map(c => {
       const peor = (c.cierre?.filas || []).reduce((m, f) => (f.nivel === 'grave' ? 'grave' : m === 'grave' ? m : f.nivel === 'leve' ? 'leve' : m), 'ok');
-      return h('div', { class: 'caja-cerrada' },
+      // v2.25: tocar la caja abre su reporte de cierre; la etiqueta dice Sobrante / Faltante / Cuadró.
+      const res = resultadoCierre(c.cierre?.totalCop);
+      const ver = () => abrirReporteCierre(ctx, c);
+      return h('div', { class: 'caja-cerrada', role: 'button', tabindex: '0', 'data-caja': c.id, onclick: ver, onkeydown: e => { if (e.key === 'Enter') ver(); } },
         h('div', {}, h('b', {}, `@${c.usuario}`), h('div', { class: 'nota' }, `${fechaHora(c.abierta)}${c.cierre?.nota ? ' · ' + c.cierre.nota : ''}`)),
-        h('span', { class: `est ${NIVEL[peor]}` }, c.cierre?.totalCop ? `${c.cierre.totalCop > 0 ? '+' : ''}${fmtCop(c.cierre.totalCop)}` : 'Cuadró'),
-        ctx.puedeVer('reabrirCaja') ? h('button', { class: 'btn', onclick: async () => { const r = await ctx.almacen.reabrirCaja(c.id); toast(r.ok ? 'Caja reabierta' : r.error === 'ya-abierta' ? 'Esa persona ya tiene otra caja abierta' : 'No se pudo reabrir', { malo: !r.ok }); } }, 'Reabrir') : null);
+        h('span', { class: `est ${NIVEL[peor]}` }, res.monto ? `${res.titulo} ${res.monto.replace(' COP', '')}` : res.titulo),
+        ctx.puedeVer('reabrirCaja') ? h('button', { class: 'btn', onclick: async e => { e.stopPropagation(); const r = await ctx.almacen.reabrirCaja(c.id); toast(r.ok ? 'Caja reabierta' : r.error === 'ya-abierta' ? 'Esa persona ya tiene otra caja abierta' : 'No se pudo reabrir', { malo: !r.ok }); } }, 'Reabrir') : null);
     }));
 }
 
