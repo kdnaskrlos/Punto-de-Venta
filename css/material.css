@@ -884,7 +884,7 @@ button.pill:not(.demo){border-color:transparent!important}
 @keyframes repLlena{from{transform:scaleX(0)}to{transform:none}}
 .rep.rep-anim > *{animation:aparece .28s cubic-bezier(.22,.9,.3,1) both}
 .rep.rep-anim > :nth-child(2){animation-delay:50ms}.rep.rep-anim > :nth-child(3){animation-delay:100ms}
-.rep.rep-anim .graf-col i{transform-origin:bottom;animation:repCrece .55s cubic-bezier(.22,.9,.3,1) both;animation-delay:calc(var(--i,0) * 18ms + 80ms)}
+.rep.rep-anim .graf-col i{transform-origin:bottom;animation:repCrece .45s cubic-bezier(.22,.9,.3,1) both;animation-delay:calc(var(--i,0) * 12ms + 40ms)}
 .rep.rep-anim .rep-pila i{transform-origin:left;animation:repLlena .6s cubic-bezier(.22,.9,.3,1) both .12s}
 .rep.rep-anim .rep-top-barra i{transform-origin:left;animation:repLlena .55s cubic-bezier(.22,.9,.3,1) both;animation-delay:calc(var(--i,0) * 50ms + 150ms)}
 .rep.rep-anim .graf-tope{animation:aparece .3s ease-out both .45s}
@@ -932,3 +932,110 @@ button.pill:not(.demo){border-color:transparent!important}
 /* Reportes: mientras llegan los datos del nuevo período, lo anterior queda atenuado (sin brincos). */
 .rep{transition:opacity .18s ease}
 .rep.rep-cargando{opacity:.45;pointer-events:none}
+
+/* ===== v2.03 ===== */
+/* Carrito: deslizar a la izquierda para quitar (como en Pedidos). */
+.zona-carrito .lineas{position:relative}
+.zona-carrito .linea{touch-action:pan-y;position:relative;z-index:1}
+.zona-carrito .linea.deslizando{background:var(--surface)!important;user-select:none}
+.quitar-fondo{position:absolute;left:0;right:0;z-index:0;border-radius:16px;background:#fdecec;border:1px solid #f6c0c0;display:flex;align-items:center;justify-content:flex-end;padding-right:22px;pointer-events:none;transition:background .15s,border-color .15s}
+.quitar-fondo span{display:inline-flex;align-items:center;gap:6px;color:var(--err);font-weight:700;font-size:13px}
+.quitar-fondo svg.i{width:17px;height:17px}
+.quitar-fondo.armado{background:#fbd5d5;border-color:#f19c9c}
+.quitar-fondo.armado svg.i{animation:papelera .5s ease-in-out infinite}
+@keyframes papelera{0%,100%{transform:rotate(0) scale(1.15)}25%{transform:rotate(-14deg) scale(1.25)}75%{transform:rotate(14deg) scale(1.25)}}
+@media (prefers-reduced-motion:reduce){.quitar-fondo.armado svg.i{animation:none}}
+/* Aviso de tramos: sin latido ni brillo (solo el ícono se mueve una vez al cambiar de tramo, desde JS). */
+.aviso-tramo.anim,.aviso-tramo.anim svg.i{animation:none!important}
+/* Ajustes: sin el recuadro que encierra cada pestaña. */
+.ajustes > section.tarjeta{background:none!important;border:0!important;box-shadow:none!important;padding:0!important}
+.zona-carrito .lineas{overflow-x:clip;overflow-clip-margin:6px}
+/* Ajustes: un mismo ritmo en las 4 pestañas — 16 px bajo las pestañas, 20 px entre grupos y 8 px entre un
+   título y su campo. */
+.pestanas-aj{margin-bottom:16px!important}
+.ajustes{margin-top:0!important}
+.ajustes > section.tarjeta{gap:20px!important}
+.ajustes > section.tarjeta > *{margin-top:0!important;margin-bottom:0!important}
+.ajustes .campo{gap:8px!important}
+.ajustes .campo > .et-moneda,.ajustes .campo > label{margin:0!important}
+.tasa-cab{min-height:0!important;margin:0!important}
+.aj-pendiente svg.i{width:18px!important;height:18px!important}
+.ajustes .sec-t{margin:0!important}
+/* Barra de cobro (propuesta A). */
+.vista.vender .barra-cobro.bcA{display:flex!important;flex-direction:column;gap:12px!important;grid-template-areas:none!important}
+.bcA .bc-f1{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;min-width:0}
+.bcA .bc-cnt{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:99px;background:var(--surface);border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;flex:none}
+.bcA .bc-cnt svg.i{width:15px;height:15px;color:var(--accent)}
+.vista.vender .bcA .bco-total{text-align:right;min-width:0}
+.vista.vender .bcA .bco-total .total-cop{font-size:24px!important;letter-spacing:-.01em}
+.vista.vender .bcA .bco-total .total-cop[data-largo=l]{font-size:21px!important}.vista.vender .bcA .bco-total .total-cop[data-largo=xl]{font-size:19px!important}
+.bcA .bc-f2{display:grid;grid-template-columns:64px 64px minmax(0,1fr);gap:8px}
+.vista.vender .bcA .bc-ac{height:56px!important;min-height:56px!important;padding:0 2px!important;border-radius:14px!important;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:3px!important;font-size:11.5px!important;font-weight:600;background:var(--surface)}
+.vista.vender .bcA .bc-ac svg.i{width:20px!important;height:20px!important;display:block!important}
+.vista.vender .bcA .cobrar{height:56px!important;min-height:56px!important;border-radius:14px!important;display:flex!important;align-items:center;justify-content:space-between;padding:0 18px!important;font-size:17px!important;font-weight:700!important;box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 30%,transparent)}
+.vista.vender .bcA .cobrar svg.i{width:22px;height:22px}
+@media (min-width:840px){.vista.vender .bcA .bco-total .total-cop{font-size:28px!important}}
+.vista.vender .bcA .bc-f2 > *{grid-area:auto!important}
+/* Ajustes · Venta: «Redondeo del vuelto» en negrita, como los títulos de Tasas. */
+label[for=aj-redondeo]{font-weight:600!important}
+.vista.vender .barra-cobro.bcA #car-descuento,.vista.vender .barra-cobro.bcA .apartar,.vista.vender .barra-cobro.bcA .cobrar,.vista.vender .barra-cobro.bcA .bco-total{grid-area:auto!important}
+.vista.vender .barra-cobro.bcA{align-items:stretch!important}
+.bcA .bc-f2{grid-template-columns:72px 72px minmax(0,1fr)!important}
+
+/* v2.03 · Tarjetas de Bs reorganizadas (Ajustes · Tasas). */"
+.mb{display:flex;flex-direction:column;gap:8px}
+.modo-bs.mb-card{padding:0!important;display:block!important;gap:0!important;--c:var(--tono-verde);border-radius:14px;border:1px solid color-mix(in srgb,var(--c) 22%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--c) 5%,var(--surface)),var(--surface) 80%);transition:border-color .15s,background .15s,box-shadow .15s}
+.mb-card[data-modo=bcv]{--c:var(--tono-azul)}.mb-card[data-modo=manual]{--c:var(--tono-violeta)}
+.modo-bs.mb-card.activo{border:2px solid color-mix(in srgb,var(--c) 60%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--c) 12%,var(--surface)),color-mix(in srgb,var(--c) 3%,var(--surface)) 85%);box-shadow:0 4px 14px color-mix(in srgb,var(--c) 14%,transparent)}
+.mb-cab{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;column-gap:12px;padding:14px 16px;min-height:64px}
+.mb-card.activo .mb-cab{padding:13px 15px}
+.mb-radio{width:22px;height:22px;border-radius:50%;border:2px solid color-mix(in srgb,var(--c) 55%,var(--line));display:grid;place-items:center}
+.mb-card.activo .mb-radio{border-color:var(--c)}.mb-card.activo .mb-radio::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--c)}
+.mb-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mb-t b{font-size:15px;font-weight:600;color:var(--c)}
+.mb-t small{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mb-val{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;text-align:right}
+.mb-val b{font-size:17px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.mb-card:not(.activo) .mb-val b{color:color-mix(in srgb,var(--ink) 70%,var(--surface))}
+.mb-val small{font-size:11.5px;color:var(--muted)}
+.mb-val.sin b{font-size:13px;font-weight:600;color:var(--muted)}
+.modo-bs .mb-extra{display:none!important;border-top:1px solid color-mix(in srgb,var(--c) 20%,var(--line));margin:0 15px;padding:12px 0 14px 34px}
+.modo-bs.mb-card.activo .mb-extra{display:grid!important;grid-template-columns:minmax(0,1fr) 148px;align-items:center;gap:12px}
+.mb-extra .et{font-size:13px;color:var(--muted);line-height:1.3}
+.mb-extra .et b{display:block;color:var(--ink);font-weight:600;font-size:13.5px}
+.mb-in{display:flex;align-items:center;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:0 12px;gap:6px}
+.mb-in input{flex:1;min-width:0;border:0;background:none;font:600 16px var(--f,inherit);text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);outline:0}
+.mb-in span{font-size:13px;font-weight:600;color:var(--muted)}
+.mb-in:focus-within{border-color:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 18%,transparent)}
+
+.mb-t b{font-size:15px!important}
+.mb-val b.modo-val{font:700 17px var(--f,inherit)!important}
+.mb-val.sin b.modo-val{font-size:13px!important;font-weight:600!important;color:var(--muted)!important}
+.modo-bs.mb-card{border:1px solid color-mix(in srgb,var(--c) 22%,var(--line))!important;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 5%,var(--surface)),var(--surface) 80%)!important;border-radius:14px!important}
+.modo-bs.mb-card.activo{border:2px solid color-mix(in srgb,var(--c) 60%,var(--line))!important;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 12%,var(--surface)),color-mix(in srgb,var(--c) 3%,var(--surface)) 85%)!important;box-shadow:0 4px 14px color-mix(in srgb,var(--c) 14%,transparent)!important}
+.modo-bs .mb-t b{color:var(--c)!important}
+
+/* v2.03 · Encabezado de las ventanas de Reportes. */
+.rd-hero{--c:var(--accent);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;align-items:end;padding:14px 16px;margin-bottom:8px;border-radius:16px;border:1px solid color-mix(in srgb,var(--c) 22%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--c) 12%,var(--surface)) 0%,var(--surface) 78%)}
+.rh-et{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.rh-et svg.i{width:15px;height:15px;color:var(--c)}
+.rh-num{display:block;margin-top:2px;font-size:28px;font-weight:700;line-height:1.1;letter-spacing:-.01em;color:var(--ink);font-variant-numeric:tabular-nums}
+.rh-num small{font-size:12px;font-weight:700;color:var(--cop);margin-left:4px;letter-spacing:0}
+.rh-stats{display:flex;gap:0}
+.rh-stats > div{display:flex;flex-direction:column;align-items:flex-end;padding-left:14px;margin-left:14px;border-left:1px solid color-mix(in srgb,var(--c) 22%,var(--line));line-height:1.15}
+.rh-stats > div:first-child{border-left:0;margin-left:0;padding-left:0}
+.rh-stats b{font-size:16px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rh-stats span{font-size:11.5px;color:var(--muted);white-space:nowrap;margin-top:2px}
+.rh-pila{grid-column:1/-1;display:flex;height:10px;gap:2px;border-radius:99px;overflow:hidden;background:color-mix(in srgb,var(--c) 10%,#eef1f4)}
+.rh-pila i{display:block;height:100%;background:var(--c2)}
+.rh-ley{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:-4px;font-size:11.5px;color:var(--muted)}
+.rh-ley span{display:inline-flex;align-items:center;gap:5px}.rh-ley i{width:8px;height:8px;border-radius:3px;background:var(--c2)}
+.rh-ley b{color:var(--ink);font-weight:600}
+.rd-hero + .rd-fila{border-top:0}
+.rh-lado{text-align:right;font-size:12.5px;color:var(--muted);line-height:1.5}.rh-lado b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.rd-hero{padding:12px 14px!important;gap:10px 16px!important}.rh-num{font-size:26px!important}
+.rd-hero + .rd-fila,.rd-hero + .lista-ventas{border-top:0}
+.rh-lado{text-align:right;font-size:12.5px;color:var(--muted);line-height:1.5}.rh-lado b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.rd-hero{padding:12px 14px!important;gap:10px 16px!important}.rh-num{font-size:26px!important}.rh-num[data-largo=l]{font-size:23px!important}.rh-num[data-largo=xl]{font-size:20px!important}
+.rh-pila i{transform-origin:left;animation:repLlena .55s cubic-bezier(.22,.9,.3,1) both .1s}
+@media (prefers-reduced-motion:reduce){.rh-pila i{animation:none}}

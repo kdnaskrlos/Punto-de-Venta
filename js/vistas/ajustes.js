@@ -38,24 +38,29 @@ function tasas(ctx) {
   const entrada = (id, valor, sufijo, nombre) => h('div', { class: 'tasa-entrada' }, h('input', { class: 'inp num', id, inputmode: 'decimal', value: valor, 'aria-label': nombre }), h('span', { class: 'suf' }, sufijo));
   const filaUsd = (inp, sufijo) => h('div', { class: 'fila-usd' }, h('span', { class: 'usd-eq' }, '1 USD ='), inp);
   const cop = entrada('aj-cop', aj.copPorUsd ? fmtCop(aj.copPorUsd) : '', 'COP');
-  const recargo = entrada('aj-recargo', aj.bsRecargo != null ? fmtDec(aj.bsRecargo) : '', 'Bs.', 'Recargo en Bs sobre Binance');
-  const manual = entrada('aj-bs-manual', aj.bsManual ? fmtDec(aj.bsManual) : '', 'Bs.', 'Tasa Bs por dólar');
-  const valBin = h('span', { class: 'modo-val num' }), valBcv = h('span', { class: 'modo-val num' }), valMan = h('span', { class: 'modo-val num' });
+  // v2.03: tarjetas de Bs reorganizadas: círculo · nombre con su fuente y hace cuánto · la tasa a la derecha con
+  // «Bs por USD»; solo la elegida se abre para escribir (recargo de Binance o tu tasa manual), con campos de 44 px.
+  const mbIn = (id, valor, pre, nombre) => h('label', { class: 'mb-in' }, pre ? h('span', {}, pre) : null, h('input', { class: 'num', id, inputmode: 'decimal', autocomplete: 'off', value: valor, 'aria-label': nombre }), h('span', {}, 'Bs'));
+  const recargo = mbIn('aj-recargo', aj.bsRecargo != null ? fmtDec(aj.bsRecargo) : '', '+', 'Recargo en Bs sobre Binance');
+  const manual = mbIn('aj-bs-manual', aj.bsManual ? fmtDec(aj.bsManual) : '', null, 'Tasa Bs por dólar');
+  const valor = () => { const b = h('b', { class: 'modo-val num' }); return { b, el: h('div', { class: 'mb-val' }, b, h('small', {}, 'Bs por USD')) }; };
+  const valBin = valor(), valBcv = valor(), valMan = valor();
   const base = Number(remota.rate) || null, bcv = Number(remota.bcv?.rate) || null;
   const num = (inp, m) => parseMonto(inp.querySelector('input').value, m);
-  const tarjeta = (v, titulo, desc, valor, extra) => h('div', { class: 'modo-bs', 'data-modo': v, role: 'radio', tabindex: '0',
+  const tarjeta = (v, titulo, desc, val, extra) => h('div', { class: 'modo-bs mb-card', 'data-modo': v, role: 'radio', tabindex: '0',
     onclick: e => { if (modo.value !== v) { modo.value = v; pintar(); if (!e.target.closest('input')) e.currentTarget.dispatchEvent(new Event('change', { bubbles: true })); } } },
-    h('div', { class: 'modo-cab' }, h('span', { class: 'radio' }), h('div', { class: 'modo-txt' }, h('b', {}, titulo), h('span', { class: 'nota' }, desc)), valor),
+    h('div', { class: 'mb-cab' }, h('span', { class: 'mb-radio' }), h('div', { class: 'modo-txt mb-t' }, h('b', {}, titulo), h('small', {}, desc)), val.el),
     extra);
-  const cBin = tarjeta('binance', 'Binance P2P', base ? `Binance ${fmtDec(base)} · ${haceTiempo(remota.updated_at)}` : 'Todavía sin datos', valBin, h('div', { class: 'modo-extra' }, h('div', { class: 'fila-usd' }, h('span', { class: 'usd-eq' }, 'Recargo: +'), recargo)));
+  const cBin = tarjeta('binance', 'Binance P2P', base ? haceTiempo(remota.updated_at) : 'Todavía sin datos', valBin,
+    h('div', { class: 'modo-extra mb-extra' }, h('span', { class: 'et' }, h('b', {}, 'Recargo'), base ? `sobre ${fmtDec(base)}` : 'sobre la tasa de Binance'), recargo));
   const cBcv = tarjeta('bcv', 'BCV oficial', remota.bcv?.updated_at ? `Banco Central · ${haceTiempo(remota.bcv.updated_at)}` : 'Banco Central · sin datos', valBcv, null);
-  const cMan = tarjeta('manual', 'Manual', 'Escribe tú la tasa: cuántos Bs. equivalen a 1 USD', valMan, h('div', { class: 'modo-extra' }, filaUsd(manual)));
-  const grupo = h('div', { class: 'modos-bs', id: 'aj-bs-modo', role: 'radiogroup', 'aria-label': 'Bs por dólar' }, cBin, cBcv, cMan);
+  const cMan = tarjeta('manual', 'Manual', 'Escríbela tú', valMan, h('div', { class: 'modo-extra mb-extra' }, h('span', { class: 'et' }, h('b', {}, 'Tu tasa'), 'Bs por 1 USD'), manual));
+  const grupo = h('div', { class: 'modos-bs mb', id: 'aj-bs-modo', role: 'radiogroup', 'aria-label': 'Bs por dólar' }, cBin, cBcv, cMan);
+  const ponerVal = (v, n) => { v.b.textContent = n ? fmtDec(n) : 'Sin datos'; v.el.classList.toggle('sin', !n); };
   function pintar() {
     for (const c of [cBin, cBcv, cMan]) { const on = c.dataset.modo === modo.value; c.classList.toggle('activo', on); c.setAttribute('aria-checked', String(on)); c.setAttribute('aria-pressed', String(on)); }
     const r = num(recargo, 'BS') || 0;
-    valBin.textContent = base ? `${fmtDec(base + r)} Bs.` : '—';
-    valBcv.textContent = bcv ? `${fmtDec(bcv)} Bs.` : '—';
+    ponerVal(valBin, base ? base + r : null); ponerVal(valBcv, bcv); ponerVal(valMan, num(manual, 'BS'));
   }
   recargo.addEventListener('input', pintar);
   manual.addEventListener('input', () => { modo.value = 'manual'; pintar(); });

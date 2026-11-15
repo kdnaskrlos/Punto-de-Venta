@@ -5,7 +5,7 @@ import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, 
 import { coincide, textoPreparado } from '../nucleo/busqueda.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
-import { titulo, grupoDe, textoBusqueda, fotoDe, nombreSinGenero } from '../nucleo/producto.js';
+import { titulo, grupoDe, textoBusqueda, fotoDe } from '../nucleo/producto.js';
 import { tipoPrenda, compararTallas } from '../nucleo/tipo-prenda.js';
 import { colorPrenda } from '../nucleo/colores.js';
 import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
@@ -88,10 +88,9 @@ function contador(ctx, l) {
 }
 function lineaCarrito(ctx, l, aj, compacta) {
   const p = ctx.productos[l.sku];
-  // v1.99: el género va en la segunda línea con el color y la talla (sin tela, como en v1.92).
-  const ng = nombreSinGenero(p);
-  const g = { titulo: ng.nombre, tipo: p.tipo, genero: p.genero, foto: fotoDe(p, ctx.imagenes) };
-  const variante = [ng.genero, p.color, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku;
+  // v2.03: el género vuelve al nombre; debajo color y talla, sin la palabra «Talla» («Blanco · 6»).
+  const g = { titulo: titulo(p), tipo: p.tipo, genero: p.genero, foto: fotoDe(p, ctx.imagenes) };
+  const variante = [p.color, p.talla].filter(Boolean).join(' · ') || p.sku;
   const alternar = () => { const c = carrito(ctx); c.abierta = c.abierta === l.sku ? null : l.sku; window.dispatchEvent(new CustomEvent('pos:carrito')); };
   if (compacta) return h('div', { class: 'linea mini', 'data-sku': l.sku, role: 'button', tabindex: '0', 'aria-expanded': 'false', onclick: alternar, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } } },
     h('span', { class: 'lc-q num' }, String(l.cantidad)),
@@ -167,12 +166,13 @@ export function ponerCarrito(cont, nuevo) {
       { height: `${alto}px`, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth, marginTop: '0px', opacity: 0, transform: 'translateY(-8px)', offset: .45 },
       { height: `${alto}px`, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth, marginTop: '0px', opacity: 1, transform: 'none' }],
       { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)' });
-    an.onfinish = () => { aviso.style.overflow = ''; aviso.classList.add('anim'); };
+    an.onfinish = () => { aviso.style.overflow = ''; moverIcono(aviso); };
     an.oncancel = () => { aviso.style.overflow = ''; };
   } else if (aviso && aviso.textContent !== avisoAntes) {
-    // Cambió el número: el texto se renueva con un fundido corto y el aviso late.
-    aviso.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
-    aviso.classList.add('anim');
+    // v2.03: el aviso ya no late ni brilla; solo el ícono se mueve una vez, y solo si cambió el tramo al
+    // que se llega (no cuando solo cambia cuántas prendas faltan).
+    const tramo = t => (String(t || '').match(/precio\s+(\S+)\s*$/i) || [])[1];
+    if (tramo(aviso.textContent) !== tramo(avisoAntes)) moverIcono(aviso);
   } else if (!aviso && avisoViejo) {
     // Se fue: un fantasma del aviso queda en su lugar, se desvanece y cierra su espacio.
     const totales = cont.querySelector('.carrito > .totales');
@@ -190,6 +190,70 @@ export function ponerCarrito(cont, nuevo) {
         { duration: 270, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => fantasma.remove();
     }
   }
+}
+
+// v2.03 · Deslizar una prenda del carrito hacia la izquierda para quitarla (igual que en Pedidos): detrás aparece
+// un fondo rojo crema con la papelera y «Quitar»; si el dedo llega casi al borde izquierdo la papelera se mueve
+// y al soltar la prenda sale; si no, vuelve a su lugar. Con «Deshacer» en el aviso.
+function deslizarParaQuitar(ctx, cont) {
+  let fila = null, fondo = null, x0 = 0, y0 = 0, modo = '', dx = 0, pid = null, tocoHace = 0;
+  cont.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const f = e.target.closest('.linea[data-sku]');
+    if (!f || e.target.closest('button, input, .stepper')) return;
+    fila = f; x0 = e.clientX; y0 = e.clientY; modo = ''; dx = 0; pid = e.pointerId;
+  });
+  cont.addEventListener('pointermove', e => {
+    if (!fila || e.pointerId !== pid) return;
+    const mx = e.clientX - x0, my = e.clientY - y0;
+    if (!modo) {
+      if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
+      modo = Math.abs(mx) > Math.abs(my) && mx < 0 ? 'x' : 'y';
+      if (modo === 'y') { fila = null; return; }
+      try { fila.setPointerCapture(pid); } catch {}
+      fila.style.transition = 'none'; fila.classList.add('deslizando');
+      const lista = fila.parentElement;
+      fondo = h('div', { class: 'quitar-fondo', 'aria-hidden': 'true', style: `top:${fila.offsetTop}px;height:${fila.offsetHeight}px;border-radius:${getComputedStyle(fila).borderRadius}` }, h('span', {}, icono('borrar'), h('b', {}, 'Quitar')));
+      lista.insertBefore(fondo, fila);
+    }
+    if (modo !== 'x') return;
+    e.preventDefault();
+    dx = Math.min(0, mx);
+    // Solo quita si el dedo llega casi al borde izquierdo (como en Pedidos).
+    const fin = e.clientX < Math.max(40, innerWidth * .12) && dx < -Math.min(innerWidth, cont.clientWidth + 40) * .4;
+    fila.style.transform = `translateX(${dx}px)`;
+    fondo?.classList.toggle('armado', fin); fila.classList.toggle('borrar', fin);
+  });
+  const soltar = () => {
+    if (!fila) return;
+    const f = fila, fd = fondo; fila = null; fondo = null;
+    if (modo !== 'x') return;
+    tocoHace = Date.now();
+    f.style.transition = 'transform .2s ease';
+    if (f.classList.contains('borrar')) {
+      f.style.transform = 'translateX(-110%)';
+      const sku = f.dataset.sku, c = carrito(ctx), i = c.lineas.findIndex(l => l.sku === sku), linea = c.lineas[i];
+      setTimeout(() => {
+        fd?.remove();
+        if (i < 0) return;
+        c.lineas.splice(i, 1);
+        window.dispatchEvent(new CustomEvent('pos:carrito'));
+        toast('Prenda quitada', { deshacer: () => { const cc = carrito(ctx); cc.lineas.splice(Math.min(i, cc.lineas.length), 0, linea); window.dispatchEvent(new CustomEvent('pos:carrito')); } });
+      }, 180);
+    } else {
+      f.style.transform = ''; f.classList.remove('borrar', 'deslizando');
+      setTimeout(() => { fd?.remove(); f.style.transition = ''; }, 220);
+    }
+  };
+  cont.addEventListener('pointerup', soltar); cont.addEventListener('pointercancel', soltar);
+  // Un deslizamiento no cuenta como toque (no abre ni cierra la línea compacta).
+  cont.addEventListener('click', e => { if (Date.now() - tocoHace < 350 && e.target.closest('.linea')) { e.stopPropagation(); e.preventDefault(); } }, true);
+}
+
+function moverIcono(aviso) {
+  const ic = aviso.querySelector('svg.i');
+  if (!ic || MENOS_MOV() || !ic.animate) return;
+  ic.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(-14deg)', offset: .2 }, { transform: 'rotate(12deg)', offset: .45 }, { transform: 'rotate(-6deg)', offset: .7 }, { transform: 'rotate(0)' }], { duration: 700, easing: 'ease-in-out' });
 }
 
 export function equivalentes(ctx, cop) {
@@ -230,15 +294,19 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
 // Barra de cobro (v1.97): total en COP con su equivalente en USD y Bs, Cobrar, y debajo Descuento y Apartar.
 // En el teléfono va fija sobre la barra de íconos; en la computadora es la columna derecha.
 function barraCobro(ctx, r) {
-  // v1.99: total arriba a la derecha y, en una línea, Descuento · Apartar · Cobrar.
-  return h('div', { class: 'barra-cobro' },
-    h('div', { class: 'bco-total' },
-      r.descuento ? h('span', { class: 'bco-desc' }, icono('etiqueta'), '−' + fmtCop(r.descuento)) : null,
-      h('div', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
-      h('div', { class: 'tc-eq' }, equivalentes(ctx, r.total))),
-    h('button', { class: 'btn', type: 'button', id: 'car-descuento', onclick: () => abrirDescuento(ctx) }, icono('etiqueta'), 'Descuento'),
-    h('button', { class: 'btn apartar', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'),
-    h('button', { class: 'btn primary cobrar', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') }, 'Cobrar'));
+  // v2.03 (propuesta A): arriba cuántas prendas y el total a la derecha; abajo Descuento y Apartar como botones
+  // cuadrados con ícono y nombre, y Cobrar grande con flecha. Mismo degradado verde crema.
+  return h('div', { class: 'barra-cobro bcA' },
+    h('div', { class: 'bc-f1' },
+      h('span', { class: 'bc-cnt' }, icono('franela'), `${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`),
+      h('div', { class: 'bco-total' },
+        r.descuento ? h('span', { class: 'bco-desc' }, icono('etiqueta'), '−' + fmtCop(r.descuento)) : null,
+        h('div', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
+        h('div', { class: 'tc-eq' }, equivalentes(ctx, r.total)))),
+    h('div', { class: 'bc-f2' },
+      h('button', { class: 'btn bc-ac', type: 'button', id: 'car-descuento', onclick: () => abrirDescuento(ctx) }, icono('etiqueta'), 'Descuento'),
+      h('button', { class: 'btn bc-ac apartar', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'),
+      h('button', { class: 'btn primary cobrar', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') }, 'Cobrar', icono('der'))));
 }
 
 // Descuento por monto, en pesos o en dólares (sin porcentaje). En dólares se convierte a pesos con la tasa del día.
@@ -405,6 +473,7 @@ registrarVista('/vender', {
     // Total, Cobrar, Descuento y Apartar van en la barra de cobro: abajo en el teléfono, columna derecha en la computadora.
     const lado = h('aside', { class: 'lado-carrito barra-cobro-lado', hidden: true });
     const zonaCarrito = h('div', { class: 'zona-carrito' });
+    deslizarParaQuitar(ctx, zonaCarrito);
     const btnTodos = h('button', { class: 'btn btn-todos', type: 'button', id: 'todos-productos', onclick: () => { catalogo = true; pintar(); } }, icono('cuadricula'), 'Todos los productos');
     const vacio = h('div', { class: 'venta-vacia' }, btnTodos);
     let catalogo = false, antes = new Map(), tRecien = 0, tLista = 0;

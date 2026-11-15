@@ -6,7 +6,7 @@ import { resumenDia, masVendidos, inventarioBajo, valorInventario, ventasPorPeri
 import { resumenComisiones, ganaComision } from '../nucleo/comisiones.js';
 import { fmtCop, fmtMonto } from '../nucleo/dinero.js';
 import { NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
-import { hoy, sumarDias, rangoCorto } from '../nucleo/fechas.js';
+import { hoy, sumarDias, rangoCorto, inicioDia } from '../nucleo/fechas.js';
 import { abrirCalendarioRango } from './calendario.js';
 import { escucharVentasConCosto, listaVentas } from './ventas-rango.js';
 
@@ -60,6 +60,12 @@ function graficaVentas(p) {
 // v2.01 · Contenido de las ventanas de Reportes: un total arriba y filas con ícono o puesto, nombre, detalle,
 // monto y una barra de proporción. Sencillo, con el color de cada forma de pago.
 const rdTotal = (et, valor, sub) => h('div', { class: 'rd-tot' }, h('span', {}, et), h('b', { class: 'num', 'data-largo': largo(valor) }, valor), sub ? h('small', {}, sub) : null);
+// v2.03 · Encabezado de las ventanas: tarjeta con degradado, la cifra principal y a la derecha dos datos que la
+// lista no muestra; debajo, en Montos y Más vendidos, una barra con el reparto.
+const rdHero = ({ ic, et, valor, moneda, lado, pila }) => h('div', { class: 'rd-hero' },
+  h('div', {}, h('span', { class: 'rh-et' }, icono(ic), et), h('b', { class: 'rh-num num', 'data-largo': largo(valor) }, valor, moneda ? h('small', {}, moneda) : null)),
+  lado ? h('div', { class: 'rh-lado' }, ...lado.flatMap((x, i) => (i ? [h('br'), ...x] : x))) : null,
+  pila && pila.length ? h('div', { class: 'rh-pila', 'aria-hidden': 'true' }, ...pila.map(([p, c]) => h('i', { style: `width:${p}%;--c2:${c}` }))) : null);
 const rdFila = ({ ic, puesto, color, nombre, detalle, valor, sub, pct: p, extra }) => h('div', { class: 'rd-fila' + (p != null ? ' con-barra' : ''), style: color ? `--c:${color}` : '' },
   puesto != null ? h('span', { class: 'rd-puesto num' + (puesto <= 3 ? ' top' : '') }, String(puesto)) : ic ? h('span', { class: 'rd-ic' }, icono(ic)) : null,
   h('span', { class: 'rd-n' }, h('b', {}, nombre), detalle ? h('small', {}, detalle) : null, extra || null),
@@ -112,7 +118,9 @@ registrarVista('/reportes', {
         sumaPesos ? h('div', { class: 'rep-leyenda' }, ...enPesos.map(([id, m]) => h('span', {},
           h('i', { style: `--c:${tono[id]};--o:1` }), nombreForma(id).nombre, h('b', { class: 'num' }, ` ${pct(m, sumaPesos)}%`)))) : h('p', { class: 'nota' }, 'Sin cobros.'),
         sumaPesos ? h('button', { type: 'button', class: 'rep-ver', onclick: () => abrirVentana({ titulo: 'Cobros por forma de pago', contenido: h('div', { class: 'rd' },
-          rdTotal('Cobrado en total, en pesos', fmtCop(sumaPesos)),
+          (() => { const ef = pct(enPesos.filter(([id]) => nombreForma(id).efectivo).reduce((t, [, m]) => t + m, 0), sumaPesos);
+            return rdHero({ ic: 'monedas', et: 'Cobrado en total', valor: fmtCop(sumaPesos), moneda: 'COP', lado: [['Efectivo ', h('b', {}, `${ef} %`)], ['Digital ', h('b', {}, `${100 - ef} %`)]],
+              pila: enPesos.map(([id, m]) => [(m / sumaPesos) * 100, tono[id]]) }); })(),
           ...enPesos.map(([id, mCop]) => { const f = nombreForma(id), m = r.porForma[id] || 0;
             return rdFila({ ic: iconoForma(f), color: tono[id], nombre: f.nombre, detalle: f.moneda === 'COP' ? 'Pesos' : `${NOMBRE_MONEDA[f.moneda]} · ≈ ${fmtCop(mCop)} COP`,
               valor: `${fmtMonto(m, f.moneda)} ${NOMBRE_MONEDA[f.moneda]}`, sub: `${pct(mCop, sumaPesos)} %`, pct: pct(mCop, sumaPesos) }); })) }) }, 'Ver montos', icono('der')) : null);
@@ -122,7 +130,13 @@ registrarVista('/reportes', {
         top.length ? reusar('top', top.slice(0, 5).map(m => m.nombre + m.unidades).join('|'), () => h('div', { class: 'rep-top' }, ...top.slice(0, 5).map((m, i) => h('div', { class: 'rep-top-fila', style: `--i:${i}` },
           h('span', { class: 'rep-top-n' }, m.nombre), h('span', { class: 'rep-top-barra' }, h('i', { style: `width:${pct(m.unidades, maxU)}%` })), h('b', { class: 'num' }, String(m.unidades)))))) : h('p', { class: 'nota' }, 'Sin ventas en este período.'),
         top.length ? h('button', { type: 'button', class: 'rep-ver', id: 'rep-ver-vendidos', onclick: () => abrirVentana({ titulo: 'Más vendidos', contenido: h('div', { class: 'rd' },
-          rdTotal('Prendas vendidas', String(top.reduce((s2, m) => s2 + m.unidades, 0)), `${top.length} ${top.length === 1 ? 'producto' : 'productos'}`),
+          (() => { const u = top.reduce((s2, m) => s2 + m.unidades, 0), tl = {};
+            for (const m of top) for (const [t, n] of Object.entries(m.tallas)) tl[t] = (tl[t] || 0) + n;
+            const [tt, tn] = Object.entries(tl).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
+            const porVenta = r.ventas ? (r.unidades / r.ventas).toLocaleString('es-VE', { maximumFractionDigits: 1 }) : '0';
+            const TONOS = ['var(--accent)', 'color-mix(in srgb,var(--accent),#fff 30%)', 'color-mix(in srgb,var(--accent),#fff 50%)', 'color-mix(in srgb,var(--accent),#fff 65%)', 'color-mix(in srgb,var(--accent),#fff 75%)'];
+            return rdHero({ ic: 'franela', et: 'Prendas vendidas', valor: String(u), lado: [['Talla top ', h('b', {}, `${tt} · ${tn}`)], [h('b', {}, porVenta), ' por venta']],
+              pila: top.map((m, i) => [u ? (m.unidades / u) * 100 : 0, TONOS[Math.min(i, 4)]]) }); })(),
           ...top.map((m, i) => rdFila({ puesto: i + 1, nombre: m.nombre, extra: h('span', { class: 'rd-tallas' }, ...Object.entries(m.tallas).map(([t, n]) => h('span', { class: 'rd-chip num' }, `${t} · ${n}`))),
             valor: String(m.unidades), sub: m.unidades === 1 ? 'prenda' : 'prendas', pct: pct(m.unidades, maxU) }))) }) }, top.length > 5 ? `Ver los ${top.length}` : 'Ver tallas', icono('der')) : null);
 
@@ -130,7 +144,7 @@ registrarVista('/reportes', {
       cuerpo.replaceChildren(...sin(resumen, h('div', { class: 'rep-dos' }, pagos, vendidos),
         h('div', { class: 'rep-filas tarjeta' },
           filaSeccion('rep-ventas', 'historial', 'Ventas', `${validas} en este período`, () => abrirVentana({ titulo: 'Ventas', contenido: h('div', { class: 'rd' },
-            rdTotal(`${validas} ${validas === 1 ? 'venta' : 'ventas'} en el período`, fmtCop(r.total), r.ventas ? `Ticket promedio ${fmtCop(r.ticketPromedio)}` : null), listaVentas(ctx, datos.ventas, 200)) })),
+            rdHero({ ic: 'historial', et: 'Vendido en el período', valor: fmtCop(r.total), moneda: 'COP', lado: [[h('b', {}, String(validas)), validas === 1 ? ' venta' : ' ventas'], ['ticket ', h('b', {}, fmtCop(r.ticketPromedio || 0))]] }), listaVentas(ctx, datos.ventas, 200)) })),
           gestion ? filaSeccion('bajas', 'alerta', 'Existencias bajas', bajas.length ? `${bajas.length} ${bajas.length === 1 ? 'talla' : 'tallas'} en el mínimo o menos` : 'Todo en orden', () => abrirVentana({ titulo: 'Existencias bajas', contenido: h('div', { class: 'rd bajas-det' },
             ...(bajas.length ? [rdTotal('Tallas en el mínimo o menos', String(bajas.length), `${bajas.filter(p => p.existencia <= 0).length} agotadas`),
               ...bajas.slice(0, 100).map(p => rdFila({ ic: 'alerta', color: p.existencia <= 0 ? 'var(--err)' : 'var(--tono-ambar)', nombre: titulo(p), detalle: [p.talla ? 'Talla ' + p.talla : 'Talla única', p.color, p.tela].filter(Boolean).join(' · '),
@@ -143,20 +157,35 @@ registrarVista('/reportes', {
               h('small', {}, inv.aPrecio ? `${pct(inv.aPrecio - inv.aCosto, inv.aPrecio)} % del precio detal` : ''))) })) : null)));
       if (animar) { animar = false; cuerpo.classList.remove('rep-anim'); void cuerpo.offsetWidth; cuerpo.classList.add('rep-anim'); clearTimeout(tAnim); tAnim = setTimeout(() => cuerpo.classList.remove('rep-anim'), 900); }
     };
-    // v2.01: al cambiar de período se espera a que lleguen ventas y costos (máx. 1,2 s) y se pinta una sola vez
-    // con la animación; mientras tanto lo anterior queda atenuado. Así no hay «0 · calculando…» ni brincos.
-    let tEspera = 0, esperando = false;
+    // v2.03: una sola escucha para todo el año (desde el lunes si la semana empezó el año anterior). Hoy, Semana,
+    // Mes y Año se sacan de ahí sin volver a pedir datos: el cambio es instantáneo y solo queda la animación.
+    // Al entrar se espera a que lleguen ventas y costos (máx. 1,2 s) con lo anterior atenuado; un rango del
+    // calendario fuera del año usa su propia escucha.
+    const d0 = hoy(), lunes0 = sumarDias(d0, -((new Date(`${d0}T12:00:00Z`).getUTCDay() + 6) % 7));
+    const baseDesde = [lunes0, d0.slice(0, 5) + '01-01'].sort()[0];
+    let base = null, quitarBase = null, tEspera = 0, esperando = false;
+    const recortar = (d, desde, hasta) => {
+      const a = inicioDia(desde), b = inicioDia(sumarDias(hasta, 1));
+      return { ...d, ventas: d.ventas.filter(v => v.fecha >= a && v.fecha < b) };
+    };
+    const enBase = (desde, hasta) => desde >= baseDesde && hasta <= d0;
+    const soltar = () => { if (!esperando) return; esperando = false; clearTimeout(tEspera); cuerpo.classList.remove('rep-cargando'); pintar(); };
+    const esperar = () => { esperando = true; cuerpo.classList.add('rep-cargando'); clearTimeout(tEspera); tEspera = setTimeout(soltar, 1200); };
+    const llego = d => { if (esperando) { if (d.listo && !resumenDia(d.ventas, d.costosVenta, ctx.ajustes.formasPago).gananciaParcial) soltar(); return; } pintar(); };
     const cargar = (desde, hasta) => {
-      rangoActual = [desde, hasta]; animar = true; memo.clear(); quitar && quitar();
-      esperando = true; cuerpo.classList.add('rep-cargando'); clearTimeout(tEspera);
-      const soltar = () => { if (!esperando) return; esperando = false; clearTimeout(tEspera); cuerpo.classList.remove('rep-cargando'); pintar(); };
-      tEspera = setTimeout(soltar, 1200);
-      quitar = escucharVentasConCosto(ctx, { desde, hasta }, d => { datos = d; if (esperando) { if (d.listo && !resumenDia(d.ventas, d.costosVenta, ctx.ajustes.formasPago).gananciaParcial) soltar(); return; } pintar(); });
+      rangoActual = [desde, hasta]; animar = true; memo.clear(); quitar && quitar(); quitar = null;
+      if (gestion && enBase(desde, hasta)) {
+        if (!quitarBase) { esperar(); quitarBase = escucharVentasConCosto(ctx, { desde: baseDesde, hasta: d0 }, d => { base = d; if (rangoActual && enBase(...rangoActual) && !quitar) { datos = recortar(d, ...rangoActual); llego(datos); } }); }
+        else if (base) { datos = recortar(base, desde, hasta); if (esperando) llego(datos); else pintar(); }
+        return;
+      }
+      esperar();
+      quitar = escucharVentasConCosto(ctx, { desde, hasta }, d => { datos = d; llego(d); });
     };
     const rango = selectorRango(cargar);
     cont.append(h('div', { class: 'cab-vista' }, gestion ? rango.el : h('span', { class: 'nota' }, 'Tus ventas de hoy')), cuerpo);
     cargar(...(gestion ? rango.valor() : [hoy(), hoy()]));
-    return () => { clearTimeout(tAnim); clearTimeout(tEspera); quitar && quitar(); };
+    return () => { clearTimeout(tAnim); clearTimeout(tEspera); quitar && quitar(); quitarBase && quitarBase(); };
   },
 });
 

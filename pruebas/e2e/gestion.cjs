@@ -98,7 +98,8 @@ casos('gestion', [
     a.ok(await p.$('.rep.rep-anim'), 'anima al cambiar de período');
     a.strictEqual(await p.$eval('.rep-pagos .rep-ver', e => getComputedStyle(e).color), 'rgb(21, 128, 61)');
     await p.click('.rep-pagos .rep-ver');
-    await p.waitForSelector('.capa .rd .rd-tot');
+    await p.waitForSelector('.capa .rd .rd-hero');
+    a.match(await texto(p, '.capa .rd-hero .rh-lado'), /^Efectivo \d+ % ?Digital \d+ %$/);
     a.ok(await p.$$eval('.capa .rd-fila', f => f.length >= 1));
   }],
   ['v2.01 · Inventario: Género en orden Todos / Unisex / Dama / Niño / Niña', async (env, a) => {
@@ -206,15 +207,20 @@ casos('gestion', [
     a.match(await p.innerText('.fila-usd:has(#aj-cop)'), /1 USD =/);
     await p.click('#aj-bs-modo [data-modo="binance"]');
     await p.fill('#aj-recargo', '15');
-    a.match(await p.innerText('[data-modo="binance"]'), /Binance 1\.074,57 · hace 15 min/);
-    a.match(await p.innerText('[data-modo="binance"] .modo-val'), /1\.089,57 Bs\./);
-    a.match(await p.innerText('[data-modo="bcv"] .modo-val'), /904,45 Bs\./);
+    // v2.03: la fuente y hace cuánto bajo el nombre; la tasa a la derecha con «Bs por USD»; el recargo dice sobre qué se suma.
+    a.match(await p.innerText('[data-modo="binance"] .mb-t'), /hace 15 min/);
+    a.match(await p.innerText('[data-modo="binance"] .mb-extra'), /sobre 1\.074,57/);
+    a.strictEqual(await p.innerText('[data-modo="binance"] .modo-val'), '1.089,57');
+    a.strictEqual(await p.innerText('[data-modo="bcv"] .modo-val'), '904,45');
+    a.match(await p.innerText('[data-modo="bcv"] .mb-val'), /Bs por USD/);
     a.strictEqual(await p.isVisible('#aj-recargo'), true);
     await p.click('#aj-bs-modo [data-modo="bcv"]');
     a.strictEqual(await p.isVisible('#aj-recargo'), false);
     a.strictEqual(await p.getAttribute('[data-modo="bcv"]', 'aria-checked'), 'true');
+    a.strictEqual(await p.isVisible('#aj-bs-manual'), false, 'solo la elegida se abre');
+    await p.click('#aj-bs-modo [data-modo="manual"]');
     await p.fill('#aj-bs-manual', '1.100');
-    a.strictEqual(await p.getAttribute('[data-modo="manual"]', 'aria-checked'), 'true', 'escribir la tasa manual la elige');
+    a.strictEqual(await p.getAttribute('[data-modo="manual"]', 'aria-checked'), 'true');
     await p.click('#aj-guardar');
     await p.waitForFunction(() => window.__pos.ctx.ajustesTasas?.bsModo === 'manual');
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.tasas.bsPorUsd), 1100);

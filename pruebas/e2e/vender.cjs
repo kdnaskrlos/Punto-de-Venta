@@ -223,9 +223,9 @@ casos('vender', [
     a.strictEqual(l, 12, 'el carrito a 12 px del buscador');
     // Tarjetas cobrar: color y talla en texto (sin pastilla); «Precio 1–5» en pastilla con el c/u al lado; monto en su línea base.
     a.deepStrictEqual(await p.$$eval('.zona-carrito .linea .lc-chip', e => e.map(x => getComputedStyle(x).backgroundColor)), ['rgba(0, 0, 0, 0)']);
-    // v1.99: nombre sin el género; el género va con el color y la talla; el tramo en texto verde (sin pastilla); «COP» del color del precio.
-    a.strictEqual(await texto(p, '.zona-carrito .linea .linea-info > b'), 'Jogger Texcol');
-    a.strictEqual(await texto(p, '.zona-carrito .linea .lc-chip'), 'Caballero · Negro · Talla M');
+    // v2.03: nombre con el género; debajo color y talla; el tramo en texto verde (sin pastilla); «COP» del color del precio.
+    a.strictEqual(await texto(p, '.zona-carrito .linea .linea-info > b'), 'Jogger Texcol Caballero');
+    a.strictEqual(await texto(p, '.zona-carrito .linea .lc-chip'), 'Negro · M', 'v2.03: el género vuelve al nombre y la talla va sin «Talla»');
     a.deepStrictEqual(await p.$eval('.zona-carrito .linea .lc-tramo', e => [getComputedStyle(e).backgroundColor, getComputedStyle(e).color]), ['rgba(0, 0, 0, 0)', 'rgb(21, 128, 61)']);
     a.strictEqual(await p.$eval('.zona-carrito .linea .lc-monto .c-cop', e => getComputedStyle(e).color), await p.$eval('.zona-carrito .linea .lc-monto .monto', e => getComputedStyle(e).color));
     a.match(await texto(p, '.zona-carrito .linea .lc-precio'), /^Precio 1–5\s*42\.000 c\/u$/);

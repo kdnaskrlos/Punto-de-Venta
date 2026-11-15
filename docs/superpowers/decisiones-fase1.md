@@ -486,3 +486,10 @@ Suite final: npm test 99/99 · e2e 59/59
   - Usuarios: «Eliminar» centrado.
   - Modo demo: vuelve la línea bajo el título de la ventana.
 - v2.02: Reportes sin brincos al cambiar de período (video de Carlos). Antes se pintaba con las ventas («Ganancia 0 · calculando…»), otra vez al llegar los costos y otra al congelarlos; cada vez se reiniciaba la animación y había un cuadro en blanco. Ahora lo anterior queda atenuado mientras llegan ventas y costos (máx. 1,2 s) y se pinta una sola vez con la animación; las actualizaciones posteriores no la repiten.
+- v2.03 (aprobado con bocetos HTML):
+  - Tarjetas cobrar: el género vuelve al nombre («Franela AS Niño») y debajo color y talla sin la palabra «Talla» («Blanco · 6»).
+  - Carrito: deslizar una prenda a la izquierda para quitarla, igual que en Pedidos (fondo rojo crema con papelera y «Quitar»; solo quita si el dedo llega casi al borde; «Deshacer» en el aviso). Funciona con dedo y con mouse.
+  - Aviso de tramos: sin latido ni brillo; solo el ícono se mueve una vez y solo cuando cambia el tramo al que se llega.
+  - Barra de cobro (propuesta A, mismo degradado): pastilla con las prendas, total a la derecha con USD y Bs; Descuento y Apartar como botones cuadrados con ícono y nombre; Cobrar grande con flecha y sombra verde.
+  - Ajustes: sin el recuadro que encerraba cada pestaña; ritmo fijo (16 px bajo las pestañas, 20 px entre grupos, 8 px entre título y campo); «Redondeo del vuelto» en negrita. Tarjetas de Bs reorganizadas: círculo · nombre con fuente y hace cuánto · tasa a la derecha con «Bs por USD»; solo la elegida se abre para el recargo de Binance o la tasa manual (campos de 44 px).
+  - Reportes: una sola escucha del año (desde el lunes si la semana empezó el año anterior); Hoy/Semana/Mes/Año se recortan de ahí y el cambio es instantáneo; barras de la gráfica más rápidas. Encabezado de Ver montos, Más vendidos y Ventas: tarjeta con degradado, la cifra principal y a la derecha dos datos que la lista no muestra (efectivo/digital; talla más vendida y prendas por venta; ventas y ticket), con la barra del reparto en Montos y Más vendidos.
