@@ -15,7 +15,9 @@ export function montoSugerido(faltaCop, moneda, tasas) {
   return desdeCop(faltaCop, moneda, tasas, { haciaArriba: true });
 }
 
-export function vueltoEn(vueltoCop, moneda, tasas, redondeo = 100) {
+// redondeoUsd (v2.06): paso del vuelto en dólares (0,01 = sin redondear; 1 = dólares enteros).
+export function vueltoEn(vueltoCop, moneda, tasas, redondeo = 100, redondeoUsd = 0.01) {
   if (moneda === 'COP') return redondear(vueltoCop, redondeo);
-  return desdeCop(vueltoCop, moneda, tasas);
+  const v = desdeCop(vueltoCop, moneda, tasas);
+  return moneda === 'USD' && v != null && redondeoUsd > 0.01 ? redondear(v, redondeoUsd) : v;
 }

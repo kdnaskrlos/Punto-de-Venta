@@ -42,7 +42,7 @@ casos('vender', [
       a.ok((await texto(p, `.zona-carrito .linea[data-sku="${sku}"] .lc-tramo`)).includes('6–11'), sku);
     }
     a.strictEqual(await texto(p, '.barra-cobro .total-cop'), '186.000');
-    a.ok((await texto(p, '.barra-cobro .tc-eq')).includes('47,70'));
+    a.ok((await texto(p, '.barra-cobro .equivalentes')).includes('47,70'));
   }],
   ['Agotada: pastilla roja y tallas sin elegir', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
@@ -58,7 +58,7 @@ casos('vender', [
     await p.click('.linea[data-sku="J-M"] [aria-label="Quitar"]');
     a.strictEqual(await p.$('.linea[data-sku="J-M"]'), null);
   }],
-  ['v1.97 · Teléfono: al agregar se limpia la búsqueda, la prenda queda en el carrito y la barra de cobro fija muestra total, Cobrar, Descuento y Apartar', async (env, a) => {
+  ['v1.97 · Teléfono: al agregar se limpia la búsqueda, la prenda queda en el carrito y la barra de cobro fija es un botón con el total', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'vendedora', caja: true, ruta: '/vender' });
     a.strictEqual(await p.isVisible('.lado-carrito'), false, 'sin prendas no hay barra');
     await agregar(p, 'Buzo Etanol Caballero Gris', 'S', 1);
@@ -66,7 +66,8 @@ casos('vender', [
     a.strictEqual(await p.isVisible('.rejilla'), false, 'la lista se oculta');
     a.ok(await p.isVisible('.zona-carrito .linea[data-sku="B-S"]'));
     a.strictEqual(await texto(p, '.barra-cobro .total-cop'), '48.000');
-    a.deepStrictEqual(await p.$$eval('.barra-cobro button', b => b.map(x => x.textContent.trim())), ['Descuento', 'Apartar', 'Cobrar']);
+    // v2.06: la barra es un solo botón (Descuento y Apartar pasan a la pantalla de cobro).
+    a.deepStrictEqual(await p.$$eval('.barra-cobro button', b => b.map(x => x.querySelector('.bt-txt').innerText.replace(/\s+/g, ' ').trim())), ['prenda en total']);
     await p.waitForTimeout(350); // la barra termina de subir
     const r = await p.$eval('.lado-carrito', e => { const b = e.getBoundingClientRect(), n = document.querySelector('.side').getBoundingClientRect(); return [Math.round(b.left), Math.round(innerWidth - b.right), Math.round(n.top - b.bottom), getComputedStyle(e).position]; });
     a.ok(r[0] === 0 && r[1] === 0 && Math.abs(r[2]) <= 2 && r[3] === 'fixed', 'de borde a borde, justo encima de la barra de íconos: ' + r);
@@ -248,11 +249,11 @@ casos('vender', [
     a.strictEqual(await p.$$eval('.rejilla .tarjeta-prenda', e => e.length), 0);
     a.ok(await p.isVisible('#todos-productos'));
   }],
-  ['v1.97 · Computadora: carrito a la izquierda y columna derecha con total, Cobrar, Descuento y Apartar', async (env, a) => {
+  ['v1.97 · Computadora: carrito a la izquierda y columna derecha con el botón de cobro (total adentro)', async (env, a) => {
     const p = await env.pagina({ ancho: 1440, alto: 900, usuario: 'vendedora', caja: true, ruta: '/vender' });
     a.strictEqual(await p.isVisible('.lado-carrito'), false, 'sin prendas, sin columna');
     await agregar(p, 'Jogger Texcol Caballero Negro', 'M', 1);
-    const r = await p.evaluate(() => { const l = document.querySelector('.zona-carrito .linea').getBoundingClientRect(), d = document.querySelector('.lado-carrito').getBoundingClientRect(), c = document.querySelector('.barra-cobro .cobrar').getBoundingClientRect(), t = document.querySelector('.barra-cobro .bco-total').getBoundingClientRect(); return [l.right < d.left, Math.round(innerWidth - d.right), t.bottom <= c.top, getComputedStyle(document.querySelector('.lado-carrito')).position !== 'fixed']; });
+    const r = await p.evaluate(() => { const l = document.querySelector('.zona-carrito .linea').getBoundingClientRect(), d = document.querySelector('.lado-carrito').getBoundingClientRect(), c = document.querySelector('.barra-cobro .cobrar').getBoundingClientRect(), t = document.querySelector('.barra-cobro .cobrar .total-cop').getBoundingClientRect(); return [l.right < d.left, Math.round(innerWidth - d.right), t.top >= c.top && t.bottom <= c.bottom, getComputedStyle(document.querySelector('.lado-carrito')).position !== 'fixed']; });
     a.deepStrictEqual(r, [true, 0, true, true]);
   }],
   ['v1.98 · Teléfono: al entrar a Vender la barra de cobro sube desde abajo (nunca aparece a media pantalla); al quitar una prenda se desvanece; al vaciar el carrito la barra baja', async (env, a) => {
@@ -269,16 +270,20 @@ casos('vender', [
     a.strictEqual(await p.$eval('.lado-carrito', e => e.hidden), false, 'primero baja');
     await p.waitForFunction(() => document.querySelector('.lado-carrito').hidden);
   }],
-  ['v1.99 · Barra de cobro: total a la derecha y Descuento · Apartar · Cobrar en una línea (teléfono y computadora); «Todos los productos» al centro', async (env, a) => {
+  ['v2.06 · Barra de cobro: un solo botón con prendas en total y el total con sus equivalentes (teléfono y computadora); «Todos los productos» al centro', async (env, a) => {
     for (const opc of [{ movil: true }, { ancho: 1440, alto: 900 }]) {
       const p = await env.pagina({ ...opc, usuario: 'vendedora', caja: true, ruta: '/vender' });
       const v = await p.$eval('#todos-productos', b => { const r = b.getBoundingClientRect(), s = document.querySelector('.vender-main .buscador').getBoundingClientRect(), n = document.querySelector('.side').getBoundingClientRect(); const fin = innerWidth < 840 ? n.top : innerHeight; return Math.abs((r.top + r.bottom) / 2 - (s.bottom + fin) / 2); });
       a.ok(v < 40, 'centrado en el espacio libre: ' + v);
-      await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+      await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 2 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
       await p.waitForTimeout(400);
-      const r = await p.evaluate(() => { const q = s => document.querySelector('.barra-cobro ' + s).getBoundingClientRect(); const d = q('#car-descuento'), ap = q('.apartar'), c = q('.cobrar'), t = q('.bco-total'), b = document.querySelector('.barra-cobro').getBoundingClientRect();
-        return { linea: Math.abs(d.top - ap.top) < 2 && Math.abs(ap.top - c.top) < 2, orden: d.left < ap.left && ap.left < c.left, derecha: Math.abs(t.right - b.right) < 2, arriba: t.bottom <= d.top }; });
-      a.deepStrictEqual(r, { linea: true, orden: true, derecha: true, arriba: true });
+      a.strictEqual(await p.$$eval('.barra-cobro button', b => b.length), 1);
+      a.strictEqual(await p.$('.barra-cobro #car-descuento'), null, 'Descuento está en la pantalla de cobro');
+      a.strictEqual(await texto(p, '.barra-cobro .bt-cnt'), '2');
+      a.strictEqual(await texto(p, '.barra-cobro .bt-txt b'), 'prendas');
+      a.strictEqual(await texto(p, '.barra-cobro .bt-txt small'), 'en total');
+      a.strictEqual(await p.$eval('.barra-cobro .bt-txt small', e => getComputedStyle(e).fontWeight), '400', '«en total» sin negrita');
+      a.ok(/^Cobrar /.test(await p.$eval('.barra-cobro .cobrar', b => b.getAttribute('aria-label'))));
     }
   }],
   ['v2.00 · Detalle de la prenda (Inventario): sin cajas, color y tela bajo el nombre, tallas con total, precios por tramo y ficha en dos columnas', async (env, a) => {
@@ -298,22 +303,19 @@ casos('vender', [
     const lineas = await p.$$eval('.stk-capa .dfila', f => f.map(x => getComputedStyle(x).borderBottomWidth));
     a.ok(lineas.every(w => w === '0px'), 'una sola línea entre filas');
   }],
-  ['v2.00 · Ajustes: sin aviso flotante en ninguna pestaña; en Tasas un ícono verde solo indica cambios; Binance verde', async (env, a) => {
+  ['v2.06 · Ajustes: sin aviso flotante ni ícono de cambios; «Guardar cambios» se activa al cambiar; Binance verde', async (env, a) => {
     const p = await env.pagina({ ancho: 390, alto: 844, ruta: '/ajustes' });
-    a.strictEqual(await p.isVisible('#aj-pendiente'), false);
+    a.strictEqual(await p.$('#aj-pendiente'), null, 'sin ícono de cambios sin guardar');
+    a.strictEqual(await p.$eval('#aj-guardar', b => b.disabled), true);
     await p.fill('#aj-cop', '4.000');
-    a.ok(await p.isVisible('#aj-pendiente')); await p.waitForTimeout(300);
+    a.strictEqual(await p.$eval('#aj-guardar', b => b.disabled), false); await p.waitForTimeout(300);
     a.strictEqual(await p.$('.aviso-guardar'), null, 'sin aviso flotante');
-    a.strictEqual(await p.$eval('#aj-pendiente', e => e.tagName), 'SPAN', 'no es un botón');
-    a.strictEqual(await p.$eval('#aj-pendiente', e => getComputedStyle(e).color), 'rgb(21, 128, 61)');
-    const fila = await p.evaluate(() => { const l = document.querySelector('label[for="aj-cop"]').getBoundingClientRect(), i = document.querySelector('#aj-pendiente').getBoundingClientRect(); return Math.abs((l.top + l.bottom) / 2 - (i.top + i.bottom) / 2); });
-    a.ok(fila < 3, 'alineado con el título: ' + fila);
     a.strictEqual(await p.$eval('.modo-bs[data-modo=binance] .modo-txt b', e => getComputedStyle(e).color), 'rgb(21, 128, 61)');
     a.strictEqual(new Set(await p.$$eval('.modo-bs .modo-txt b', b => b.map(x => getComputedStyle(x).color))).size, 3);
     await p.click('#aj-tab-venta'); await p.fill('#aj-com-0-normal', '5.000').catch(() => {});
     a.strictEqual(await p.$('.aviso-guardar'), null);
     await p.click('#aj-guardar');
-    await p.waitForFunction(() => document.querySelector('#aj-pendiente').hidden);
+    await p.waitForFunction(() => document.querySelector('#aj-guardar').disabled);
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.ajustesTasas?.copPorUsd), 4000);
   }],
   ['v2.00 · Detalle del apartado: teléfono abre WhatsApp, prendas en filas con una sola línea y sin línea sobre los botones', async (env, a) => {
@@ -363,5 +365,19 @@ casos('vender', [
     await p.fill('#buscar', 'gorra'); await p.click('.tarjeta-prenda[data-nombre^="Gorra"]');
     await p.waitForSelector('.toast:has-text("No hay más existencia")');
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.find(l => l.sku === 'G-U').cantidad), 1);
+  }],
+  ['v2.06 · «Todos los productos» se escribe en el buscador y la lista solo se quita al borrar la frase completa', async (env, a) => {
+    const p = await env.pagina({ ancho: 390, alto: 844, usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.click('#todos-productos');
+    a.strictEqual(await p.inputValue('#buscar'), 'Todos los productos');
+    const n = await p.$$eval('.rejilla .tarjeta-prenda', e => e.length);
+    a.ok(n > 3);
+    await p.focus('#buscar'); await p.keyboard.press('End');
+    for (let i = 0; i < 4; i++) await p.keyboard.press('Backspace');
+    a.strictEqual(await p.$$eval('.rejilla .tarjeta-prenda', e => e.length), n, 'borrar unas letras no quita la lista');
+    await p.fill('#buscar', '');
+    a.strictEqual(await p.isVisible('.rejilla'), false);
+    await p.click('#todos-productos'); await p.click('.buscar-borrar');
+    a.strictEqual(await p.isVisible('.rejilla'), false, 'la × también la quita');
   }],
 ]);

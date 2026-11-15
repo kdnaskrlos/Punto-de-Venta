@@ -396,3 +396,56 @@ export function desplegar(cuerpo, abrir, alTerminar) {
       .onfinish = () => { cuerpo.hidden = true; cuerpo.style.overflow = ''; alTerminar && alTerminar(); };
   }
 }
+
+// v2.03/v2.06 · Deslizar hacia la izquierda para quitar (como en Pedidos): detrás aparece un fondo rojo crema con la
+// papelera y «Quitar»; si el dedo llega casi al borde izquierdo la papelera se mueve y al soltar la tarjeta sale
+// (y se llama a quitar(fila)); si no, vuelve a su lugar. Se puede empezar sobre botones o campos: un toque sigue
+// siendo toque y, si se desliza, el campo pierde el foco. sel: selector de las tarjetas dentro de cont.
+export function deslizarParaQuitar(cont, sel, quitar, { soloTelefono = false } = {}) {
+  let fila = null, fondo = null, x0 = 0, y0 = 0, modo = '', pid = null, tocoHace = 0;
+  cont.addEventListener('pointerdown', e => {
+    if ((e.pointerType === 'mouse' && e.button !== 0) || (soloTelefono && !esTelefono())) return;
+    const f = e.target.closest(sel);
+    if (!f || !cont.contains(f) || e.target.closest('select, textarea')) return;
+    fila = f; x0 = e.clientX; y0 = e.clientY; modo = ''; pid = e.pointerId;
+  });
+  cont.addEventListener('pointermove', e => {
+    if (!fila || e.pointerId !== pid) return;
+    const mx = e.clientX - x0, my = e.clientY - y0;
+    if (!modo) {
+      if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
+      modo = Math.abs(mx) > Math.abs(my) && mx < 0 ? 'x' : 'y';
+      if (modo === 'y') { fila = null; return; }
+      if (fila.contains(document.activeElement)) document.activeElement.blur();
+      try { fila.setPointerCapture(pid); } catch {}
+      fila.style.transition = 'none'; fila.classList.add('deslizando');
+      fondo = h('div', { class: 'quitar-fondo', 'aria-hidden': 'true', style: `top:${fila.offsetTop}px;height:${fila.offsetHeight}px;border-radius:${getComputedStyle(fila).borderRadius}` }, h('span', {}, icono('borrar'), h('b', {}, 'Quitar')));
+      fila.parentElement.insertBefore(fondo, fila);
+    }
+    if (modo !== 'x') return;
+    e.preventDefault();
+    const dx = Math.min(0, mx);
+    const fin = e.clientX < Math.max(40, innerWidth * .12) && dx < -Math.min(innerWidth, cont.clientWidth + 40) * .4;
+    fila.style.transform = `translateX(${dx}px)`;
+    fondo?.classList.toggle('armado', fin); fila.classList.toggle('borrar', fin);
+  });
+  const soltar = () => {
+    if (!fila) return;
+    const f = fila, fd = fondo; fila = null; fondo = null;
+    if (modo !== 'x') return;
+    tocoHace = Date.now();
+    f.style.transition = 'transform .2s ease';
+    if (f.classList.contains('borrar')) {
+      f.style.transform = 'translateX(-110%)';
+      setTimeout(() => { fd?.remove(); quitar(f); }, 180);
+    } else {
+      f.style.transform = ''; f.classList.remove('borrar', 'deslizando');
+      setTimeout(() => { fd?.remove(); f.style.transition = ''; }, 220);
+    }
+  };
+  cont.addEventListener('pointerup', soltar); cont.addEventListener('pointercancel', soltar);
+  // Que arrastrar el texto seleccionado de un campo no robe el gesto.
+  cont.addEventListener('dragstart', e => { if (fila) e.preventDefault(); });
+  // Un deslizamiento no cuenta como toque.
+  cont.addEventListener('click', e => { if (Date.now() - tocoHace < 350 && e.target.closest(sel)) { e.stopPropagation(); e.preventDefault(); } }, true);
+}

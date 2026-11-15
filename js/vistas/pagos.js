@@ -1,5 +1,5 @@
 // Panel de pagos reutilizable (cobrar, apartar, abonar, completar): formas por moneda, montos, falta y vuelto (§9.2).
-import { h, icono, esTelefono } from '../ui.js';
+import { h, icono, esTelefono, deslizarParaQuitar } from '../ui.js';
 import { estadoCobro, montoSugerido, vueltoEn } from '../nucleo/cobro.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
 import { formaEfectivo, NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
@@ -17,7 +17,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   let botones = null;
   let monedaVuelto = 'COP';
   const barra = h('div', { class: 'barra-falta', role: 'status' });
-  const red = ctx.ajustes.redondeo || 100;
+  const red = ctx.ajustes.redondeo || 100, redUsd = ctx.ajustes.redondeoUsd || 0.01;
   let listo = false; // no avisar cambios mientras se construye el panel
   const avisar = () => { if (listo) alCambiar(); };
 
@@ -104,25 +104,42 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     const e = estado();
     pagos.forEach(p => p.pintarEq && p.pintarEq());
     if (e.vueltoCop >= red / 2 && !permitirMenos) {
-      const v = vueltoEn(e.vueltoCop, monedaVuelto, ctx.tasas, red);
+      const v = vueltoEn(e.vueltoCop, monedaVuelto, ctx.tasas, red, redUsd);
       barra.className = 'barra-falta vuelto';
       barra.replaceChildren(h('span', {}, 'Vuelto'), ' ', h('span', { class: 'monto num' }, v == null ? 'Sin tasa' : `${fmtMonto(v, monedaVuelto)} ${NOMBRE_MONEDA[monedaVuelto]}`),
-        h('div', { class: 'vuelto-moneda segmentado' }, ...GRUPOS.filter(([m]) => formaEfectivo(formas, m)).map(([m]) => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === monedaVuelto), disabled: vueltoEn(e.vueltoCop, m, ctx.tasas, red) == null, onclick: () => { monedaVuelto = m; pintarBarra(); avisar(); } }, NOMBRE_MONEDA[m]))));
+        h('div', { class: 'vuelto-moneda segmentado' }, ...GRUPOS.filter(([m]) => formaEfectivo(formas, m)).map(([m]) => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === monedaVuelto), disabled: vueltoEn(e.vueltoCop, m, ctx.tasas, red, redUsd) == null, onclick: () => { monedaVuelto = m; pintarBarra(); avisar(); } }, NOMBRE_MONEDA[m]))));
     } else if (e.cuadra || (permitirMenos && e.faltaCop < total)) {
       barra.className = 'barra-falta ok';
-      barra.replaceChildren(h('span', {}, permitirMenos && !e.cuadra ? 'Saldo' : 'Falta'), ' ', h('span', { class: 'monto num' }, fmtCop(e.cuadra ? 0 : e.faltaCop)));
+      barra.replaceChildren(h('span', {}, permitirMenos && !e.cuadra ? 'Saldo' : 'Faltan'), ' ', h('span', { class: 'monto num' }, fmtCop(e.cuadra ? 0 : e.faltaCop)));
     } else {
       barra.className = 'barra-falta falta';
-      barra.replaceChildren(h('span', {}, 'Falta'), ' ', h('span', { class: 'monto num' }, fmtCop(e.faltaCop)));
+      barra.replaceChildren(h('span', {}, 'Faltan'), ' ', h('span', { class: 'monto num' }, fmtCop(e.faltaCop)));
     }
   }
 
+  // v2.06: en el teléfono el pago se quita deslizándolo a la izquierda (como las prendas del carrito), sin papelera.
+  deslizarParaQuitar(lista, '.pago[data-forma]', fila => {
+    const p = pagos.find(x => x.forma.id === fila.dataset.forma);
+    if (!p) return;
+    const tarjeta = botones.querySelector(`[data-forma-card="${p.forma.id}"]`);
+    tarjeta?.classList.remove('activa'); tarjeta?.setAttribute('aria-pressed', 'false');
+    const fin = () => { const i = pagos.indexOf(p); if (i >= 0) pagos.splice(i, 1); pintar(); avisar(); };
+    if (!fila.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { fin(); return; }
+    const cs = getComputedStyle(fila), tx = fila.style.transform;
+    fila.style.overflow = 'hidden'; fila.style.pointerEvents = 'none';
+    fila.animate([
+      { height: fila.offsetHeight + 'px', marginTop: cs.marginTop, opacity: 0, transform: tx },
+      { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', opacity: 0, transform: tx }],
+      { duration: 220, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = fin;
+  }, { soloTelefono: true });
   botones = h('div', { class: 'formas-cobro' });
   const el = h('div', { class: 'panel-pagos' }, lista, h('div', { class: 'sec-m' }, 'Forma de pago'), botones);
   pintar();
   listo = true;
   return {
     el,
+    // v2.06: el total puede cambiar dentro del cobro (descuento): se recalcula falta y vuelto.
+    ponerTotal(n) { total = n; pintarBarra(); avisar(); },
     barra, // la ventana la coloca en el pie, siempre visible
     estado,
     // Pagos y vuelto listos para guardar en la venta o el apartado.
@@ -131,7 +148,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       const pagosOk = e.pagos.filter(p => p.monto > 0).map(p => ({ forma: p.forma, nombre: formas.find(f => f.id === p.forma).nombre, moneda: p.moneda, monto: p.monto, equivalenteCop: p.equivalenteCop }));
       let vuelto = null;
       if (!permitirMenos && e.vueltoCop >= red / 2) {
-        const monto = vueltoEn(e.vueltoCop, monedaVuelto, ctx.tasas, red);
+        const monto = vueltoEn(e.vueltoCop, monedaVuelto, ctx.tasas, red, redUsd);
         vuelto = { moneda: monedaVuelto, monto, forma: formaEfectivo(formas, monedaVuelto), equivalenteCop: e.vueltoCop };
       }
       return { pagos: pagosOk, vuelto, estado: e };

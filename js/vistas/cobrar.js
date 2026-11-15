@@ -3,7 +3,8 @@ import { nombreVenta } from '../nucleo/producto.js';
 import { h, icono, abrirVentana, toast, largo } from '../ui.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
-import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento, equivalentes } from './vender.js';
+import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento, equivalentes, abrirDescuento } from './vender.js';
+import { crearApartado } from './apartados.js';
 import { crearPanelPagos } from './pagos.js';
 import { comisionesVenta } from '../nucleo/comisiones.js';
 import { repartirDescuento } from '../nucleo/descuento.js';
@@ -57,29 +58,64 @@ export function resumenCliente(ctx) {
 export function abrirCobrar(ctx) {
   if (cobroAbierto()) return;
   revisarDescuento(ctx);
-  const r0 = resumenCarrito(ctx);
+  let r0 = resumenCarrito(ctx);
   if (!r0.lineas.length) return;
   if (r0.total <= 0) { toast('El total debe ser mayor que 0', { malo: true }); return; }
-  const idVenta = ctx.almacen.nuevoId();
+  const idVenta = ctx.almacen.nuevoId(), idApartado = ctx.almacen.nuevoId();
   let guardando = false, hecha = false;
-  const final = h('button', { class: 'btn primary grande', id: 'cobrar-final' }, `Cobrar ${fmtCop(r0.total)}`);
-  const textoFinal = `Cobrar ${fmtCop(r0.total)}`;
+  // v2.06: sin encabezado «Cobrar». Arriba, volver y el cliente; el total con su Descuento; abajo Apartar y Cobrar.
+  const final = h('button', { class: 'btn primary grande', id: 'cobrar-final' });
+  const abonoTxt = h('small', { hidden: true });
+  const apartar = h('button', { class: 'btn grande cb-apartar', id: 'cobro-apartar', type: 'button' }, h('span', { class: 'cb-ap-t' }, icono('apartado'), 'Apartar'), abonoTxt);
   const actualizar = () => {
-    final.disabled = guardando || !panel.estado().cuadra;
+    const e = panel.estado();
+    final.disabled = guardando || !e.cuadra;
     final.classList.toggle('cargando', guardando);
-    final.textContent = guardando ? 'Cobrando…' : textoFinal;
+    final.textContent = guardando ? 'Cobrando…' : `Cobrar ${fmtCop(r0.total)}`;
+    // Apartar: lo pagado queda como abono (puede ser 0); no se aparta si sobra (eso es una venta).
+    const abono = Math.min(e.pagadoCop, r0.total);
+    apartar.disabled = guardando || e.vueltoCop > 0 || e.cuadra || e.pagos.some(p => p.equivalenteCop == null);
+    abonoTxt.hidden = !(abono > 0 && !e.cuadra); abonoTxt.textContent = `abono ${fmtCop(abono)}`;
   };
   const panel = crearPanelPagos(ctx, { total: r0.total, alCambiar: () => actualizar() });
   const cliente = resumenCliente(ctx);
-  const cuerpo = h('div', { class: 'cobro' },
+  const totalBox = h('div', { class: 'total-cobro tarjeta cb-total' });
+  const descBox = h('div', { class: 'cb-desc' });
+  // v2.06: el descuento va fuera del recuadro verde, justo debajo del total.
+  const pintarTotal = () => {
+    totalBox.replaceChildren(
+      h('div', { class: 'cb-fila' }, h('span', { class: 'et' }, 'Total a cobrar'),
+        h('span', { class: 'tc-der' }, h('span', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r0.total)) }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')), equivalentes(ctx, r0.total))));
+    descBox.replaceChildren(...[
+      h('button', { type: 'button', class: 'cb-desc-btn', id: 'car-descuento', onclick: () => abrirDescuento(ctx) }, icono('etiqueta'), r0.descuento ? 'Cambiar descuento' : 'Agregar descuento'),
+      r0.descuento ? h('span', { class: 'cb-desc-monto' }, h('span', { class: 'num' }, `−${fmtCop(r0.descuento)}`), h('span', { class: 'moneda' }, 'COP')) : null].filter(Boolean));
+  };
+  pintarTotal();
+  // v2.06: sin flecha para volver (se vuelve con el botón atrás del teléfono o Esc).
+  const cuerpo = h('div', { class: 'cobro cobro2' },
     cliente.el,
-    h('div', { class: 'total-cobro tarjeta' }, h('span', { class: 'et' }, 'Total a cobrar'),
-      h('span', { class: 'tc-der' }, h('span', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r0.total)) }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')), equivalentes(ctx, r0.total))),
+    totalBox, descBox,
     panel.el);
-  const v = abrirVentana({ titulo: 'Cobrar', contenido: cuerpo, acciones: h('div', { class: 'pie-cobro' }, panel.barra, final), pantallaCompleta: true });
-  v.alCerrar = () => cliente.quitar();
+  const v = abrirVentana({ titulo: 'Cobrar', sinCabecera: true, contenido: cuerpo, acciones: h('div', { class: 'pie-cobro' }, panel.barra, h('div', { class: 'cb-botones' }, apartar, final)), pantallaCompleta: true });
+  // Si cambia el descuento estando aquí, el total y lo que falta se recalculan sin perder los pagos.
+  const alCarrito = () => {
+    if (hecha || !v.el.isConnected) return;
+    const r = resumenCarrito(ctx);
+    if (!r.lineas.length) return;
+    if (r.total !== r0.total || r.descuento !== r0.descuento) { r0 = r; panel.ponerTotal(r.total); pintarTotal(); actualizar(); }
+  };
+  window.addEventListener('pos:carrito', alCarrito);
+  v.alCerrar = () => { cliente.quitar(); window.removeEventListener('pos:carrito', alCarrito); };
   marcarCobro(v);
   actualizar();
+
+  apartar.addEventListener('click', async () => {
+    if (guardando || hecha) return;
+    guardando = true; actualizar();
+    const ok = await crearApartado(ctx, { id: idApartado, r0, pagos: panel.resultado().pagos, cerrar: () => v.cerrar() });
+    if (ok) hecha = true;
+    guardando = false; if (!hecha) actualizar();
+  });
 
   final.addEventListener('click', async () => {
     if (guardando || hecha) return;

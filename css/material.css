@@ -1045,3 +1045,102 @@ label[for=aj-redondeo]{font-weight:600!important}
 .linea.mini .lc-t{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
 .linea.mini .lc-t b,.linea.mini .lc-t small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .linea.mini .lc-t small{font-size:13px;color:var(--muted)}
+/* v2.06: la papelera del pago ya no tapa la tarjeta (su zona táctil cubría el campo del monto y al tocarlo se quitaba el pago) */
+.pago-quitar{position:relative!important;top:0!important;right:0!important}
+/* v2.06: al agregar, la prenda ya no se marca con un contorno verde: su fondo se ilumina un instante y se apaga */
+.linea.recien{box-shadow:none!important;animation:recien 1.4s ease-out}
+@keyframes recien{0%,25%{background:color-mix(in srgb,var(--accent) 10%,var(--surface))}100%{background:var(--surface)}}
+@media (prefers-reduced-motion:reduce){.linea.recien{animation:none}}
+/* v2.06: ícono de calculadora en su cabecera */
+.calc2 .cab h2{display:flex;align-items:center;gap:10px}
+.calc2 .cab h2 svg.i{width:22px;height:22px;flex:none;color:var(--accent)}
+/* v2.06: Ajustes vuelve a tener el marco de cada pestaña (mismo relleno), pero invisible: sin fondo, borde ni sombra */
+.ajustes > section.tarjeta{padding:16px!important}
+@media (max-width:839px){.ajustes > section.tarjeta{padding:12px!important}}
+/* v2.06: tasa Manual en una sola fila, con el campo donde iba el monto */
+.mb-val-in{gap:3px}
+.mb-val-in .mb-in{width:132px;height:40px;padding:0 10px}
+.mb-val-in .mb-in input{font-size:16px}
+.mb-card[data-modo=manual] .mb-cab{align-items:center}
+/* v2.06: redondeo del vuelto, COP y USD, escrito a mano */
+.red-dos{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.red-in{display:flex;align-items:baseline;gap:6px;height:48px;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:0 14px}
+.red-in input{flex:1;min-width:0;border:0;background:none;outline:0;font:600 17px var(--f,inherit);line-height:46px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.red-in .moneda{font-size:13px;font-weight:700}
+.red-in:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+/* v2.06: los tres puntos de las tarjetas de Pagos, rellenos */
+.forma-acc svg.i circle{fill:currentColor}
+/* v2.06: barra de cobro «ticket» — toda la barra es el botón Cobrar */
+.vista.vender .barra-cobro.bcT{display:block!important;padding-top:10px!important}
+.vista.vender .bcT .cobrar.bt{width:100%;height:auto!important;min-height:68px!important;padding:10px 14px 10px 10px!important;border-radius:18px!important;display:grid!important;grid-template-columns:48px minmax(0,1fr) auto 20px;align-items:center;column-gap:12px;text-align:left;box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 32%,transparent)}
+.bcT .bt-cnt{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.18);font-size:20px;font-weight:800;color:#fff}
+.bcT .bt-txt{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.bcT .bt-txt b{font-size:16px;font-weight:700;color:#fff}
+.bcT .bt-txt small{font-size:13px;font-weight:400;color:rgba(255,255,255,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bcT .bt-total{display:flex;flex-direction:column;align-items:flex-end;min-width:0;line-height:1.1}
+.bcT .bt-total .total{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
+.vista.vender .bcT .bt-total .total-cop{font-size:24px!important;font-weight:800;color:#fff;letter-spacing:-.01em}
+.vista.vender .bcT .bt-total .total-cop[data-largo=l]{font-size:21px!important}.vista.vender .bcT .bt-total .total-cop[data-largo=xl]{font-size:19px!important}
+.bcT .bt-total .moneda{font-size:12px;font-weight:800;color:rgba(255,255,255,.85)}
+.bcT .bt-total .equivalentes,.bcT .bt-total .equivalentes span{color:rgba(255,255,255,.82)!important;font-size:12px;font-weight:600;white-space:nowrap}
+.vista.vender .bcT .cobrar.bt > svg.i{width:20px;height:20px;color:#fff}
+/* v2.06: pantalla de cobro sin encabezado */
+.cobro2{gap:12px!important}
+.cb-arriba{display:flex;align-items:center;gap:8px}
+.cb-arriba .cliente-resumen{flex:1;min-width:0}
+.cb-volver{flex:none}
+.cb-total{display:flex!important;flex-direction:column;gap:12px;padding:16px!important}
+.cb-fila{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.cb-desc{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--accent) 22%,transparent)}
+.cb-desc-btn{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:99px;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));background:var(--surface);color:var(--ink);font:600 13.5px var(--f,inherit);cursor:pointer}
+.cb-desc-btn svg.i{width:16px;height:16px;color:var(--accent)}
+.cb-desc-monto{font-weight:700;color:var(--err);font-size:15px}
+.cb-desc-monto small{font-weight:500;color:var(--muted);font-size:12px}
+.cb-botones{display:grid;grid-template-columns:minmax(0,.42fr) minmax(0,1fr);gap:8px}
+.cb-apartar{display:flex!important;align-items:center;justify-content:center;gap:6px;padding:0 10px!important;white-space:nowrap;overflow:hidden}
+.cb-apartar .cb-ap-t{overflow:hidden;text-overflow:ellipsis}
+.cb-apartar svg.i{width:18px;height:18px;flex:none}
+/* v2.06: total de la pantalla de cobro a todo el ancho; papelera del pago centrada */
+.total-cobro.cb-total{align-items:stretch!important}
+.cb-total .cb-fila .et{padding-top:6px}
+.cb-total .tc-der{display:flex;flex-direction:column;align-items:flex-end}
+.pagos .pago > .pago-quitar{align-self:center!important}
+.cb-botones{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)!important}
+.cb-apartar{flex-direction:column;gap:1px!important;line-height:1.15}
+.cb-apartar .cb-ap-t{display:flex;align-items:center;gap:6px;font-weight:700}
+.cb-apartar small{font-size:12px;font-weight:600;color:var(--muted)}
+/* v2.06: formas de pago del cobro: en el teléfono se quitan deslizando (sin papelera) */
+.pagos{position:relative}
+@media (max-width:839px){
+  .pagos .pago{touch-action:pan-y;z-index:1;grid-template-columns:40px minmax(0,1fr) minmax(120px,52%)!important}
+  .pagos .pago > .pago-quitar{display:none!important}
+  .pagos .pago.deslizando{user-select:none}
+}
+/* v2.06 (corrección): descuento fuera del recuadro verde */
+.cobro2 .cb-desc{border-top:0;padding:0;margin-top:-4px}
+.cb-desc-monto{display:inline-flex;align-items:baseline;gap:4px}
+.cb-desc-monto .moneda{font-size:12px;font-weight:700}
+/* v2.06: tarjetas de prenda (Inventario y «Todos los productos» usan la misma tarjetaPrenda y estas mismas reglas):
+   nombre y disponibles arriba, color y precio abajo (misma línea base); con el nombre en una línea el color queda
+   junto al nombre y el sobrante se reparte arriba y abajo */
+.tarjeta-prenda{display:grid!important;grid-template-columns:56px minmax(0,1fr) auto;grid-template-rows:auto auto;align-content:center;align-items:stretch;column-gap:12px;row-gap:4px}
+.tarjeta-prenda > .tp-img{grid-column:1;grid-row:1 / 3;align-self:center}
+.tarjeta-prenda > .info,.tarjeta-prenda > .tp-der{display:contents!important}
+.tarjeta-prenda > .info > b{grid-column:2;grid-row:1;align-self:center}
+.tarjeta-prenda > .info > .tp-linea{grid-column:2;grid-row:2;align-self:baseline}
+.tarjeta-prenda > .tp-der > .tp-disp,.tarjeta-prenda > .tp-der > .tp-estado:not(.tp-oferta){grid-column:3;grid-row:1;justify-self:end;align-self:center}
+.tarjeta-prenda > .tp-der > .precio{grid-column:3;grid-row:2;justify-self:end;align-self:baseline}
+.tarjeta-prenda > .tp-der > .tp-oferta{grid-column:3;grid-row:3;justify-self:end}
+
+/* v2.06: el código de moneda junto a un campo de monto queda en la línea base del monto (no centrado en la caja) */
+.tasa-entrada,.mb-in,.red-in{align-items:baseline!important}
+.tasa-entrada .inp{min-height:0!important;height:auto;line-height:52px;padding:0!important}
+.mb-in input{height:auto;line-height:42px;padding:0}
+.mb-val-in .mb-in input{line-height:38px}
+/* v2.06: botón de cobro flotante y degradado, sin el panel de fondo */
+@media (max-width:839px){
+  .vista.vender .lado-carrito.barra-cobro-lado{background:none!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important}
+  .vista.vender .lado-carrito.barra-cobro-lado::before,.vista.vender .lado-carrito.barra-cobro-lado::after{display:none!important}
+  .vista.vender .barra-cobro.bcT{background:none!important;border:0!important;box-shadow:none!important;padding:0 0 8px!important}
+}
+.vista.vender .bcT .cobrar.bt{background:linear-gradient(115deg,color-mix(in srgb,var(--accent) 78%,#22c55e) 0%,var(--accent) 55%,color-mix(in srgb,var(--accent) 80%,#064e3b) 100%)!important;border:0!important;box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 38%,transparent),0 2px 6px rgba(15,23,42,.12)!important}

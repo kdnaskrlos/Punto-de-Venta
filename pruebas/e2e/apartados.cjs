@@ -6,14 +6,14 @@ const existencia = (p, sku) => p.evaluate(s => window.__pos.ctx.productos[s].exi
 
 async function apartar(p, abono) {
   await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-L', cantidad: 2 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
-  await p.click('.lado-carrito button:has-text("Apartar")');
+  await p.click('.lado-carrito .cobrar'); // v2.06: Apartar está en la pantalla de cobro
   await p.fill('#cli-tel', '0412-123.45.67');
   await p.click('#cli-guardar');
   if (abono != null) {
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.fill('.pago[data-forma="efectivo-cop"] input', abono);
   }
-  await p.click('#apartar-final');
+  await p.click('#cobro-apartar');
   await p.waitForSelector('text=Apartado creado');
 }
 
@@ -77,11 +77,43 @@ casos('apartados', [
   }],
   ['Sin apartados explica cómo se crean', async (env, a) => {
     const p = await env.pagina({ ruta: '/apartados' });
-    a.match(await p.innerText('.vista'), /desde el carrito con «Apartar»/);
+    a.match(await p.innerText('.vista'), /en la pantalla de cobro con «Apartar»/);
   }],
   ['v1.91 · Teléfono: los chips de filtro tienen el contorno completo', async (env, a) => {
     const p = await env.pagina({ ancho: 390, alto: 844, ruta: '/apartados' });
     const b = await p.$$eval('.filtro-ap .chip', e => e.map(x => { const s = getComputedStyle(x); return [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth].join(' '); }));
     a.ok(b.length >= 4 && b.every(x => x === '1px 1px 1px 1px'), b.join(' | '));
+  }],
+  ['v2.06 · Al tocar el monto de una forma de pago (abonar, completar y apartar; teléfono y computadora) el pago no se quita', async (env, a) => {
+    // Revisa toda la caja del monto: ningún otro control (p. ej. la zona de la papelera) puede taparla.
+    const tocar = async (p, donde) => {
+      const sel = '.pago[data-forma="efectivo-cop"] input';
+      await p.waitForTimeout(400); // termina de abrirse la tarjeta del pago
+      await p.$eval(sel, i => i.scrollIntoView({ block: 'center' }));
+      const tapado = await p.$eval(sel, i => { const r = i.getBoundingClientRect(); const fuera = [];
+        for (const fx of [.03, .25, .5, .75, .97]) for (const fy of [.1, .5, .9]) { const e = document.elementFromPoint(r.left + r.width * fx, r.top + r.height * fy); if (e !== i) fuera.push(e?.className || e?.tagName); }
+        return fuera; });
+      a.deepStrictEqual(tapado, [], `${donde}: algo tapa el campo del monto`);
+      const b = await (await p.$(sel)).boundingBox();
+      for (const fx of [.05, .5, .95]) { await p.mouse.click(b.x + b.width * fx, b.y + b.height / 2); await p.waitForTimeout(80); }
+      await p.waitForTimeout(300);
+      a.strictEqual(await p.$$eval('.pagos .pago', e => e.length), 1, `${donde}: el pago sigue ahí`);
+    };
+    for (const opc of [{ ancho: 390, alto: 844 }, { ancho: 1440, alto: 900 }]) {
+      const p = await env.pagina({ ...opc, usuario: 'vendedora', caja: true, ruta: '/vender' });
+      await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-L', cantidad: 2 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+      await p.click('.lado-carrito .cobrar');
+      await p.fill('#cli-tel', '0412-123.45.67'); await p.click('#cli-guardar');
+      await p.click('.forma[data-forma="efectivo-cop"]'); await tocar(p, `apartar ${opc.ancho}`);
+      await p.fill('.pago[data-forma="efectivo-cop"] input', '20.000');
+      await p.click('#cobro-apartar'); await p.waitForSelector('text=Apartado creado');
+      await p.click('.side .nav[aria-label="Apartados"]'); await p.waitForSelector('.apartado');
+      await p.click('.apartado'); await p.click('#ap-abonar');
+      await p.click('.forma[data-forma="efectivo-cop"]'); await tocar(p, `abonar ${opc.ancho}`);
+      await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+      if (!(await p.isVisible('#ap-completar'))) await p.click('.apartado');
+      await p.click('#ap-completar');
+      await p.click('.forma[data-forma="efectivo-cop"]'); await tocar(p, `completar ${opc.ancho}`);
+    }
   }],
 ]);

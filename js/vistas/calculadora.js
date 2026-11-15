@@ -1,6 +1,7 @@
 // Calculadora rápida COP / USD / Bs con las tasas del punto de venta (§12.2) y detalle de tasas (§12.1).
 import { h, icono, abrirHoja, abrirVentana, despuesDeCerrar, esTelefono } from '../ui.js';
 import { navegar } from '../app.js';
+import { abrirPestana } from './ajustes.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { copPorBs } from '../nucleo/tasas.js';
 import { fechaHora } from '../nucleo/fechas.js';
@@ -72,6 +73,7 @@ export function abrirCalculadora(ctx) {
   const borrar = h('button', { class: 'ibtn', id: 'calc-borrar', 'aria-label': 'Borrar todo', onclick: () => { usdBase = null; fuente = null; pintar(); } }, icono('borrador'));
   const hj = abrirHoja({ titulo: 'Calculadora', contenido: h('div', { class: 'pila calc' }, ...filas, estado), modal: tel, extraCab: borrar });
   hj.el.querySelector('.caja')?.classList.add('calc2');
+  hj.el.querySelector('.cab h2')?.prepend(icono('calculadora')); // v2.06: ícono en la cabecera
   const lado = document.querySelector('.lado-carrito');
   if (!tel && lado && lado.offsetParent) hj.el.querySelector('.caja').style.marginRight = `${hj.el.getBoundingClientRect().right - lado.getBoundingClientRect().left + 8}px`;
   hj.alCerrar = () => window.removeEventListener('pos:datos', alDatos);
@@ -88,7 +90,7 @@ export function abrirDetalleTasas(ctx) {
     h('span', { class: 'tasa-ic' }, icono(ic)),
     h('div', { class: 'tasa-txt' }, h('span', { class: 'tasa-et' }, etiqueta), h('span', { class: 'tasa-dato nota' }, fuente ? h('b', {}, fuente) : null, fuente ? ' · ' : null, cuando(fecha))),
     h('span', { class: 'tasa-val num' }, valor ?? '—', valor != null ? h('small', {}, moneda) : null));
-  const tuerca = ctx.puedeVer('cambiarTasas') ? h('button', { class: 'tasas-ajustar', id: 'tasas-ajustes', onclick: () => { v.cerrar(); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca'), 'Cambiar tasas') : null;
+  const tuerca = ctx.puedeVer('cambiarTasas') ? h('button', { class: 'tasas-ajustar', id: 'tasas-ajustes', onclick: () => { v.cerrar(); abrirPestana('tasas'); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca'), 'Cambiar tasas') : null;
   const cont = h('div', { class: 'tasas-dia' },
     fila('cop', 'monedas', 'Pesos por dólar', t.copPorUsd ? fmtCop(t.copPorUsd) : null, 'COP', '', t.copActualizada),
     // El título es la fuente elegida en Ajustes (Binance P2P, BCV oficial o Tasa manual), sin el recargo; abajo solo la fecha.

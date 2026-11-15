@@ -1,7 +1,7 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
 import { abrirEscaner, ICONO_ESCANER } from './escaner.js';
 import { buscarCodigo } from './inventario.js';
-import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, campoBusqueda } from '../ui.js';
+import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, campoBusqueda, deslizarParaQuitar } from '../ui.js';
 import { coincide, textoPreparado } from '../nucleo/busqueda.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
@@ -78,6 +78,7 @@ function grupos(ctx) {
 // (con una sola unidad, el − es un bote de basura) y abajo el monto.
 // Con más de 2 prendas distintas las líneas se compactan (como en Pedidos): solo se abre la que se toca.
 const MAX_ABIERTAS = 2;
+const TODOS = 'Todos los productos';
 function contador(ctx, l) {
   return h('div', { class: 'stepper lc-cont' },
     l.cantidad === 1
@@ -142,6 +143,14 @@ export function ponerCarrito(cont, nuevo) {
     v.style.pointerEvents = 'none'; v.style.overflow = 'hidden';
     if (ancla) ancla.before(v); else ultima.after(v);
     const g = parseFloat(getComputedStyle(v.parentElement).rowGap) || 0;
+    // v2.06: si salió deslizándola, ya está fuera de la pantalla: solo se cierra su hueco (sin volver a aparecer).
+    if (v.classList.contains('borrar')) {
+      const tx = v.style.transform || 'translateX(-110%)';
+      v.animate([{ height: `${h0}px`, opacity: 0, transform: tx, marginBottom: '0px' },
+        { height: '0px', opacity: 0, transform: tx, paddingTop: '0px', paddingBottom: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', marginBottom: `-${g}px` }],
+        { duration: 220, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => v.remove();
+      return;
+    }
     v.animate([{ height: `${h0}px`, opacity: 1, transform: 'none', marginBottom: '0px' },
       { height: `${h0}px`, opacity: 0, transform: 'translateX(-16px)', marginBottom: '0px', offset: .4 },
       { height: '0px', opacity: 0, transform: 'translateX(-16px)', paddingTop: '0px', paddingBottom: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', marginBottom: `-${g}px` }],
@@ -193,62 +202,16 @@ export function ponerCarrito(cont, nuevo) {
   }
 }
 
-// v2.03 · Deslizar una prenda del carrito hacia la izquierda para quitarla (igual que en Pedidos): detrás aparece
-// un fondo rojo crema con la papelera y «Quitar»; si el dedo llega casi al borde izquierdo la papelera se mueve
-// y al soltar la prenda sale; si no, vuelve a su lugar. Con «Deshacer» en el aviso.
-function deslizarParaQuitar(ctx, cont) {
-  let fila = null, fondo = null, x0 = 0, y0 = 0, modo = '', dx = 0, pid = null, tocoHace = 0;
-  cont.addEventListener('pointerdown', e => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    const f = e.target.closest('.linea[data-sku]');
-    if (!f || e.target.closest('button, input, .stepper')) return;
-    fila = f; x0 = e.clientX; y0 = e.clientY; modo = ''; dx = 0; pid = e.pointerId;
+// v2.03 · Deslizar una prenda del carrito hacia la izquierda para quitarla (igual que en Pedidos). v2.06: el gesto
+// vive en ui.js (deslizarParaQuitar) y también lo usan las formas de pago del cobro.
+function gestoCarrito(ctx, cont) {
+  deslizarParaQuitar(cont, '.linea[data-sku]', f => {
+    const sku = f.dataset.sku, c = carrito(ctx), i = c.lineas.findIndex(l => l.sku === sku), linea = c.lineas[i];
+    if (i < 0) return;
+    c.lineas.splice(i, 1);
+    window.dispatchEvent(new CustomEvent('pos:carrito'));
+    toast('Prenda quitada', { deshacer: () => { const cc = carrito(ctx); cc.lineas.splice(Math.min(i, cc.lineas.length), 0, linea); window.dispatchEvent(new CustomEvent('pos:carrito')); } });
   });
-  cont.addEventListener('pointermove', e => {
-    if (!fila || e.pointerId !== pid) return;
-    const mx = e.clientX - x0, my = e.clientY - y0;
-    if (!modo) {
-      if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
-      modo = Math.abs(mx) > Math.abs(my) && mx < 0 ? 'x' : 'y';
-      if (modo === 'y') { fila = null; return; }
-      try { fila.setPointerCapture(pid); } catch {}
-      fila.style.transition = 'none'; fila.classList.add('deslizando');
-      const lista = fila.parentElement;
-      fondo = h('div', { class: 'quitar-fondo', 'aria-hidden': 'true', style: `top:${fila.offsetTop}px;height:${fila.offsetHeight}px;border-radius:${getComputedStyle(fila).borderRadius}` }, h('span', {}, icono('borrar'), h('b', {}, 'Quitar')));
-      lista.insertBefore(fondo, fila);
-    }
-    if (modo !== 'x') return;
-    e.preventDefault();
-    dx = Math.min(0, mx);
-    // Solo quita si el dedo llega casi al borde izquierdo (como en Pedidos).
-    const fin = e.clientX < Math.max(40, innerWidth * .12) && dx < -Math.min(innerWidth, cont.clientWidth + 40) * .4;
-    fila.style.transform = `translateX(${dx}px)`;
-    fondo?.classList.toggle('armado', fin); fila.classList.toggle('borrar', fin);
-  });
-  const soltar = () => {
-    if (!fila) return;
-    const f = fila, fd = fondo; fila = null; fondo = null;
-    if (modo !== 'x') return;
-    tocoHace = Date.now();
-    f.style.transition = 'transform .2s ease';
-    if (f.classList.contains('borrar')) {
-      f.style.transform = 'translateX(-110%)';
-      const sku = f.dataset.sku, c = carrito(ctx), i = c.lineas.findIndex(l => l.sku === sku), linea = c.lineas[i];
-      setTimeout(() => {
-        fd?.remove();
-        if (i < 0) return;
-        c.lineas.splice(i, 1);
-        window.dispatchEvent(new CustomEvent('pos:carrito'));
-        toast('Prenda quitada', { deshacer: () => { const cc = carrito(ctx); cc.lineas.splice(Math.min(i, cc.lineas.length), 0, linea); window.dispatchEvent(new CustomEvent('pos:carrito')); } });
-      }, 180);
-    } else {
-      f.style.transform = ''; f.classList.remove('borrar', 'deslizando');
-      setTimeout(() => { fd?.remove(); f.style.transition = ''; }, 220);
-    }
-  };
-  cont.addEventListener('pointerup', soltar); cont.addEventListener('pointercancel', soltar);
-  // Un deslizamiento no cuenta como toque (no abre ni cierra la línea compacta).
-  cont.addEventListener('click', e => { if (Date.now() - tocoHace < 350 && e.target.closest('.linea')) { e.stopPropagation(); e.preventDefault(); } }, true);
 }
 
 function moverIcono(aviso) {
@@ -287,32 +250,28 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
           h('div', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
           h('div', { class: 'tc-eq' }, equivalentes(ctx, r.total))))),
     h('div', { class: 'acciones-carrito' },
-      h('button', { class: 'btn', id: 'car-descuento', onclick: () => abrirDescuento(ctx) }, icono('etiqueta'), 'Descuento'),
-      h('button', { class: 'btn', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'),
       h('button', { class: 'btn primary cobrar', onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') }, 'Cobrar')));
 }
 
 // Barra de cobro (v1.97): total en COP con su equivalente en USD y Bs, Cobrar, y debajo Descuento y Apartar.
 // En el teléfono va fija sobre la barra de íconos; en la computadora es la columna derecha.
 function barraCobro(ctx, r) {
-  // v2.03 (propuesta A): arriba cuántas prendas y el total a la derecha; abajo Descuento y Apartar como botones
-  // cuadrados con ícono y nombre, y Cobrar grande con flecha. Mismo degradado verde crema.
-  return h('div', { class: 'barra-cobro bcA' },
-    h('div', { class: 'bc-f1' },
-      h('span', { class: 'bc-cnt' }, icono('franela'), `${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`),
-      h('div', { class: 'bco-total' },
-        r.descuento ? h('span', { class: 'bco-desc' }, icono('etiqueta'), '−' + fmtCop(r.descuento)) : null,
-        h('div', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
-        h('div', { class: 'tc-eq' }, equivalentes(ctx, r.total)))),
-    h('div', { class: 'bc-f2' },
-      h('button', { class: 'btn bc-ac', type: 'button', id: 'car-descuento', onclick: () => abrirDescuento(ctx) }, icono('etiqueta'), 'Descuento'),
-      h('button', { class: 'btn bc-ac apartar', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'),
-      h('button', { class: 'btn primary cobrar', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') }, 'Cobrar', icono('der'))));
+  // v2.06: la barra entera es el botón de cobrar («ticket»): cuántas prendas en un círculo, «Cobrar» y el total con
+  // sus equivalentes a la derecha. Descuento y Apartar están en la pantalla de cobro.
+  return h('div', { class: 'barra-cobro bcT' },
+    h('button', { class: 'btn primary cobrar bt', type: 'button', 'aria-label': `Cobrar ${fmtCop(r.total)} COP, ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') },
+      h('span', { class: 'bt-cnt num' }, String(r.unidades)),
+      // v2.06: sin la palabra «Cobrar»: el botón entero ya es cobrar.
+      h('span', { class: 'bt-txt' }, h('b', {}, r.unidades === 1 ? 'prenda' : 'prendas'), h('small', {}, r.descuento ? `en total · −${fmtCop(r.descuento)}` : 'en total')),
+      h('span', { class: 'bt-total' },
+        h('span', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total)), h('span', { class: 'moneda' }, 'COP')),
+        equivalentes(ctx, r.total)),
+      icono('der')));
 }
 
 // Descuento por monto, en pesos o en dólares (sin porcentaje). En dólares se convierte a pesos con la tasa del día.
 // Si ya hay uno, la misma ventana permite quitarlo.
-function abrirDescuento(ctx) {
+export function abrirDescuento(ctx) {
   const c = carrito(ctx);
   const r = resumenCarrito(ctx);
   const max = 0; // la vendedora no da descuentos por su cuenta: todo descuento suyo necesita autorización
@@ -481,8 +440,8 @@ registrarVista('/vender', {
     // Total, Cobrar, Descuento y Apartar van en la barra de cobro: abajo en el teléfono, columna derecha en la computadora.
     const lado = h('aside', { class: 'lado-carrito barra-cobro-lado', hidden: true });
     const zonaCarrito = h('div', { class: 'zona-carrito' });
-    deslizarParaQuitar(ctx, zonaCarrito);
-    const btnTodos = h('button', { class: 'btn btn-todos', type: 'button', id: 'todos-productos', onclick: () => { catalogo = true; pintar(); } }, icono('cuadricula'), 'Todos los productos');
+    gestoCarrito(ctx, zonaCarrito);
+    const btnTodos = h('button', { class: 'btn btn-todos', type: 'button', id: 'todos-productos', onclick: () => { catalogo = true; buscar.value = TODOS; busqueda = ''; pintar(); } }, icono('cuadricula'), 'Todos los productos');
     const vacio = h('div', { class: 'venta-vacia' }, btnTodos);
     let catalogo = false, antes = new Map(), tRecien = 0, tLista = 0;
     const sinCaja = h('div', { class: 'aviso sin-caja' }, icono('cartera'), h('span', {}, 'Abre tu caja para vender'), h('span', { class: 'sp' }), h('button', { class: 'btn primary', onclick: () => abrirCajaVentana(ctx) }, 'Abrir caja'));
@@ -552,7 +511,15 @@ registrarVista('/vender', {
       sinCaja.hidden = !!ctx.miCaja || !ctx.puedeVer('cajaFisica');
     }
     buscar.addEventListener('input', () => {
-      busqueda = buscar.value; if (!busqueda) catalogo = false;
+      // v2.06: con «Todos los productos» el buscador dice ese texto. La lista se quita solo al borrar la frase
+      // completa (o con la ×); si se escribe algo después de la frase, se busca solo lo nuevo.
+      if (catalogo && buscar.value !== TODOS) {
+        const v = buscar.value;
+        if (v.startsWith(TODOS)) { catalogo = false; buscar.value = v.slice(TODOS.length).trimStart(); }
+        else if (v && !TODOS.startsWith(v)) catalogo = false; // se cambió por otra cosa: buscar eso
+      }
+      if (!buscar.value) catalogo = false;
+      busqueda = catalogo ? '' : buscar.value;
       maxVis = 40; cancelAnimationFrame(rafBusca);
       if (!busqueda) pintar(); else rafBusca = requestAnimationFrame(pintar); // al borrar, de inmediato
     });

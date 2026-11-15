@@ -44,7 +44,7 @@ function tasas(ctx) {
   const recargo = mbIn('aj-recargo', aj.bsRecargo != null ? fmtDec(aj.bsRecargo) : '', '+', 'Recargo en Bs sobre Binance');
   const manual = mbIn('aj-bs-manual', aj.bsManual ? fmtDec(aj.bsManual) : '', null, 'Tasa Bs por dólar');
   const valor = () => { const b = h('b', { class: 'modo-val num' }); return { b, el: h('div', { class: 'mb-val' }, b, h('small', {}, 'Bs por USD')) }; };
-  const valBin = valor(), valBcv = valor(), valMan = valor();
+  const valBin = valor(), valBcv = valor();
   const base = Number(remota.rate) || null, bcv = Number(remota.bcv?.rate) || null;
   const num = (inp, m) => parseMonto(inp.querySelector('input').value, m);
   const tarjeta = (v, titulo, desc, val, extra) => h('div', { class: 'modo-bs mb-card', 'data-modo': v, role: 'radio', tabindex: '0',
@@ -54,22 +54,24 @@ function tasas(ctx) {
   const cBin = tarjeta('binance', 'Binance P2P', base ? haceTiempo(remota.updated_at) : 'Todavía sin datos', valBin,
     h('div', { class: 'modo-extra mb-extra' }, h('span', { class: 'et' }, h('b', {}, 'Recargo'), base ? `sobre ${fmtDec(base)}` : 'sobre la tasa de Binance'), recargo));
   const cBcv = tarjeta('bcv', 'BCV oficial', remota.bcv?.updated_at ? `Banco Central · ${haceTiempo(remota.bcv.updated_at)}` : 'Banco Central · sin datos', valBcv, null);
-  const cMan = tarjeta('manual', 'Manual', 'Escríbela tú', valMan, h('div', { class: 'modo-extra mb-extra' }, h('span', { class: 'et' }, h('b', {}, 'Tu tasa'), 'Bs por 1 USD'), manual));
+  // v2.06: Manual es una sola fila; donde va la tasa está el campo para escribirla.
+  const cMan = tarjeta('manual', 'Manual', 'Escríbela tú', { el: h('div', { class: 'mb-val mb-val-in' }, manual) }, null);
   const grupo = h('div', { class: 'modos-bs mb', id: 'aj-bs-modo', role: 'radiogroup', 'aria-label': 'Bs por dólar' }, cBin, cBcv, cMan);
   const ponerVal = (v, n) => { v.b.textContent = n ? fmtDec(n) : 'Sin datos'; v.el.classList.toggle('sin', !n); };
   function pintar() {
     for (const c of [cBin, cBcv, cMan]) { const on = c.dataset.modo === modo.value; c.classList.toggle('activo', on); c.setAttribute('aria-checked', String(on)); c.setAttribute('aria-pressed', String(on)); }
     const r = num(recargo, 'BS') || 0;
-    ponerVal(valBin, base ? base + r : null); ponerVal(valBcv, bcv); ponerVal(valMan, num(manual, 'BS'));
+    ponerVal(valBin, base ? base + r : null); ponerVal(valBcv, bcv);
   }
   recargo.addEventListener('input', pintar);
   manual.addEventListener('input', () => { modo.value = 'manual'; pintar(); });
   pintar();
   // v1.99/v2.00: un ícono a la derecha de «Peso colombiano» indica que hay cambios por guardar.
   // v2.00: solo indicador (verde, sin recuadro ni acción); se guarda con «Guardar cambios».
-  const pendiente = h('span', { class: 'aj-pendiente', id: 'aj-pendiente', role: 'img', 'aria-label': 'Cambios sin guardar', title: 'Cambios sin guardar', hidden: true }, icono('guardar'));
+  // v2.06: sin el ícono de cambios sin guardar (queda el botón «Guardar cambios», que se activa al cambiar algo).
+  const pendiente = { hidden: true };
   const el = seccion(null, null,
-    h('div', { class: 'campo' }, h('div', { class: 'tasa-cab' }, h('label', { class: 'et-moneda', for: 'aj-cop' }, 'Peso colombiano'), pendiente), filaUsd(cop)),
+    h('div', { class: 'campo' }, h('div', { class: 'tasa-cab' }, h('label', { class: 'et-moneda', for: 'aj-cop' }, 'Peso colombiano')), filaUsd(cop)),
     h('div', { class: 'campo' }, h('label', { class: 'et-moneda' }, 'Bs'), grupo));
   // Devuelve true si se guardó (o no había nada que guardar).
   const guardar = async () => {
@@ -84,6 +86,21 @@ function tasas(ctx) {
     return r.ok;
   };
   return { el, guardar, pendiente };
+}
+
+// v2.06: redondeo del vuelto escrito a mano, en pesos y en dólares (0,01 USD = sin redondear).
+function selectorRedondeo(aj) {
+  const caja = (id, valor, mon, nombre) => {
+    const inp = h('input', { class: 'num', id, inputmode: 'decimal', autocomplete: 'off', value: valor, 'aria-label': nombre });
+    return { inp, el: h('label', { class: `red-in c-${mon.toLowerCase()}` }, inp, h('span', { class: 'moneda' }, mon)) };
+  };
+  const cop = caja('aj-redondeo', fmtCop(aj.redondeo || 100), 'COP', 'Redondeo del vuelto en pesos');
+  const usd = caja('aj-redondeo-usd', fmtDec(aj.redondeoUsd || 0.01), 'USD', 'Redondeo del vuelto en dólares');
+  cop.inp.addEventListener('blur', () => { const n = parseMonto(cop.inp.value, 'COP'); cop.inp.value = fmtCop(n > 0 ? n : 100); });
+  usd.inp.addEventListener('blur', () => { const n = parseMonto(usd.inp.value, 'USD'); usd.inp.value = fmtDec(n > 0 ? n : 0.01); });
+  const el = h('div', { class: 'campo red-aj' }, h('label', { class: 'et-moneda', for: 'aj-redondeo' }, 'Redondeo del vuelto'),
+    h('div', { class: 'red-dos' }, cop.el, usd.el));
+  return { el, get cop() { return parseMonto(cop.inp.value, 'COP') || 100; }, get usd() { return parseMonto(usd.inp.value, 'USD') || 0.01; } };
 }
 
 function venta(ctx) {
@@ -103,8 +120,9 @@ function venta(ctx) {
       h('span', { class: 'despl-t' }, h('b', {}, titulo), h('span', { class: 'nota' }, desc)), icono('abajo')), caja);
     return det;
   };
+  const redondeo = selectorRedondeo(aj);
   const el = seccion(null, null,
-    h('div', { class: 'rejilla-aj' }, campo('aj-redondeo', 'Redondeo del vuelto (COP)', { inputmode: 'numeric', value: String(aj.redondeo) })),
+    redondeo.el,
     desplegable('aj-tramos', 'etiqueta', 'Tramos de precio', 'Desde cuántas prendas cambia el precio',
       h('div', { class: 'rejilla-aj' }, ...tramos.map((t, i) => h('div', { class: 'campo' }, h('label', {}, `Tramo ${i + 1}`), h('input', { class: 'inp num', inputmode: 'numeric', value: String(t), disabled: i === 0, oninput: e => { tramos[i] = Number(e.target.value) || tramos[i]; } }))))),
     desplegable('aj-comision', 'cartera', 'Comisión por prenda', 'Si el producto no trae la suya; normal y reducida (descuento u oferta)',
@@ -114,9 +132,8 @@ function venta(ctx) {
   );
   const guardar = async () => {
     for (let i = 1; i < tramos.length; i++) if (tramos[i] <= tramos[i - 1]) { toast('Cada tramo debe empezar después del anterior', { malo: true }); return false; }
-    const v = id => el.querySelector('#' + id).value;
     return {
-      redondeo: parseMonto(v('aj-redondeo'), 'COP') || 100,
+      redondeo: redondeo.cop, redondeoUsd: redondeo.usd,
       tramos, comisiones: coms,
     };
   };
@@ -222,7 +239,8 @@ function recibo(ctx) {
     area.focus(); area.setSelectionRange(i + t.length, i + t.length);
     area.dispatchEvent(new Event('input', { bubbles: true }));
   };
-  const el = seccion('Recibo por WhatsApp', 'recibo',
+  // v2.06: sin título (la pestaña ya dice Recibo).
+  const el = seccion(null, null,
     h('div', { class: 'wa-fondo' }, burbuja),
     h('div', { class: 'campo' }, h('label', { for: 'aj-plantilla' }, 'Mensaje'), area,
       h('span', { class: 'nota chica' }, 'Usa *asteriscos* para negrita. Toca un dato para ponerlo donde está el cursor:')),
@@ -235,6 +253,8 @@ function recibo(ctx) {
 
 const PESTANAS = [['tasas', 'Tasas'], ['venta', 'Venta'], ['pagos', 'Pagos'], ['recibo', 'Recibo']];
 let pestanaActual = 'tasas';
+// v2.06: «Cambiar tasas» (pastilla de tasas) abre Ajustes en la pestaña Tasas, no en la última que se usó.
+export const abrirPestana = id => { pestanaActual = id; };
 
 registrarVista('/ajustes', {
   accion: 'ajustes',

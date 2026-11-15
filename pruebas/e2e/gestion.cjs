@@ -217,7 +217,8 @@ casos('gestion', [
     await p.click('#aj-bs-modo [data-modo="bcv"]');
     a.strictEqual(await p.isVisible('#aj-recargo'), false);
     a.strictEqual(await p.getAttribute('[data-modo="bcv"]', 'aria-checked'), 'true');
-    a.strictEqual(await p.isVisible('#aj-bs-manual'), false, 'solo la elegida se abre');
+    // v2.06: Manual es una sola fila con el campo donde va la tasa (siempre a la vista).
+    a.strictEqual(await p.isVisible('#aj-bs-manual'), true);
     await p.click('#aj-bs-modo [data-modo="manual"]');
     await p.fill('#aj-bs-manual', '1.100');
     a.strictEqual(await p.getAttribute('[data-modo="manual"]', 'aria-checked'), 'true');

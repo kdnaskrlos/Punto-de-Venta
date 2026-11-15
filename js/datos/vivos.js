@@ -14,6 +14,7 @@ export const AJUSTES_DEFECTO = {
   tramos: LIMITES_DEFECTO,
   comisiones: COMISIONES_DEFECTO,
   redondeo: 100,
+  redondeoUsd: 0.01,
   descuentoMaxVendedora: 5,
   recibo: {},
 };

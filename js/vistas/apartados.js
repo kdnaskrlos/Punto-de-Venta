@@ -41,22 +41,28 @@ export function abrirApartar(ctx) {
   final.addEventListener('click', async () => {
     if (guardando) return;
     guardando = true; actualizar();
-    const r = resumenCarrito(ctx);
-    if (firmaCarrito(r) !== firmaCarrito(r0)) { guardando = false; v.cerrar(); toast('Los precios cambiaron, revisa el apartado', { malo: true }); return; }
-    const c = carrito(ctx);
-    const { pagos } = panel.resultado();
-    const ap = {
-      id, fecha: new Date().toISOString(), cliente: { ...carrito(ctx).cliente }, lineas: lineasParaGuardar(ctx, r),
-      subtotal: r.subtotal, descuento: r.descuento ? { tipo: c.descuento.tipo, valor: c.descuento.valor, monto: r.descuento, autorizadoPor: c.autorizacion?.por || null } : null,
-      total: r.total, abonos: pagos, tasas: tasasDe(ctx),
-    };
-    const res = await conCaja(ctx, () => ctx.almacen.guardarApartado(ap));
+    const ok = await crearApartado(ctx, { id, r0, pagos: panel.resultado().pagos, cerrar: () => v.cerrar() });
     guardando = false;
-    if (!res.ok) { toast(res.faltantes ? 'Ya no hay existencia de alguna prenda' : res.error === 'sin-caja' ? 'Abre tu caja para apartar' : 'No se pudo apartar', { malo: true }); actualizar(); return; }
-    ctx.almacen.guardarCliente(ap.cliente);
-    vaciarCarrito(ctx); window.dispatchEvent(new CustomEvent('pos:carrito'));
-    v.cerrar(); toast('Apartado creado');
+    if (!ok) actualizar();
   });
+}
+
+// v2.06: guarda el apartado del carrito con los pagos como abono. Lo usan Apartar y la pantalla de cobro.
+export async function crearApartado(ctx, { id, r0, pagos, cerrar }) {
+  const r = resumenCarrito(ctx);
+  if (firmaCarrito(r) !== firmaCarrito(r0)) { cerrar(); toast('Los precios cambiaron, revisa el apartado', { malo: true }); return false; }
+  const c = carrito(ctx);
+  const ap = {
+    id, fecha: new Date().toISOString(), cliente: { ...carrito(ctx).cliente }, lineas: lineasParaGuardar(ctx, r),
+    subtotal: r.subtotal, descuento: r.descuento ? { tipo: c.descuento.tipo, valor: c.descuento.valor, monto: r.descuento, autorizadoPor: c.autorizacion?.por || null } : null,
+    total: r.total, abonos: pagos, tasas: tasasDe(ctx),
+  };
+  const res = await conCaja(ctx, () => ctx.almacen.guardarApartado(ap));
+  if (!res.ok) { toast(res.faltantes ? 'Ya no hay existencia de alguna prenda' : res.error === 'sin-caja' ? 'Abre tu caja para apartar' : 'No se pudo apartar', { malo: true }); return false; }
+  ctx.almacen.guardarCliente(ap.cliente);
+  vaciarCarrito(ctx); window.dispatchEvent(new CustomEvent('pos:carrito'));
+  cerrar(); toast('Apartado creado');
+  return true;
 }
 
 function abrirPago(ctx, ap, modo) {
@@ -222,7 +228,7 @@ registrarVista('/apartados', {
       const vis = lista.filter(a => (filtro === 'todos' || a.estado === filtro) && (!q || coincide([a.cliente?.nombre, a.cliente?.telefono, ...(a.lineas || []).map(l => l.nombre)].filter(Boolean).join(' '), q)))
         .sort((a, b) => b.fecha.localeCompare(a.fecha));
       caja.replaceChildren(...(vis.length ? vis.map(a => tarjeta(ctx, a, filtro)) : [h('div', { class: 'vacio' }, icono('apartado'), h('p', {}, busqueda ? 'Ningún apartado coincide' : lista.length ? (filtro === 'pendiente' ? 'No hay apartados pendientes' : 'No hay apartados aquí') : 'Todavía no hay apartados'),
-        !lista.length ? h('p', { class: 'nota' }, 'Se crean desde el carrito con «Apartar»: las prendas quedan reservadas para el cliente.') : null)]));
+        !lista.length ? h('p', { class: 'nota' }, 'Se crean en la pantalla de cobro con «Apartar»: las prendas quedan reservadas para el cliente.') : null)]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
     const quitar = ctx.almacen.escuchar('apartados', l => {

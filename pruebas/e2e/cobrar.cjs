@@ -38,7 +38,7 @@ casos('cobrar', [
     await p.fill('.pago[data-forma="efectivo-cop"] input', '50.000');
     await p.click('.forma[data-forma="pago-movil"]');
     a.strictEqual(await p.inputValue('.pago[data-forma="pago-movil"] input'), '18.192,31');
-    a.strictEqual(await texto(p, '.barra-falta'), 'Falta 0');
+    a.strictEqual(await texto(p, '.barra-falta'), 'Faltan 0');
     a.ok(await p.$('.barra-falta.ok'));
     const btn = await p.$$eval('.forma', bs => bs.map(b => b.getBoundingClientRect().height));
     for (const hgt of btn) a.ok(hgt >= 48, `forma de ${hgt}px`);
@@ -186,7 +186,7 @@ casos('cobrar', [
   }],
   ['El carrito muestra en dólares y bolívares lo mismo que se cobrará (redondeado hacia arriba)', async (env, a) => {
     const p = await preparar(env);
-    a.strictEqual(await texto(p, '.barra-cobro .tc-eq'), '29,75 USD · 31.974,36 Bs'); // 116.000 COP
+    a.strictEqual(await texto(p, '.barra-cobro .equivalentes'), '29,75 USD · 31.974,36 Bs'); // 116.000 COP
   }],
   ['El texto del tramo en el carrito se lee (12 px o más)', async (env, a) => {
     const p = await preparar(env);
@@ -199,9 +199,30 @@ casos('cobrar', [
     await p.click('.lado-carrito .cobrar');
     await p.fill('#cli-tel', '0412-123.45.67'); await p.click('#cli-guardar');
     await p.waitForSelector('#cobrar-final');
-    await p.click('.capa .cerrar');
+    await p.goBack(); // v2.06: el cobro no tiene flecha ni X; se cierra con atrás (o Esc)
     await p.waitForTimeout(300);
     a.strictEqual(await p.evaluate(() => typeof window.__pos), 'object');
     a.strictEqual(await p.evaluate(() => history.state), null, 'vuelve a la entrada base del historial');
+  }],
+  ['v2.06 · Cobro: tocar el monto no quita el pago; en el teléfono se quita deslizando (sin papelera); descuento fuera del total; «Faltan»', async (env, a) => {
+    const p = await preparar(env, { ancho: 390, alto: 844 });
+    await p.click('.lado-carrito .cobrar');
+    await p.waitForSelector('#cobrar-final');
+    a.strictEqual(await p.$('.capa .cb-volver'), null, 'sin flecha atrás');
+    a.strictEqual(await p.$('.cb-total #car-descuento'), null, 'el descuento va fuera del recuadro verde');
+    a.ok(await p.isVisible('.cb-desc #car-descuento'));
+    await p.click('.forma[data-forma="efectivo-cop"]');
+    await p.click('.pago[data-forma="efectivo-cop"] input');
+    await p.waitForTimeout(300);
+    a.strictEqual(await p.$$eval('.pagos .pago', e => e.length), 1, 'tocar el monto no quita el pago');
+    a.strictEqual(await p.isVisible('.pago-quitar'), false, 'sin papelera en el teléfono');
+    await p.fill('.pago[data-forma="efectivo-cop"] input', '50.000');
+    a.match(await p.innerText('.barra-falta'), /^Faltan/);
+    const b = await (await p.$('.pagos .pago')).boundingBox(), y = b.y + b.height / 2;
+    await p.mouse.move(b.x + b.width - 30, y); await p.mouse.down();
+    for (let x = b.x + b.width - 30; x > 8; x -= 20) await p.mouse.move(x, y);
+    await p.mouse.up();
+    await p.waitForFunction(() => !document.querySelector('.pagos .pago'));
+    a.strictEqual(await p.$eval('.forma[data-forma="efectivo-cop"]', e => e.getAttribute('aria-pressed')), 'false');
   }],
 ]);

@@ -47,3 +47,10 @@ test('pago en Bs sin tasa no cuenta y no cuadra', () => {
 test('sin pagos y total 0: cuadra', () => {
   assert.equal(estadoCobro({ total: 0, pagos: [], tasas: t, redondeo: 100 }).cuadra, true);
 });
+
+test('v2.06 · vuelto en dólares con su propio redondeo', () => {
+  const t = { copPorUsd: 4000, bsPorUsd: 100 };
+  assert.equal(vueltoEn(9000, 'USD', t, 100), 2.25);
+  assert.equal(vueltoEn(9000, 'USD', t, 100, 1), 2);
+  assert.equal(vueltoEn(10800, 'USD', t, 100, 0.5), 2.5);
+});
