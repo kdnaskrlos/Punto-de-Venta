@@ -1174,7 +1174,8 @@ label[for=aj-redondeo]{font-weight:600!important}
 .lc-falta{display:inline-grid;place-items:center;flex:none;width:1.25em;height:1.25em;border-radius:50%;background:var(--y-bg);border:1px solid var(--y-bd);color:var(--y-tx);font-size:inherit;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;vertical-align:middle;margin-left:6px;box-sizing:border-box}
 /* el círculo del mismo alto que el texto de al lado (≈1,1 veces su tamaño de letra); el número, un poco menor */
 .linea .lc-falta{font-size:.75em;width:1.47em;height:1.47em;margin-left:5px}
-.linea:not(.mini) .lc-precio .lc-falta{margin:0 0 0 -4px;font-size:9px;width:14px;height:14px;align-self:center;transform:translateY(-1px)}
+/* centrado con las mayúsculas del tramo: se alinea por la línea base (no depende de la fuente cargada) y sube 0,21 em */
+.linea:not(.mini) .lc-precio .lc-falta{margin:0 0 0 -4px;font-size:9px;width:14px;height:14px;align-self:baseline;transform:translateY(-.21em)}
 .linea:not(.mini) .lc-precio .lc-cu{flex-basis:100%}
 .linea.mini .lc-t small{display:flex;align-items:center;gap:0}
 /* v2.11: punto en el ícono de Vender cuando hay una venta en curso en el carrito (fuera de Vender) */
