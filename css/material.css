@@ -674,3 +674,32 @@ button.pill:not(.demo){border-color:transparent!important}
   .vista.vender .barra-cobro .bco-total{padding:4px 0 4px}
   .vista.vender:not(.con-barra){grid-template-columns:minmax(0,1fr)!important}
 }
+
+/* ===== v1.98 · Animaciones fluidas ===== */
+/* Vender en el teléfono entra solo con fundido: un «transform» en la vista hacía que la barra de cobro fija
+   apareciera a media pantalla y luego saltara abajo. La barra sube por su cuenta. */
+@keyframes barraCobroSube{from{transform:translateY(100%);opacity:.4}to{transform:none;opacity:1}}
+@media (max-width:839px){
+  .vista.vender{animation-name:fade!important}
+  .vista.vender .lado-carrito:not([hidden]){animation:barraCobroSube .26s cubic-bezier(.22,.9,.3,1)}
+}
+/* El vacío, la lista y el carrito aparecen con un fundido corto en vez de golpe. */
+@keyframes aparece{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.venta-vacia:not([hidden]),.zona-carrito:not([hidden]){animation:aparece .2s cubic-bezier(.22,.9,.3,1)}
+.vista.vender.lista-entra .filtros{animation:aparece .2s cubic-bezier(.22,.9,.3,1) both}
+.vista.vender.lista-entra .rejilla > *{animation:aparece .22s cubic-bezier(.22,.9,.3,1) both}
+.vista.vender.lista-entra .rejilla > :nth-child(2){animation-delay:30ms}
+.vista.vender.lista-entra .rejilla > :nth-child(3){animation-delay:60ms}
+.vista.vender.lista-entra .rejilla > :nth-child(4){animation-delay:90ms}
+.vista.vender.lista-entra .rejilla > :nth-child(n+5){animation-delay:120ms}
+/* Datos que aún cargan: bloque gris que respira, en vez de mostrar 0 o «Todavía no hay…» por un instante. */
+@keyframes respira{0%,100%{opacity:1}50%{opacity:.45}}
+.esqueleto{display:inline-block;border-radius:8px;background:#eef1f4;color:transparent!important;animation:respira 1.1s ease-in-out infinite}
+.tile.cargando .val{min-width:96px}.tile.cargando .val,.tile.cargando .sub{display:inline-block;border-radius:8px;background:#eef1f4;color:transparent!important;animation:respira 1.1s ease-in-out infinite}
+.tile.cargando .sub{min-width:120px;margin-top:4px}
+.ap-esqueleto{height:84px;border-radius:14px;background:#f3f5f7;animation:respira 1.1s ease-in-out infinite}
+.tile .val.llega,.ap-res-cifra .num.llega{animation:aparece .22s cubic-bezier(.22,.9,.3,1)}
+@media (prefers-reduced-motion:reduce){
+  .vista.vender .lado-carrito,.venta-vacia,.zona-carrito,.vista.vender.lista-entra .filtros,.vista.vender.lista-entra .rejilla > *,.tile .val.llega{animation:none!important}
+  .esqueleto,.tile.cargando .val,.tile.cargando .sub,.ap-esqueleto{animation:none}
+}

@@ -178,15 +178,27 @@ function abrirDetalle(ctx, ap) {
 }
 
 // Apartados: resumen de lo que falta por cobrar, búsqueda por cliente y filtros por estado.
+// v1.98: la última lista vista se muestra al volver mientras llega la actual; la primera vez, tarjetas grises
+// que respiran en lugar de «Todavía no hay apartados» por un instante.
+let memoAp = null;
+
 registrarVista('/apartados', {
   montar(cont, ctx) {
-    let filtro = 'pendiente', lista = [], busqueda = '';
+    let filtro = 'pendiente', busqueda = '';
+    let lista = memoAp?.usuario === ctx.sesion?.usuario ? memoAp.lista : null;
     const FILTROS = [['pendiente', 'Pendientes'], ['completado', 'Completados'], ['cancelado', 'Cancelados'], ['todos', 'Todos']];
     const seg = h('div', { class: 'filtros filtro-ap', role: 'group', 'aria-label': 'Filtrar apartados' });
     const resumen = h('div', { class: 'ap-resumen' });
     const buscar = h('input', { class: 'inp', id: 'buscar-ap', type: 'search', 'aria-label': 'Buscar cliente, teléfono o prenda', placeholder: 'Buscar cliente, teléfono o prenda', autocomplete: 'off' });
     const caja = h('div', { class: 'lista-ap' });
     const pintar = () => {
+      const cargando = !lista;
+      if (cargando) {
+        resumen.replaceChildren(h('div', { class: 'ap-res-cifra' }, h('span', { class: 'ap-res-et' }, h('span', { class: 'chip-ic' }, icono('monedas')), 'Por cobrar'), h('b', { class: 'num esqueleto', style: 'min-width:110px' }, '0')));
+        seg.replaceChildren(...FILTROS.map(([k, t]) => h('button', { type: 'button', class: 'chip' + (k === filtro ? ' activo' : ''), 'aria-pressed': String(k === filtro), onclick: () => { filtro = k; pintar(); } }, t)));
+        caja.replaceChildren(h('div', { class: 'ap-esqueleto', 'aria-busy': 'true' }), h('div', { class: 'ap-esqueleto' }), h('div', { class: 'ap-esqueleto' }));
+        return;
+      }
       const pend = lista.filter(a => a.estado === 'pendiente');
       const porCobrar = pend.reduce((s, a) => s + a.saldo, 0);
       const viejos = pend.filter(a => diasDesde(a.fecha) >= 15).length;
@@ -205,7 +217,10 @@ registrarVista('/apartados', {
         !lista.length ? h('p', { class: 'nota' }, 'Se crean desde el carrito con «Apartar»: las prendas quedan reservadas para el cliente.') : null)]));
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
-    const quitar = ctx.almacen.escuchar('apartados', l => { lista = l; pintar(); });
+    const quitar = ctx.almacen.escuchar('apartados', l => {
+      const primera = !lista; lista = l; memoAp = { usuario: ctx.sesion?.usuario, lista: l }; pintar();
+      if (primera) resumen.querySelector('.ap-res-cifra .num')?.classList.add('llega');
+    });
     cont.append(resumen, h('div', { class: 'ap-filtros' }, campoBusqueda(buscar), seg), caja);
     pintar();
     return quitar;

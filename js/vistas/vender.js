@@ -123,8 +123,28 @@ export function ponerCarrito(cont, nuevo) {
   const avisoAntes = avisoViejo?.textContent || null;
   const rectViejo = avisoViejo?.getBoundingClientRect();
   const habia = antes.size > 0 || cont.querySelector('.carrito');
+  const viejas = [...cont.querySelectorAll('.linea[data-sku]')];
   cont.replaceChildren(nuevo);
   if (!habia) return;
+  // v1.98: la prenda que se quita no desaparece de golpe: su fantasma se desvanece y cierra el hueco,
+  // así las de abajo suben suave en vez de saltar.
+  const quedan = new Set([...cont.querySelectorAll('.linea[data-sku]')].map(el => el.dataset.sku));
+  viejas.forEach((v, i) => {
+    if (quedan.has(v.dataset.sku)) return;
+    const sig = viejas.slice(i + 1).find(x => quedan.has(x.dataset.sku));
+    const ancla = sig && cont.querySelector(`.linea[data-sku="${CSS.escape(sig.dataset.sku)}"]`);
+    const ultima = [...cont.querySelectorAll('.linea[data-sku]')].pop();
+    if (!ancla && !ultima) return;
+    const h0 = antes.get(v.dataset.sku)?.h || v.offsetHeight;
+    v.classList.remove('recien'); v.setAttribute('aria-hidden', 'true'); v.removeAttribute('data-sku');
+    v.style.pointerEvents = 'none'; v.style.overflow = 'hidden';
+    if (ancla) ancla.before(v); else ultima.after(v);
+    const g = parseFloat(getComputedStyle(v.parentElement).rowGap) || 0;
+    v.animate([{ height: `${h0}px`, opacity: 1, transform: 'none', marginBottom: '0px' },
+      { height: `${h0}px`, opacity: 0, transform: 'translateX(-16px)', marginBottom: '0px', offset: .4 },
+      { height: '0px', opacity: 0, transform: 'translateX(-16px)', paddingTop: '0px', paddingBottom: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', marginBottom: `-${g}px` }],
+      { duration: 260, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => v.remove();
+  });
   cont.querySelectorAll('.linea[data-sku]').forEach(el => {
     const a = antes.get(el.dataset.sku), h1 = el.getBoundingClientRect().height, h0 = a ? a.h : 0;
     if (Math.abs(h1 - h0) < 2) return;
@@ -380,11 +400,11 @@ registrarVista('/vender', {
     // v1.97 · La pantalla de Vender es el carrito: sin la lista de prendas a la vista. Buscar o escanear agrega;
     // «Todos los productos» abre la lista completa (Tarjetas listado alargadas). Al agregar, se vuelve al carrito.
     // Total, Cobrar, Descuento y Apartar van en la barra de cobro: abajo en el teléfono, columna derecha en la computadora.
-    const lado = h('aside', { class: 'lado-carrito barra-cobro-lado' });
+    const lado = h('aside', { class: 'lado-carrito barra-cobro-lado', hidden: true });
     const zonaCarrito = h('div', { class: 'zona-carrito' });
     const btnTodos = h('button', { class: 'btn btn-todos', type: 'button', id: 'todos-productos', onclick: () => { catalogo = true; pintar(); } }, icono('cuadricula'), 'Todos los productos');
     const vacio = h('div', { class: 'venta-vacia' }, btnTodos);
-    let catalogo = false, antes = new Map(), tRecien = 0;
+    let catalogo = false, antes = new Map(), tRecien = 0, tLista = 0;
     const sinCaja = h('div', { class: 'aviso sin-caja' }, icono('cartera'), h('span', {}, 'Abre tu caja para vender'), h('span', { class: 'sp' }), h('button', { class: 'btn primary', onclick: () => abrirCajaVentana(ctx) }, 'Abrir caja'));
 
     // El mismo escáner del Inventario (cámara, foto del código o escribirlo / lector USB): lo leído se agrega al carrito.
@@ -411,6 +431,8 @@ registrarVista('/vender', {
       const vis = todos.filter(g => (!genero || g.genero === genero) && (!q || g.variantes.some(p => coincide(prepararTexto(textoBusqueda(p)), q))));
       const lista = !!q || catalogo;
       filtros.hidden = rejilla.hidden = !lista;
+      // v1.98: al abrir la lista, chips y tarjetas entran con un fundido escalonado (solo esa vez, no en cada letra).
+      if (lista && !cont.classList.contains('en-lista')) { cont.classList.add('lista-entra'); clearTimeout(tLista); tLista = setTimeout(() => cont.classList.remove('lista-entra'), 450); }
       cont.classList.toggle('en-lista', lista);
       const borrar = cont.querySelector('.buscar-borrar'); if (borrar && catalogo && !q) borrar.hidden = false; // la × también cierra «Todos los productos»
       rejilla.replaceChildren(...(!lista ? [] : vis.length ? vis.map(g => tarjeta(ctx, g)) : [h('div', { class: 'vacio' }, q ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos. El administrador los importa desde la Carga Masiva.')]));
@@ -430,9 +452,17 @@ registrarVista('/vender', {
       zonaCarrito.hidden = lista || !r.unidades;
       if (r.unidades) ponerCarrito(zonaCarrito, panelCarrito(ctx, { enHoja: true })); else zonaCarrito.replaceChildren();
       if (nueva) { clearTimeout(tRecien); const el = zonaCarrito.querySelector(`.linea[data-sku="${CSS.escape(nueva)}"]`); if (el) { el.classList.add('recien'); el.scrollIntoView({ block: 'nearest' }); tRecien = setTimeout(() => el.classList.remove('recien'), 1600); } }
-      lado.hidden = !r.unidades;
+      // v1.98: la barra de cobro sube al aparecer (CSS) y baja antes de esconderse; el total late al cambiar.
+      if (r.unidades) {
+        const totalAntes = lado.querySelector('.total-cop')?.textContent;
+        lado.getAnimations().forEach(a => { if (!(a instanceof CSSAnimation)) a.cancel(); }); lado.hidden = false;
+        lado.replaceChildren(barraCobro(ctx, r));
+        const t = lado.querySelector('.total-cop');
+        if (totalAntes && t && t.textContent !== totalAntes && !MENOS_MOV()) t.animate([{ transform: 'translateY(4px)', opacity: .35 }, { transform: 'none', opacity: 1 }], { duration: 200, easing: 'cubic-bezier(.22,.9,.3,1)' });
+      } else if (!lado.hidden && !MENOS_MOV() && lado.animate && getComputedStyle(lado).position === 'fixed') {
+        lado.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(100%)', opacity: 0 }], { duration: 200, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).onfinish = () => { if (!resumenCarrito(ctx).unidades) lado.hidden = true; lado.getAnimations().forEach(x => { if (!(x instanceof CSSAnimation)) x.cancel(); }); };
+      } else lado.hidden = true;
       cont.classList.toggle('con-barra', !!r.unidades);
-      if (r.unidades) lado.replaceChildren(barraCobro(ctx, r));
       sinCaja.hidden = !!ctx.miCaja || !ctx.puedeVer('cajaFisica');
     }
     buscar.addEventListener('input', () => { busqueda = buscar.value; if (!busqueda) catalogo = false; pintar(); });
@@ -455,6 +485,6 @@ registrarVista('/vender', {
     cont.append(h('div', { class: 'vender-main' }, sinCaja, h('div', { class: 'buscador' }, campoBusqueda(buscar), escanear), filtros, rejilla, vacio, zonaCarrito), lado);
     pintar();
     if (!esTelefono()) setTimeout(() => buscar.focus(), 50);
-    return () => { clearTimeout(tRecien); document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
+    return () => { clearTimeout(tRecien); clearTimeout(tLista); document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
   },
 });

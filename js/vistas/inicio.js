@@ -51,13 +51,20 @@ function totalCajaCop(ctx, caja, ventas, apartados) {
   return Object.entries(esp).reduce((s, [id, m]) => s + (aCop(m, formas.find(f => f.id === id)?.moneda || 'COP', ctx.tasas) || 0), 0);
 }
 
+// v1.98: lo último que se vio queda en memoria mientras la app está abierta. Al volver a Inicio se muestra
+// al instante y se actualiza solo, en vez de pasar por 0 → «—» → cifra real.
+const memo = {};
+
 const diaCorto = iso => new Date(iso).toLocaleDateString('es-VE', { timeZone: 'America/Caracas', weekday: 'long', day: 'numeric', month: 'short' });
 
 registrarVista('/inicio', {
   montar(cont, ctx) {
     const gestion = ctx.puedeVer('verReportesTodos');
     const dia = hoy();
-    let datos = { ventas: [], costosVenta: null }, cajas = [], apartados = [], autorizaciones = [];
+    const clave = `${ctx.sesion?.usuario}|${dia}`;
+    const guardado = memo.clave === clave ? memo : {};
+    let datos = guardado.datos || null, cajas = guardado.cajas || [], apartados = guardado.apartados || [], autorizaciones = [];
+    let llegaron = !!datos;
     const tiles = h('div', { class: 'tiles' });
     let pintar = () => {};
     const porCaja = escucharVentasDeCajas(ctx, () => pintar());
@@ -65,7 +72,9 @@ registrarVista('/inicio', {
     const alertas = h('div', { class: 'alertas' });
     const ventasEl = h('div', { class: 'tarjeta' });
     pintar = () => {
-      const r = resumenDia(datos.ventas, datos.costosVenta, ctx.ajustes.formasPago);
+      const cargando = !datos;
+      const d = datos || { ventas: [], costosVenta: null };
+      const r = resumenDia(d.ventas, d.costosVenta, ctx.ajustes.formasPago);
       const bajas = inventarioBajo(Object.values(ctx.productos));
       const negativos = Object.values(ctx.productos).filter(p => p.existencia < 0);
       if (gestion) {
@@ -83,12 +92,15 @@ registrarVista('/inicio', {
       } else {
         const mia = ctx.miCaja;
         porCaja.actualizar(mia ? [mia] : []);
-        const comision = datos.ventas.filter(v => v.estado !== 'anulada').flatMap(v => v.lineas).reduce((s, l) => s + (l.comision || 0), 0);
+        const comision = d.ventas.filter(v => v.estado !== 'anulada').flatMap(v => v.lineas).reduce((s, l) => s + (l.comision || 0), 0);
         tiles.replaceChildren(
           tile('mis-ventas', 'var(--tono-verde)', 'Mis ventas de hoy', fmtCop(r.total), `${r.ventas} ${r.ventas === 1 ? 'venta' : 'ventas'} · ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, 'carrito'),
           tile('mi-caja', 'var(--tono-ambar)', 'Mi caja', mia ? fmtCop(totalCajaCop(ctx, mia, porCaja.ventas(mia.id), apartados)) : 'Cerrada', mia ? 'Debería haber' : 'Ábrela para vender', 'cartera'),
           tile('comision', 'var(--tono-rosa)', 'Mi comisión de hoy', fmtCop(comision), null, 'porcentaje'));
       }
+      // Mientras llegan las ventas, las cifras respiran en gris; la ganancia también mientras se calculan los costos.
+      tiles.querySelectorAll('.tile').forEach(t => { if (cargando ? t.dataset.k !== 'bajas' : (t.dataset.k === 'ganancia' && (r.ganancia == null || r.gananciaParcial))) t.classList.add('cargando'); });
+      if (!cargando && !llegaron) { llegaron = true; tiles.querySelectorAll('.tile:not(.cargando) .val').forEach(v => v.classList.add('llega')); }
       const pendientes = autorizaciones.filter(a => a.estado === 'pendiente');
       auts.replaceChildren(...(ctx.puedeVer('aprobarDescuento') && pendientes.length ? [h('h2', { class: 'sec-t' }, icono('porcentaje'), 'Autorizaciones de descuento'),
         ...pendientes.map(a => h('div', { class: 'autorizacion tarjeta' },
@@ -104,10 +116,11 @@ registrarVista('/inicio', {
         ...cierres.map(c => alerta(`Cierre con diferencia · @${c.usuario}`, `${c.cierre.totalCop > 0 ? '+' : ''}${fmtCop(c.cierre.totalCop)} COP · ${c.cierre.nota || ''}`)),
       ].filter(Boolean) : []));
       // Solo las últimas 5: el total ya está en la tarjeta de arriba; el resto, en Reportes.
-      const n = datos.ventas.length;
+      const n = d.ventas.length;
       ventasEl.replaceChildren(h('div', { class: 'cab-sec' }, h('h2', { class: 'sec-t' }, icono('historial'), 'Últimas ventas'),
         n > 5 ? h('button', { class: 'enlace', id: 'ver-todas', onclick: () => navegar('/reportes') }, `Ver las ${n}`) : null),
-        listaVentas(ctx, datos.ventas, 5));
+        cargando ? h('div', { class: 'ventas-cargando', 'aria-busy': 'true' }, h('span', { class: 'esqueleto', style: 'width:100%;height:44px;margin-top:8px' }), h('span', { class: 'esqueleto', style: 'width:100%;height:44px;margin-top:8px' })) : listaVentas(ctx, d.ventas, 5));
+      if (datos) Object.assign(memo, { clave, datos, cajas, apartados });
     };
     const q = [
       escucharVentasConCosto(ctx, { desde: dia, hasta: dia }, d => { datos = d; pintar(); }),

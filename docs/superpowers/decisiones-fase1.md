@@ -450,3 +450,9 @@ Suite final: npm test 99/99 · e2e 59/59
   - Teléfono: barra de cobro fija sobre la barra de íconos, de borde a borde, esquinas de arriba redondeadas y degradado verde crema (el estilo de la barra del carrito): total COP con USD y Bs, Cobrar, y debajo Descuento | Apartar. Solo aparece con prendas en el carrito; se esconde con el teclado.
   - Computadora: carrito a la izquierda y columna derecha con total grande, Cobrar a todo el ancho y Descuento | Apartar debajo. Sin prendas la columna no aparece.
   - Espaciado del sistema (regla para toda la app): 12 px entre bloques y a los bordes en el teléfono, 16 px en la computadora; bajo el buscador se aplica igual.
+- v1.98 (auditoría de animaciones con el video de Carlos):
+  - Vender (teléfono): la vista entra solo con fundido; antes el desplazamiento de la entrada hacía que la barra de cobro apareciera a media pantalla y luego saltara abajo. La barra ahora sube desde abajo (260 ms) al entrar, al agregar la primera prenda y al cerrar el teclado, y baja (200 ms) al vaciar el carrito.
+  - Carrito: la prenda que se quita se desvanece y cierra su hueco (260 ms) en vez de desaparecer de golpe; el total sube con un fundido corto al cambiar.
+  - «Todos los productos» / búsqueda: chips y tarjetas entran con fundido escalonado solo al abrir la lista (no en cada letra); el vacío y el carrito aparecen con fundido.
+  - Inicio y Apartados: ya no muestran 0, «—», «Calculando costos…» ni «Todavía no hay apartados» mientras llegan los datos. La primera vez se ven bloques grises que respiran; al volver se muestra al instante lo último visto y se actualiza solo.
+  - Todo respeta «reducir movimiento» del teléfono.
