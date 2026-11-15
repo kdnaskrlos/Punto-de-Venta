@@ -191,7 +191,7 @@ casos('cobrar', [
   ['El texto del tramo en el carrito se lee (12 px o más)', async (env, a) => {
     const p = await preparar(env);
     await p.click('.zona-carrito .linea.mini');
-    const tam = await p.$eval('.zona-carrito .linea .tramo', e => parseFloat(getComputedStyle(e).fontSize));
+    const tam = await p.$eval('.zona-carrito .linea .lc-tramo', e => parseFloat(getComputedStyle(e).fontSize));
     a.ok(tam >= 12, `${tam}px`);
   }],
   ['Registrar cliente y pasar al cobro: al cerrar sigue en la app', async (env, a) => {

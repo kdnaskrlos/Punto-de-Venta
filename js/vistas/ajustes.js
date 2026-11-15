@@ -11,7 +11,8 @@ const campo = (id, etiqueta, attrs = {}) => h('div', { class: 'campo' }, h('labe
 const seccion = (titulo, ic, ...hijos) => h('section', { class: 'tarjeta pila' }, titulo ? h('h2', { class: 'sec-t' }, icono(ic), titulo) : null, ...hijos);
 // Monto de comisión: se muestra con punto de miles (4.000); vacío = usa el tramo anterior.
 const montoCom = (id, valor, ejemplo, alCambiar) => {
-  const inp = h('input', { class: 'inp num', id, inputmode: 'numeric', value: valor != null ? fmtCop(valor) : '', placeholder: ejemplo, 'aria-label': id.endsWith('normal') ? 'Comisión normal' : 'Comisión reducida' });
+  // v1.99: sin texto de ejemplo dentro del campo.
+  const inp = h('input', { class: 'inp num', id, inputmode: 'numeric', value: valor != null ? fmtCop(valor) : '', 'aria-label': id.endsWith('normal') ? 'Comisión normal' : 'Comisión reducida' });
   inp.addEventListener('input', () => alCambiar(parseMonto(inp.value, 'COP')));
   inp.addEventListener('blur', () => { const n = parseMonto(inp.value, 'COP'); inp.value = n != null ? fmtCop(n) : ''; });
   return inp;
@@ -59,8 +60,11 @@ function tasas(ctx) {
   recargo.addEventListener('input', pintar);
   manual.addEventListener('input', () => { modo.value = 'manual'; pintar(); });
   pintar();
+  // v1.99: en Tasas no sale el aviso flotante; un ícono a la derecha de «Peso colombiano» indica que hay
+  // cambios por guardar (y al tocarlo se guardan).
+  const pendiente = h('button', { type: 'button', class: 'ibtn aj-pendiente', id: 'aj-pendiente', 'aria-label': 'Guardar cambios', title: 'Hay cambios sin guardar', hidden: true }, icono('guardar'));
   const el = seccion(null, null,
-    h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-cop' }, 'Peso colombiano'), filaUsd(cop)),
+    h('div', { class: 'campo' }, h('div', { class: 'tasa-cab' }, h('label', { class: 'et-moneda', for: 'aj-cop' }, 'Peso colombiano'), pendiente), filaUsd(cop)),
     h('div', { class: 'campo' }, h('label', { class: 'et-moneda' }, 'Bs'), grupo));
   // Devuelve true si se guardó (o no había nada que guardar).
   const guardar = async () => {
@@ -74,7 +78,7 @@ function tasas(ctx) {
     if (!r.ok) toast(r.error === 'permiso' ? 'No se guardaron las tasas: Firebase no dio permiso (revisa las reglas)' : r.error === 'sesion' ? 'Tu sesión se cerró: vuelve a entrar' : 'No se guardaron las tasas. Revisa la conexión', { malo: true });
     return r.ok;
   };
-  return { el, guardar };
+  return { el, guardar, pendiente };
 }
 
 function venta(ctx) {
@@ -190,6 +194,17 @@ const EJEMPLO = { fecha: new Date().toISOString(), numero: 'V-0001', cliente: { 
 function recibo(ctx) {
   const area = h('textarea', { class: 'inp plantilla', id: 'aj-plantilla', rows: 12, spellcheck: 'true' });
   area.value = ctx.ajustes.recibo?.plantilla?.trim() ? ctx.ajustes.recibo.plantilla : PLANTILLA_DEFECTO;
+  // v1.99: si se agranda el recuadro del mensaje, la app recuerda ese alto (en este aparato).
+  const CLAVE_ALTO = 'pos-recibo-alto';
+  try { const alto = Number(localStorage.getItem(CLAVE_ALTO)); if (alto >= 120) area.style.height = `${alto}px`; } catch {}
+  if ('ResizeObserver' in window) {
+    let t = 0;
+    new ResizeObserver(() => {
+      const alto = Math.round(area.getBoundingClientRect().height);
+      if (!alto || !area.style.height) return; // oculto, o todavía sin agrandar a mano
+      clearTimeout(t); t = setTimeout(() => { try { localStorage.setItem(CLAVE_ALTO, String(alto)); } catch {} }, 250);
+    }).observe(area);
+  }
   const burbuja = h('div', { class: 'wa-burbuja', id: 'aj-recibo-vista' });
   const pintar = () => {
     const txt = textoRecibo(EJEMPLO, ctx.ajustes.tienda || { nombre: 'Comic Shop' }, { plantilla: area.value });
@@ -227,10 +242,14 @@ registrarVista('/ajustes', {
       h('span', {}, 'Cambios sin guardar'),
       h('button', { type: 'button', class: 'btn texto', id: 'aj-guardar-aviso', onclick: () => boton.click() }, 'Guardar'));
     let botonVisible = false;
-    const pintarAviso = () => { aviso.hidden = boton.disabled || botonVisible; };
+    const pintarAviso = () => {
+      aviso.hidden = boton.disabled || botonVisible || pestanaActual === 'tasas';
+      t.pendiente.hidden = boton.disabled;
+    };
     if ('IntersectionObserver' in window) new IntersectionObserver(([e]) => { botonVisible = e.isIntersecting; pintarAviso(); }, { rootMargin: esTelefono() ? '0px 0px -84px 0px' : '0px' }).observe(boton); // en el teléfono la barra de abajo tapa 84 px
     const cambio = () => { boton.disabled = false; pintarAviso(); };
     const t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
+    t.pendiente.addEventListener('click', () => boton.click());
     const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el };
     // Un solo botón para guardar; aparece cuando se cambia algo.
     for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button, button[aria-pressed], .modo-bs')) cambio(); }); }
@@ -253,6 +272,7 @@ registrarVista('/ajustes', {
       pest.replaceChildren(...PESTANAS.map(([k, txt]) => h('button', { type: 'button', role: 'tab', id: 'aj-tab-' + k, 'aria-selected': String(k === id), 'aria-pressed': String(k === id), onclick: () => mostrar(k) }, txt)));
       for (const [k, el] of Object.entries(secciones)) el.hidden = k !== id;
       if (id === 'recibo') re.pintar();
+      pintarAviso();
     };
     mostrar(pestanaActual);
     cont.append(pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), barra, aviso);

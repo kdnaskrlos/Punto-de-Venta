@@ -456,3 +456,13 @@ Suite final: npm test 99/99 · e2e 59/59
   - «Todos los productos» / búsqueda: chips y tarjetas entran con fundido escalonado solo al abrir la lista (no en cada letra); el vacío y el carrito aparecen con fundido.
   - Inicio y Apartados: ya no muestran 0, «—», «Calculando costos…» ni «Todavía no hay apartados» mientras llegan los datos. La primera vez se ven bloques grises que respiran; al volver se muestra al instante lo último visto y se actualiza solo.
   - Todo respeta «reducir movimiento» del teléfono.
+- v1.99 (aprobado con boceto HTML; los demás cambios a pedido, sin boceto):
+  - Barra de cobro: total arriba a la derecha (con USD y Bs) y en una sola línea Descuento · Apartar · Cobrar (Cobrar más ancho). En la computadora la columna pasa de 330 a 360 px.
+  - «Todos los productos» al centro del espacio libre de la pantalla.
+  - Tarjetas cobrar: nombre sin el género («Franela AS»); el género va en la segunda línea con el color y la talla (también en las líneas compactas); el tramo en texto verde sin pastilla (la oferta en ámbar); «COP» del mismo color que el precio; el subtotal en la línea base del último texto de la izquierda (el tramo o el «c/u»).
+  - Detalle del apartado: sin los recuadros del pago, las prendas y el último abono; barra de abonos en degradado verde (en toda la app); botones alineados a la derecha.
+  - Detalle de la prenda (Inventario): sin el recuadro de stock; bajo el nombre «● color · tela» (sin «N tallas»); Ficha en dos columnas sin cajitas (Tipo, Género, Marca, Modelo, Código de imagen, Costo). El panel de cada talla queda igual.
+  - Ajustes · Tasas: sin el aviso flotante de «Cambios sin guardar»; en su lugar un ícono de guardar (ámbar) a la derecha de «Peso colombiano» que aparece con cambios y guarda al tocarlo; más aire entre ese título y el campo. Binance (ámbar), BCV (azul) y Manual (violeta) con su color, como las formas de pago. En las otras pestañas el aviso sigue.
+  - Comisión por prenda: sin textos de ejemplo dentro de los campos.
+  - Recibo: si se agranda el recuadro del mensaje, la app recuerda el alto en ese aparato.
+  - Buscador del Inventario con la misma letra y color de texto de ejemplo que los demás buscadores.

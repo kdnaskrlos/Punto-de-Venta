@@ -25,7 +25,7 @@ export const claveGrupo = p => [p.tipo, p.tela, p.marca, p.genero, p.modelo, p.c
 // distinguen variantes y van aparte). El modelo y la tela no se agregan: son datos para clasificar.
 // «Franela Etanol Unisex 2XL Amarillo Claro PoliAlg.» → «Franela Etanol Unisex».
 const llano = s => texto(s).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-function quitarFrase(palabras, frase) {
+export function quitarFrase(palabras, frase) {
   const f = texto(frase).split(/\s+/).filter(Boolean).map(llano);
   if (!f.length) return palabras;
   for (let i = palabras.length - f.length; i >= 0; i--) {

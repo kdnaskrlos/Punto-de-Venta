@@ -1,10 +1,16 @@
 // Cómo se muestra y agrupa un producto (variante) del inventario de la Carga Masiva.
-import { claveGrupo, tituloProducto, nombreVariante } from './importar.js';
+import { claveGrupo, tituloProducto, nombreVariante, quitarFrase } from './importar.js';
 export { nombreVariante };
 
 // Nombre de la tarjeta: la columna nombre sin talla, color ni tela («Franela AS Niño»). Se calcula
 // siempre (no se usa el titulo guardado, que en versiones anteriores incluía el modelo).
 export const titulo = p => tituloProducto(p || {});
+// v1.99 · Tarjetas cobrar: el nombre sin el género («Franela AS»); el género pasa a la segunda línea.
+// Devuelve { nombre, genero }: genero solo si se quitó del nombre (si el nombre no lo traía, no se repite).
+export function nombreSinGenero(p) {
+  const t = titulo(p), pal = t.split(/\s+/).filter(Boolean), sin = quitarFrase(pal, p?.genero);
+  return sin.length && sin.length < pal.length ? { nombre: sin.join(' '), genero: p.genero } : { nombre: t, genero: null };
+}
 // Tarjeta a la que pertenece la variante (tipo + tela + marca + género + modelo + color).
 export const grupoDe = p => p?.grupo || claveGrupo(p || {});
 // Línea de detalle bajo el nombre: color y tela.

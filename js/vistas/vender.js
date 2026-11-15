@@ -5,7 +5,7 @@ import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, 
 import { coincide, prepararTexto } from '../nucleo/busqueda.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
-import { titulo, grupoDe, textoBusqueda, fotoDe } from '../nucleo/producto.js';
+import { titulo, grupoDe, textoBusqueda, fotoDe, nombreSinGenero } from '../nucleo/producto.js';
 import { tipoPrenda, compararTallas } from '../nucleo/tipo-prenda.js';
 import { colorPrenda } from '../nucleo/colores.js';
 import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
@@ -88,9 +88,10 @@ function contador(ctx, l) {
 }
 function lineaCarrito(ctx, l, aj, compacta) {
   const p = ctx.productos[l.sku];
-  const g = { titulo: titulo(p), tipo: p.tipo, genero: p.genero, foto: fotoDe(p, ctx.imagenes) };
-  // v1.92: Tarjetas cobrar sin la tela (color y talla).
-  const variante = [p.color, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku;
+  // v1.99: el género va en la segunda línea con el color y la talla (sin tela, como en v1.92).
+  const ng = nombreSinGenero(p);
+  const g = { titulo: ng.nombre, tipo: p.tipo, genero: p.genero, foto: fotoDe(p, ctx.imagenes) };
+  const variante = [ng.genero, p.color, p.talla && `Talla ${p.talla}`].filter(Boolean).join(' · ') || p.sku;
   const alternar = () => { const c = carrito(ctx); c.abierta = c.abierta === l.sku ? null : l.sku; window.dispatchEvent(new CustomEvent('pos:carrito')); };
   if (compacta) return h('div', { class: 'linea mini', 'data-sku': l.sku, role: 'button', tabindex: '0', 'aria-expanded': 'false', onclick: alternar, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } } },
     h('span', { class: 'lc-q num' }, String(l.cantidad)),
@@ -105,7 +106,8 @@ function lineaCarrito(ctx, l, aj, compacta) {
       h('span', { class: 'lc-chip' }, variante),
       // v1.92: «Precio 1–5» (antes «Tarifa») y el precio por unidad al lado.
       h('span', { class: 'lc-precio' },
-        h('span', { class: 'lc-chip tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Precio de oferta' : `Precio ${etiquetaTramo(l.tramo, aj.tramos)}`),
+        // v1.99: el tramo en texto verde, sin pastilla (la oferta en ámbar).
+        h('span', { class: 'lc-tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Precio de oferta' : `Precio ${etiquetaTramo(l.tramo, aj.tramos)}`),
         l.cantidad > 1 ? h('span', { class: 'nota num lc-cu' }, `${fmtCop(l.precioUnit)} c/u`) : null)),
     h('div', { class: 'linea-der' },
       contador(ctx, l),
@@ -228,14 +230,15 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
 // Barra de cobro (v1.97): total en COP con su equivalente en USD y Bs, Cobrar, y debajo Descuento y Apartar.
 // En el teléfono va fija sobre la barra de íconos; en la computadora es la columna derecha.
 function barraCobro(ctx, r) {
+  // v1.99: total arriba a la derecha y, en una línea, Descuento · Apartar · Cobrar.
   return h('div', { class: 'barra-cobro' },
     h('div', { class: 'bco-total' },
       r.descuento ? h('span', { class: 'bco-desc' }, icono('etiqueta'), '−' + fmtCop(r.descuento)) : null,
       h('div', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total)), h('span', { class: 'c-cop moneda' }, 'COP')),
       h('div', { class: 'tc-eq' }, equivalentes(ctx, r.total))),
-    h('button', { class: 'btn primary cobrar', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') }, 'Cobrar'),
     h('button', { class: 'btn', type: 'button', id: 'car-descuento', onclick: () => abrirDescuento(ctx) }, icono('etiqueta'), 'Descuento'),
-    h('button', { class: 'btn', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'));
+    h('button', { class: 'btn apartar', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('apartar') }, icono('apartado'), 'Apartar'),
+    h('button', { class: 'btn primary cobrar', type: 'button', onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') }, 'Cobrar'));
 }
 
 // Descuento por monto, en pesos o en dólares (sin porcentaje). En dólares se convierte a pesos con la tasa del día.

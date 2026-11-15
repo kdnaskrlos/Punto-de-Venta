@@ -39,7 +39,7 @@ casos('vender', [
     a.strictEqual(await p.$$eval('.zona-carrito .linea.mini', e => e.length), 3, 'con más de 2 prendas el carrito se compacta');
     for (const sku of ['B-M', 'F-B-6', 'F-B-8']) {
       await p.click(`.zona-carrito .linea[data-sku="${sku}"].mini`);
-      a.ok((await texto(p, `.zona-carrito .linea[data-sku="${sku}"] .tramo`)).includes('6–11'), sku);
+      a.ok((await texto(p, `.zona-carrito .linea[data-sku="${sku}"] .lc-tramo`)).includes('6–11'), sku);
     }
     a.strictEqual(await texto(p, '.barra-cobro .total-cop'), '186.000');
     a.ok((await texto(p, '.barra-cobro .tc-eq')).includes('47,70'));
@@ -66,7 +66,7 @@ casos('vender', [
     a.strictEqual(await p.isVisible('.rejilla'), false, 'la lista se oculta');
     a.ok(await p.isVisible('.zona-carrito .linea[data-sku="B-S"]'));
     a.strictEqual(await texto(p, '.barra-cobro .total-cop'), '48.000');
-    a.deepStrictEqual(await p.$$eval('.barra-cobro button', b => b.map(x => x.textContent.trim())), ['Cobrar', 'Descuento', 'Apartar']);
+    a.deepStrictEqual(await p.$$eval('.barra-cobro button', b => b.map(x => x.textContent.trim())), ['Descuento', 'Apartar', 'Cobrar']);
     await p.waitForTimeout(350); // la barra termina de subir
     const r = await p.$eval('.lado-carrito', e => { const b = e.getBoundingClientRect(), n = document.querySelector('.side').getBoundingClientRect(); return [Math.round(b.left), Math.round(innerWidth - b.right), Math.round(n.top - b.bottom), getComputedStyle(e).position]; });
     a.ok(r[0] === 0 && r[1] === 0 && Math.abs(r[2]) <= 2 && r[3] === 'fixed', 'de borde a borde, justo encima de la barra de íconos: ' + r);
@@ -222,7 +222,12 @@ casos('vender', [
     const l = await p.evaluate(() => Math.round(document.querySelector('.zona-carrito .linea').getBoundingClientRect().top - document.querySelector('.vender-main .buscador').getBoundingClientRect().bottom));
     a.strictEqual(l, 12, 'el carrito a 12 px del buscador');
     // Tarjetas cobrar: color y talla en texto (sin pastilla); «Precio 1–5» en pastilla con el c/u al lado; monto en su línea base.
-    a.deepStrictEqual(await p.$$eval('.zona-carrito .linea .lc-chip', e => e.map(x => getComputedStyle(x).backgroundColor)), ['rgba(0, 0, 0, 0)', 'rgb(246, 248, 250)']);
+    a.deepStrictEqual(await p.$$eval('.zona-carrito .linea .lc-chip', e => e.map(x => getComputedStyle(x).backgroundColor)), ['rgba(0, 0, 0, 0)']);
+    // v1.99: nombre sin el género; el género va con el color y la talla; el tramo en texto verde (sin pastilla); «COP» del color del precio.
+    a.strictEqual(await texto(p, '.zona-carrito .linea .linea-info > b'), 'Jogger Texcol');
+    a.strictEqual(await texto(p, '.zona-carrito .linea .lc-chip'), 'Caballero · Negro · Talla M');
+    a.deepStrictEqual(await p.$eval('.zona-carrito .linea .lc-tramo', e => [getComputedStyle(e).backgroundColor, getComputedStyle(e).color]), ['rgba(0, 0, 0, 0)', 'rgb(21, 128, 61)']);
+    a.strictEqual(await p.$eval('.zona-carrito .linea .lc-monto .c-cop', e => getComputedStyle(e).color), await p.$eval('.zona-carrito .linea .lc-monto .monto', e => getComputedStyle(e).color));
     a.match(await texto(p, '.zona-carrito .linea .lc-precio'), /^Precio 1–5\s*42\.000 c\/u$/);
     const bases = await p.$eval('.zona-carrito .linea', l => { const r = (s) => { const e = l.querySelector(s), rg = document.createRange(); rg.selectNodeContents(e); return Math.round(rg.getBoundingClientRect().bottom); }; return [r('.lc-cu'), r('.lc-monto .monto')]; });
     a.ok(Math.abs(bases[0] - bases[1]) <= 2, `línea base: ${bases}`);
@@ -263,5 +268,51 @@ casos('vender', [
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
     a.strictEqual(await p.$eval('.lado-carrito', e => e.hidden), false, 'primero baja');
     await p.waitForFunction(() => document.querySelector('.lado-carrito').hidden);
+  }],
+  ['v1.99 · Barra de cobro: total a la derecha y Descuento · Apartar · Cobrar en una línea (teléfono y computadora); «Todos los productos» al centro', async (env, a) => {
+    for (const opc of [{ movil: true }, { ancho: 1440, alto: 900 }]) {
+      const p = await env.pagina({ ...opc, usuario: 'vendedora', caja: true, ruta: '/vender' });
+      const v = await p.$eval('#todos-productos', b => { const r = b.getBoundingClientRect(), s = document.querySelector('.vender-main .buscador').getBoundingClientRect(), n = document.querySelector('.side').getBoundingClientRect(); const fin = innerWidth < 840 ? n.top : innerHeight; return Math.abs((r.top + r.bottom) / 2 - (s.bottom + fin) / 2); });
+      a.ok(v < 40, 'centrado en el espacio libre: ' + v);
+      await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+      await p.waitForTimeout(400);
+      const r = await p.evaluate(() => { const q = s => document.querySelector('.barra-cobro ' + s).getBoundingClientRect(); const d = q('#car-descuento'), ap = q('.apartar'), c = q('.cobrar'), t = q('.bco-total'), b = document.querySelector('.barra-cobro').getBoundingClientRect();
+        return { linea: Math.abs(d.top - ap.top) < 2 && Math.abs(ap.top - c.top) < 2, orden: d.left < ap.left && ap.left < c.left, derecha: Math.abs(t.right - b.right) < 2, arriba: t.bottom <= d.top }; });
+      a.deepStrictEqual(r, { linea: true, orden: true, derecha: true, arriba: true });
+    }
+  }],
+  ['v1.99 · Detalle de la prenda (Inventario): sin recuadro de stock, color y tela bajo el nombre y ficha en dos columnas', async (env, a) => {
+    const p = await env.pagina({ ancho: 390, alto: 844, ruta: '/inventario' });
+    await p.fill('#q', 'franela as'); await p.click('.stk .tarjeta-prenda[data-skus~="F-B-4"]');
+    await p.waitForSelector('.stk-capa .ficha2');
+    a.strictEqual(await texto(p, '.stk-capa .sh h2'), 'Franela AS Niño');
+    a.strictEqual(await texto(p, '.stk-capa .sub-prenda'), 'Blanco · Algodon');
+    a.ok(await p.$('.stk-capa .sub-prenda .punto-color'));
+    a.ok(!(await p.innerText('.stk-capa')).match(/Stock|\d+ tallas/), 'sin stock ni «N tallas»');
+    const cols = await p.$$eval('.stk-capa .ficha2 > div', d => new Set(d.map(x => Math.round(x.getBoundingClientRect().left))).size);
+    a.strictEqual(cols, 2);
+  }],
+  ['v1.99 · Ajustes: en Tasas un ícono junto a «Peso colombiano» guarda (sin aviso flotante); Binance/BCV/Manual con color propio', async (env, a) => {
+    const p = await env.pagina({ ancho: 390, alto: 844, ruta: '/ajustes' });
+    a.strictEqual(await p.isVisible('#aj-pendiente'), false);
+    await p.fill('#aj-cop', '4.000');
+    a.ok(await p.isVisible('#aj-pendiente')); await p.waitForTimeout(300); // fin del fundido del ícono
+    a.strictEqual(await p.isVisible('.aviso-guardar'), false, 'sin aviso flotante en Tasas');
+    const fila = await p.evaluate(() => { const l = document.querySelector('label[for="aj-cop"]').getBoundingClientRect(), i = document.querySelector('#aj-pendiente').getBoundingClientRect(); return Math.abs((l.top + l.bottom) / 2 - (i.top + i.bottom) / 2); });
+    a.ok(fila < 3, 'alineado con el título: ' + fila);
+    const colores = await p.$$eval('.modo-bs .modo-txt b', b => b.map(x => getComputedStyle(x).color));
+    a.strictEqual(new Set(colores).size, 3);
+    await p.click('#aj-pendiente');
+    await p.waitForFunction(() => document.querySelector('#aj-pendiente').hidden);
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.ajustesTasas?.copPorUsd), 4000);
+  }],
+  ['v1.99 · Recibo: el alto del mensaje agrandado se recuerda', async (env, a) => {
+    const p = await env.pagina({ ancho: 1280, alto: 900, ruta: '/ajustes' });
+    await p.click('#aj-tab-recibo');
+    await p.$eval('#aj-plantilla', e => { e.style.height = '520px'; });
+    await p.waitForTimeout(500);
+    await p.evaluate(() => { location.hash = '/inicio'; }); await p.waitForTimeout(200);
+    await p.evaluate(() => { location.hash = '/ajustes'; }); await p.waitForSelector('#aj-tab-recibo'); await p.click('#aj-tab-recibo');
+    a.strictEqual(await p.$eval('#aj-plantilla', e => Math.round(e.getBoundingClientRect().height)), 520);
   }],
 ]);

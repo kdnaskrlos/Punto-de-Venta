@@ -4,6 +4,7 @@ import { h, icono, abrirVentana, abrirCapaPropia, abrirMenu, toast, esTelefono, 
 import { titulo, grupoDe, detalle, textoBusqueda, fotoDe, nombreVariante } from '../nucleo/producto.js';
 import { abrirEscaner } from './escaner.js';
 import { compararTallas } from '../nucleo/tipo-prenda.js';
+import { colorPrenda } from '../nucleo/colores.js';
 import { registrarVista } from '../app.js';
 import { tarjetaPrenda } from './vender.js';
 import { coincide, prepararTexto } from '../nucleo/busqueda.js';
@@ -347,22 +348,21 @@ function abrirPrenda(ctx, clave, costos, tema, abrirTalla) {
     const x = prendas(Object.values(ctx.productos).filter(p => p.activo !== false && grupoDe(p) === clave))[0];
     if (!x) return;
     const p = x.p, foto = fotoDe(p, ctx.imagenes);
-    const kv = (a, b) => (b ? `<dt>${a}</dt><dd>${esc(b)}</dd>` : '');
     const pri = (p.precios || []).map((v, i) => ({ v, i })).filter(o => o.v || o.i === 0);
     const oferta = p.oferta?.activa ? ` <span class="oferta">· Oferta ${p.oferta.pct}%</span>` : '';
     const verCostos = ctx.puedeVer('verCostos'), costo = costos[p.sku]?.costo;
     // v1.93: en cada talla, botones pequeños de Ajustar existencia (administrador) e Historial (quien ve costos).
     const puedeAjustar = puedeAdmin(ctx, 'ajustarInventario');
     const accTalla = v => (puedeAjustar || verCostos ? `<span class="ti-acc">${puedeAjustar ? `<button type="button" class="ti-btn" data-acc="ajustar" data-sku="${esc(v.sku)}" aria-label="Ajustar existencia talla ${esc(v.talla || 'única')}" title="Ajustar existencia">${SVG.ajustar}</button>` : ''}${verCostos ? `<button type="button" class="ti-btn" data-acc="historial" data-sku="${esc(v.sku)}" aria-label="Historial talla ${esc(v.talla || 'única')}" title="Historial">${SVG.historial}</button>` : ''}</span>` : '');
-    sh.innerHTML = `<div class="grab"></div><div class="sh"><h2>${esc(x.nombre)}</h2><button class="x" type="button" data-act="close" aria-label="Cerrar">×</button></div>
-  <div class="muted" style="font-size:12.5px;margin-top:4px">${esc([p.tela, `${x.vs.length} ${x.vs.length === 1 ? 'talla' : 'tallas'}`].filter(Boolean).join(' · '))}</div>
+    // v1.99: el color pasa a la segunda línea con su punto y la tela (sin «N tallas»); sin el recuadro de stock.
+    const pc = colorPrenda(p.color);
+    const ficha = (a, b, mono) => (b ? `<div><span>${a}</span><b${mono ? ' class="mono"' : ''}>${esc(b)}</b></div>` : '');
+    sh.innerHTML = `<div class="grab"></div><div class="sh"><h2>${esc(titulo(p))}</h2><button class="x" type="button" data-act="close" aria-label="Cerrar">×</button></div>
+  ${p.color || p.tela ? `<div class="sub-prenda">${p.color ? `<i class="punto-color"${pc ? ` style="--pc:${esc(pc)}"` : ''}></i>` : ''}${esc([p.color, p.tela].filter(Boolean).join(' · '))}</div>` : ''}
   ${foto ? `<div class="card fotocard"><img src="${esc(foto)}" alt="Foto de ${esc(x.nombre)}"></div>` : ''}
-  <div class="card"><h3>Stock</h3><div class="big"><div class="stk ${x.st}"><b>${fmtN(x.total)}</b><span>${x.st === 'out' ? 'agotado' : x.st === 'low' ? 'stock bajo' : 'en total'}</span></div>
-   <dl class="kv" style="flex:1"><dt>Unidades</dt><dd class="mono">${fmtN(x.total)}</dd><dt>Tallas</dt><dd class="mono">${x.vs.length}</dd></dl></div></div>
   <div class="card"><h3>Tallas</h3><div class="tallas-inv">${x.vs.map(v => { const k = st(v); return `<div class="talla-inv" data-sku="${esc(v.sku)}"><span class="ti-t"><b>${esc(v.talla ? 'Talla ' + v.talla : 'Talla única')}</b></span><span class="ti-u ${k}"><b>${k === 'out' ? 'Agotada' : fmtN(v.existencia) + ' uds'}</b><span>mín. ${fmtN(v.minimo || 0)}</span></span>${accTalla(v)}</div>`; }).join('')}</div></div>
   <div class="card"><h3>Precios${oferta}</h3><div class="prices">${pri.map(o => `<div><span>Precio ${o.i + 1}</span><b>${o.v ? fmtCop(o.v) : '—'}</b></div>`).join('')}</div></div>
-  <div class="card"><h3>Ficha</h3><dl class="kv">${kv('Tipo', p.tipo)}${kv('Tela', p.tela)}${kv('Color', p.color)}${kv('Género', p.genero)}${kv('Marca', p.marca)}${kv('Modelo', p.modelo)}${kv('Código de imagen', p.id_imagen)}
-   ${verCostos ? `<dt>Costo</dt><dd><button class="reveal" type="button" data-cost="${costo != null ? fmtCop(costo) : '—'}">Mostrar</button></dd>` : ''}</dl></div>
+  <div class="card"><h3>Ficha</h3><div class="ficha2">${ficha('Tipo', p.tipo)}${ficha('Género', p.genero)}${ficha('Marca', p.marca)}${ficha('Modelo', p.modelo)}${ficha('Código de imagen', p.id_imagen, true)}${verCostos ? `<div><span>Costo</span><button class="reveal" type="button" data-cost="${costo != null ? fmtCop(costo) : '—'}">Mostrar</button></div>` : ''}</div></div>
   <div class="card" id="prenda-acciones" hidden><h3>Acciones</h3><div class="acc"></div></div>`;
     const g = { grupo: clave, titulo: titulo(p), color: p.color, tela: p.tela, variantes: x.vs, id_imagen: p.id_imagen, foto };
     const acc = sin(

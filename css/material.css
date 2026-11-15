@@ -703,3 +703,66 @@ button.pill:not(.demo){border-color:transparent!important}
   .vista.vender .lado-carrito,.venta-vacia,.zona-carrito,.vista.vender.lista-entra .filtros,.vista.vender.lista-entra .rejilla > *,.tile .val.llega{animation:none!important}
   .esqueleto,.tile.cargando .val,.tile.cargando .sub,.ap-esqueleto{animation:none}
 }
+
+/* ===== v1.99 ===== */
+/* Barra de cobro: total arriba a la derecha; Descuento · Apartar · Cobrar en una sola línea. */
+.vista.vender .barra-cobro{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr)!important;grid-template-areas:"tot tot tot" "des apa cob"!important;gap:10px 8px!important}
+.vista.vender .barra-cobro .bco-total{justify-self:end;text-align:right;min-width:0;max-width:100%}
+.vista.vender .barra-cobro .bco-total .total{justify-content:flex-end}
+.vista.vender .barra-cobro .bco-desc{justify-content:flex-end;width:100%}
+.vista.vender .barra-cobro .btn{min-height:48px!important;height:48px;padding:0 8px!important;gap:6px;font-size:14px;white-space:nowrap}
+.vista.vender .barra-cobro .cobrar{grid-area:cob!important;font-size:15.5px!important;border-radius:12px!important}
+.vista.vender .barra-cobro #car-descuento{grid-area:des!important}.vista.vender .barra-cobro .apartar{grid-area:apa!important}
+@media (max-width:360px){.vista.vender .barra-cobro .btn:not(.cobrar) svg.i{display:none}}
+@media (min-width:840px){
+  .vista.vender.con-barra{grid-template-columns:minmax(0,1fr) 360px!important}
+  .vista.vender .barra-cobro .btn:not(.cobrar){font-size:13px}
+  .vista.vender .barra-cobro .btn svg.i{width:16px;height:16px}
+}
+/* «Todos los productos» al centro del espacio libre. */
+.venta-vacia{padding:0!important;align-items:center;min-height:calc(100dvh - 213px - env(safe-area-inset-bottom,0px))}
+@media (min-width:840px){.venta-vacia{min-height:calc(100dvh - 153px)}}
+/* Tarjetas cobrar: tramo en texto verde (oferta en ámbar), «COP» del color del precio y el subtotal en la
+   línea base del último texto de la izquierda (el tramo o el «c/u»). */
+.linea-info .lc-tramo{font-size:12.5px;font-weight:600;color:var(--accent);white-space:nowrap}
+.linea-info .lc-tramo.oferta{color:var(--y-tx)}
+.linea-info .lc-precio{align-items:baseline!important}
+.linea:not(.mini) .linea-info > .lc-precio,.linea:not(.mini) .lc-pie > .lc-monto{align-self:last baseline!important}
+.linea .lc-monto .c-cop{color:inherit!important}
+/* Detalle del apartado: sin los recuadros que encierran pago, prendas y último abono; barra de abonos en degradado. */
+.ap-det .ap-det-pago{border:0!important;background:none!important;padding:4px 0 0!important;border-radius:0!important}
+.ap-det .ap-det-caja{border:0!important;padding:0!important;border-radius:0!important}
+.ap-det .ap-det-abono{background:none!important;padding:0!important;border-radius:0!important}
+.ap-barra{height:10px!important;border-radius:99px!important;border:0!important;background:color-mix(in srgb,var(--accent) 10%,#eef1f4)!important}
+.ap-barra i{border-radius:99px!important;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 30%,#fff) 0%,color-mix(in srgb,var(--accent) 75%,#fff) 55%,var(--accent) 100%)!important}
+/* Detalle de la prenda (Inventario): color con su punto y la tela bajo el nombre; ficha en dos columnas sin cajitas. */
+.stk .sub-prenda{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-top:6px;min-width:0}
+.stk .ficha2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin-top:4px}
+.stk .ficha2 > div{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 0;border-top:1px solid var(--line);min-width:0}
+.stk .ficha2 > div:nth-child(-n+2){border-top:0;padding-top:4px}
+.stk .ficha2 > div:nth-child(odd){padding-right:12px}
+.stk .ficha2 span{font-size:12px;color:var(--muted)}
+.stk .ficha2 b{font-size:14.5px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.stk .ficha2 b.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;font-weight:500}
+/* Buscador del Inventario con la misma letra y color que los demás buscadores. */
+.stk .search input{font-family:inherit;font-weight:500;color:var(--ink)}
+.stk .search input::placeholder{color:#8b93a1!important;font-weight:500;opacity:1}
+/* Ajustes · Tasas: ícono de «guardar» junto a «Peso colombiano» (sin aviso flotante) y más aire bajo el título. */
+.tasa-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;margin-bottom:6px}
+.aj-pendiente{width:36px;height:36px;border-radius:10px;color:var(--tono-ambar);background:color-mix(in srgb,var(--tono-ambar) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--tono-ambar) 35%,var(--line));animation:aparece .2s cubic-bezier(.22,.9,.3,1)}
+.aj-pendiente[hidden]{display:none!important}
+.aj-pendiente svg.i{width:18px;height:18px}
+.campo:has(> #aj-bs-modo) > .et-moneda{margin-bottom:6px}
+/* Binance / BCV / Manual con su color, como las formas de pago. */
+.modo-bs[data-modo=binance]{--c:var(--tono-ambar)}.modo-bs[data-modo=bcv]{--c:var(--tono-azul)}.modo-bs[data-modo=manual]{--c:var(--tono-violeta)}
+.modo-bs{border-color:color-mix(in srgb,var(--c) 22%,var(--line))!important;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 5%,var(--surface)),var(--surface) 80%)!important}
+.modo-bs .radio{border-color:color-mix(in srgb,var(--c) 55%,var(--line))!important}
+.modo-bs .modo-txt b{color:var(--c)}
+.modo-bs.activo{border:2px solid color-mix(in srgb,var(--c) 60%,var(--line))!important;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 12%,var(--surface)),color-mix(in srgb,var(--c) 3%,var(--surface)) 85%)!important;box-shadow:0 4px 14px color-mix(in srgb,var(--c) 14%,transparent)}
+.modo-bs.activo .radio{border-color:var(--c)!important}
+.modo-bs.activo .radio::after{background:var(--c)!important}
+@media (prefers-reduced-motion:reduce){.aj-pendiente{animation:none}}
+/* Detalle del apartado: botones alineados a la derecha. */
+.stk.ap-hoja .ap-acc{display:flex!important;justify-content:flex-end;gap:8px;width:auto!important}
+.stk.ap-hoja .ap-acc .btn{flex:0 0 auto;min-width:104px}
+.tasa-cab > label{margin:0!important;line-height:1.3}
