@@ -1170,3 +1170,17 @@ label[for=aj-redondeo]{font-weight:600!important}
 .bcT .bt-cnt b[data-n]{font-size:13px}
 /* v2.10: aviso de tramo de las prendas «separado» (mismo estilo que el aviso del carrito) */
 .carrito .aviso-sep{margin:0}
+/* v2.11: círculo de «faltan N para el próximo tramo» en las tarjetas del carrito */
+.lc-falta{display:inline-grid;place-items:center;flex:none;width:1.25em;height:1.25em;border-radius:50%;background:var(--y-bg);border:1px solid var(--y-bd);color:var(--y-tx);font-size:inherit;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;vertical-align:middle;margin-left:6px;box-sizing:border-box}
+/* el círculo del mismo alto que el texto de al lado (≈1,1 veces su tamaño de letra); el número, un poco menor */
+.linea .lc-falta{font-size:.75em;width:1.47em;height:1.47em;margin-left:5px}
+.linea:not(.mini) .lc-precio .lc-falta{margin:0 0 0 -4px;font-size:9px;width:14px;height:14px;align-self:center;transform:translateY(-1px)}
+.linea:not(.mini) .lc-precio .lc-cu{flex-basis:100%}
+.linea.mini .lc-t small{display:flex;align-items:center;gap:0}
+/* v2.11: punto en el ícono de Vender cuando hay una venta en curso en el carrito (fuera de Vender) */
+.nav .ring,.nav .nav-ic{position:relative}
+.nav .nav-ic{display:inline-grid;place-items:center}
+.nav-punto{display:none;position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 2px var(--surface,#fff)}
+.nav.con-carrito .nav-punto{display:block;animation:puntoEntra .25s cubic-bezier(.22,.9,.3,1)}
+@keyframes puntoEntra{from{transform:scale(0)}to{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.nav.con-carrito .nav-punto{animation:none}}

@@ -409,4 +409,17 @@ casos('vender', [
     a.strictEqual(await col('J-M'), 'rgb(161, 98, 7)', 'amarillo: stock bajo');
     a.strictEqual(await col('J-S'), 'rgb(185, 28, 28)', 'rojo: agotado');
   }],
+  ['v2.11 · Círculo «faltan N» junto al tramo (compacta y desplegada) y punto en el carrito fuera de Vender', async (env, a) => {
+    const p = await env.pagina({ ancho: 390, alto: 844, usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 4 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.waitForSelector('.zona-carrito .linea[data-sku="J-M"] .lc-falta');
+    a.strictEqual(await texto(p, '.zona-carrito .linea[data-sku="J-M"] .lc-falta'), '2');
+    a.ok(await p.$eval('.lc-precio .lc-falta', c => c.previousElementSibling.classList.contains('lc-tramo')), 'pegado al tramo');
+    a.ok(await p.$eval('.lc-cu', c => c.getBoundingClientRect().top > document.querySelector('.lc-tramo').getBoundingClientRect().bottom - 1), '«c/u» debajo del tramo');
+    a.strictEqual(await p.$eval('.nav[data-ruta="/vender"]', e => e.classList.contains('con-carrito')), false, 'en Vender no hay punto');
+    await p.evaluate(() => { location.hash = '/apartados'; }); await p.waitForTimeout(400);
+    a.ok(await p.$eval('.nav[data-ruta="/vender"] .nav-punto', e => getComputedStyle(e).display !== 'none'), 'fuera de Vender sale el punto');
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    a.strictEqual(await p.$eval('.nav[data-ruta="/vender"]', e => e.classList.contains('con-carrito')), false, 'sin prendas no hay punto');
+  }],
 ]);

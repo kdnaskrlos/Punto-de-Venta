@@ -89,6 +89,8 @@ function contador(ctx, l) {
     h('span', { class: 'cant num' }, String(l.cantidad)),
     h('button', { 'aria-label': 'Más', onclick: e => { e.stopPropagation(); agregarAlCarrito(ctx, l.sku, 1); } }, icono('mas1')));
 }
+// v2.11: círculo amarillo con cuántas prendas faltan para el próximo tramo (solo cuando faltan 3 o menos).
+const circuloFalta = l => (l.faltan ? h('span', { class: 'lc-falta num', title: `Con ${l.faltan} más: precio ${l.siguiente}`, 'aria-label': `Faltan ${l.faltan} para precio ${l.siguiente}` }, String(l.faltan)) : null);
 function lineaCarrito(ctx, l, aj, compacta) {
   const p = ctx.productos[l.sku];
   // v2.03: el género vuelve al nombre; debajo color y talla, sin la palabra «Talla» («Blanco · 6»).
@@ -98,7 +100,7 @@ function lineaCarrito(ctx, l, aj, compacta) {
   if (compacta) return h('div', { class: 'linea mini', 'data-sku': l.sku, role: 'button', tabindex: '0', 'aria-expanded': 'false', onclick: alternar, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } } },
     h('span', { class: 'lc-q num' }, String(l.cantidad)),
     // v2.05: color y talla en una segunda línea, debajo del nombre; el monto sobre la línea base de esa línea.
-    h('span', { class: 'lc-t' }, h('b', {}, g.titulo), h('small', {}, variante)),
+    h('span', { class: 'lc-t' }, h('b', {}, g.titulo), h('small', {}, variante, circuloFalta(l))),
     h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal))),
     icono('abajo'));
   const plegable = carrito(ctx).lineas.length > MAX_ABIERTAS;
@@ -110,7 +112,9 @@ function lineaCarrito(ctx, l, aj, compacta) {
       // v1.92: «Precio 1–5» (antes «Tarifa») y el precio por unidad al lado.
       h('span', { class: 'lc-precio' },
         // v1.99: el tramo en texto verde, sin pastilla (la oferta en ámbar).
+                // v2.11: el círculo va pegado al tramo y «c/u» baja a su propia línea, debajo del tramo.
         h('span', { class: 'lc-tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Precio de oferta' : `Precio ${etiquetaTramo(l.tramo, aj.tramos)}`),
+        circuloFalta(l),
         l.cantidad > 1 ? h('span', { class: 'nota num lc-cu' }, `${fmtCop(l.precioUnit)} c/u`) : null)),
     h('div', { class: 'linea-der' },
       contador(ctx, l),

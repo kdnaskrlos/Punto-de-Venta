@@ -131,14 +131,25 @@ function pintarNav() {
       const enMas = tel && a.ruta === '/mas' && ['/caja', '/reportes', '/ajustes', '/comisiones', '/usuarios'].includes(actual);
       const activo = actual === a.ruta || enMas;
       const centro = tel && a.centro;
-      return h('a', { class: 'nav' + (centro ? ' centro' : ''), href: '#' + a.ruta, 'aria-label': a.titulo, 'aria-current': activo ? 'true' : 'false', onclick: e => { e.preventDefault(); irPestana(a.ruta); } },
-        centro ? h('span', { class: 'ring' }, icono(a.icono)) : icono(a.icono),
+      // v2.11: en el ícono de Vender, un punto avisa que hay una venta en curso en el carrito (fuera de Vender).
+      const punto = a.ruta === '/vender' ? h('i', { class: 'nav-punto', 'aria-hidden': 'true' }) : null;
+      return h('a', { class: 'nav' + (centro ? ' centro' : ''), href: '#' + a.ruta, 'data-ruta': a.ruta, 'aria-label': a.titulo, 'aria-current': activo ? 'true' : 'false', onclick: e => { e.preventDefault(); irPestana(a.ruta); } },
+        centro ? h('span', { class: 'ring' }, icono(a.icono), punto) : punto ? h('span', { class: 'nav-ic' }, icono(a.icono), punto) : icono(a.icono),
         centro ? null : h('span', {}, a.titulo));
     }),
     h('div', { class: 'grow' }),
     ctx.sesion ? h('button', { class: 'ibtn cuenta-btn', 'aria-label': 'Mi cuenta', onclick: () => { const c = abrirHoja({ titulo: 'Mi cuenta', contenido: opcionesCuenta(ctx, () => c.cerrar()) }); } },
       h('span', { class: 'avatar' }, (ctx.sesion.nombre || ctx.sesion.usuario).slice(0, 1).toUpperCase())) : null,
     h('div', { class: 'ver' }, APP_VERSION));
+  marcarCarrito();
+}
+// Muestra u oculta el punto del carrito: hay prendas y no se está en Vender.
+function marcarCarrito() {
+  const n = barra?.querySelector('.nav[data-ruta="/vender"]');
+  if (!n) return;
+  const hay = !!ctx.carrito?.lineas?.length && rutaActual() !== '/vender';
+  n.classList.toggle('con-carrito', hay);
+  n.setAttribute('aria-label', hay ? 'Vender · venta en curso' : 'Vender');
 }
 
 export function pintarCabecera() {
@@ -187,6 +198,7 @@ export function mostrarApp() {
   if (!escuchando) {
     escuchando = true;
     window.addEventListener('hashchange', () => { if (ctx.sesion) montar(); });
+    window.addEventListener('pos:carrito', () => { if (ctx.sesion) marcarCarrito(); });
     window.addEventListener('pos:datos', e => { if (ctx.sesion && ['tasas', 'conexion'].includes(e.detail.que) && cabecera) pintarCabecera(); });
     matchMedia('(max-width:839px)').addEventListener('change', () => { if (ctx.sesion) pintarNav(); });
     addEventListener('online', () => ctx.sesion && pintarCabecera()); addEventListener('offline', () => ctx.sesion && pintarCabecera());

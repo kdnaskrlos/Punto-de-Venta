@@ -98,3 +98,11 @@ test('v2.10 · las prendas «separado» tienen su propio aviso de «con N más»
   assert.equal(s.aviso, null, 'la franela sola está lejos del siguiente tramo');
   assert.deepEqual(calcularCarrito([{ sku: 'Y', cantidad: 1 }], P, opts).avisosSeparado, []);
 });
+
+test('v2.11 · cada línea sabe cuántas faltan para el próximo tramo de su grupo (solo si son 3 o menos)', () => {
+  const s = calcularCarrito([{ sku: 'F', cantidad: 4 }, { sku: 'B', cantidad: 1 }, { sku: 'Y', cantidad: 3 }, { sku: 'Y2', cantidad: 2 }], P, opts);
+  assert.deepEqual(s.lineas.map(l => l.faltan), [1, 1, 1, 1]);
+  assert.deepEqual(s.lineas.map(l => l.siguiente), ['6–11', '6–11', '6–11', '6–11']);
+  const lejos = calcularCarrito([{ sku: 'F', cantidad: 1 }, { sku: 'Y', cantidad: 1 }], P, opts);
+  assert.deepEqual(lejos.lineas.map(l => l.faltan), [null, null]);
+});

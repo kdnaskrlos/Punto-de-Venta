@@ -70,5 +70,9 @@ export function calcularCarrito(lineas, productosPorSku, { limites = LIMITES_DEF
     const p = productosPorSku[validas.find(l => esSep(l) && claveProducto(productosPorSku[l.sku]) === k).sku];
     avisosSeparado.push({ faltan: sig - n, etiqueta: etiquetaTramo(t + 1, limites), nombre: [p.tipo, p.marca].filter(Boolean).join(' ') });
   }
+  // v2.11: en cada línea, cuántas faltan para el próximo tramo de su grupo (el mix o su producto «separado»),
+  // solo cuando son 3 o menos; si no, null.
+  const cerca = n => { const t = tramoDe(n, limites), sig = limites[t + 1]; return sig != null && n > 0 && sig - n <= 3 ? { faltan: sig - n, siguiente: etiquetaTramo(t + 1, limites) } : { faltan: null, siguiente: null }; };
+  for (const l of resultado) Object.assign(l, cerca(l.separado ? porProducto.get(claveProducto(productosPorSku[l.sku])) : cantidadMix));
   return { lineas: resultado, cantidadMix, subtotal, subtotalDescontable, aviso, avisosSeparado, invalidas };
 }
