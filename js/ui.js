@@ -364,8 +364,33 @@ const revisarTeclado = () => {
   if (!ES_CAMPO(document.activeElement)) altoSinTeclado = Math.max(alto, innerHeight);
   else altoSinTeclado = Math.max(altoSinTeclado, alto);
   const abierto = ES_CAMPO(document.activeElement) && (!vv || alto < altoSinTeclado - 120);
+  // v2.14: si el teclado se cerró con «Atrás» y el campo sigue enfocado, se suelta el foco (así vuelve el dato anterior si no se escribió nada).
+  if (tecladoAbierto && !abierto && vv && ES_CAMPO(document.activeElement)) document.activeElement.blur();
+  tecladoAbierto = abierto;
   document.body.classList.toggle('teclado', abierto);
 };
+let tecladoAbierto = false;
+
+// v2.14 · Al tocar un campo de monto o de texto, se vacía para escribir el dato nuevo (el anterior queda de guía,
+// en gris). Si se sale sin escribir nada (otro toque, Enter o «Atrás»), vuelve el dato anterior. No aplica a
+// buscadores, PIN, fechas, casillas, textos largos ni a la pantalla de entrada.
+const LIMPIABLE = el => el instanceof HTMLInputElement && ['text', 'tel', 'number', 'email', ''].includes(el.getAttribute('type') || '')
+  && !el.readOnly && !el.disabled && !el.closest('.entrar, [data-no-limpiar]') && !el.matches('#buscar, #q, [data-no-limpiar]');
+document.addEventListener('focus', e => {
+  const el = e.target;
+  if (!LIMPIABLE(el) || !el.value || el.__antes != null) return;
+  el.__antes = el.value; el.__guia = el.getAttribute('placeholder'); el.__escribio = false;
+  el.placeholder = el.value; el.value = '';
+}, true);
+// Si escribió (aunque luego lo borre todo), el campo queda como lo dejó: borrar a propósito también es un dato.
+document.addEventListener('input', e => { if (e.target.__antes != null) e.target.__escribio = true; }, true);
+document.addEventListener('blur', e => {
+  const el = e.target;
+  if (!(el instanceof HTMLInputElement) || el.__antes == null) return;
+  if (el.value === '' && !el.__escribio) el.value = el.__antes; // no escribió nada: vuelve lo de antes (antes de que el campo formatee su valor)
+  if (el.__guia == null) el.removeAttribute('placeholder'); else el.placeholder = el.__guia;
+  el.__antes = null; el.__guia = null;
+}, true);
 window.visualViewport?.addEventListener('resize', revisarTeclado);
 addEventListener('orientationchange', () => setTimeout(() => { altoSinTeclado = 0; revisarTeclado(); }, 300));
 document.addEventListener('focusin', () => setTimeout(revisarTeclado, 300));

@@ -225,16 +225,22 @@ casos('cobrar', [
     await p.waitForFunction(() => !document.querySelector('.pagos .pago'));
     a.strictEqual(await p.$eval('.forma[data-forma="efectivo-cop"]', e => e.getAttribute('aria-pressed')), 'false');
   }],
-  ['v2.07 · Teléfono: tocar el monto no selecciona el texto (sin menú Cortar/Copiar); computadora sí selecciona todo', async (env, a) => {
-    for (const [opc, selecciona] of [[{ ancho: 390, alto: 844 }, false], [{ ancho: 1440, alto: 900 }, true]]) {
+  ['v2.14 · Al tocar un monto se vacía (el anterior queda de guía); si no se escribe nada vuelve; si se escribe, queda lo nuevo', async (env, a) => {
+    for (const opc of [{ ancho: 390, alto: 844 }, { ancho: 1440, alto: 900 }]) {
       const p = await preparar(env, opc);
       await p.click('.lado-carrito .cobrar'); await p.waitForSelector('#cobrar-final');
       await p.click('.forma[data-forma="efectivo-cop"]'); await p.waitForTimeout(300);
-      await p.$eval('.pago[data-forma="efectivo-cop"] input', i => i.blur());
-      if (selecciona) await p.focus('.pago[data-forma="efectivo-cop"] input'); else await p.tap('.pago[data-forma="efectivo-cop"] input').catch(() => p.click('.pago[data-forma="efectivo-cop"] input'));
-      await p.waitForTimeout(100);
-      const r = await p.$eval('.pago[data-forma="efectivo-cop"] input', i => [i.selectionStart, i.selectionEnd, i.value.length]);
-      a.strictEqual(r[0] !== r[1], selecciona, `${opc.ancho}px: selección ${r}`);
+      const sel = '.pago[data-forma="efectivo-cop"] input';
+      await p.$eval(sel, i => i.blur());
+      const antes = await p.inputValue(sel);
+      await p.click(sel);
+      a.strictEqual(await p.inputValue(sel), '', `${opc.ancho}px: se vacía`);
+      a.strictEqual(await p.getAttribute(sel, 'placeholder'), antes, 'el anterior queda de guía');
+      await p.$eval(sel, i => i.blur());
+      a.strictEqual(await p.inputValue(sel), antes, 'sin escribir, vuelve el anterior');
+      await p.click(sel); await p.keyboard.type('50000'); await p.$eval(sel, i => i.blur());
+      a.strictEqual(await p.inputValue(sel), '50.000', 'lo nuevo se queda');
+      a.match(await p.innerText('.barra-falta'), /^Faltan/);
     }
   }],
   ['v2.08 · Cobro: la barra Vuelto ↔ Faltan cambia de alto con animación; quitar un pago con monto ofrece Deshacer', async (env, a) => {
@@ -251,7 +257,7 @@ casos('cobrar', [
     await p.waitForSelector('.pago[data-forma="efectivo-cop"]');
     a.strictEqual(await p.inputValue('.pago[data-forma="efectivo-cop"] input'), '50.000', 'vuelve con su monto');
     await p.click('.forma[data-forma="transferencia-cop"]'); await p.waitForTimeout(300);
-    await p.fill('.pago[data-forma="transferencia-cop"] input', '');
+    await p.fill('.pago[data-forma="transferencia-cop"] input', '1'); await p.fill('.pago[data-forma="transferencia-cop"] input', ''); // lo deja vacío a propósito
     await p.click('.pago[data-forma="transferencia-cop"] .pago-quitar'); await p.waitForTimeout(400);
     a.strictEqual(await p.$('.toast button'), null, 'un pago vacío se quita sin Deshacer');
   }],
