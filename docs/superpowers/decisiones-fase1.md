@@ -485,3 +485,4 @@ Suite final: npm test 99/99 · e2e 59/59
   - Inventario: menú Género en orden Todos / Unisex / Dama / Niño / Niña; menú Marca con Etanol antes que Comic Shop.
   - Usuarios: «Eliminar» centrado.
   - Modo demo: vuelve la línea bajo el título de la ventana.
+- v2.02: Reportes sin brincos al cambiar de período (video de Carlos). Antes se pintaba con las ventas («Ganancia 0 · calculando…»), otra vez al llegar los costos y otra al congelarlos; cada vez se reiniciaba la animación y había un cuadro en blanco. Ahora lo anterior queda atenuado mientras llegan ventas y costos (máx. 1,2 s) y se pinta una sola vez con la animación; las actualizaciones posteriores no la repiten.

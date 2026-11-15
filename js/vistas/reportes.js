@@ -81,6 +81,7 @@ registrarVista('/reportes', {
     const memo = new Map();
     const reusar = (k, clave, armar) => { const m = memo.get(k); if (m && m.clave === clave) return m.el; const el = armar(); memo.set(k, { clave, el }); return el; };
     const pintar = () => {
+      if (!animar) cuerpo.classList.remove('rep-anim'); // una actualización posterior no repite la animación
       const r = resumenDia(datos.ventas, datos.costosVenta, ctx.ajustes.formasPago);
       const formas = ctx.ajustes.formasPago;
       const productos = Object.values(ctx.productos);
@@ -142,11 +143,20 @@ registrarVista('/reportes', {
               h('small', {}, inv.aPrecio ? `${pct(inv.aPrecio - inv.aCosto, inv.aPrecio)} % del precio detal` : ''))) })) : null)));
       if (animar) { animar = false; cuerpo.classList.remove('rep-anim'); void cuerpo.offsetWidth; cuerpo.classList.add('rep-anim'); clearTimeout(tAnim); tAnim = setTimeout(() => cuerpo.classList.remove('rep-anim'), 900); }
     };
-    const cargar = (desde, hasta) => { rangoActual = [desde, hasta]; animar = true; memo.clear(); quitar && quitar(); quitar = escucharVentasConCosto(ctx, { desde, hasta }, d => { datos = d; pintar(); }); };
+    // v2.01: al cambiar de período se espera a que lleguen ventas y costos (máx. 1,2 s) y se pinta una sola vez
+    // con la animación; mientras tanto lo anterior queda atenuado. Así no hay «0 · calculando…» ni brincos.
+    let tEspera = 0, esperando = false;
+    const cargar = (desde, hasta) => {
+      rangoActual = [desde, hasta]; animar = true; memo.clear(); quitar && quitar();
+      esperando = true; cuerpo.classList.add('rep-cargando'); clearTimeout(tEspera);
+      const soltar = () => { if (!esperando) return; esperando = false; clearTimeout(tEspera); cuerpo.classList.remove('rep-cargando'); pintar(); };
+      tEspera = setTimeout(soltar, 1200);
+      quitar = escucharVentasConCosto(ctx, { desde, hasta }, d => { datos = d; if (esperando) { if (d.listo && !resumenDia(d.ventas, d.costosVenta, ctx.ajustes.formasPago).gananciaParcial) soltar(); return; } pintar(); });
+    };
     const rango = selectorRango(cargar);
     cont.append(h('div', { class: 'cab-vista' }, gestion ? rango.el : h('span', { class: 'nota' }, 'Tus ventas de hoy')), cuerpo);
     cargar(...(gestion ? rango.valor() : [hoy(), hoy()]));
-    return () => { clearTimeout(tAnim); quitar && quitar(); };
+    return () => { clearTimeout(tAnim); clearTimeout(tEspera); quitar && quitar(); };
   },
 });
 

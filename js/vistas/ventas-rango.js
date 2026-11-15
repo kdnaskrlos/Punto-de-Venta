@@ -9,7 +9,7 @@ import { fechaHora, inicioDia, sumarDias } from '../nucleo/fechas.js';
 export function escucharVentasConCosto(ctx, { desde, hasta }, cb) {
   const filtro = { desde: inicioDia(desde), hasta: inicioDia(sumarDias(hasta, 1)) };
   const gestion = ctx.puedeVer('verCostos');
-  let ventas = [], costos = null, congelados = gestion ? null : {};
+  let ventas = [], costos = null, congelados = gestion ? null : {}, ventasOk = false;
   const congelando = new Set();
   const avisar = () => {
     if (gestion && costos && congelados) {
@@ -20,9 +20,10 @@ export function escucharVentasConCosto(ctx, { desde, hasta }, cb) {
         ctx.almacen.congelarCostoVenta(v.id, costoVenta(v, costos));
       }
     }
-    cb({ ventas, costosVenta: gestion ? (congelados || {}) : null, costos: costos || {} });
+    // v2.01: «listo» cuando ya llegaron ventas y, para gestión, los costos (así Reportes pinta una sola vez).
+    cb({ ventas, costosVenta: gestion ? (congelados || {}) : null, costos: costos || {}, listo: ventasOk && (!gestion || (!!costos && !!congelados)) });
   };
-  const q = [ctx.almacen.escuchar('ventas', l => { ventas = l; avisar(); }, filtro)];
+  const q = [ctx.almacen.escuchar('ventas', l => { ventas = l; ventasOk = true; avisar(); }, filtro)];
   if (gestion) {
     q.push(ctx.almacen.escuchar('costos', l => { costos = Object.fromEntries(l.map(c => [c.sku, c])); avisar(); }));
     q.push(ctx.almacen.escuchar('costosVenta', l => { congelados = Object.fromEntries(l.map(c => [c.id, c])); avisar(); }));

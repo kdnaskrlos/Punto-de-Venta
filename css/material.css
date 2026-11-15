@@ -929,3 +929,6 @@ button.pill:not(.demo){border-color:transparent!important}
 .stk.ap-hoja .ap-acc{flex-wrap:nowrap!important}
 .stk.ap-hoja .ap-acc .btn{min-width:0!important;flex:0 1 auto;padding:0 16px!important;white-space:nowrap}
 .stk.ap-hoja .ap-acc .btn.texto{padding:0 12px!important}
+/* Reportes: mientras llegan los datos del nuevo período, lo anterior queda atenuado (sin brincos). */
+.rep{transition:opacity .18s ease}
+.rep.rep-cargando{opacity:.45;pointer-events:none}
