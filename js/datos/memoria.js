@@ -96,7 +96,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       if (!u) return NO('no-existe');
       if (pins.get(u.uid) !== String(pin)) return NO('pin');
       if (!u.activo) return NO('inactivo');
-      sesion = { uid: u.uid, usuario: u.usuario, nombre: u.nombre, rol: u.rol };
+      sesion = { uid: u.uid, usuario: u.usuario, nombre: u.nombre, rol: u.rol, foto: u.foto || null };
       for (const cb of oyentesSesion) cb(copia(sesion));
       return SI();
     },
@@ -132,6 +132,14 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       const e = exigir('ajustes'); if (e) return NO(e);
       const u = col.usuarios.get(uid); if (!u) return NO('no-existe');
       u.ganaComision = !!gana; avisar('usuarios'); return SI();
+    },
+    async editarPerfil(uid, { nombre, foto }) {
+      const e = exigir('ajustes'); if (e) return NO(e);
+      const u = col.usuarios.get(uid); if (!u) return NO('no-existe');
+      u.nombre = String(nombre).trim(); u.foto = foto || null;
+      avisar('usuarios');
+      if (sesion && sesion.uid === uid) { sesion.nombre = u.nombre; sesion.foto = u.foto; for (const cb of oyentesSesion) cb(copia(sesion)); }
+      return SI();
     },
     // Eliminar: el perfil queda (las ventas viejas lo nombran) pero se apaga, se marca eliminado y su usuario
     // queda libre para crear otro con el mismo nombre. No se puede eliminar a uno mismo.

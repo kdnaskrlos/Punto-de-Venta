@@ -3,6 +3,7 @@ import { h, icono, logo, abrirHoja, abrirVentana, esTelefono, despuesDeCerrar } 
 import { APP_VERSION } from './version.js';
 import { puede } from './nucleo/permisos.js';
 import { opcionesCuenta } from './vistas/cuenta.js';
+import { avatarDe } from './vistas/recorte.js';
 import { MODO_DEMO } from './datos/index.js';
 import { crearSimulacion } from './datos/memoria.js';
 import { NOMBRES } from './datos/contrato.js';
@@ -128,7 +129,7 @@ function pintarNav() {
   const actual = rutaActual();
   // v2.15: en la PC, arriba va el perfil del usuario (en vez del logo); abajo solo la versión.
   const cuenta = ctx.sesion ? h('button', { class: 'ibtn cuenta-btn', 'aria-label': 'Mi cuenta', onclick: () => { const c = abrirHoja({ titulo: 'Mi cuenta', contenido: opcionesCuenta(ctx, () => c.cerrar()) }); } },
-    h('span', { class: 'avatar' }, (ctx.sesion.nombre || ctx.sesion.usuario).slice(0, 1).toUpperCase())) : null;
+    avatarDe(ctx.sesion)) : null;
   barra.replaceChildren(
     tel ? h('div', { class: 'logo', 'aria-hidden': 'true' }, logo()) : cuenta,
     ...lista.map(a => {
@@ -138,7 +139,7 @@ function pintarNav() {
       // v2.11: en el ícono de Vender, un punto avisa que hay una venta en curso en el carrito (fuera de Vender).
       const punto = a.ruta === '/vender' ? h('i', { class: 'nav-punto', 'aria-hidden': 'true' }) : null;
       return h('a', { class: 'nav' + (centro ? ' centro' : ''), href: '#' + a.ruta, 'data-ruta': a.ruta, 'aria-label': a.titulo, 'aria-current': activo ? 'true' : 'false', onclick: e => { e.preventDefault(); irPestana(a.ruta); } },
-        centro ? h('span', { class: 'ring' }, icono(a.icono), punto) : punto ? h('span', { class: 'nav-ic' }, icono(a.icono), punto) : icono(a.icono),
+        centro ? h('span', { class: 'ring' }, icono(a.icono), punto) : punto ? h('span', { class: 'nav-ic' }, icono(a.icono), punto) : icono(!tel && a.ruta === '/ajustes' ? 'tuerca' : a.icono), // v2.16: tuerca en la PC
         centro ? null : h('span', {}, a.titulo));
     }),
     h('div', { class: 'grow' }),
@@ -165,10 +166,11 @@ export function pintarCabecera() {
     // v2.15: en la PC, dos pastillas: la tasa del peso y la de Bs (con su fuente: Binance, BCV o Manual).
     ...(esTelefono() ? [h('button', { class: 'pill tasas' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), 'aria-label': 'Tasas del día', title: t.ultimaConocida ? 'Bs: última tasa conocida' : '', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
       h('span', { class: 'num' }, '$ ', h('b', { class: 'c-cop' }, fmt(t.copPorUsd)), ' / Bs ', h('b', { class: 'c-bs' }, fmt(t.bsPorUsd))))]
-      : [h('button', { class: 'pill tasas tasa-pc', 'aria-label': 'Tasa del peso', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
-          h('span', { class: 'num' }, h('small', {}, 'Peso'), h('b', { class: 'c-cop' }, fmt(t.copPorUsd)))),
-        h('button', { class: 'pill tasas tasa-pc' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), 'aria-label': 'Tasa de Bs', title: t.ultimaConocida ? 'Bs: última tasa conocida' : '', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
-          h('span', { class: 'num' }, h('small', {}, ({ binance: 'Binance', bcv: 'BCV', manual: 'Manual' })[t.fuenteBs] || 'Bs'), h('b', { class: 'c-bs' }, fmt(t.bsPorUsd))))]),
+      // v2.16: «COP» y «Bs» (sin nombres); cada pastilla abre solo su tasa.
+      : [h('button', { class: 'pill tasas tasa-pc', 'aria-label': 'Tasa del peso', onclick: () => ctx.abrirTasas && ctx.abrirTasas('cop') },
+          h('span', { class: 'num' }, h('small', {}, 'COP'), h('b', { class: 'c-cop' }, fmt(t.copPorUsd)))),
+        h('button', { class: 'pill tasas tasa-pc' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), 'aria-label': 'Tasa de Bs', title: t.ultimaConocida ? 'Bs: última tasa conocida' : '', onclick: () => ctx.abrirTasas && ctx.abrirTasas('bs') },
+          h('span', { class: 'num' }, h('small', {}, 'Bs'), h('b', { class: 'c-bs' }, fmt(t.bsPorUsd))))]),
     h('button', { class: 'ibtn', 'aria-label': 'Calculadora', onclick: () => alAbrirCalculadora() }, icono('calculadora')),
     h('span', { class: 'pill fecha' }, fechaCorta()));
 }
@@ -206,6 +208,7 @@ export function mostrarApp() {
     escuchando = true;
     window.addEventListener('hashchange', () => { if (ctx.sesion) montar(); });
     window.addEventListener('pos:carrito', () => { if (ctx.sesion) marcarCarrito(); });
+    window.addEventListener('pos:sesion', () => { if (ctx.sesion) pintarNav(); }); // v2.16: foto o nombre nuevos
     window.addEventListener('pos:datos', e => { if (ctx.sesion && ['tasas', 'conexion'].includes(e.detail.que) && cabecera) pintarCabecera(); });
     matchMedia('(max-width:839px)').addEventListener('change', () => { if (ctx.sesion) { pintarNav(); pintarCabecera(); } });
     addEventListener('online', () => ctx.sesion && pintarCabecera()); addEventListener('offline', () => ctx.sesion && pintarCabecera());

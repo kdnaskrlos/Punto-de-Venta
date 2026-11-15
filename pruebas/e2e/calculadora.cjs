@@ -6,11 +6,11 @@ casos('calculadora', [
   ['La pastilla muestra $ 3.900 / Bs 1.075 y el detalle', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora' });
     // v2.15: en la PC, dos pastillas: Peso y Bs (con su fuente)
-    a.deepStrictEqual(await p.$$eval('.topbar .tasas', b => b.map(x => x.textContent.replace(/\s+/g, ' ').trim())), ['Peso3.900', 'Manual1.075']);
+    a.deepStrictEqual(await p.$$eval('.topbar .tasas', b => b.map(x => x.textContent.replace(/\s+/g, ' ').trim())), ['COP3.900', 'Bs1.075']);
     await p.click('.topbar .tasas');
     const d = await texto(p, '.capa');
     // El título de Bs es la fuente elegida en Ajustes (el demo usa la tasa manual).
-    for (const t of ['3.900', '1.075', 'Pesos por dólar', 'Tasa manual']) a.ok(d.includes(t), `falta ${t} en ${d}`);
+    for (const t of ['3.900', 'Pesos por dólar']) a.ok(d.includes(t), `falta ${t} en ${d}`); // v2.16: la pastilla COP muestra solo el peso
   }],
   ['PC: panel derecho sin tapar la barra de cobro; 100 USD = 390.000 COP = 107.500,00 Bs', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
@@ -40,7 +40,7 @@ casos('calculadora', [
     const p = await env.pagina({ usuario: 'admin' });
     await p.evaluate(() => window.__pos.ctx.almacen.guardarAjustes('tasas', { bsModo: 'binance' }));
     await p.waitForFunction(() => window.__pos.ctx.tasas.bsPorUsd === null);
-    a.strictEqual(await p.$$eval('.topbar .tasas', b => b[1].textContent.replace(/\s+/g, ' ').trim()), 'Binance—');
+    a.strictEqual(await p.$$eval('.topbar .tasas', b => b[1].textContent.replace(/\s+/g, ' ').trim()), 'Bs—');
     await p.click('.topbar [aria-label="Calculadora"]');
     await p.fill('#calc-usd', '10');
     a.strictEqual(await p.inputValue('#calc-bs'), '');

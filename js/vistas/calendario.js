@@ -1,13 +1,15 @@
 // Calendario propio (comicshop-interfaz): un solo calendario para elegir un rango.
 // Primer toque = desde, segundo toque = hasta (se ordenan solos). Hoy con contorno verde, rango en verde crema.
-import { h, icono, abrirVentana } from '../ui.js';
+import { h, icono, abrirVentana, esTelefono } from '../ui.js';
 import { diasCalendario, mesCorto, hoy } from '../nucleo/fechas.js';
 
 const SEMANA = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 
-export function abrirCalendarioRango({ desde, hasta }, alAplicar) {
+// v2.16: «ancla» = el botón que lo abre; en la PC el calendario sale justo debajo de él.
+export function abrirCalendarioRango({ desde, hasta, ancla }, alAplicar) {
   let [a, b] = [desde, hasta];
-  let [anio, mes] = (hasta || hoy()).split('-').map(Number);
+  // v2.16: abre en el mes de hoy si el rango llega al futuro (p. ej. «Año» hasta el 31 de diciembre).
+  let [anio, mes] = (hasta && hasta < hoy() ? hasta : hoy()).split('-').map(Number);
   let esperandoFin = false;
   const hoyStr = hoy();
   const titulo = h('b', { class: 'cal-mes' });
@@ -77,7 +79,13 @@ export function abrirCalendarioRango({ desde, hasta }, alAplicar) {
       h('button', { type: 'button', class: 'ibtn', 'aria-label': 'Mes siguiente', onclick: () => moverMes(1) }, icono('der'))),
     h('div', { class: 'cal-semana' }, ...SEMANA.map(s => h('span', {}, s))),
     visor, resumen);
-  const v = abrirVentana({ titulo: 'Fechas', contenido, acciones: h('div', { class: 'acciones' }, aplicar) });
+  // v2.16: en la PC se abre arriba, como la ventana de tasas (no al centro).
+  const v = abrirVentana({ titulo: 'Fechas', contenido, acciones: h('div', { class: 'acciones' }, aplicar), clase: esTelefono() ? undefined : 'desplegable cal-desplegable' });
+  if (ancla && !esTelefono()) {
+    const r = ancla.getBoundingClientRect();
+    Object.assign(v.el.style, { justifyContent: 'flex-start', paddingTop: Math.round(r.bottom + 8) + 'px', paddingLeft: Math.round(r.left) + 'px', paddingRight: '12px' });
+    v.el.querySelector('.caja').style.transformOrigin = 'top left';
+  }
   aplicar.addEventListener('click', () => { const [i, f] = a <= b ? [a, b] : [b, a]; v.cerrar(); alAplicar(i, f); });
   pintar();
 }

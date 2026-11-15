@@ -1277,20 +1277,22 @@ label[for=aj-redondeo]{font-weight:600!important}
   .vista[data-ruta="/caja"] > *{min-width:0}
   .vista[data-ruta="/ajustes"]{max-width:1180px;width:100%;margin:0 auto}
   .vista[data-ruta="/ajustes"] .ajustes{grid-template-columns:minmax(0,1fr)!important}
-  /* Tasas: dos y dos — fila 1: Peso colombiano | Binance; fila 2: BCV | Manual */
-  .ajustes > section.aj-tasas:not([hidden]){display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px;row-gap:12px!important;align-items:start}
+  /* v2.16 · Tasas (propuesta): el peso en una tarjeta compacta arriba y las tres fuentes de Bs en una fila */
+  .ajustes > section.aj-tasas:not([hidden]){display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px;row-gap:10px!important;align-items:stretch}
   .aj-tasas > .campo,.aj-tasas .modos-bs.mb{display:contents!important}
-  .aj-tasas > .campo:first-child > .tasa-cab{grid-column:1;grid-row:1}
-  .aj-tasas > .campo:first-child > .fila-usd{grid-column:1;grid-row:2;align-self:stretch}
-  .aj-tasas > .campo:first-child > .fila-usd .tasa-entrada{height:100%}
-  .aj-tasas > .campo:nth-child(2) > .et-moneda{grid-column:2;grid-row:1}
-  .aj-tasas .mb-card[data-modo=binance]{grid-column:2;grid-row:2}
-  .aj-tasas .mb-card[data-modo=bcv]{grid-column:1;grid-row:3}
-  .aj-tasas .mb-card[data-modo=manual]{grid-column:2;grid-row:3}
-  /* Venta: el redondeo en una franja arriba (pesos y dólares lado a lado); tramos y comisión abajo, en dos columnas */
+  .aj-tasas > .campo:first-child > .tasa-cab{grid-column:1 / -1;grid-row:1}
+  .aj-tasas > .campo:first-child > .fila-usd{grid-column:1;grid-row:2;max-width:none}
+  .aj-tasas > .campo:first-child > .fila-usd .tasa-entrada{height:52px}
+  .aj-tasas > .campo:first-child > .fila-usd .tasa-entrada .inp{font-size:20px!important;line-height:50px}
+  .aj-tasas > .campo:nth-child(2) > .et-moneda{grid-column:1 / -1;grid-row:3;margin-top:14px}
+  .aj-tasas .mb-card{grid-row:4;min-width:0}
+  .aj-tasas .mb-card[data-modo=binance]{grid-column:1}.aj-tasas .mb-card[data-modo=bcv]{grid-column:2}.aj-tasas .mb-card[data-modo=manual]{grid-column:3}
+  /* v2.16 · Venta: fila 1 redondeo en pesos | redondeo en dólares (cada uno con su título); fila 2 Tramos | Comisión, siempre abiertos */
   .ajustes > section.aj-venta:not([hidden]){display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px;row-gap:20px!important;align-items:start}
-  .aj-venta > .red-aj{grid-column:1 / -1}
-  .aj-venta > .red-aj .red-dos{grid-template-columns:repeat(2,minmax(0,280px))!important}
+  .aj-venta > .red-aj{grid-column:1;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+  .aj-venta > .red-aj > .campo{margin:0}
+  .aj-venta .despl.fijo > summary{cursor:default}
+  .aj-venta .despl.fijo > summary > svg.i:last-child{display:none}
   /* Pagos: más tarjetas por fila */
   .ajustes > section.aj-pagos .formas-aj{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))!important}
   /* Recibo: el mensaje y los datos a la izquierda; la vista previa a la derecha */
@@ -1314,3 +1316,59 @@ label[for=aj-redondeo]{font-weight:600!important}
 @media (min-width:840px){.vista.vender.pc .btn-todos-pc{display:inline-flex!important;flex:none;min-height:48px;white-space:nowrap}.vista.vender.pc .buscador{display:flex;gap:12px;align-items:center}.vista.vender.pc .buscador .buscar-caja{flex:1}}
 /* v2.15 · PC: en Vender la calculadora termina encima de la barra de cobro (no tapa Cobrar) */
 @media (min-width:840px){body:has(.vista.vender.pc .pie-pc-cont:not([hidden])) .capa.hoja.derecha:has(.calc2){bottom:136px;height:auto}body:has(.vista.vender.pc .pie-pc-cont:not([hidden])) .capa.hoja.derecha .caja.calc2{border-bottom:1px solid var(--line);border-radius:0 0 0 16px}}
+/* v2.16 · Filtros y opciones de arriba con una sola forma en toda la app (teléfono y PC): la de Género y Marca.
+   Rectángulo blanco con borde suave y esquinas de 10 px; el elegido en verde crema (ya no negro). */
+:root{--flt-h:40px;--flt-bd:#d5dbe2}
+.stk .filtro-menu,.stk .seg .tj,.filtro-ap .chip,.filtro-inv .chip,.vista.vender .filtros .chip,
+.cab-vista .rango .segmentado button,.pestanas-aj button,.rango .rango-btn{
+  height:var(--flt-h)!important;min-height:var(--flt-h)!important;border:1px solid var(--flt-bd)!important;border-radius:10px!important;
+  background:var(--surface)!important;color:var(--ink)!important;font:600 14px var(--f,inherit)!important;padding:0 12px!important;box-shadow:none!important}
+.stk .filtro-menu.activo,.stk .top>.seg .tj[aria-pressed=true],.stk .seg .tj[aria-pressed=true],.filtro-ap .chip.activo,.filtro-inv .chip.activo,.vista.vender .filtros .chip.activo,
+.cab-vista .rango .segmentado button[aria-pressed=true],.pestanas-aj button[aria-selected=true],.pestanas-aj button[aria-pressed=true]{
+  background:var(--g-bg)!important;border-color:var(--g-bd)!important;color:var(--g-tx)!important}
+.stk .top>.seg .tj[aria-pressed=true] b,.stk .top>.seg .tj[aria-pressed=true] span,.stk .seg .tj[aria-pressed=true] b,.stk .seg .tj[aria-pressed=true] span{color:var(--g-tx)!important}
+.filtro-ap .chip.activo .cuenta,.filtro-inv .chip.activo .cuenta{background:var(--surface)!important;color:var(--g-tx)!important}
+/* los grupos (Hoy/Semana…, pestañas de Ajustes) pasan a botones sueltos con 8 px entre ellos */
+.cab-vista .rango .segmentado,.pestanas-aj{border:0!important;overflow:visible!important;gap:8px!important;display:flex!important;background:none!important}
+.cab-vista .rango .segmentado button,.pestanas-aj button{flex:1 1 0;border-right:1px solid var(--flt-bd)!important}
+/* Inventario: los estados como estos filtros (número a la derecha, sin las tarjetas grandes) */
+.stk .seg{display:flex!important;gap:8px!important;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.stk .seg .tj{flex:0 0 auto!important;flex-direction:row!important;align-items:center!important;gap:8px!important;min-width:0!important;width:auto!important}
+.stk .seg .tj > svg{display:none!important}
+.stk .seg .tj b{order:2;font-size:14px!important;font-weight:700!important;color:var(--muted)!important}
+.stk .seg .tj span{order:1;font-size:14px!important;font-weight:600!important;color:var(--ink)!important}
+.stk .seg .tj::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;order:0}
+.stk .seg .tj.w::before{background:#eab308}.stk .seg .tj.x::before{background:var(--stk-agotado)}
+.stk .filters #fSt{display:none!important}
+@media (min-width:840px){
+  /* fila 1: búsqueda | Fotos y Sincronizar; fila 2: Género, Marca y después Todos / Stock bajo / Agotados */
+  .stk .top{display:flex!important;flex-wrap:wrap;align-items:center;gap:12px!important}
+  .stk .top>.search{order:1;flex:1 1 calc(100% - 340px)!important;margin:0!important}
+  .stk .top>.adm{order:2;flex:none}
+  .stk .top>.filters{order:3;flex:none!important;justify-self:auto;margin:0!important}
+  .stk .top>.seg{order:4;flex:none!important;margin:0!important}
+  .stk .top>.filters .filtro-menu{min-width:160px;flex:none!important}
+  /* separador por tipo */
+  .stk #list .inv-tipo{grid-column:1 / -1;display:flex;align-items:baseline;gap:8px;margin:12px 0 -4px;font-size:15px;font-weight:700;color:var(--ink)}
+  .stk #list .inv-tipo:first-child{margin-top:0}
+  .stk #list .inv-tipo small{font-size:13px;font-weight:600;color:var(--muted)}
+  .stk #list .inv-tipo::after{content:"";flex:1;height:1px;background:var(--line);align-self:center;margin-left:4px}
+}
+/* v2.16 · Foto de perfil: avatar con foto, lápiz para editar y recorte libre */
+.avatar.con-foto{padding:0!important;overflow:hidden;background:var(--surface-2)!important}
+.avatar.con-foto img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}
+.avatar.grande{width:96px!important;height:96px!important;font-size:36px!important;font-weight:700;border-radius:50%;display:grid;place-items:center;background:var(--g-bg);color:var(--g-tx);border:1px solid var(--g-bd)}
+.u-av{position:relative;flex:none;display:inline-grid}
+.u-lapiz{position:absolute;right:-6px;bottom:-6px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);box-shadow:0 2px 6px rgba(15,23,42,.12);color:var(--ink);cursor:pointer}
+.u-lapiz svg.i{width:13px;height:13px}
+.u-lapiz:hover{background:var(--g-bg);color:var(--g-tx);border-color:var(--g-bd)}
+.pf-arriba{display:flex;align-items:center;gap:16px}
+.pf-botones{display:flex;flex-wrap:wrap;gap:8px}
+.rc{display:flex;flex-direction:column;gap:10px;align-items:center}
+.rc-marco{position:relative;display:inline-block;max-width:100%;touch-action:none;user-select:none;border-radius:10px;overflow:hidden;background:#0f172a}
+.rc-img{display:block;max-width:min(560px,100%);max-height:58vh;width:auto;height:auto}
+.rc-caja{position:absolute;box-shadow:0 0 0 9999px rgba(15,23,42,.55);border:2px solid #fff;cursor:move;border-radius:4px}
+.rc-asa{position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.rc-asa.nw{left:-10px;top:-10px;cursor:nwse-resize}.rc-asa.ne{right:-10px;top:-10px;cursor:nesw-resize}
+.rc-asa.sw{left:-10px;bottom:-10px;cursor:nesw-resize}.rc-asa.se{right:-10px;bottom:-10px;cursor:nwse-resize}
+.rc-sombra{display:none}

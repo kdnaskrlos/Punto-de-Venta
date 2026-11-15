@@ -1,4 +1,5 @@
 // Mi cuenta: cambiar PIN y cerrar sesión. Está al final de Más → Usuarios y en la barra lateral (PC).
+import { avatarDe } from './recorte.js';
 import { h, icono, abrirVentana, toast } from '../ui.js';
 import { DEMO_DIRECTO, recordarUsuarioDemo } from '../datos/index.js';
 
@@ -23,7 +24,7 @@ export function cambiarMiPin(ctx) {
 export function opcionesCuenta(ctx, alSalir) {
   const s = ctx.sesion;
   return h('div', { class: 'cuenta' },
-    h('div', { class: 'cuenta-quien' }, h('span', { class: 'avatar' }, (s.nombre || s.usuario).slice(0, 1).toUpperCase()),
+    h('div', { class: 'cuenta-quien' }, avatarDe(s),
       h('div', {}, h('b', {}, s.nombre), h('div', { class: 'nota' }, `@${s.usuario} · ${NOMBRE_ROL[s.rol] || s.rol}`))),
     // Cambiar el PIN es solo del administrador: la vendedora y la encargada se lo piden a él.
     DEMO_DIRECTO ? probarComo(ctx, alSalir) : (ctx.rol ? ctx.rol() : s.rol) === 'admin' ? h('button', { class: 'fila-btn', id: 'mi-pin', onclick: () => cambiarMiPin(ctx) }, icono('llave'), 'Cambiar mi PIN') : null,

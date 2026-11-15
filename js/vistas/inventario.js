@@ -279,7 +279,8 @@ export function abrirHojaStock({ tema, llenar, clase = '' }) {
   let y0 = 0, dy = 0, off = 0, t0 = 0, on = false, can = false, raf = 0;
   const paint = () => { raf = 0; const d = Math.max(0, dy - off); sh.style.transform = `translate3d(0,${d}px,0)`; sc.style.opacity = String(Math.max(0, 1 - d / (sh.offsetHeight || 600))); };
   const release = () => { cancelAnimationFrame(raf); raf = 0; sh.classList.remove('drag'); sc.classList.remove('drag'); sh.style.transform = ''; sc.style.opacity = ''; };
-  sh.addEventListener('touchstart', e => { if (e.touches.length !== 1) return; y0 = e.touches[0].clientY; t0 = Date.now(); dy = 0; off = 0; on = false; can = sh.scrollTop <= 0 || !!e.target.closest('.grab,.sh'); }, { passive: true });
+  // v2.16: en la PC es una ventana (no se baja con el dedo).
+  sh.addEventListener('touchstart', e => { if (e.touches.length !== 1 || !esTelefono()) return; y0 = e.touches[0].clientY; t0 = Date.now(); dy = 0; off = 0; on = false; can = sh.scrollTop <= 0 || !!e.target.closest('.grab,.sh'); }, { passive: true });
   sh.addEventListener('touchmove', e => {
     if (!can) return; dy = e.touches[0].clientY - y0;
     if (!on) { if (dy > 8 && sh.scrollTop <= 0) { on = true; off = dy; sh.classList.add('drag'); sc.classList.add('drag'); } else if (dy < -4) { can = false; return; } else return; }
@@ -374,7 +375,9 @@ function abrirPrenda(ctx, clave, costos, tema, abrirTalla) {
     const acc = sin(
       puedeAdmin(ctx, 'ofertas') ? h('button', { class: 'sbtn', type: 'button', id: 'det-oferta', onclick: () => abrirOferta(ctx, g) }, 'Oferta') : null,
       puedeAdmin(ctx, 'fotosMasivas') && p.id_imagen ? botonFotoCodigo(ctx, p.id_imagen, !!foto) : null);
-    if (acc.length) { sh.querySelector('#prenda-acciones').hidden = false; sh.querySelector('.acc').append(...acc); }
+    // v2.16 · PC: Oferta y Subir foto van arriba, junto a la X (no como sección «Acciones» al pie de la ventana).
+    if (acc.length && !esTelefono()) { const der = sh.querySelector('.det-cab .det-der'); acc.forEach(b => b.classList.add('det-acc-cab')); der.prepend(...acc); }
+    else if (acc.length) { sh.querySelector('#prenda-acciones').hidden = false; sh.querySelector('.acc').append(...acc); }
   };
   const hoja = abrirHojaStock({ tema, llenar: pintar });
   hoja.sh.addEventListener('click', e => {
@@ -463,7 +466,7 @@ registrarVista('/inventario', {
       });
       const nm = x => x.nombre;
       const cmp = { name: (x, y) => nm(x).localeCompare(nm(y), 'es', { numeric: true }), sku: (x, y) => x.p.sku.localeCompare(y.p.sku, 'es', { numeric: true }), lo: (x, y) => x.total - y.total || nm(x).localeCompare(nm(y), 'es'), hi: (x, y) => y.total - x.total || nm(x).localeCompare(nm(y), 'es') }[F.sort];
-      return a.sort(cmp);
+      return a.sort(esTelefono() ? cmp : (x, y) => String(x.p.tipo || 'Otros').localeCompare(String(y.p.tipo || 'Otros'), 'es') || cmp(x, y)); // v2.16: en la PC, por tipo
     };
     // v2.00: las prendas agrupadas se calculan una vez y se reusan mientras no cambien los productos.
     let cacheR = null, cacheG = null;
@@ -477,13 +480,21 @@ registrarVista('/inventario', {
       $('#qc').hidden = !F.q;
       const list = has ? filtered(G) : [], part = list.slice(0, F.shown);
       // Tarjetas listado: la misma tarjeta de Vender (v1.91), sin el círculo del carrito.
-      $('#list').replaceChildren(...part.map(x => {
+      // v2.16 · PC: las prendas separadas por tipo, con un título y cuántas hay de cada uno.
+      const porTipo = new Map(); if (!esTelefono()) for (const x of list) porTipo.set(x.p.tipo || 'Otros', (porTipo.get(x.p.tipo || 'Otros') || 0) + 1);
+      let tipoAntes = null;
+      $('#list').replaceChildren(...part.flatMap(x => {
+        const t = x.p.tipo || 'Otros', cab = porTipo.size > 1 && t !== tipoAntes ? h('h3', { class: 'inv-tipo' }, h('span', {}, t), h('small', { class: 'num' }, String(porTipo.get(t)))) : null;
+        tipoAntes = t;
+        return cab ? [cab, tarjetaInv(x)] : [tarjetaInv(x)];
+      }));
+      function tarjetaInv(x) {
         const p = x.p;
         const g = { grupo: x.k, titulo: titulo(p), tipo: p.tipo, tela: p.tela, color: p.color, genero: p.genero, foto: fotoDe(p, ctx.imagenes), variantes: x.vs };
         const el = tarjetaPrenda(ctx, g, { pocas: x.st === 'low', alTocar: () => abrirGrupo(x.k) });
         el.classList.add('item-inv'); el.dataset.skus = x.vs.map(v => v.sku).join(' ');
         return el;
-      }));
+      }
       const m = $('#more'); m.hidden = list.length <= part.length; m.textContent = `Mostrar ${Math.min(100, list.length - part.length)} más`;
       const f = ctx.ajustes?.ultimaSincronizacion;
       // La fecha de la última sincronización va en el botón Sincronizar (al pasar el ratón) y en su ventana.

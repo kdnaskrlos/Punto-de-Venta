@@ -86,7 +86,8 @@ export function abrirCalculadora(ctx) {
 
 const TITULO_BS = { binance: 'Binance P2P', bcv: 'BCV oficial', manual: 'Tasa manual' };
 
-export function abrirDetalleTasas(ctx) {
+// v2.16: en la PC cada pastilla abre solo su tasa (solo: 'cop' | 'bs'); sin «solo», las dos (teléfono).
+export function abrirDetalleTasas(ctx, solo) {
   const t = ctx.tasas;
   // Sin el día de la semana: «12 nov · 8:00 am».
   const cuando = iso => (iso ? fechaHora(iso).replace(/^\S+ /, '') : 'sin fecha');
@@ -96,12 +97,12 @@ export function abrirDetalleTasas(ctx) {
     h('span', { class: 'tasa-val num' }, valor ?? '—', valor != null ? h('small', {}, moneda) : null));
   const tuerca = ctx.puedeVer('cambiarTasas') ? h('button', { class: 'tasas-ajustar', id: 'tasas-ajustes', onclick: () => { v.cerrar(); abrirPestana('tasas'); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca'), 'Cambiar tasas') : null;
   const cont = h('div', { class: 'tasas-dia' },
-    fila('cop', 'monedas', 'Pesos por dólar', t.copPorUsd ? fmtCop(t.copPorUsd) : null, 'COP', '', t.copActualizada),
+    solo === 'bs' ? null : fila('cop', 'monedas', 'Pesos por dólar', t.copPorUsd ? fmtCop(t.copPorUsd) : null, 'COP', '', t.copActualizada),
     // El título es la fuente elegida en Ajustes (Binance P2P, BCV oficial o Tasa manual), sin el recargo; abajo solo la fecha.
-    fila('bs', 'banco', TITULO_BS[t.fuenteBs] || t.fuenteBs || 'Bs por dólar',
+    solo === 'cop' ? null : fila('bs', 'banco', TITULO_BS[t.fuenteBs] || t.fuenteBs || 'Bs por dólar',
       t.bsPorUsd ? fmtDec(t.bsPorUsd) : null, 'Bs', t.ultimaConocida ? 'Última conocida' : '', t.bsActualizada),
-    !t.bsPorUsd ? h('div', { class: 'aviso' }, icono('alerta'), 'Sin tasa de Bs: los pagos en Bs quedan desactivados.') : null,
+    !t.bsPorUsd && solo !== 'cop' ? h('div', { class: 'aviso' }, icono('alerta'), 'Sin tasa de Bs: los pagos en Bs quedan desactivados.') : null,
     tuerca);
-  const v = abrirVentana({ titulo: 'Tasas del día', contenido: cont, clase: 'desplegable', sinCabecera: true });
+  const v = abrirVentana({ titulo: solo === 'cop' ? 'Tasa del peso' : solo === 'bs' ? 'Tasa de Bs' : 'Tasas del día', contenido: cont, clase: 'desplegable' + (solo ? ' tasa-' + solo : ''), sinCabecera: true });
   return v;
 }

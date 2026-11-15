@@ -17,7 +17,9 @@ const largoKpi = t => { const n = String(t).length; return n >= 12 ? 'xl' : n >=
 function selectorRango(alCambiar, inicial = 'hoy') {
   const d = hoy();
   const lunes = sumarDias(d, -((new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7));
-  const RANGOS = { hoy: [d, d], semana: [lunes, d], mes: [d.slice(0, 8) + '01', d], ano: [d.slice(0, 5) + '01-01', d] };
+  // v2.16: cada opción es el período completo (lunes a domingo, del 1 al último día del mes, 1 ene – 31 dic).
+  const ultimoDelMes = (() => { const [y, m] = d.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); })();
+  const RANGOS = { hoy: [d, d], semana: [lunes, sumarDias(lunes, 6)], mes: [d.slice(0, 8) + '01', ultimoDelMes], ano: [d.slice(0, 5) + '01-01', d.slice(0, 5) + '12-31'] };
   let [desde, hasta] = RANGOS[inicial];
   let activo = inicial;
   const seg = h('div', { class: 'segmentado' });
@@ -28,7 +30,7 @@ function selectorRango(alCambiar, inicial = 'hoy') {
       h('button', { 'aria-pressed': String(k === activo), onclick: () => fijar(...RANGOS[k], k) }, t)));
     boton.replaceChildren(h('span', {}, icono('calendario'), rangoCorto(desde, hasta)));
   };
-  boton.addEventListener('click', () => abrirCalendarioRango({ desde, hasta }, (a, b) => fijar(a, b, Object.keys(RANGOS).find(k => RANGOS[k][0] === a && RANGOS[k][1] === b) || '')));
+  boton.addEventListener('click', () => abrirCalendarioRango({ desde, hasta, ancla: boton }, (a, b) => fijar(a, b, Object.keys(RANGOS).find(k => RANGOS[k][0] === a && RANGOS[k][1] === b) || '')));
   pintar();
   return { el: h('div', { class: 'rango' }, seg, boton), valor: () => [desde, hasta] };
 }

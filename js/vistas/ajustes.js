@@ -98,8 +98,10 @@ function selectorRedondeo(aj) {
   const usd = caja('aj-redondeo-usd', fmtDec(aj.redondeoUsd || 0.01), 'USD', 'Redondeo del vuelto en dólares');
   cop.inp.addEventListener('blur', () => { const n = parseMonto(cop.inp.value, 'COP'); cop.inp.value = fmtCop(n > 0 ? n : 100); });
   usd.inp.addEventListener('blur', () => { const n = parseMonto(usd.inp.value, 'USD'); usd.inp.value = fmtDec(n > 0 ? n : 0.01); });
-  const el = h('div', { class: 'campo red-aj' }, h('label', { class: 'et-moneda', for: 'aj-redondeo' }, 'Redondeo del vuelto'),
-    h('div', { class: 'red-dos' }, cop.el, usd.el));
+  // v2.16: cada moneda con su propio título (en la PC quedan alineados con Tramos y Comisión).
+  const el = h('div', { class: 'red-aj red-dos' },
+    h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-redondeo' }, 'Redondeo del vuelto en pesos'), cop.el),
+    h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-redondeo-usd' }, 'Redondeo del vuelto en dólares'), usd.el));
   return { el, get cop() { return parseMonto(cop.inp.value, 'COP') || 100; }, get usd() { return parseMonto(usd.inp.value, 'USD') || 0.01; } };
 }
 
@@ -118,6 +120,8 @@ function venta(ctx) {
         else { det.open = true; desplegar(caja, true); }
       } }, h('span', { class: 'despl-ic' }, icono(ic)),
       h('span', { class: 'despl-t' }, h('b', {}, titulo), h('span', { class: 'nota' }, desc)), icono('abajo')), caja);
+    // v2.16: en la PC, Tramos y Comisión siempre abiertos (sin desplegar).
+    if (!esTelefono()) { det.open = true; det.classList.add('fijo'); det.querySelector('summary').onclick = e => e.preventDefault(); }
     return det;
   };
   const redondeo = selectorRedondeo(aj);

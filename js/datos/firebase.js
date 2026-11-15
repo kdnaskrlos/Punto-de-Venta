@@ -84,7 +84,7 @@ export function crearFirebase(config) {
   // que ya leyó el perfil del servidor y no tiene por qué esperar otro aviso para abrir la app.
   function aplicarPerfil(user, u) {
       errorPerfil = null;
-      const nueva = { uid: user.uid, usuario: u.usuario, nombre: u.nombre, rol: u.rol };
+      const nueva = { uid: user.uid, usuario: u.usuario, nombre: u.nombre, rol: u.rol, foto: u.foto || null }; // v2.16: con la foto de perfil
       const cambio = !sesion || sesion.rol !== nueva.rol || sesion.uid !== nueva.uid;
       if (cambio) {
         quitarCaja && quitarCaja();
@@ -283,6 +283,11 @@ export function crearFirebase(config) {
     async marcarComision(uid, gana) {
       const e = exigir('ajustes'); if (e) return NO(e);
       return sinEsperar(updateDoc(ref('usuarios', uid), { ganaComision: !!gana }));
+    },
+    // v2.16: nombre y foto (dataURL pequeño) del usuario.
+    async editarPerfil(uid, { nombre, foto }) {
+      const e = exigir('ajustes'); if (e) return NO(e);
+      return sinEsperar(updateDoc(ref('usuarios', uid), { nombre: String(nombre).trim(), foto: foto || null }));
     },
     // Eliminar: el perfil queda (las ventas viejas lo nombran) pero se apaga y se marca eliminado, y se borra
     // su entrada de «logins» para que nadie pueda entrar con ese usuario y se pueda volver a usar el nombre.

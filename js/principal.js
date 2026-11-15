@@ -21,7 +21,7 @@ import './vistas/mas.js';
 
 window.__pos = { ctx };
 definirCalculadora(() => abrirCalculadora(ctx));
-ctx.abrirTasas = () => abrirDetalleTasas(ctx);
+ctx.abrirTasas = solo => abrirDetalleTasas(ctx, solo);
 ctx.abrirApartar = () => abrirApartar(ctx);
 ctx.abrirCobro = modo => { if (!carrito(ctx).lineas.length) return; conCliente(ctx, () => (modo === 'venta' ? abrirCobrar(ctx) : abrirApartar(ctx))); };
 
@@ -36,7 +36,7 @@ async function iniciar() {
     const clave = s ? s.uid + s.rol : null;
     // Solo se omite si la pantalla que se ve ya corresponde (app con sesión o entrada sin ella).
     const mostrando = s ? !!raiz.querySelector(':scope > .side') : !!raiz.querySelector('.puerta');
-    if (clave === anterior && mostrando) { ctx.sesion = s; return; }
+    if (clave === anterior && mostrando) { ctx.sesion = s; window.dispatchEvent(new CustomEvent('pos:sesion')); return; } // v2.16: nombre o foto cambiados
     const mio = ++turno;
     anterior = clave;
     // Si se sale o cambia la sesión real estando en Modo demo, se vuelve al almacén real.

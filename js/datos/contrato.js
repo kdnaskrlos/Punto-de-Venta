@@ -4,7 +4,7 @@
 //
 // Sesión:      sistemaIniciado() · crearAdministrador({nombre, usuario, pin}) · entrar(usuario, pin) · salir()
 //              alCambiarSesion(cb({uid, usuario, nombre, rol}|null)) → desuscribir
-// Usuarios:    crearUsuario({usuario, nombre, rol, pin}) · cambiarPin(uid, pinNuevo, pinActual?) → {uid} · activarUsuario(uid, activo)
+// Usuarios:    crearUsuario({usuario, nombre, rol, pin}) · cambiarPin(uid, pinNuevo, pinActual?) → {uid} · activarUsuario(uid, activo) · editarPerfil(uid, {nombre, foto})
 // Lectura:     escuchar(nombre, cb(docs[]), filtro?) → desuscribir · obtener(nombre, id)
 //              filtro = {desde?, hasta? (ISO, sobre fecha/abierta), usuario?, cajaId?, sku?, estado?}
 //              La vendedora solo recibe sus propias ventas, cajas y autorizaciones (por usuario).

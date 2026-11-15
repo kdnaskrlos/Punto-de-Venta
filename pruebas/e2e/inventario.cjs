@@ -41,10 +41,11 @@ casos('inventario', [
     a.strictEqual(await p.$('#meta'), null, 'sin línea de conteo');
     a.strictEqual(await p.$$eval('#seg [data-st]', b => b.length), 3, 'v2.15: Todos / Stock bajo / Agotados filtran');
     a.ok(await p.$(itemDe('J-M') + ' .foto svg'), 'sin foto: recuadro con ícono');
-    a.strictEqual(await texto(p, '#fSt'), 'Stock');
-    await p.click('#fSt'); await p.click('.menu-it:has-text("Agotados")');
+    // v2.16: el filtro «Stock» se quitó; filtran las opciones Todos / Stock bajo / Agotados
+    a.strictEqual(await p.isVisible('#fSt'), false);
+    await p.click('#seg [data-st="out"]');
     a.deepStrictEqual(await p.$$eval('.stk .tarjeta-prenda', e => e.map(x => x.dataset.skus)), ['R-M R-L']);
-    await p.click('#fSt'); await p.click('.menu-it:has-text("Todos")');
+    await p.click('#seg [data-st="all"]');
     await p.click('#fCat'); await p.click('.menu-it:has-text("Dama")');
     a.strictEqual(await p.$$eval('.stk .tarjeta-prenda', e => e.length), 1);
     await p.click('#fCat'); await p.click('.menu-it >> nth=0');

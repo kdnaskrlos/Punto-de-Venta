@@ -1,6 +1,7 @@
 // Usuarios (Más → Usuarios): el administrador crea usuarios, cambia PIN y activa/desactiva.
 // Cada quien tiene sus opciones (cambiar PIN, cerrar sesión) en su propia tarjeta; los demás roles ven «Mi cuenta».
 import { h, icono, abrirVentana, toast, unaVez } from '../ui.js';
+import { avatarDe, editarPerfil } from './recorte.js';
 import { registrarVista } from '../app.js';
 import { NOMBRE_ROL, opcionesCuenta, cambiarMiPin } from './cuenta.js';
 import { DEMO_DIRECTO } from '../datos/index.js';
@@ -113,7 +114,9 @@ function usuarios(ctx) {
           poner(tarjeta, abrir);
         }, abrir ? tarjeta : null);
       } },
-        h('span', { class: 'avatar' }, (u.nombre || u.usuario).slice(0, 1).toUpperCase()),
+        // v2.16: un lápiz sobre el avatar abre «Editar perfil» (foto con recorte libre y nombre).
+        h('span', { class: 'u-av' }, avatarDe(u), h('span', { class: 'u-lapiz', role: 'button', tabindex: '0', 'aria-label': `Editar perfil de ${u.nombre}`, 'data-perfil': u.usuario,
+          onclick: e => { e.stopPropagation(); editarPerfil(ctx, u); }, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); editarPerfil(ctx, u); } } }, icono('lapiz'))),
         h('span', { class: 'u-info' }, h('b', {}, u.nombre), h('span', { class: 'nota' }, `@${u.usuario}`)),
         u.activo ? null : h('span', { class: 'est n' }, 'Inactivo'),
         h('span', { class: 'est n rol' }, NOMBRE_ROL[u.rol] || u.rol),
