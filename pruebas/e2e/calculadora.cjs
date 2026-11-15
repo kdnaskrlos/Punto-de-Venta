@@ -70,6 +70,13 @@ casos('calculadora', [
     a.strictEqual(await p.getAttribute('#aj-tab-tasas', 'aria-selected'), 'true');
     a.strictEqual(await p.$('.calc2'), null);
   }],
+  ['v2.21 · Teléfono: la tuerca de la calculadora también abre Ajustes › Tasas', async (env, a) => {
+    const p = await env.pagina({ ancho: 390, alto: 844, ruta: '/inicio' });
+    await p.click('.topbar [aria-label="Calculadora"]');
+    await p.click('#calc-ajustes'); await p.waitForTimeout(600);
+    a.strictEqual(await p.evaluate(() => location.hash), '#/ajustes');
+    a.strictEqual(await p.getAttribute('#aj-tab-tasas', 'aria-selected'), 'true');
+  }],
   ['Calculadora: sin "0" de ejemplo, borrador arriba limpia todo y Enter oculta el teclado', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780 });
     await p.click('.topbar [aria-label="Calculadora"]');

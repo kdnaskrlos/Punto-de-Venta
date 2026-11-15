@@ -76,8 +76,8 @@ export function abrirCalculadora(ctx) {
   // En PC no tapa el carrito: se abre a su izquierda y sin bloquear la pantalla.
   const tel = esTelefono();
   const borrar = h('button', { class: 'ibtn', id: 'calc-borrar', 'aria-label': 'Borrar todo', onclick: () => { usdBase = null; fuente = null; pintar(); } }, icono('borrador'));
-  // v2.18 · PC: junto al borrador, una tuerca que lleva a Ajustes › Tasas.
-  const ajustes = tel ? null : h('button', { class: 'ibtn', id: 'calc-ajustes', 'aria-label': 'Ajustes de tasas', onclick: () => { abrirPestana('tasas'); hj.cerrar(); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca'));
+  // v2.18: junto al borrador, una tuerca que lleva a Ajustes › Tasas (v2.21: también en el teléfono).
+  const ajustes = h('button', { class: 'ibtn', id: 'calc-ajustes', 'aria-label': 'Ajustes de tasas', onclick: () => { abrirPestana('tasas'); hj.cerrar(); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca'));
   const hj = abrirHoja({ titulo: 'Calculadora', contenido: h('div', { class: 'pila calc' }, ...filas, estado, ...(refs ? [refs.el] : [])), modal: tel, extraCab: ajustes ? h('span', { class: 'calc-extra' }, borrar, ajustes) : borrar });
   hj.el.querySelector('.caja')?.classList.add('calc2');
   hj.el.querySelector('.cab h2')?.prepend(icono('calculadora')); // v2.06: ícono en la cabecera
