@@ -1485,3 +1485,5 @@ label[for=aj-redondeo]{font-weight:600!important}
 /* v2.22 · Recorte: sin menú de imagen al mantener presionado */
 .rc-marco,.rc-marco *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .rc-img{pointer-events:none}
+/* v2.23 · Ajustes en el teléfono: vuelve el contorno de cada sección (en la PC sigue sin marco) */
+@media (max-width:839px){.ajustes > section.tarjeta{background:var(--surface)!important;border:1px solid var(--line)!important;border-radius:16px!important;box-shadow:none!important}}

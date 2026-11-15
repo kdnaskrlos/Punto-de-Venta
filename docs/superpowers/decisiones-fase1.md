@@ -512,3 +512,4 @@ Suite final: npm test 99/99 · e2e 59/59
 - v2.20: calculadora PC del alto de su contenido (sin espacio blanco abajo).
 - v2.21: la tuerca de la calculadora (a Ajustes › Tasas) también en el teléfono.
 - v2.22: calculadora PC centrada a lo alto (pegada a la derecha); recorte de foto sin el menú copiar/descargar/compartir al mantener presionado. Lápiz del perfil con foto: reabre el recorte (de la foto original si se eligió en esa edición) y «Otra foto» abre la galería.
+- v2.23: Ajustes en el teléfono con el contorno de cada sección otra vez (en la PC sigue sin marco).
