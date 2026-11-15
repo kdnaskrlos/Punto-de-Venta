@@ -2,7 +2,7 @@
 import { abrirEscaner, ICONO_ESCANER } from './escaner.js';
 import { buscarCodigo } from './inventario.js';
 import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, campoBusqueda } from '../ui.js';
-import { coincide, prepararTexto } from '../nucleo/busqueda.js';
+import { coincide, textoPreparado } from '../nucleo/busqueda.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
 import { titulo, grupoDe, textoBusqueda, fotoDe, nombreSinGenero } from '../nucleo/producto.js';
@@ -422,8 +422,13 @@ registrarVista('/vender', {
       return true;
     }
 
+    // v2.00 · Búsqueda sin lag: las tarjetas y su texto de búsqueda ya preparado se calculan una sola vez
+    // (se rehacen solo si cambian los productos); se pintan primero 40 y el resto con «Mostrar más»;
+    // y si se escribe rápido, solo se procesa la última letra de cada cuadro de pantalla.
+    let cacheG = null, maxVis = 40, rafBusca = 0;
+    const gruposListos = () => cacheG || (cacheG = grupos(ctx).map(g => Object.assign(g, { _txt: g.variantes.map(p => textoPreparado(p, textoBusqueda)) })));
     function pintar() {
-      const todos = grupos(ctx);
+      const todos = gruposListos();
       // Orden pedido: Unisex / Dama / Niño / Niña (otros géneros después, por nombre) y «Todo» al final.
       const ORDEN_GENERO = ['Unisex', 'Dama', 'Niño', 'Niña'];
       const pos = g => { const i = ORDEN_GENERO.indexOf(g); return i < 0 ? ORDEN_GENERO.length : i; };
@@ -431,18 +436,19 @@ registrarVista('/vender', {
       filtros.replaceChildren(...['', ...generos].map(c => h('button', { class: 'chip' + (c === genero ? ' activo' : ''), onclick: () => { genero = c; pintar(); } }, c || 'Todo')));
       // Búsqueda (v1.92): palabras en cualquier orden, sin tildes, plurales, tallas y códigos (nucleo/busqueda.js).
       const q = busqueda.trim();
-      const vis = todos.filter(g => (!genero || g.genero === genero) && (!q || g.variantes.some(p => coincide(prepararTexto(textoBusqueda(p)), q))));
+      const vis = todos.filter(g => (!genero || g.genero === genero) && (!q || g._txt.some(t => coincide(t, q))));
       const lista = !!q || catalogo;
       filtros.hidden = rejilla.hidden = !lista;
       // v1.98: al abrir la lista, chips y tarjetas entran con un fundido escalonado (solo esa vez, no en cada letra).
       if (lista && !cont.classList.contains('en-lista')) { cont.classList.add('lista-entra'); clearTimeout(tLista); tLista = setTimeout(() => cont.classList.remove('lista-entra'), 450); }
       cont.classList.toggle('en-lista', lista);
       const borrar = cont.querySelector('.buscar-borrar'); if (borrar && catalogo && !q) borrar.hidden = false; // la × también cierra «Todos los productos»
-      rejilla.replaceChildren(...(!lista ? [] : vis.length ? vis.map(g => tarjeta(ctx, g)) : [h('div', { class: 'vacio' }, q ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos. El administrador los importa desde la Carga Masiva.')]));
+      const mas = vis.length > maxVis ? h('button', { type: 'button', class: 'btn mostrar-mas', onclick: () => { maxVis += 60; pintar(); } }, `Mostrar ${Math.min(60, vis.length - maxVis)} más`) : null;
+      rejilla.replaceChildren(...(!lista ? [] : vis.length ? [...vis.slice(0, maxVis).map(g => tarjeta(ctx, g)), ...(mas ? [mas] : [])] : [h('div', { class: 'vacio' }, q ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos. El administrador los importa desde la Carga Masiva.')]));
       pintarCarrito();
     }
     function pintarCarrito() {
-      const porGrupo = new Map(grupos(ctx).map(g => [g.grupo, g]));
+      const porGrupo = new Map(gruposListos().map(g => [g.grupo, g]));
       rejilla.querySelectorAll('.tarjeta-prenda').forEach(el => { const g = porGrupo.get(el.dataset.grupo); if (g) el.replaceWith(tarjeta(ctx, g)); });
       const r = resumenCarrito(ctx);
       // ¿Qué prenda acaba de entrar o subir? Se resalta un momento y, si se estaba buscando, se vuelve al carrito.
@@ -468,7 +474,11 @@ registrarVista('/vender', {
       cont.classList.toggle('con-barra', !!r.unidades);
       sinCaja.hidden = !!ctx.miCaja || !ctx.puedeVer('cajaFisica');
     }
-    buscar.addEventListener('input', () => { busqueda = buscar.value; if (!busqueda) catalogo = false; pintar(); });
+    buscar.addEventListener('input', () => {
+      busqueda = buscar.value; if (!busqueda) catalogo = false;
+      maxVis = 40; cancelAnimationFrame(rafBusca);
+      if (!busqueda) pintar(); else rafBusca = requestAnimationFrame(pintar); // al borrar, de inmediato
+    });
     buscar.addEventListener('keydown', e => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
@@ -479,7 +489,7 @@ registrarVista('/vender', {
       if (e.key === 'F2') { e.preventDefault(); buscar.focus(); buscar.select(); }
       if (e.key === 'F9' && carrito(ctx).lineas.length && !hayCapas()) { e.preventDefault(); ctx.abrirCobro && ctx.abrirCobro('venta'); }
     };
-    const alDatos = e => { if (['productos', 'ajustes', 'tasas', 'caja'].includes(e.detail.que)) pintar(); };
+    const alDatos = e => { if (['productos', 'imagenes'].includes(e.detail.que)) cacheG = null; if (['productos', 'imagenes', 'ajustes', 'tasas', 'caja'].includes(e.detail.que)) pintar(); };
     document.addEventListener('keydown', teclas);
     window.addEventListener('pos:datos', alDatos);
     window.addEventListener('pos:carrito', pintarCarrito);

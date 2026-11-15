@@ -281,30 +281,65 @@ casos('vender', [
       a.deepStrictEqual(r, { linea: true, orden: true, derecha: true, arriba: true });
     }
   }],
-  ['v1.99 · Detalle de la prenda (Inventario): sin recuadro de stock, color y tela bajo el nombre y ficha en dos columnas', async (env, a) => {
+  ['v2.00 · Detalle de la prenda (Inventario): sin cajas, color y tela bajo el nombre, tallas con total, precios por tramo y ficha en dos columnas', async (env, a) => {
     const p = await env.pagina({ ancho: 390, alto: 844, ruta: '/inventario' });
     await p.fill('#q', 'franela as'); await p.click('.stk .tarjeta-prenda[data-skus~="F-B-4"]');
-    await p.waitForSelector('.stk-capa .ficha2');
-    a.strictEqual(await texto(p, '.stk-capa .sh h2'), 'Franela AS Niño');
-    a.strictEqual(await texto(p, '.stk-capa .sub-prenda'), 'Blanco · Algodon');
-    a.ok(await p.$('.stk-capa .sub-prenda .punto-color'));
-    a.ok(!(await p.innerText('.stk-capa')).match(/Stock|\d+ tallas/), 'sin stock ni «N tallas»');
-    const cols = await p.$$eval('.stk-capa .ficha2 > div', d => new Set(d.map(x => Math.round(x.getBoundingClientRect().left))).size);
-    a.strictEqual(cols, 2);
+    await p.waitForSelector('.stk-capa .ficha3');
+    a.strictEqual(await texto(p, '.stk-capa .det-cab h2'), 'Franela AS Niño');
+    a.strictEqual(await texto(p, '.stk-capa .det-sub'), 'Blanco · Algodon');
+    a.ok(await p.$('.stk-capa .det-sub .punto-color'));
+    a.strictEqual(await p.$('.stk-capa .card h3'), null, 'sin cajas con título en MAYÚSCULAS');
+    a.match(await texto(p, '.stk-capa .det-t-der'), /^48 uds en total$/);
+    a.deepStrictEqual((await p.$$eval('.stk-capa .prices span', e => e.map(x => x.textContent))).slice(0, 2), ['1–5 prendas', '6–11']);
+    a.strictEqual(await p.$$eval('.stk-capa .ficha3 > div', d => new Set(d.map(x => Math.round(x.getBoundingClientRect().left))).size), 2);
+    a.ok(await p.$eval('.stk-capa .det-x', b => b.getBoundingClientRect().width >= 44 && getComputedStyle(b).borderTopWidth === '0px'));
+    const fam = await p.$$eval('.stk-capa .ficha3 b', b => new Set(b.map(x => getComputedStyle(x).fontFamily)).size);
+    a.strictEqual(fam, 1, 'el código de imagen con la misma letra');
+    const lineas = await p.$$eval('.stk-capa .dfila', f => f.map(x => getComputedStyle(x).borderBottomWidth));
+    a.ok(lineas.every(w => w === '0px'), 'una sola línea entre filas');
   }],
-  ['v1.99 · Ajustes: en Tasas un ícono junto a «Peso colombiano» guarda (sin aviso flotante); Binance/BCV/Manual con color propio', async (env, a) => {
+  ['v2.00 · Ajustes: sin aviso flotante en ninguna pestaña; en Tasas un ícono verde solo indica cambios; Binance verde', async (env, a) => {
     const p = await env.pagina({ ancho: 390, alto: 844, ruta: '/ajustes' });
     a.strictEqual(await p.isVisible('#aj-pendiente'), false);
     await p.fill('#aj-cop', '4.000');
-    a.ok(await p.isVisible('#aj-pendiente')); await p.waitForTimeout(300); // fin del fundido del ícono
-    a.strictEqual(await p.isVisible('.aviso-guardar'), false, 'sin aviso flotante en Tasas');
+    a.ok(await p.isVisible('#aj-pendiente')); await p.waitForTimeout(300);
+    a.strictEqual(await p.$('.aviso-guardar'), null, 'sin aviso flotante');
+    a.strictEqual(await p.$eval('#aj-pendiente', e => e.tagName), 'SPAN', 'no es un botón');
+    a.strictEqual(await p.$eval('#aj-pendiente', e => getComputedStyle(e).color), 'rgb(21, 128, 61)');
     const fila = await p.evaluate(() => { const l = document.querySelector('label[for="aj-cop"]').getBoundingClientRect(), i = document.querySelector('#aj-pendiente').getBoundingClientRect(); return Math.abs((l.top + l.bottom) / 2 - (i.top + i.bottom) / 2); });
     a.ok(fila < 3, 'alineado con el título: ' + fila);
-    const colores = await p.$$eval('.modo-bs .modo-txt b', b => b.map(x => getComputedStyle(x).color));
-    a.strictEqual(new Set(colores).size, 3);
-    await p.click('#aj-pendiente');
+    a.strictEqual(await p.$eval('.modo-bs[data-modo=binance] .modo-txt b', e => getComputedStyle(e).color), 'rgb(21, 128, 61)');
+    a.strictEqual(new Set(await p.$$eval('.modo-bs .modo-txt b', b => b.map(x => getComputedStyle(x).color))).size, 3);
+    await p.click('#aj-tab-venta'); await p.fill('#aj-com-0-normal', '5.000').catch(() => {});
+    a.strictEqual(await p.$('.aviso-guardar'), null);
+    await p.click('#aj-guardar');
     await p.waitForFunction(() => document.querySelector('#aj-pendiente').hidden);
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.ajustesTasas?.copPorUsd), 4000);
+  }],
+  ['v2.00 · Detalle del apartado: teléfono abre WhatsApp, prendas en filas con una sola línea y sin línea sobre los botones', async (env, a) => {
+    const p = await env.pagina({ movil: true, usuario: 'admin', ruta: '/mas' });
+    await p.click('#modo-prueba'); await p.waitForTimeout(1200);
+    await p.evaluate(() => { location.hash = '/apartados'; }); await p.waitForSelector('.apartado');
+    await p.click('.apartado >> nth=0'); await p.waitForSelector('.ap-det.det2');
+    a.match(await p.getAttribute('.ap-det-tel.wa', 'href'), /^https:\/\/wa\.me\/58\d{10}$/);
+    a.ok(await p.$eval('.ap-det-tel.wa', e => parseFloat(getComputedStyle(e).fontSize) >= 15));
+    a.ok(await p.$$eval('.ap-det .dfila', f => f.length >= 2 && f.every(x => getComputedStyle(x).borderBottomWidth === '0px')));
+    a.strictEqual(await p.$eval('.ap-acc', e => getComputedStyle(e).borderTopWidth), '0px');
+    const c = await p.$$eval('.ap-cif-abono, .ap-cif-saldo', d => d.map(x => getComputedStyle(x).alignItems));
+    a.deepStrictEqual(c, ['center', 'center']);
+  }],
+  ['v2.00 · Calculadora: al copiar no sale aviso de la app; el ícono pasa a ✓', async (env, a) => {
+    const p = await env.pagina({ usuario: 'vendedora' });
+    await p.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await p.click('.topbar [aria-label="Calculadora"]');
+    await p.fill('#calc-usd', '2'); await p.click('[aria-label="Copiar pesos"]');
+    await p.waitForSelector('.calc-caja .ibtn.copiado');
+    a.strictEqual(await p.$('.toast'), null, 'sin aviso de la app');
+    a.ok(await p.$eval('.caja.calc2 .cab', e => getComputedStyle(e).backgroundImage.includes('gradient')));
+  }],
+  ['v2.00 · Sin barras de desplazamiento visibles', async (env, a) => {
+    const p = await env.pagina({ ancho: 1280, alto: 700, ruta: '/inventario' });
+    a.strictEqual(await p.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth), 'none');
   }],
   ['v1.99 · Recibo: el alto del mensaje agrandado se recuerda', async (env, a) => {
     const p = await env.pagina({ ancho: 1280, alto: 900, ruta: '/ajustes' });

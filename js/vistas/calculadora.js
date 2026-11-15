@@ -1,5 +1,5 @@
 // Calculadora rápida COP / USD / Bs con las tasas del punto de venta (§12.2) y detalle de tasas (§12.1).
-import { h, icono, abrirHoja, abrirVentana, despuesDeCerrar, toast, esTelefono } from '../ui.js';
+import { h, icono, abrirHoja, abrirVentana, despuesDeCerrar, esTelefono } from '../ui.js';
 import { navegar } from '../app.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { copPorBs } from '../nucleo/tasas.js';
@@ -14,6 +14,7 @@ const CAMPOS = [
 export function abrirCalculadora(ctx) {
   let usdBase = null, fuente = null;
   const inputs = {};
+  const estado = h('span', { class: 'solo-lector', role: 'status', 'aria-live': 'polite' });
   const tasaPill = {};
   const filas = CAMPOS.map(c => {
     const inp = h('input', { class: 'inp num', id: 'calc-' + c.id, inputmode: 'decimal', autocomplete: 'off' });
@@ -29,9 +30,17 @@ export function abrirCalculadora(ctx) {
       pintar();
     });
     inp.addEventListener('blur', () => { fuente = null; pintar(); });
-    const copiar = h('button', { class: 'ibtn', 'aria-label': c.copiar, onclick: async () => {
+    // v2.00: al copiar, el ícono pasa a ✓ un momento (sin aviso de la app: en Android ya sale el del sistema).
+    let tCopia = 0;
+    const copiar = h('button', { class: 'ibtn', 'aria-label': c.copiar, onclick: async e => {
       if (!inp.value) return;
-      try { await navigator.clipboard.writeText(inp.value); toast('Copiado'); } catch { inp.select(); }
+      const b = e.currentTarget;
+      try {
+        await navigator.clipboard.writeText(inp.value);
+        b.classList.add('copiado'); b.replaceChildren(icono('check')); b.setAttribute('aria-label', 'Copiado');
+        estado.textContent = `${c.nombre}: ${inp.value} copiado`;
+        clearTimeout(tCopia); tCopia = setTimeout(() => { b.classList.remove('copiado'); b.replaceChildren(icono('copiar')); b.setAttribute('aria-label', c.copiar); }, 1400);
+      } catch { inp.select(); }
     } }, icono('copiar'));
     tasaPill[c.id] = c.id === 'usd' ? null : h('span', { class: 'calc-tasa num' });
     return h('div', { class: 'campo calc-fila' },
@@ -61,7 +70,8 @@ export function abrirCalculadora(ctx) {
   // En PC no tapa el carrito: se abre a su izquierda y sin bloquear la pantalla.
   const tel = esTelefono();
   const borrar = h('button', { class: 'ibtn', id: 'calc-borrar', 'aria-label': 'Borrar todo', onclick: () => { usdBase = null; fuente = null; pintar(); } }, icono('borrador'));
-  const hj = abrirHoja({ titulo: 'Calculadora', contenido: h('div', { class: 'pila calc' }, ...filas), modal: tel, extraCab: borrar });
+  const hj = abrirHoja({ titulo: 'Calculadora', contenido: h('div', { class: 'pila calc' }, ...filas, estado), modal: tel, extraCab: borrar });
+  hj.el.querySelector('.caja')?.classList.add('calc2');
   const lado = document.querySelector('.lado-carrito');
   if (!tel && lado && lado.offsetParent) hj.el.querySelector('.caja').style.marginRight = `${hj.el.getBoundingClientRect().right - lado.getBoundingClientRect().left + 8}px`;
   hj.alCerrar = () => window.removeEventListener('pos:datos', alDatos);

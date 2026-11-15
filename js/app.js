@@ -111,7 +111,6 @@ export function pastillaModoDemo() {
   const b = h('button', { class: 'pill demo' + (ctx.vistaRol ? ' on' : ''), id: 'modo-demo', type: 'button' }, icono('usuario'), ctx.vistaRol ? `Modo demo · ${nombreRol(ctx.vistaRol)}` : 'Modo demo');
   b.onclick = () => {
     const v = abrirVentana({ titulo: 'Modo demo', contenido: h('div', { class: 'pila' },
-      h('p', { class: 'nota' }, '¿Cómo quieres ver la app? Para volver, pulsa «Salir» en la franja amarilla de arriba.'),
       h('div', { class: 'demo-roles' }, ...ROLES_DEMO.map(([k, t]) => h('button', { class: 'btn' + (ctx.vistaRol === k ? ' primary' : ''), 'data-rol': k, onclick: () => { v.cerrar(); despuesDeCerrar(() => verComo(k)); } }, icono('usuario'), t)))) });
   };
   return b;
@@ -151,7 +150,7 @@ export function pintarCabecera() {
     h('span', { class: 'conn' + (conn.error ? ' err' : conn.enLinea ? '' : ' off'), role: 'status' }, h('i'), textoConn),
     h('span', { class: 'sp' }),
     h('button', { class: 'pill tasas' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), 'aria-label': 'Tasas del día', title: t.ultimaConocida ? 'Bs: última tasa conocida' : '', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
-      h('span', { class: 'num' }, '$ ', h('b', { class: 'c-cop' }, fmt(t.copPorUsd)), ' · Bs ', h('b', { class: 'c-bs' }, fmt(t.bsPorUsd)))),
+      h('span', { class: 'num' }, '$ ', h('b', { class: 'c-cop' }, fmt(t.copPorUsd)), ' / Bs ', h('b', { class: 'c-bs' }, fmt(t.bsPorUsd)))),
     h('button', { class: 'ibtn', 'aria-label': 'Calculadora', onclick: () => alAbrirCalculadora() }, icono('calculadora')),
     h('span', { class: 'pill fecha' }, fechaCorta()));
 }

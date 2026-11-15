@@ -3,9 +3,9 @@ const { casos } = require('./_servidor.cjs');
 const texto = (p, s) => p.$eval(s, e => e.textContent.replace(/\s+/g, ' ').trim());
 
 casos('calculadora', [
-  ['La pastilla muestra $ 3.900 · Bs 1.075 y el detalle', async (env, a) => {
+  ['La pastilla muestra $ 3.900 / Bs 1.075 y el detalle', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora' });
-    a.strictEqual(await texto(p, '.topbar .tasas'), '$ 3.900 · Bs 1.075');
+    a.strictEqual(await texto(p, '.topbar .tasas'), '$ 3.900 / Bs 1.075');
     await p.click('.topbar .tasas');
     const d = await texto(p, '.capa');
     // El título de Bs es la fuente elegida en Ajustes (el demo usa la tasa manual).
@@ -38,7 +38,7 @@ casos('calculadora', [
     const p = await env.pagina({ usuario: 'admin' });
     await p.evaluate(() => window.__pos.ctx.almacen.guardarAjustes('tasas', { bsModo: 'binance' }));
     await p.waitForFunction(() => window.__pos.ctx.tasas.bsPorUsd === null);
-    a.strictEqual(await texto(p, '.topbar .tasas'), '$ 3.900 · Bs —');
+    a.strictEqual(await texto(p, '.topbar .tasas'), '$ 3.900 / Bs —');
     await p.click('.topbar [aria-label="Calculadora"]');
     await p.fill('#calc-usd', '10');
     a.strictEqual(await p.inputValue('#calc-bs'), '');

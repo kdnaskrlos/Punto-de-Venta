@@ -33,3 +33,12 @@ export function coincide(texto, consulta) {
   const t = typeof texto === 'string' ? prepararTexto(texto) : texto;
   return terms.every(w => terminoCoincide(t, w));
 }
+
+// v2.00: texto de búsqueda ya preparado por objeto (se calcula una sola vez por producto; si el producto
+// cambia llega como objeto nuevo y se vuelve a calcular). Evita normalizar todo el inventario en cada letra.
+const _prep = new WeakMap();
+export function textoPreparado(obj, armar) {
+  let t = _prep.get(obj);
+  if (!t) { t = prepararTexto(armar(obj)); _prep.set(obj, t); }
+  return t;
+}

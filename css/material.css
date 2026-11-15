@@ -766,3 +766,108 @@ button.pill:not(.demo){border-color:transparent!important}
 .stk.ap-hoja .ap-acc{display:flex!important;justify-content:flex-end;gap:8px;width:auto!important}
 .stk.ap-hoja .ap-acc .btn{flex:0 0 auto;min-width:104px}
 .tasa-cab > label{margin:0!important;line-height:1.3}
+
+/* ===== v2.00 ===== */
+/* --- Paneles de detalle (Apartado e Inventario): un mismo sistema. Cabecera con título 21/700 y línea
+   secundaria; cerrar de 44 px sin recuadro; secciones sin cajas, separadas por una línea fina y 20 px de aire;
+   títulos de sección 15/600 con ícono gris; filas de 52 px con línea fina entre ellas. --- */
+.det2{display:flex;flex-direction:column;padding-bottom:4px}
+.stk .det2 .det-cab{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:4px 12px;padding:2px 0 16px}
+.stk .det2 .det-cab h2{margin:0;font-size:21px;font-weight:700;line-height:1.25;letter-spacing:-.01em;color:var(--ink);overflow-wrap:anywhere}
+.stk .det2 .det-sub{display:inline-flex;align-items:center;gap:8px;margin-top:6px;font-size:13.5px;color:var(--muted);text-decoration:none;min-height:24px}
+.stk .det2 a.det-sub{color:var(--ink);font-weight:500}
+.stk .det2 a.det-sub svg.i{width:16px;height:16px;color:var(--accent)}
+.stk .det2 .det-sub .punto-color{width:12px;height:12px}
+.stk .det2 .det-der{display:flex;align-items:center;gap:4px;margin:-6px -10px 0 0}
+.stk .det2 .det-x{width:44px;height:44px;border:0;background:none;border-radius:12px;display:grid;place-items:center;color:var(--ink);cursor:pointer;font-size:0;padding:0}
+.stk .det2 .det-x:hover{background:var(--surface-2)}
+.stk .det2 .det-x:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stk .det2 .det-x svg.i{width:22px;height:22px}
+.stk .det2 .det-sec{border-top:1px solid var(--line);padding:16px 0 4px}
+.stk .det2 .det-t{display:flex;align-items:center;gap:8px;margin:0 0 4px;font-size:15px;font-weight:600;color:var(--ink);text-transform:none;letter-spacing:0}
+.stk .det2 .det-t svg.i{width:18px;height:18px;color:var(--muted)}
+.stk .det2 .det-t .det-t-der{margin-left:auto;font-size:13px;font-weight:500;color:var(--muted)}
+.stk .det2 .dfila{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;min-height:52px;padding:8px 0}
+.stk .det2 .dfila + .dfila{border-top:1px solid var(--line)}
+.stk .det2 .dfila .n{display:flex;flex-direction:column;gap:2px;min-width:0}
+.stk .det2 .dfila .n b{font-size:14.5px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.stk .det2 .dfila .n small{font-size:12.5px;color:var(--muted)}
+.stk .det2 .dfila .v{font-size:14.5px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.stk .det2 .dfila.con-q{grid-template-columns:32px minmax(0,1fr) auto}
+.stk .det2 .det-q{width:32px;height:32px;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.stk .det2 .det-meta{display:flex;align-items:center;gap:8px;margin:12px 0 0;font-size:12.5px;color:var(--muted)}
+.stk .det2 .det-meta svg.i{width:16px;height:16px}
+.stk .det2 .det-ver{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:44px;margin-top:2px;padding:0;border:0;border-top:1px solid var(--line);background:none;font:inherit;font-size:14px;font-weight:600;color:var(--accent);cursor:pointer;text-align:left}
+.stk .det2 .det-ver svg.i{width:18px;height:18px}
+
+/* Apartado: el saldo manda (es lo que se cobra); abonado y total al lado; barra en degradado con su porcentaje. */
+.stk .det2 .ap-cifras2{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:4px 16px;padding:4px 0 12px}
+.stk .det2 .ap-cifras2 span{display:block;font-size:12.5px;color:var(--muted)}
+.stk .det2 .ap-cifras2 .saldo b{display:block;font-size:30px;font-weight:700;line-height:1.1;color:var(--r-tx,#b91c1c);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stk .det2 .ap-cifras2 .saldo.cero b{color:var(--accent)}
+.stk .det2 .ap-cifras2 .abonado{text-align:right}
+.stk .det2 .ap-cifras2 .abonado b{display:block;font-size:17px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.stk .det2 .ap-barra2{height:10px;border-radius:99px;background:color-mix(in srgb,var(--accent) 10%,#eef1f4);overflow:hidden}
+.stk .det2 .ap-barra2 i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 30%,#fff) 0%,color-mix(in srgb,var(--accent) 75%,#fff) 55%,var(--accent) 100%)}
+.stk .det2 .ap-barra-pie{display:flex;justify-content:space-between;margin-top:6px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stk .det2 .ap-barra-pie b{color:var(--ink);font-weight:600}
+
+/* Inventario: tallas con su total en el título; precios por tramo en filas; ficha en dos columnas. */
+.stk .det2 .talla2 .n b{font-size:15px}
+.stk .det2 .talla2 .uds{display:flex;flex-direction:column;align-items:flex-end;gap:0;line-height:1.2}
+.stk .det2 .talla2 .uds b{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--accent)}
+.stk .det2 .talla2 .uds b.low{color:var(--y-tx,#a16207)}.stk .det2 .talla2 .uds b.out{color:var(--r-tx,#b91c1c)}
+.stk .det2 .talla2 .uds small{font-size:12px;color:var(--muted)}
+.stk .det2 .talla2{grid-template-columns:minmax(0,1fr) auto auto}
+.stk .det2 .talla2 .tacc{display:flex;gap:4px}
+.stk .det2 .ti-btn2{width:44px;height:44px;border:0;border-radius:12px;background:var(--surface-2);color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer}
+.stk .det2 .ti-btn2 svg{width:20px;height:20px}
+.stk .det2 .ti-btn2:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stk .det2 .precios2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px}
+.stk .det2 .precios2 .dfila{min-height:44px;padding:6px 0;border-top:1px solid var(--line)}
+.stk .det2 .precios2 .dfila:nth-child(-n+2){border-top:0}
+.stk .det2 .precios2 .n{font-size:13px;color:var(--muted)}
+.stk .det2 .ficha3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px}
+.stk .det2 .ficha3 > div{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 0;border-top:1px solid var(--line);min-width:0}
+.stk .det2 .ficha3 > div:nth-child(-n+2){border-top:0;padding-top:4px}
+.stk .det2 .ficha3 span{font-size:12.5px;color:var(--muted)}
+.stk .det2 .ficha3 b{font-size:14.5px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.stk .det2 .ver-costo{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0;border:0;background:none;font:inherit;font-size:14.5px;font-weight:600;color:var(--accent);cursor:pointer}
+.stk .det2 .ver-costo svg.i{width:18px;height:18px}
+
+/* --- Calculadora: solo la cabecera con el degradado verde crema de la app; ✓ al copiar. --- */
+.calc2 .cab{background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 12%,var(--surface)) 0%,var(--surface) 75%);border-bottom:1px solid color-mix(in srgb,var(--accent) 18%,var(--line))}
+.calc2 .calc-caja .ibtn.copiado{color:var(--accent)}
+
+/* --- Ajustes · Tasas: «Bs» con el mismo título que «Peso colombiano»; Binance en verde; el ícono de guardar
+   es solo un indicador (sin recuadro ni acción). --- */
+.campo:has(> #aj-bs-modo) > .et-moneda{font-weight:600!important;color:var(--muted)!important;font-size:13px}
+.modo-bs[data-modo=binance]{--c:var(--tono-verde)!important}
+.aj-pendiente{width:auto!important;height:auto!important;border:0!important;background:none!important;padding:0!important;color:var(--accent)!important;display:inline-grid;place-items:center}
+.aj-pendiente svg.i{width:20px;height:20px}
+
+/* --- Ajustes · Formas de pago en degradado, con el color de su moneda. --- */
+.forma-tarjeta.activa{background:linear-gradient(120deg,color-mix(in srgb,var(--c) 16%,var(--surface)) 0%,var(--surface) 70%)!important}
+.stk .det2 .ti-btn2 svg{fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* Apartado: la cabecera y las cifras quedan como estaban; el teléfono más grande y abre el chat de WhatsApp. */
+.ap-det .ap-det-tel.wa{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin:0 0 -6px;font-size:15.5px!important;font-weight:500;color:var(--ink)!important;text-decoration:none}
+.ap-det .ap-det-tel.wa svg.i{width:18px;height:18px;color:#16a34a}
+.ap-det .ap-det-tel.wa:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+/* La primera sección tras las cifras del apartado: sin línea encima, 20 px de aire. Abonado y saldo centrados en su mitad. */
+.stk .ap-det.det2 .ap-det-pago + .det-sec{border-top:0;padding-top:8px}
+.ap-det .ap-cif-abono,.ap-det .ap-cif-saldo{display:flex;flex-direction:column;align-items:center;text-align:center}
+.stk .det2 .prices{margin:8px 0 12px}
+.stk .ap-det.det2{gap:0}
+.stk .ap-det.det2 > .ap-det-pago{margin:4px 0 12px}
+.stk .ap-det.det2 > .det-meta{margin-top:12px}
+/* Detalle del apartado: sin la línea sobre los botones. */
+.stk.ap-hoja .ap-acc{border-top:0!important}
+/* v2.00: sin barras de desplazamiento visibles en todo el sistema (se sigue desplazando igual). */
+*{scrollbar-width:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+/* Listas largas: el navegador no dibuja las tarjetas que no se ven (búsqueda más fluida). */
+.rejilla .tarjeta-prenda{content-visibility:auto;contain-intrinsic-size:auto 80px}
+.vender-main .mostrar-mas{align-self:center;margin:4px auto 8px}
+/* Modo demo: sin línea bajo el título de la ventana. */
+.capa:has(.demo-roles) .cab{border-bottom:0!important}

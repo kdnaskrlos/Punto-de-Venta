@@ -2,6 +2,7 @@
 import { abrirHojaStock } from './inventario.js';
 import { h, icono, abrirVentana, toast, pedirMotivo, despuesDeCerrar, largo, campoBusqueda } from '../ui.js';
 import { coincide } from '../nucleo/busqueda.js';
+import { titulo } from '../nucleo/producto.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { registrarVista } from '../app.js';
@@ -138,10 +139,11 @@ function abrirDetalle(ctx, ap) {
   const textoAbono = x => `${fmtMonto(x.monto, x.moneda)}${x.moneda === 'COP' ? '' : ' ' + (x.moneda === 'BS' ? 'Bs' : x.moneda)}`;
   const historial = () => abrirVentana({ titulo: 'Historial de abonos', contenido: h('div', { class: 'ap-det-caja' }, ...[...abonos].reverse().map(x => h('div', { class: 'ap-det-fila' },
     h('span', {}, x.nombre || x.forma, h('span', { class: 'nota' }, x.fecha ? ` · ${fechaHora(x.fecha)}` : '')), h('b', { class: 'num' }, textoAbono(x))))) });
-  const contenido = h('div', { class: 'ap-det' },
+  const contenido = h('div', { class: 'ap-det det2' },
     h('div', { class: 'ap-det-cab' },
       h('div', {}, h('h2', { class: 'ap-det-nombre' }, ap.cliente?.nombre || 'Apartado'),
-        ap.cliente?.telefono ? h('span', { class: 'ap-det-tel nota num' }, icono('telefono'), telLegible(ap.cliente.telefono)) : null),
+        // v2.00: el teléfono, más grande, abre el chat de WhatsApp del cliente.
+        ap.cliente?.telefono ? h('a', { class: 'ap-det-tel nota num wa', href: `https://wa.me/${String(ap.cliente.telefono).replace(/\D/g, '')}`, target: '_blank', rel: 'noopener', 'aria-label': `Escribir por WhatsApp a ${ap.cliente?.nombre || 'cliente'}, ${telLegible(ap.cliente.telefono)}` }, icono('telefono'), telLegible(ap.cliente.telefono)) : null),
       h('span', { class: 'ap-det-cab-der' }, h('span', { class: `est ${color}` }, etiqueta), h('button', { class: 'ibtn cerrar', 'data-act': 'close', 'aria-label': 'Cerrar' }, icono('x')))),
     h('div', { class: 'ap-det-pago' },
       h('div', { class: 'ap-det-cifras' },
@@ -150,16 +152,22 @@ function abrirDetalle(ctx, ap) {
         h('div', { class: 'sep' }),
         h('div', { class: 'ap-cif-saldo' }, h('span', { class: 'nota' }, pendiente ? 'Saldo pendiente' : 'Total'), h('b', { class: 'num grande' + (pendiente ? ' rojo' : ''), 'data-largo': largo(fmtCop(pendiente ? ap.saldo : ap.total)) }, fmtCop(pendiente ? ap.saldo : ap.total)))),
       h('div', { class: 'ap-barra', role: 'progressbar', 'aria-label': 'Pagado', 'aria-valuenow': String(pct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: `width:${pct}%` }))),
-    h('h3', { class: 'ap-det-t' }, icono('franela'), 'Prendas'),
-    h('div', { class: 'ap-det-caja' }, ...ap.lineas.map(l => h('div', { class: 'ap-det-fila prenda' },
-      // Talla debajo del nombre: el nombre largo ya no empuja la talla ni el monto.
-      h('span', { class: 'ap-det-pn' }, `${l.cantidad} × ${l.nombre}`, l.talla ? h('span', { class: 'ap-det-talla' }, `Talla ${l.talla}`) : null),
-      h('span', { class: 'num' }, l.subtotal != null ? fmtCop(l.subtotal) : '')))),
-    ultimo ? h('div', { class: 'ap-det-abono' },
-      h('h3', { class: 'ap-det-t' }, icono('cartera'), 'Último abono'),
-      h('div', { class: 'ap-det-fila' }, h('span', {}, ultimo.nombre || ultimo.forma, h('span', { class: 'nota' }, ultimo.fecha ? ` · ${diaCorto(ultimo.fecha).replace(/\.$/, '')}` : '')), h('b', { class: 'num' }, textoAbono(ultimo))),
-      abonos.length ? h('button', { type: 'button', class: 'enlace-ver', id: 'ap-historial', onclick: historial }, `Ver historial de abonos (${abonos.length})`, icono('der')) : null) : null,
-    h('p', { class: 'nota ap-det-meta' }, icono('calendario'), `Apartado el ${fechaHora(ap.fecha).replace(/^\S+ /, '')} · @${ap.usuario}`));
+    // v2.00: prendas y último abono como filas (cantidad en su cuadrito, nombre corto y «color · tela · talla»).
+    h('div', { class: 'det-sec' },
+      h('h3', { class: 'det-t' }, icono('franela'), 'Prendas', h('span', { class: 'det-t-der' }, (() => { const n = ap.lineas.reduce((s, l) => s + (l.cantidad || 0), 0); return `${n} ${n === 1 ? 'prenda' : 'prendas'}`; })())),
+      ...ap.lineas.map(l => {
+        const p = ctx.productos?.[l.sku];
+        const nombre = p ? titulo(p) : l.nombre;
+        const det = [p?.color, p?.tela, l.talla && `Talla ${l.talla}`].filter(Boolean).join(' · ') || (l.talla ? `Talla ${l.talla}` : '');
+        return h('div', { class: 'dfila con-q' }, h('span', { class: 'det-q num' }, String(l.cantidad)),
+          h('span', { class: 'n' }, h('b', {}, nombre), det ? h('small', {}, det) : null),
+          h('span', { class: 'v num' }, l.subtotal != null ? fmtCop(l.subtotal) : ''));
+      })),
+    ultimo ? h('div', { class: 'det-sec' },
+      h('h3', { class: 'det-t' }, icono('cartera'), 'Último abono'),
+      h('div', { class: 'dfila' }, h('span', { class: 'n' }, h('b', {}, ultimo.nombre || ultimo.forma), ultimo.fecha ? h('small', {}, diaCorto(ultimo.fecha).replace(/\.$/, '')) : null), h('span', { class: 'v num' }, textoAbono(ultimo))),
+      abonos.length ? h('button', { type: 'button', class: 'det-ver', id: 'ap-historial', onclick: historial }, `Ver historial de abonos (${abonos.length})`, icono('der')) : null) : null,
+    h('p', { class: 'det-meta' }, icono('calendario'), `Apartado el ${fechaHora(ap.fecha).replace(/^\S+ /, '')} · @${ap.usuario}`));
   const acciones = pendiente ? h('div', { class: 'acciones ap-acc' },
     ctx.puedeVer('cancelarApartado') ? h('button', { class: 'btn texto peligro', id: 'ap-cancelar', onclick: () => ir(async () => {
       const motivo = await pedirMotivo({ titulo: 'Cancelar apartado', boton: 'Cancelar apartado', peligro: true });

@@ -60,9 +60,9 @@ function tasas(ctx) {
   recargo.addEventListener('input', pintar);
   manual.addEventListener('input', () => { modo.value = 'manual'; pintar(); });
   pintar();
-  // v1.99: en Tasas no sale el aviso flotante; un ícono a la derecha de «Peso colombiano» indica que hay
-  // cambios por guardar (y al tocarlo se guardan).
-  const pendiente = h('button', { type: 'button', class: 'ibtn aj-pendiente', id: 'aj-pendiente', 'aria-label': 'Guardar cambios', title: 'Hay cambios sin guardar', hidden: true }, icono('guardar'));
+  // v1.99/v2.00: un ícono a la derecha de «Peso colombiano» indica que hay cambios por guardar.
+  // v2.00: solo indicador (verde, sin recuadro ni acción); se guarda con «Guardar cambios».
+  const pendiente = h('span', { class: 'aj-pendiente', id: 'aj-pendiente', role: 'img', 'aria-label': 'Cambios sin guardar', title: 'Cambios sin guardar', hidden: true }, icono('guardar'));
   const el = seccion(null, null,
     h('div', { class: 'campo' }, h('div', { class: 'tasa-cab' }, h('label', { class: 'et-moneda', for: 'aj-cop' }, 'Peso colombiano'), pendiente), filaUsd(cop)),
     h('div', { class: 'campo' }, h('label', { class: 'et-moneda' }, 'Bs'), grupo));
@@ -237,19 +237,11 @@ registrarVista('/ajustes', {
     const boton = h('button', { class: 'btn primary', id: 'aj-guardar' }, icono('check'), 'Guardar cambios');
     boton.disabled = true;
     const barra = h('div', { class: 'guardar-ajustes' }, boton);
-    // Aviso flotante y discreto mientras haya cambios sin guardar y el botón de abajo no se vea.
-    const aviso = h('div', { class: 'aviso-guardar', role: 'status', 'aria-live': 'polite', hidden: true },
-      h('span', {}, 'Cambios sin guardar'),
-      h('button', { type: 'button', class: 'btn texto', id: 'aj-guardar-aviso', onclick: () => boton.click() }, 'Guardar'));
-    let botonVisible = false;
-    const pintarAviso = () => {
-      aviso.hidden = boton.disabled || botonVisible || pestanaActual === 'tasas';
-      t.pendiente.hidden = boton.disabled;
-    };
-    if ('IntersectionObserver' in window) new IntersectionObserver(([e]) => { botonVisible = e.isIntersecting; pintarAviso(); }, { rootMargin: esTelefono() ? '0px 0px -84px 0px' : '0px' }).observe(boton); // en el teléfono la barra de abajo tapa 84 px
+    // v2.00: sin aviso flotante de «Cambios sin guardar» en ninguna pestaña; queda el botón de abajo
+    // (se activa al cambiar algo) y, en Tasas, el ícono verde junto a «Peso colombiano».
+    const pintarAviso = () => { t.pendiente.hidden = boton.disabled; };
     const cambio = () => { boton.disabled = false; pintarAviso(); };
     const t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
-    t.pendiente.addEventListener('click', () => boton.click());
     const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el };
     // Un solo botón para guardar; aparece cuando se cambia algo.
     for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button, button[aria-pressed], .modo-bs')) cambio(); }); }
@@ -275,7 +267,7 @@ registrarVista('/ajustes', {
       pintarAviso();
     };
     mostrar(pestanaActual);
-    cont.append(pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), barra, aviso);
+    cont.append(pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), barra);
     // En la computadora no hay pantalla «Más»: Modo prueba y Modo demo van al pie de Ajustes.
     if (esTelefono()) return undefined;
     const prueba = bloquePrueba(ctx);

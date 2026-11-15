@@ -5,9 +5,10 @@ import { titulo, grupoDe, detalle, textoBusqueda, fotoDe, nombreVariante } from 
 import { abrirEscaner } from './escaner.js';
 import { compararTallas } from '../nucleo/tipo-prenda.js';
 import { colorPrenda } from '../nucleo/colores.js';
+import { etiquetaTramo } from '../nucleo/tramos.js';
 import { registrarVista } from '../app.js';
 import { tarjetaPrenda } from './vender.js';
-import { coincide, prepararTexto } from '../nucleo/busqueda.js';
+import { coincide, textoPreparado } from '../nucleo/busqueda.js';
 import { leerInventario, planImportacion, detalleCambios } from '../nucleo/importar.js';
 import { emparejarFotos } from '../nucleo/fotos.js';
 import { fmtCop } from '../nucleo/dinero.js';
@@ -353,17 +354,22 @@ function abrirPrenda(ctx, clave, costos, tema, abrirTalla) {
     const verCostos = ctx.puedeVer('verCostos'), costo = costos[p.sku]?.costo;
     // v1.93: en cada talla, botones pequeños de Ajustar existencia (administrador) e Historial (quien ve costos).
     const puedeAjustar = puedeAdmin(ctx, 'ajustarInventario');
-    const accTalla = v => (puedeAjustar || verCostos ? `<span class="ti-acc">${puedeAjustar ? `<button type="button" class="ti-btn" data-acc="ajustar" data-sku="${esc(v.sku)}" aria-label="Ajustar existencia talla ${esc(v.talla || 'única')}" title="Ajustar existencia">${SVG.ajustar}</button>` : ''}${verCostos ? `<button type="button" class="ti-btn" data-acc="historial" data-sku="${esc(v.sku)}" aria-label="Historial talla ${esc(v.talla || 'única')}" title="Historial">${SVG.historial}</button>` : ''}</span>` : '');
-    // v1.99: el color pasa a la segunda línea con su punto y la tela (sin «N tallas»); sin el recuadro de stock.
+    const accTalla = v => (puedeAjustar || verCostos ? `<span class="ti-acc tacc">${puedeAjustar ? `<button type="button" class="ti-btn ti-btn2" data-acc="ajustar" data-sku="${esc(v.sku)}" aria-label="Ajustar existencia talla ${esc(v.talla || 'única')}" title="Ajustar existencia">${SVG.ajustar}</button>` : ''}${verCostos ? `<button type="button" class="ti-btn ti-btn2" data-acc="historial" data-sku="${esc(v.sku)}" aria-label="Historial talla ${esc(v.talla || 'única')}" title="Historial">${SVG.historial}</button>` : ''}</span>` : '');
+    // v2.00: mismo sistema que el detalle del apartado: cabecera con «● color · tela», secciones sin cajas
+    // (Tallas con su total, Precios por cantidad en recuadros con el tramo real, Ficha en dos columnas).
     const pc = colorPrenda(p.color);
-    const ficha = (a, b, mono) => (b ? `<div><span>${a}</span><b${mono ? ' class="mono"' : ''}>${esc(b)}</b></div>` : '');
-    sh.innerHTML = `<div class="grab"></div><div class="sh"><h2>${esc(titulo(p))}</h2><button class="x" type="button" data-act="close" aria-label="Cerrar">×</button></div>
-  ${p.color || p.tela ? `<div class="sub-prenda">${p.color ? `<i class="punto-color"${pc ? ` style="--pc:${esc(pc)}"` : ''}></i>` : ''}${esc([p.color, p.tela].filter(Boolean).join(' · '))}</div>` : ''}
+    const ic = n => icono(n).outerHTML;
+    const ficha = (a, b) => (b ? `<div><span>${a}</span><b>${esc(b)}</b></div>` : '');
+    const tramo = i => { const t = etiquetaTramo(i, ctx.ajustes?.tramos); return i === 0 ? `${t} prendas` : t; };
+    const uds = k => (k === 'out' ? 'out' : k === 'low' ? 'low' : '');
+    sh.innerHTML = `<div class="grab"></div><div class="det2">
+  <div class="det-cab"><div><h2>${esc(titulo(p))}</h2>${p.color || p.tela ? `<span class="det-sub">${p.color ? `<i class="punto-color"${pc ? ` style="--pc:${esc(pc)}"` : ''}></i>` : ''}${esc([p.color, p.tela].filter(Boolean).join(' · '))}</span>` : ''}</div><div class="det-der"><button class="det-x" type="button" data-act="close" aria-label="Cerrar">${ic('x')}</button></div></div>
   ${foto ? `<div class="card fotocard"><img src="${esc(foto)}" alt="Foto de ${esc(x.nombre)}"></div>` : ''}
-  <div class="card"><h3>Tallas</h3><div class="tallas-inv">${x.vs.map(v => { const k = st(v); return `<div class="talla-inv" data-sku="${esc(v.sku)}"><span class="ti-t"><b>${esc(v.talla ? 'Talla ' + v.talla : 'Talla única')}</b></span><span class="ti-u ${k}"><b>${k === 'out' ? 'Agotada' : fmtN(v.existencia) + ' uds'}</b><span>mín. ${fmtN(v.minimo || 0)}</span></span>${accTalla(v)}</div>`; }).join('')}</div></div>
-  <div class="card"><h3>Precios${oferta}</h3><div class="prices">${pri.map(o => `<div><span>Precio ${o.i + 1}</span><b>${o.v ? fmtCop(o.v) : '—'}</b></div>`).join('')}</div></div>
-  <div class="card"><h3>Ficha</h3><div class="ficha2">${ficha('Tipo', p.tipo)}${ficha('Género', p.genero)}${ficha('Marca', p.marca)}${ficha('Modelo', p.modelo)}${ficha('Código de imagen', p.id_imagen, true)}${verCostos ? `<div><span>Costo</span><button class="reveal" type="button" data-cost="${costo != null ? fmtCop(costo) : '—'}">Mostrar</button></div>` : ''}</div></div>
-  <div class="card" id="prenda-acciones" hidden><h3>Acciones</h3><div class="acc"></div></div>`;
+  <div class="det-sec"><h3 class="det-t">${ic('caja')}Tallas<span class="det-t-der">${fmtN(x.total)} uds en total</span></h3><div class="tallas-inv">${x.vs.map(v => { const k = st(v); return `<div class="talla-inv dfila talla2" data-sku="${esc(v.sku)}"><span class="n ti-t"><b>${esc(v.talla ? 'Talla ' + v.talla : 'Talla única')}</b></span><span class="uds ti-u ${k}"><b class="${uds(k)}">${k === 'out' ? 'Agotada' : fmtN(v.existencia) + ' uds'}</b><small>mín. ${fmtN(v.minimo || 0)}</small></span>${accTalla(v)}</div>`; }).join('')}</div></div>
+  <div class="det-sec"><h3 class="det-t">${ic('etiqueta')}Precios por cantidad${oferta}</h3><div class="prices">${pri.map(o => `<div><span>${esc(tramo(o.i))}</span><b>${o.v ? fmtCop(o.v) : '—'}</b></div>`).join('')}</div></div>
+  <div class="det-sec"><h3 class="det-t">${ic('recibo')}Ficha</h3><div class="ficha3">${ficha('Tipo', p.tipo)}${ficha('Género', p.genero)}${ficha('Marca', p.marca)}${ficha('Modelo', p.modelo)}${ficha('Código de imagen', p.id_imagen)}${verCostos ? `<div><span>Costo</span><button class="reveal ver-costo" type="button" data-cost="${costo != null ? fmtCop(costo) : '—'}">Mostrar</button></div>` : ''}</div></div>
+  </div>
+  <div class="det2"><div class="det-sec" id="prenda-acciones" hidden><h3 class="det-t">Acciones</h3><div class="acc"></div></div></div>`;
     const g = { grupo: clave, titulo: titulo(p), color: p.color, tela: p.tela, variantes: x.vs, id_imagen: p.id_imagen, foto };
     const acc = sin(
       puedeAdmin(ctx, 'ofertas') ? h('button', { class: 'sbtn', type: 'button', id: 'det-oferta', onclick: () => abrirOferta(ctx, g) }, 'Oferta') : null,
@@ -374,7 +380,7 @@ function abrirPrenda(ctx, clave, costos, tema, abrirTalla) {
   hoja.sh.addEventListener('click', e => {
     const ac = e.target.closest('[data-acc]');
     if (ac) { const v = ctx.productos[ac.dataset.sku]; if (v) (ac.dataset.acc === 'ajustar' ? abrirAjuste : abrirHistorial)(ctx, v); return; }
-    const co = e.target.closest('[data-cost]'); if (co) { co.outerHTML = `<b class="mono">${esc(co.dataset.cost)}</b>`; }
+    const co = e.target.closest('[data-cost]'); if (co) { co.outerHTML = `<b>${esc(co.dataset.cost)}</b>`; }
   });
   return { repintar: () => pintar(hoja.sh), cerrar: hoja.cerrar, sh: hoja.sh };
 }
@@ -447,14 +453,17 @@ registrarVista('/inventario', {
       const q = F.q.trim(); // v1.92: la misma búsqueda de toda la app (nucleo/busqueda.js)
       const a = G.filter(x => {
         if (F.st !== 'all' && x.st !== F.st) return false; if (F.cat && x.p.genero !== F.cat) return false; if (F.brand && x.p.marca !== F.brand) return false;
-        if (!q) return true; return x.vs.some(p => coincide(prepararTexto(textoBusqueda(p)), q));
+        if (!q) return true; return x.vs.some(p => coincide(textoPreparado(p, textoBusqueda), q));
       });
       const nm = x => x.nombre;
       const cmp = { name: (x, y) => nm(x).localeCompare(nm(y), 'es', { numeric: true }), sku: (x, y) => x.p.sku.localeCompare(y.p.sku, 'es', { numeric: true }), lo: (x, y) => x.total - y.total || nm(x).localeCompare(nm(y), 'es'), hi: (x, y) => y.total - x.total || nm(x).localeCompare(nm(y), 'es') }[F.sort];
       return a.sort(cmp);
     };
+    // v2.00: las prendas agrupadas se calculan una vez y se reusan mientras no cambien los productos.
+    let cacheR = null, cacheG = null;
     const render = () => {
-      const R = filas(), has = R.length > 0, G = prendas(R);
+      if (!cacheR) { cacheR = filas(); cacheG = prendas(cacheR); }
+      const R = cacheR, has = R.length > 0, G = cacheG;
       const low = G.filter(x => x.st === 'low').length, out = G.filter(x => x.st === 'out').length;
       const seg = [['all', 'Todos', G.length, '', SVG.caja], ['low', 'Stock bajo', low, 'w', SVG.alerta], ['out', 'Agotados', out, 'x', SVG.agotado]];
       // Solo informativas (filtrar es con «Stock»).
@@ -491,12 +500,13 @@ registrarVista('/inventario', {
     };
 
     $('#more').onclick = () => { F.shown += 100; render(); };
-    let qt;
-    $('#q').addEventListener('input', e => { clearTimeout(qt); qt = setTimeout(() => { F.q = e.target.value; F.shown = 80; render(); }, 120); });
+    // v2.00: sin la espera de 120 ms; si se escribe rápido solo se procesa la última letra de cada cuadro.
+    let qt = 0;
+    $('#q').addEventListener('input', e => { F.q = e.target.value; F.shown = 80; cancelAnimationFrame(qt); qt = requestAnimationFrame(render); });
     $('#q').addEventListener('keydown', e => {
       if (e.key === 'Escape' && e.target.value) { e.preventDefault(); e.stopPropagation(); $('#qc').click(); return; }
       if (e.key !== 'Enter') return;
-      e.preventDefault(); clearTimeout(qt); F.q = e.target.value; const v = e.target.value.trim();
+      e.preventDefault(); cancelAnimationFrame(qt); F.q = e.target.value; const v = e.target.value.trim();
       if (/^\d{8,14}$/.test(v) || (/^[A-Za-z0-9_.-]+$/.test(v) && filas().some(p => p.sku.toLowerCase() === v.toLowerCase()))) lookup(v, true); else render();
       e.target.blur();
     });
@@ -509,13 +519,13 @@ registrarVista('/inventario', {
       if (!filas().length) { toast('Primero sincroniza el inventario'); return; }
       abrirEscaner({ tema: TEMA, alLeer: c => lookup(c, false) });
     };
-    if (admSinc) $('#bSync').onclick = () => abrirSincronizar(ctx, costos, () => render());
+    if (admSinc) $('#bSync').onclick = () => abrirSincronizar(ctx, costos, () => { cacheR = null; render(); });
     if (admFotos) $('#bData').onclick = () => abrirFotos(ctx);
 
     const quitar = ctx.almacen.escuchar('costos', l => { costos = Object.fromEntries(l.map(c => [c.sku, c])); });
     const alDatos = e => {
       if (!['productos', 'ajustes'].includes(e.detail.que)) return;
-      if (e.detail.que === 'productos') build();
+      if (e.detail.que === 'productos') { cacheR = null; build(); }
       render();
       if (document.body.contains(cont)) for (const d of abiertas) { if (!d.sh.isConnected) abiertas.delete(d); else d.repintar(); }
     };

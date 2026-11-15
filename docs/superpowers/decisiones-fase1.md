@@ -466,3 +466,15 @@ Suite final: npm test 99/99 · e2e 59/59
   - Comisión por prenda: sin textos de ejemplo dentro de los campos.
   - Recibo: si se agranda el recuadro del mensaje, la app recuerda el alto en ese aparato.
   - Buscador del Inventario con la misma letra y color de texto de ejemplo que los demás buscadores.
+- v2.00 (aprobado con boceto HTML, 4 vueltas):
+  - Ajustes: sin aviso flotante de «Cambios sin guardar» en ninguna pestaña. En Tasas, un ícono verde de guardar junto a «Peso colombiano» solo indica que hay cambios (sin recuadro ni acción). «Bs» con el mismo título que «Peso colombiano». Binance en verde (BCV azul, Manual violeta). Formas de pago activas en degradado de su moneda que se va a blanco hacia la derecha (70 %).
+  - Calculadora: cabecera con el degradado verde crema; los recuadros igual. Al copiar ya no sale el aviso de la app (en Android quedaba doble con el del sistema): el ícono pasa a ✓ 1,4 s y se anuncia a lectores de pantalla.
+  - Detalle del apartado: arriba igual (abonado y saldo centrados en su mitad, sin la línea antes de «Prendas»); el teléfono más grande abre el chat de WhatsApp del cliente. Prendas en filas con la cantidad en su cuadrito, el nombre corto y «color · tela · talla»; último abono en fila; «Ver historial» como fila tocable de 44 px.
+  - Detalle de la prenda (Inventario): mismo sistema sin cajas y con secciones separadas por una línea; X de 44 px sin recuadro; Tallas con su total; precios en sus recuadros con el tramo real («1–5 prendas», «6–11»…); Ficha en dos columnas con el código de imagen y el costo en la misma letra que los demás datos.
+  - Inicio: cada recuadro espera sus propios datos (ventas, costos, cajas y apartados) y mientras tanto muestra lo último que se vio o el gris que respira; ya no aparecen 0, «—» o montos que saltan y desaparecen.
+  - Tarjetas listado sin cambios (boceto descartado).
+  - Pastilla de tasas de arriba: «$ 3.900 / Bs 1.075» (barra en vez de punto).
+  - Búsqueda sin lag: el texto de búsqueda de cada producto se prepara una sola vez; Vender guarda las tarjetas agrupadas y pinta primero 40 (luego «Mostrar más»); el Inventario reusa las prendas agrupadas y ya no espera 120 ms; si se escribe rápido solo se procesa la última letra de cada cuadro; los íconos se arman una vez y se copian; el navegador no dibuja las tarjetas fuera de pantalla.
+  - Sin barras de desplazamiento visibles en todo el sistema.
+  - Modo demo: sin la descripción ni la línea bajo el título.
+  - Detalle del apartado: una sola línea entre filas y sin la línea sobre los botones.

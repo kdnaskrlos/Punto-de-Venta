@@ -63,10 +63,16 @@ const ICONOS = {
   historial: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/>',
 };
 
+// v2.00: cada ícono se arma una sola vez y luego se copia (más rápido al pintar listas largas).
+const _iconos = new Map();
 export function icono(nombre) {
-  const t = document.createElement('template');
-  t.innerHTML = `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONOS[nombre] || ''}</svg>`;
-  return t.content.firstChild;
+  let base = _iconos.get(nombre);
+  if (!base) {
+    const t = document.createElement('template');
+    t.innerHTML = `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONOS[nombre] || ''}</svg>`;
+    base = t.content.firstChild; _iconos.set(nombre, base);
+  }
+  return base.cloneNode(true);
 }
 
 // Logo de la app: el carrito blanco de logo-carrito.png (misma forma que el ícono instalado).
@@ -168,7 +174,10 @@ function abrirCapa(el, salir = null) {
   const foco = el.querySelector('[autofocus]') || (esTelefono() ? null : el.querySelector('input:not([type=hidden]):not([type=file]), select, textarea'))
     || el.querySelector(':scope > .caja, [role="dialog"]:not(.capa), .sheet, .scan') || el;
   if (!foco.matches('input, select, textarea, button, a[href], [tabindex]')) { foco.setAttribute('tabindex', '-1'); foco.classList.add('sin-marco'); }
-  setTimeout(() => foco.isConnected && foco.focus({ preventScroll: true }), 30);
+  // Si en esos 30 ms ya se tocó un campo de la ventana, no se le quita el foco.
+  setTimeout(() => { if (foco.isConnected && !el.contains(document.activeElement) && !el.dataset.tocada) foco.focus({ preventScroll: true }); }, 30);
+  el.addEventListener('pointerdown', () => { el.dataset.tocada = '1'; }, { once: true, capture: true });
+  el.addEventListener('focusin', e => { if (e.target !== foco) el.dataset.tocada = '1'; }, { once: true });
   const cerrar = () => {
     if (capa.cerrada) return;
     quitar(capa);
