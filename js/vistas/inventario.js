@@ -24,9 +24,9 @@ const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 const puedeAdmin = (ctx, accion) => ctx.puedeVer(accion) && !esTelefono();
 
 function abrirAjuste(ctx, p) {
-  const cant = h('input', { class: 'inp num', id: 'ajuste-cantidad', inputmode: 'numeric', placeholder: '+3 o -2' });
+  const cant = h('input', { class: 'inp num', id: 'ajuste-cantidad', inputmode: 'numeric' });
   const motivo = h('select', { class: 'inp', id: 'ajuste-motivo' }, ...MOTIVOS.map(m => h('option', { value: m }, m)));
-  const nota = h('input', { class: 'inp', id: 'ajuste-nota', placeholder: 'Opcional' });
+  const nota = h('input', { class: 'inp', id: 'ajuste-nota' });
   const err = h('span', { class: 'error' });
   const b = h('button', { class: 'btn primary', id: 'ajuste-final' }, 'Guardar ajuste');
   const v = abrirVentana({ titulo: `Ajustar · ${titulo(p)}${detalle(p) ? ' · ' + detalle(p) : ''} · ${p.talla ? 'Talla ' + p.talla : 'Talla única'}`, contenido: h('div', { class: 'pila' },

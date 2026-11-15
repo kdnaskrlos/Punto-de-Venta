@@ -380,7 +380,7 @@ document.addEventListener('focus', e => {
   const el = e.target;
   if (!LIMPIABLE(el) || !el.value || el.__antes != null) return;
   el.__antes = el.value; el.__guia = el.getAttribute('placeholder'); el.__escribio = false;
-  el.placeholder = el.value; el.value = '';
+  el.value = ''; // v2.17: sin el valor anterior en gris dentro del campo
 }, true);
 // Si escribió (aunque luego lo borre todo), el campo queda como lo dejó: borrar a propósito también es un dato.
 document.addEventListener('input', e => { if (e.target.__antes != null) e.target.__escribio = true; }, true);

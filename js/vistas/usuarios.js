@@ -114,9 +114,7 @@ function usuarios(ctx) {
           poner(tarjeta, abrir);
         }, abrir ? tarjeta : null);
       } },
-        // v2.16: un lápiz sobre el avatar abre «Editar perfil» (foto con recorte libre y nombre).
-        h('span', { class: 'u-av' }, avatarDe(u), h('span', { class: 'u-lapiz', role: 'button', tabindex: '0', 'aria-label': `Editar perfil de ${u.nombre}`, 'data-perfil': u.usuario,
-          onclick: e => { e.stopPropagation(); editarPerfil(ctx, u); }, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); editarPerfil(ctx, u); } } }, icono('lapiz'))),
+        avatarDe(u),
         h('span', { class: 'u-info' }, h('b', {}, u.nombre), h('span', { class: 'nota' }, `@${u.usuario}`)),
         u.activo ? null : h('span', { class: 'est n' }, 'Inactivo'),
         h('span', { class: 'est n rol' }, NOMBRE_ROL[u.rol] || u.rol),
@@ -125,9 +123,10 @@ function usuarios(ctx) {
         h('label', { class: 'interruptor u-com' }, h('input', { type: 'checkbox', 'data-comision': u.usuario, checked: ganaComision(u),
           onchange: async e => { const r = await ctx.almacen.marcarComision(u.uid, e.target.checked); if (!r.ok) { e.target.checked = !e.target.checked; guardado(r); } else toast(e.target.checked ? `${u.nombre} gana comisión` : `${u.nombre} ya no gana comisión`); } }), 'Gana comisión por prenda vendida'),
         // En la tarjeta propia van «Cambiar mi PIN» y «Cerrar sesión» (antes en «Mi cuenta»).
-        yo ? accionesPropias(ctx) : h('div', { class: 'u-acc' },
+        // v2.17: «Editar» (foto y nombre) es una opción más dentro de la tarjeta.
+        yo ? accionesPropias(ctx, botonEditar(ctx, u)) : h('div', { class: 'u-acc' }, botonEditar(ctx, u),
           h('button', { class: 'btn', onclick: async () => { const pin = await pedirPin(`Nuevo PIN para ${u.nombre}`); if (pin) guardado(await ctx.almacen.cambiarPin(u.uid, pin)); } }, icono('llave'), 'Nuevo PIN'),
-          h('button', { class: 'btn', onclick: async () => guardado(await ctx.almacen.activarUsuario(u.uid, !u.activo)) }, u.activo ? 'Desactivar' : 'Activar'),
+          h('button', { class: 'btn u-desactivar', onclick: async () => guardado(await ctx.almacen.activarUsuario(u.uid, !u.activo)) }, u.activo ? 'Desactivar' : 'Activar'),
           h('button', { class: 'btn texto peligro u-eliminar', 'data-eliminar': u.usuario, onclick: () => eliminar(ctx, u) }, icono('borrar'), 'Eliminar'))));
   }));
   const quitar = ctx.almacen.escuchar('usuarios', l => {
@@ -137,10 +136,12 @@ function usuarios(ctx) {
   return { el, quitar };
 }
 
-function accionesPropias(ctx) {
+const botonEditar = (ctx, u) => h('button', { class: 'btn u-editar', type: 'button', 'data-perfil': u.usuario, onclick: () => editarPerfil(ctx, u) }, icono('lapiz'), 'Editar');
+
+function accionesPropias(ctx, editar) {
   // En la demostración no hay PIN ni sesión que cerrar: se cambia de rol con «Probar como».
-  if (DEMO_DIRECTO) return opcionesCuenta(ctx).querySelector('.probar');
-  return h('div', { class: 'u-acc' },
+  if (DEMO_DIRECTO) return h('div', { class: 'u-propias' }, h('div', { class: 'u-acc' }, editar), opcionesCuenta(ctx).querySelector('.probar'));
+  return h('div', { class: 'u-acc' }, editar,
     h('button', { class: 'btn', id: 'mi-pin', onclick: () => cambiarMiPin(ctx) }, icono('llave'), 'Cambiar mi PIN'),
     h('button', { class: 'btn texto peligro', id: 'cerrar-sesion', onclick: () => ctx.almacen.salir() }, icono('salir'), 'Cerrar sesión'));
 }

@@ -1247,7 +1247,7 @@ label[for=aj-redondeo]{font-weight:600!important}
   .pc-tot{display:flex;align-items:center;gap:24px}
   .pc-tot-num{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
   .pc-tot-num .total{display:flex;align-items:baseline;gap:6px}
-  .pc-tot-num .total-cop{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .pc-tot-num .total-cop{font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1}
   .pc-tot-num .moneda{font-size:14px;font-weight:800}
   .pc-tot-num .equivalentes{font-size:13.5px;font-weight:600;color:var(--muted)}
   .pc-cobrar{min-height:60px!important;min-width:230px;padding:0 18px!important;border-radius:14px!important;font-size:18px!important;font-weight:800!important;display:flex!important;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(115deg,color-mix(in srgb,var(--accent) 78%,#22c55e) 0%,var(--accent) 55%,color-mix(in srgb,var(--accent) 80%,#064e3b) 100%)!important;border:0!important;box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 30%,transparent)!important}
@@ -1289,7 +1289,7 @@ label[for=aj-redondeo]{font-weight:600!important}
   .aj-tasas .mb-card[data-modo=binance]{grid-column:1}.aj-tasas .mb-card[data-modo=bcv]{grid-column:2}.aj-tasas .mb-card[data-modo=manual]{grid-column:3}
   /* v2.16 · Venta: fila 1 redondeo en pesos | redondeo en dólares (cada uno con su título); fila 2 Tramos | Comisión, siempre abiertos */
   .ajustes > section.aj-venta:not([hidden]){display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px;row-gap:20px!important;align-items:start}
-  .aj-venta > .red-aj{grid-column:1;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+  .aj-venta > .red-aj{grid-column:1 / -1;max-width:calc(50% - 12px);display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
   .aj-venta > .red-aj > .campo{margin:0}
   .aj-venta .despl.fijo > summary{cursor:default}
   .aj-venta .despl.fijo > summary > svg.i:last-child{display:none}
@@ -1349,19 +1349,15 @@ label[for=aj-redondeo]{font-weight:600!important}
   .stk .top>.seg{order:4;flex:none!important;margin:0!important}
   .stk .top>.filters .filtro-menu{min-width:160px;flex:none!important}
   /* separador por tipo */
-  .stk #list .inv-tipo{grid-column:1 / -1;display:flex;align-items:baseline;gap:8px;margin:12px 0 -4px;font-size:15px;font-weight:700;color:var(--ink)}
-  .stk #list .inv-tipo:first-child{margin-top:0}
-  .stk #list .inv-tipo small{font-size:13px;font-weight:600;color:var(--muted)}
-  .stk #list .inv-tipo::after{content:"";flex:1;height:1px;background:var(--line);align-self:center;margin-left:4px}
+  .stk #list .inv-tipo,.vista.vender .rejilla .inv-tipo{grid-column:1 / -1;display:flex;align-items:baseline;gap:8px;margin:12px 0 -4px;font-size:15px;font-weight:700;color:var(--ink)}
+  .stk #list .inv-tipo:first-child,.vista.vender .rejilla .inv-tipo:first-child{margin-top:0}
+  .stk #list .inv-tipo small,.vista.vender .rejilla .inv-tipo small{font-size:13px;font-weight:600;color:var(--muted)}
+  .stk #list .inv-tipo::after,.vista.vender .rejilla .inv-tipo::after{content:"";flex:1;height:1px;background:var(--line);align-self:center;margin-left:4px}
 }
 /* v2.16 · Foto de perfil: avatar con foto, lápiz para editar y recorte libre */
 .avatar.con-foto{padding:0!important;overflow:hidden;background:var(--surface-2)!important}
 .avatar.con-foto img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}
 .avatar.grande{width:96px!important;height:96px!important;font-size:36px!important;font-weight:700;border-radius:50%;display:grid;place-items:center;background:var(--g-bg);color:var(--g-tx);border:1px solid var(--g-bd)}
-.u-av{position:relative;flex:none;display:inline-grid}
-.u-lapiz{position:absolute;right:-6px;bottom:-6px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);box-shadow:0 2px 6px rgba(15,23,42,.12);color:var(--ink);cursor:pointer}
-.u-lapiz svg.i{width:13px;height:13px}
-.u-lapiz:hover{background:var(--g-bg);color:var(--g-tx);border-color:var(--g-bd)}
 .pf-arriba{display:flex;align-items:center;gap:16px}
 .pf-botones{display:flex;flex-wrap:wrap;gap:8px}
 .rc{display:flex;flex-direction:column;gap:10px;align-items:center}
@@ -1372,3 +1368,75 @@ label[for=aj-redondeo]{font-weight:600!important}
 .rc-asa.nw{left:-10px;top:-10px;cursor:nwse-resize}.rc-asa.ne{right:-10px;top:-10px;cursor:nesw-resize}
 .rc-asa.sw{left:-10px;bottom:-10px;cursor:nesw-resize}.rc-asa.se{right:-10px;bottom:-10px;cursor:nwse-resize}
 .rc-sombra{display:none}
+/* v2.17 · Editar perfil (PC): foto grande centrada con lápiz; recorte en círculo */
+.pf-centro{flex-direction:column;justify-content:center;gap:8px}
+.pf-circulo{position:relative;display:inline-grid}
+.pf-centro .avatar.grande{width:140px!important;height:140px!important;font-size:52px!important}
+.pf-lapiz{position:absolute;right:4px;bottom:4px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);box-shadow:0 2px 8px rgba(15,23,42,.16);color:var(--ink);cursor:pointer;padding:0}
+.pf-lapiz svg.i{width:18px;height:18px}
+.pf-lapiz:hover{background:var(--g-bg);color:var(--g-tx);border-color:var(--g-bd)}
+.pf-centro .pf-quitar{min-height:32px}
+/* Recorte (v2.17, estilo de la captura): marco cuadrado con esquinas en L; dentro, el círculo claro y lo demás oscurecido */
+.rc-caja.rc-circulo{border:1px solid rgba(255,255,255,.55);border-radius:0;box-shadow:0 0 0 9999px rgba(15,23,42,.62);overflow:visible}
+.rc-caja.rc-circulo::before{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(15,23,42,.38);clip-path:inset(0);pointer-events:none}
+.rc-circulo .rc-asa{width:26px;height:26px;background:none;border-radius:0;box-shadow:none;border:0 solid #fff;transform:none}
+.rc-circulo .rc-asa.nw{left:-4px;top:-4px;border-width:4px 0 0 4px}
+.rc-circulo .rc-asa.ne{right:-4px;top:-4px;left:auto;border-width:4px 4px 0 0}
+.rc-circulo .rc-asa.sw{left:-4px;bottom:-4px;top:auto;border-width:0 0 4px 4px}
+.rc-circulo .rc-asa.se{right:-4px;bottom:-4px;left:auto;top:auto;border-width:0 4px 4px 0}
+.u-acc .u-editar{order:-1}
+/* v2.17 · Teléfono: redondeo con un solo título */
+.red-uno .red-tit{margin:0 0 8px;font-size:15px;font-weight:700;color:var(--ink)}
+.red-uno .red-fila{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* v2.17 · Barra de cobro PC: «8 Prendas» grande a la izquierda del total, con una línea que los separa */
+.pie-pc .pc-prendas-caja{flex:none;display:flex;align-items:baseline;gap:6px;padding:10px 36px 10px 0;margin-right:12px;border-right:1px solid var(--line);align-self:center}
+.pie-pc .pc-prendas-caja b{font-size:32px;font-weight:800;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pie-pc .pc-prendas-caja span{font-size:20px;font-weight:500;color:var(--ink);line-height:1}
+.pie-pc .pc-prendas-caja.cero b{color:var(--muted)}
+/* v2.17 · Tabla del carrito (PC): la foto queda dentro de su recuadro (antes se salía y tapaba el nombre) */
+.tabla-pc .fp-prenda .foto{overflow:hidden;display:grid;place-items:center;background:var(--surface-2)}
+.tabla-pc .fp-prenda .foto img{width:100%!important;height:100%!important;object-fit:cover;display:block}
+.red-uno .red-fila > .red-in{min-width:0!important;width:auto!important;max-width:none!important;margin:0!important}
+.red-uno .red-fila > .red-in input{min-width:0;width:100%}
+/* v2.17 · Calculadora (PC): referencias Binance P2P y BCV, copiadas de la Super Calculadora */
+.calc-refs{--coin:#ca8a04;--badge-bg:#fff6d6;--chip-blue-bg:#f2f8ff;--chip-blue-ink:#1d4ed8;--q-name:#0f4c8a;--up:#2f8a3f;--down:#dc2626;--warn:#92400e;--warn-soft:#fef3c7;--ink-2:#64748b;--ink-3:#7c8798;
+  margin:4px 0 0;padding:14px 16px 16px;border:1px solid var(--line);background:var(--surface-2);display:flex;flex-direction:column;gap:18px;border-radius:14px}
+.calc-refs .usdt-head{display:flex;align-items:center;justify-content:space-between;gap:6px 12px;flex-wrap:wrap}
+.calc-refs .label{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.calc-refs .ref{display:flex;flex-direction:column;gap:10px}
+.calc-refs .link-btn{border:0;background:transparent;padding:4px 6px;margin:-4px -6px;font:700 12px var(--f,inherit);color:var(--g-tx,#15803d);cursor:pointer;border-radius:6px}
+.calc-refs .link-btn:hover{text-decoration:underline}
+.calc-refs .link-btn svg{vertical-align:-2px;margin-right:3px}
+.calc-refs .usdt-actions{display:flex;align-items:center;gap:14px}
+@keyframes ref-giro{to{transform:rotate(360deg)}}
+.calc-refs .link-btn.busy svg{animation:ref-giro .8s linear infinite}
+.calc-refs .quote{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px 10px;display:flex;flex-direction:column;gap:6px}
+.calc-refs .q-main{display:flex;align-items:center;gap:12px}
+.calc-refs .q-badge{flex:none;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:var(--badge-bg);color:var(--coin)}
+.calc-refs .q-badge.bcv{background:var(--chip-blue-bg);color:var(--chip-blue-ink)}
+.calc-refs .q-name{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.calc-refs .q-name strong{font-size:16px;font-weight:700;color:var(--q-name);line-height:1.2}
+.calc-refs .q-name span{font-size:13px;color:var(--ink-2)}
+.calc-refs .q-val{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.calc-refs .q-val b{font-size:22px;font-weight:800;letter-spacing:-.01em;color:var(--ink);line-height:1.15;font-variant-numeric:tabular-nums}
+.calc-refs .q-chg{font-size:13px;font-weight:700;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.calc-refs .q-chg.up{color:var(--up)}.calc-refs .q-chg.down{color:var(--down)}
+.calc-refs .q-date{margin:0;text-align:center;font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums;min-height:14px}
+.calc-refs .usdt-meta{margin:0;font-size:12px;line-height:1.45;color:var(--ink-2)}
+.calc-refs .usdt-meta.stale{color:var(--warn);background:var(--warn-soft);padding:6px 9px;border-radius:8px}
+/* v2.17 · Usuarios (PC): todo en una fila; Eliminar al final, separado y solo como texto */
+@media (min-width:840px){
+  .lista-usuarios .u-cuerpo:not([hidden]){display:flex!important;flex-direction:row!important;align-items:center;gap:16px;flex-wrap:nowrap}
+  .lista-usuarios .u-cuerpo .u-com{flex:none;margin:0!important}
+  .lista-usuarios .u-cuerpo .u-propias{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+  .lista-usuarios .u-acc{display:flex!important;flex:1;align-items:center;gap:8px;flex-wrap:nowrap}
+  .lista-usuarios .u-acc .btn{width:auto!important;flex:none;padding:0 16px}
+  .lista-usuarios .u-acc .u-eliminar{grid-column:auto}
+}
+@media (min-width:840px){
+  .lista-usuarios .u-cuerpo:not([hidden]){justify-content:flex-start!important;text-align:left}
+  .lista-usuarios .u-acc{flex:1 1 auto!important;justify-content:flex-start!important}
+  .lista-usuarios .u-acc .u-desactivar,.lista-usuarios .u-acc #cerrar-sesion{margin-left:auto!important}
+  .lista-usuarios .u-acc .u-eliminar{margin-left:0!important;margin-right:0!important}
+}
+.calc2 .calc{overflow-y:auto}

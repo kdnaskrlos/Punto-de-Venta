@@ -22,7 +22,6 @@ function formasCaja(ctx) { return ctx.ajustes.formasPago || []; }
 function camposFondo(ctx) {
   const hay = m => !ctx || (ctx.ajustes.formasPago || []).some(f => f.efectivo && f.moneda === m && f.activa !== false);
   const fondos = h('div', { class: 'fondos' }, campoMonto('fondo-cop', 'Pesos (COP)', 'COP'), campoMonto('fondo-usd', 'Dólares (USD)', 'USD'), hay('BS') ? campoMonto('fondo-bs', 'Bs', 'BS') : null);
-  fondos.querySelectorAll('input').forEach(i => { i.placeholder = '0'; });
   return fondos;
 }
 
@@ -118,7 +117,7 @@ function abrirMovimiento(ctx, caja) {
     h('button', { type: 'button', id: 'mov-tipo-' + t, 'aria-pressed': String(t === tipo), onclick: e => { tipo = t; seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === e.currentTarget))); } }, txt)));
   const forma = h('select', { class: 'inp', id: 'mov-forma' }, ...formas.map(f => h('option', { value: f.id }, `${f.nombre} (${NOMBRE_MONEDA[f.moneda]})`)));
   const monto = h('input', { class: 'inp num', id: 'mov-monto', inputmode: 'decimal' });
-  const motivo = h('input', { class: 'inp', id: 'mov-motivo', placeholder: 'Pago de luz, retiro, cambio…' });
+  const motivo = h('input', { class: 'inp', id: 'mov-motivo' });
   const err = h('span', { class: 'error' });
   const b = h('button', { class: 'btn primary', id: 'mov-final' }, 'Guardar');
   const v = abrirVentana({ titulo: 'Entrada o salida de dinero', contenido: h('div', { class: 'pila' }, seg,
@@ -141,7 +140,7 @@ function ventanaConteo(ctx, esperado, op) {
   const contado = {};
   const filas = h('div', { class: 'filas-cierre' });
   const total = h('div', { class: 'total-cierre num' });
-  const nota = h('input', { class: 'inp', id: 'cierre-nota', placeholder: 'Qué pasó con la diferencia' });
+  const nota = h('input', { class: 'inp', id: 'cierre-nota' });
   const err = h('span', { class: 'error' });
   let calc = diferenciasCierre(esperado, {}, formas, ctx.tasas);
   const pintar = () => {

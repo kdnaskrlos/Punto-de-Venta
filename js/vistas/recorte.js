@@ -1,6 +1,6 @@
-// v2.16 · Foto de perfil: elegir una imagen, recortarla libremente (mover el recuadro y estirar sus esquinas)
+// v2.16 · Foto de perfil: elegir una imagen, recortarla en círculo (v2.17: mover el círculo y agrandarlo desde sus asas)
 // y editar el nombre. La foto se guarda pequeña (máx. 320 px, JPEG) dentro del usuario.
-import { h, icono, abrirVentana, toast } from '../ui.js';
+import { h, icono, abrirVentana, toast, esTelefono } from '../ui.js';
 
 const LADO_MAX = 320;
 const MIN = 40; // tamaño mínimo del recuadro, en px de pantalla
@@ -17,7 +17,7 @@ export function recortarImagen(archivo) {
   return new Promise(resolver => {
     const url = URL.createObjectURL(archivo);
     const img = h('img', { class: 'rc-img', src: url, alt: '', draggable: 'false' });
-    const caja = h('div', { class: 'rc-caja' }, ...['nw', 'ne', 'sw', 'se'].map(k => h('i', { class: 'rc-asa ' + k, 'data-asa': k })));
+    const caja = h('div', { class: 'rc-caja rc-circulo' }, ...['nw', 'ne', 'sw', 'se'].map(k => h('i', { class: 'rc-asa ' + k, 'data-asa': k })));
     const marco = h('div', { class: 'rc-marco' }, img, h('div', { class: 'rc-sombra' }), caja);
     let r = null, listo = false; // recuadro en px dentro del marco
     const pintar = () => { Object.assign(caja.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' }); };
@@ -39,10 +39,11 @@ export function recortarImagen(archivo) {
       let { x, y, w, h: hh } = o;
       if (arr.asa === 'mover') { x = Math.min(Math.max(0, o.x + dx), W - o.w); y = Math.min(Math.max(0, o.y + dy), H - o.h); }
       else {
-        if (arr.asa.includes('w')) { x = Math.min(Math.max(0, o.x + dx), o.x + o.w - MIN); w = o.x + o.w - x; }
-        if (arr.asa.includes('e')) w = Math.min(Math.max(MIN, o.w + dx), W - o.x);
-        if (arr.asa.includes('n')) { y = Math.min(Math.max(0, o.y + dy), o.y + o.h - MIN); hh = o.y + o.h - y; }
-        if (arr.asa.includes('s')) hh = Math.min(Math.max(MIN, o.h + dy), H - o.y);
+        // Círculo: el recuadro siempre es cuadrado; cada asa lo agranda o achica desde la esquina opuesta.
+        const a = arr.asa, d = a === 'se' ? (dx + dy) / 2 : a === 'nw' ? -(dx + dy) / 2 : a === 'ne' ? (dx - dy) / 2 : (dy - dx) / 2;
+        const max = a === 'se' ? Math.min(W - o.x, H - o.y) : a === 'nw' ? Math.min(o.x + o.w, o.y + o.h) : a === 'ne' ? Math.min(W - o.x, o.y + o.h) : Math.min(o.x + o.w, H - o.y);
+        w = hh = Math.min(Math.max(MIN, o.w + d), max);
+        x = a.includes('w') ? o.x + o.w - w : o.x; y = a.includes('n') ? o.y + o.h - w : o.y;
       }
       r = { x, y, w, h: hh }; pintar();
     });
@@ -50,7 +51,7 @@ export function recortarImagen(archivo) {
     marco.addEventListener('pointerup', soltar); marco.addEventListener('pointercancel', soltar);
     let hecho = false;
     const usar = h('button', { class: 'btn primary grande', id: 'rc-usar' }, icono('check'), 'Usar foto');
-    const v = abrirVentana({ titulo: 'Recortar foto', contenido: h('div', { class: 'rc' }, marco, h('p', { class: 'nota' }, 'Mueve el recuadro y estira sus esquinas.')), acciones: h('div', { class: 'acciones' }, usar) });
+    const v = abrirVentana({ titulo: 'Recortar foto', contenido: h('div', { class: 'rc' }, marco, h('p', { class: 'nota' }, 'Mueve el círculo y agrándalo desde sus puntos.')), acciones: h('div', { class: 'acciones' }, usar) });
     v.alCerrar = () => { URL.revokeObjectURL(url); if (!hecho) resolver(null); };
     usar.onclick = () => {
       if (!listo) return;
@@ -71,12 +72,16 @@ export function editarPerfil(ctx, u) {
   pintarFoto();
   const archivo = h('input', { type: 'file', accept: 'image/*', hidden: true });
   archivo.onchange = async () => { const f = archivo.files[0]; archivo.value = ''; if (!f) return; const d = await recortarImagen(f); if (d) { foto = d; pintarFoto(); quitar.hidden = false; } };
-  const elegir = h('button', { class: 'btn', type: 'button', id: 'pf-elegir', onclick: () => archivo.click() }, icono('camara'), 'Elegir foto');
-  const quitar = h('button', { class: 'btn texto peligro', type: 'button', hidden: !foto, onclick: () => { foto = null; pintarFoto(); quitar.hidden = true; } }, icono('borrar'), 'Quitar');
+  const quitar = h('button', { class: 'btn texto peligro pf-quitar', type: 'button', hidden: !foto, onclick: () => { foto = null; pintarFoto(); quitar.hidden = true; } }, icono('borrar'), 'Quitar foto');
   const nombre = h('input', { class: 'inp', id: 'pf-nombre', value: u.nombre || '', autocapitalize: 'words', 'data-no-limpiar': '' });
   const err = h('p', { class: 'error', role: 'alert' });
   const guardar = h('button', { class: 'btn primary grande', id: 'pf-guardar' }, icono('check'), 'Guardar');
-  const v = abrirVentana({ titulo: 'Editar perfil', contenido: h('div', { class: 'pila pf' }, h('div', { class: 'pf-arriba' }, vista, h('div', { class: 'pf-botones' }, elegir, quitar), archivo),
+  const pc = true; // v2.17: mismo diseño en PC y teléfono
+  // v2.17: la foto grande y centrada, con un lápiz abajo a la derecha del círculo para cambiarla.
+  const arriba = pc
+    ? h('div', { class: 'pf-arriba pf-centro' }, h('div', { class: 'pf-circulo' }, vista, h('button', { class: 'pf-lapiz', type: 'button', id: 'pf-elegir', 'aria-label': 'Cambiar foto', onclick: () => archivo.click() }, icono('lapiz'))), quitar, archivo)
+    : h('div', { class: 'pf-arriba' }, vista, h('div', { class: 'pf-botones' }, h('button', { class: 'btn', type: 'button', id: 'pf-elegir', onclick: () => archivo.click() }, icono('imagen'), 'Elegir foto'), quitar), archivo);
+  const v = abrirVentana({ titulo: 'Editar perfil', clase: pc ? 'pf-ventana' : undefined, contenido: h('div', { class: 'pila pf' }, arriba,
     h('div', { class: 'campo' }, h('label', { for: 'pf-nombre' }, 'Nombre'), nombre), err), acciones: h('div', { class: 'acciones' }, guardar) });
   guardar.onclick = async () => {
     const n = nombre.value.trim();

@@ -99,9 +99,12 @@ function selectorRedondeo(aj) {
   cop.inp.addEventListener('blur', () => { const n = parseMonto(cop.inp.value, 'COP'); cop.inp.value = fmtCop(n > 0 ? n : 100); });
   usd.inp.addEventListener('blur', () => { const n = parseMonto(usd.inp.value, 'USD'); usd.inp.value = fmtDec(n > 0 ? n : 0.01); });
   // v2.16: cada moneda con su propio título (en la PC quedan alineados con Tramos y Comisión).
-  const el = h('div', { class: 'red-aj red-dos' },
-    h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-redondeo' }, 'Redondeo del vuelto en pesos'), cop.el),
-    h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-redondeo-usd' }, 'Redondeo del vuelto en dólares'), usd.el));
+  // v2.17 · Teléfono: un solo título en negrita para los dos campos.
+  const el = esTelefono()
+    ? h('div', { class: 'red-aj red-uno' }, h('h3', { class: 'red-tit' }, 'Redondeo del vuelto'), h('div', { class: 'red-fila' }, cop.el, usd.el))
+    : h('div', { class: 'red-aj red-dos' },
+      h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-redondeo' }, 'Redondeo del vuelto en pesos'), cop.el),
+      h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-redondeo-usd' }, 'Redondeo del vuelto en dólares'), usd.el));
   return { el, get cop() { return parseMonto(cop.inp.value, 'COP') || 100; }, get usd() { return parseMonto(usd.inp.value, 'USD') || 0.01; } };
 }
 
@@ -184,12 +187,12 @@ function pagos(ctx, alCambiar) {
     if (!formas.some(f => f.activa !== false)) { toast('Deja al menos una forma de pago activa', { malo: true }); return false; }
     return { formasPago: formas };
   };
-  return { el, guardar };
+  return { el, guardar, firma: () => JSON.stringify(formas) };
 }
 
 function editarForma(f, alGuardar) {
   let moneda = f?.moneda || 'COP', ic = f ? iconoForma(f) : 'billete';
-  const nombre = h('input', { class: 'inp', id: 'fp-nombre', value: f?.nombre || '', placeholder: 'Ej. Nequi' });
+  const nombre = h('input', { class: 'inp', id: 'fp-nombre', value: f?.nombre || '' });
   const efectivo = h('input', { type: 'checkbox', id: 'fp-efectivo', checked: !!f?.efectivo });
   const err = h('span', { class: 'error' });
   const segMon = h('div', { class: 'segmentado', id: 'fp-moneda' });
@@ -269,7 +272,13 @@ registrarVista('/ajustes', {
     // v2.00: sin aviso flotante de «Cambios sin guardar» en ninguna pestaña; queda el botón de abajo
     // (se activa al cambiar algo) y, en Tasas, el ícono verde junto a «Peso colombiano».
     const pintarAviso = () => { t.pendiente.hidden = boton.disabled; };
-    const cambio = () => { boton.disabled = false; pintarAviso(); };
+    // v2.17: el botón se activa solo si algo quedó distinto a lo guardado; si se deja como estaba, se apaga otra vez.
+    const firmaDe = sec => JSON.stringify([...sec.querySelectorAll('input, select, textarea, [aria-checked], [aria-pressed]:not([role=tab])')]
+      .map(e => e.matches('input, select, textarea') ? (e.type === 'checkbox' || e.type === 'radio' ? e.checked : e.value) : e.getAttribute('aria-checked') ?? e.getAttribute('aria-pressed')));
+    const firma = () => [t.el, ve.el, re.el].map(firmaDe).join('|') + '|' + pa.firma();
+    let base = '';
+    const evaluar = () => { boton.disabled = firma() === base; pintarAviso(); };
+    const cambio = () => { evaluar(); setTimeout(evaluar); };
     const t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
     const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el };
     for (const [k, el] of Object.entries(secciones)) el.classList.add('aj-' + k); // v2.15: para el diseño de PC
@@ -285,7 +294,7 @@ registrarVista('/ajustes', {
       const r = await ctx.almacen.guardarAjustes('general', Object.assign({}, ...partes));
       if (!r.ok) { toast(r.error === 'permiso' ? 'No se guardó: Firebase no dio permiso (revisa las reglas)' : 'No se pudo guardar. Revisa la conexión', { malo: true }); return; }
       listo = true; document.activeElement?.blur(); toast('Cambios guardados');
-      setTimeout(() => { if (listo) { boton.disabled = true; pintarAviso(); } });
+      setTimeout(() => { if (listo) { base = firma(); boton.disabled = true; pintarAviso(); } });
       } finally { boton.replaceChildren(icono('check'), 'Guardar cambios'); }
     })());
     const pest = h('div', { class: 'segmentado pestanas-aj', role: 'tablist' });
@@ -298,6 +307,7 @@ registrarVista('/ajustes', {
     };
     mostrar(pestanaActual);
     cont.append(pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), barra);
+    base = firma();
     // En la computadora no hay pantalla «Más»: Modo prueba y Modo demo van al pie de Ajustes.
     if (esTelefono()) return undefined;
     const prueba = bloquePrueba(ctx);

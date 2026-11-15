@@ -306,11 +306,13 @@ function piePC(ctx, r) {
       h('button', { type: 'button', class: 'pc-cli-btn' + (c ? ' con' : ''), id: 'pc-cliente', onclick: () => ventanaCliente(ctx) },
         icono('usuario'), c ? h('span', {}, h('b', {}, c.nombre), h('small', { class: 'num' }, telefonoLegible(c.telefono))) : h('span', {}, 'Agregar cliente'), h('kbd', {}, 'F1'))),
     h('div', { class: 'pc-tot' },
+      // v2.17: el total de prendas grande, a la izquierda del total y separado por una línea (no en el botón).
+      h('div', { class: 'pc-prendas-caja' + (r.unidades ? '' : ' cero'), 'aria-label': `${r.unidades} prendas` }, h('b', { class: 'num' }, String(r.unidades)), h('span', {}, r.unidades === 1 ? 'Prenda' : 'Prendas')),
       h('div', { class: 'pc-tot-num' },
         h('div', { class: 'total' }, h('span', { class: 'moneda c-cop' }, 'COP'), h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total))),
-        r.unidades ? equivalentes(ctx, r.total) : h('div', { class: 'equivalentes' }, `${r.unidades} prendas`)),
+        r.unidades ? equivalentes(ctx, r.total) : h('div', { class: 'equivalentes' }, '0 prendas')),
       h('button', { type: 'button', class: 'btn primary cobrar pc-cobrar', disabled: !r.unidades, onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') },
-        r.unidades ? h('span', { class: 'pc-cant' }, icono('franela'), h('b', { class: 'num' }, String(r.unidades))) : null, 'Cobrar', h('kbd', {}, 'F9'))));
+        'Cobrar', h('kbd', {}, 'Enter'))));
 }
 
 // Descuento por monto, en pesos o en dólares (sin porcentaje). En dólares se convierte a pesos con la tasa del día.
@@ -526,7 +528,15 @@ registrarVista('/vender', {
       filtros.replaceChildren(...['', ...generos].map(c => h('button', { class: 'chip' + (c === genero ? ' activo' : ''), onclick: () => { genero = c; pintar(); } }, c || 'Todo')));
       // Búsqueda (v1.92): palabras en cualquier orden, sin tildes, plurales, tallas y códigos (nucleo/busqueda.js).
       const q = busqueda.trim();
-      const vis = todos.filter(g => (!genero || g.genero === genero) && (!q || g._txt.some(t => coincide(t, q))));
+      let vis = todos.filter(g => (!genero || g.genero === genero) && (!q || g._txt.some(t => coincide(t, q))));
+      // v2.17 · PC: «Todos los productos» ordenado y separado por tipo, como el Inventario.
+      const porTipo = new Map();
+      if (!esTelefono()) {
+        const tp = g => String(g.tipo || 'Otros');
+        vis = [...vis].sort((a, b) => tp(a).localeCompare(tp(b), 'es'));
+        for (const g of vis) porTipo.set(tp(g), (porTipo.get(tp(g)) || 0) + 1);
+      }
+      const conTipos = gs => { if (porTipo.size < 2) return gs.map(g => tarjeta(ctx, g)); let antes = null; return gs.flatMap(g => { const t = String(g.tipo || 'Otros'), c = t !== antes ? [h('h3', { class: 'inv-tipo' }, h('span', {}, t), h('small', { class: 'num' }, String(porTipo.get(t))))] : []; antes = t; return [...c, tarjeta(ctx, g)]; }); };
       const lista = !!q || catalogo;
       filtros.hidden = rejilla.hidden = !lista;
       // v1.98: al abrir la lista, chips y tarjetas entran con un fundido escalonado (solo esa vez, no en cada letra).
@@ -534,7 +544,7 @@ registrarVista('/vender', {
       cont.classList.toggle('en-lista', lista);
       const borrar = cont.querySelector('.buscar-borrar'); if (borrar && catalogo && !q) borrar.hidden = false; // la × también cierra «Todos los productos»
       const mas = vis.length > maxVis ? h('button', { type: 'button', class: 'btn mostrar-mas', onclick: () => { maxVis += 60; pintar(); } }, `Mostrar ${Math.min(60, vis.length - maxVis)} más`) : null;
-      rejilla.replaceChildren(...(!lista ? [] : vis.length ? [...vis.slice(0, maxVis).map(g => tarjeta(ctx, g)), ...(mas ? [mas] : [])] : [h('div', { class: 'vacio' }, q ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos. El administrador los importa desde la Carga Masiva.')]));
+      rejilla.replaceChildren(...(!lista ? [] : vis.length ? [...conTipos(vis.slice(0, maxVis)), ...(mas ? [mas] : [])] : [h('div', { class: 'vacio' }, q ? 'No hay prendas con esa búsqueda' : 'Todavía no hay productos. El administrador los importa desde la Carga Masiva.')]));
       pintarCarrito();
     }
     function pintarCarrito() {
@@ -602,7 +612,9 @@ registrarVista('/vender', {
     const teclas = e => {
       if (e.key === 'F2') { e.preventDefault(); buscar.focus(); buscar.select(); }
       if (e.key === 'F1' && !esTelefono() && !hayCapas()) { e.preventDefault(); ventanaCliente(ctx); }
-      if (e.key === 'F9' && carrito(ctx).lineas.length && !hayCapas()) { e.preventDefault(); ctx.abrirCobro && ctx.abrirCobro('venta'); }
+      // v2.17 · PC: Enter abre el cobro (no si se está escribiendo en un campo o sobre un botón: el lector USB termina con Enter en la búsqueda).
+      const enCampo = e.target.closest?.('input, textarea, select, button, a, [contenteditable], [role=button]');
+      if (((e.key === 'Enter' && !esTelefono() && !enCampo && !e.repeat) || e.key === 'F9') && carrito(ctx).lineas.length && !hayCapas()) { e.preventDefault(); ctx.abrirCobro && ctx.abrirCobro('venta'); }
     };
     const alDatos = e => { if (['productos', 'imagenes'].includes(e.detail.que)) cacheG = null; if (['productos', 'imagenes', 'ajustes', 'tasas', 'caja'].includes(e.detail.que)) pintar(); };
     document.addEventListener('keydown', teclas);

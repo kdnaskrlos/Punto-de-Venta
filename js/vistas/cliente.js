@@ -6,7 +6,7 @@ import { telefonoInternacional } from '../nucleo/recibo.js';
 export function camposCliente(ctx, alCambiar = () => {}, inicial = null) {
   let clientes = [];
   const quitar = ctx.almacen.escuchar('clientes', l => { clientes = l; });
-  const tel = h('input', { class: 'inp', id: 'cli-tel', type: 'tel', inputmode: 'tel', autocomplete: 'off', placeholder: 'Ej. 0412 123 4567' });
+  const tel = h('input', { class: 'inp', id: 'cli-tel', type: 'tel', inputmode: 'tel', autocomplete: 'off' });
   const nombre = h('input', { class: 'inp', id: 'cli-nombre', autocomplete: 'off', autocapitalize: 'words' });
   if (inicial) { tel.value = inicial.telefonoTexto || inicial.telefono || ''; nombre.value = inicial.nombre || ''; }
   const errTel = h('span', { class: 'error' }), errNom = h('span', { class: 'error' });

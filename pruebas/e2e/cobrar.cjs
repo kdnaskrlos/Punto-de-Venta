@@ -140,10 +140,10 @@ casos('cobrar', [
     a.ok(pos.pago.bottom <= pos.alto, 'el pago agregado debe verse sin desplazarse');
     a.ok(pos.final.bottom <= pos.alto, 'el botón Cobrar debe verse');
   }],
-  ['El ejemplo de teléfono no parece un dato escrito', async (env, a) => {
+  ['v2.17 · Sin ejemplos en gris dentro de los campos', async (env, a) => {
     const p = await preparar(env, { ancho: 360, alto: 780, sinCliente: true });
     await p.click('[data-cobro] .cobrar');
-    a.match(await p.getAttribute('#cli-tel', 'placeholder'), /^Ej\. /);
+    a.strictEqual(await p.getAttribute('#cli-tel', 'placeholder'), null);
   }],
   ['Carrito: el monto del descuento va alineado a la derecha, como los demás', async (env, a) => {
     const p = await preparar(env, { movil: true }); // v2.15: la PC usa la tabla (el descuento se ve en el cobro)
@@ -225,7 +225,7 @@ casos('cobrar', [
     await p.waitForFunction(() => !document.querySelector('.pagos .pago'));
     a.strictEqual(await p.$eval('.forma[data-forma="efectivo-cop"]', e => e.getAttribute('aria-pressed')), 'false');
   }],
-  ['v2.14 · Al tocar un monto se vacía (el anterior queda de guía); si no se escribe nada vuelve; si se escribe, queda lo nuevo', async (env, a) => {
+  ['v2.14 · Al tocar un monto se vacía (v2.17: sin el anterior en gris); si no se escribe nada vuelve; si se escribe, queda lo nuevo', async (env, a) => {
     for (const opc of [{ ancho: 390, alto: 844 }, { ancho: 1440, alto: 900 }]) {
       const p = await preparar(env, opc);
       await p.click('[data-cobro] .cobrar'); await p.waitForSelector('#cobrar-final');
@@ -235,7 +235,7 @@ casos('cobrar', [
       const antes = await p.inputValue(sel);
       await p.click(sel);
       a.strictEqual(await p.inputValue(sel), '', `${opc.ancho}px: se vacía`);
-      a.strictEqual(await p.getAttribute(sel, 'placeholder'), antes, 'el anterior queda de guía');
+      a.ok(!(await p.getAttribute(sel, 'placeholder')), 'sin texto gris');
       await p.$eval(sel, i => i.blur());
       a.strictEqual(await p.inputValue(sel), antes, 'sin escribir, vuelve el anterior');
       await p.click(sel); await p.keyboard.type('50000'); await p.$eval(sel, i => i.blur());

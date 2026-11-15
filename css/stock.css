@@ -310,7 +310,7 @@ html.stk-sin-barra::-webkit-scrollbar,html.stk-sin-barra body::-webkit-scrollbar
   .stk .top>.filters .filtro-menu{min-width:170px}
   .stk .search .scanbtn{display:none}
   .stk .adm .sbtn{flex:0 0 auto!important;min-width:140px}
-  .stk .seg .tj{flex-direction:row!important;align-items:center;gap:8px;min-height:40px!important;padding:0 14px!important;border-radius:99px!important;background:var(--surface)!important;border:1px solid var(--line)!important}
+  .stk .seg .tj{flex-direction:row!important;align-items:center;gap:8px;min-height:40px!important;padding:0 12px!important;border-radius:10px!important;background:var(--surface)!important;border:1px solid var(--flt-bd)!important}
   .stk .seg .tj::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--stk-ok);flex:none}
   .stk .seg .tj[data-st=all]::before{background:var(--muted)}
   .stk .seg .tj.w::before{background:#eab308}.stk .seg .tj.x::before{background:var(--stk-agotado)}
