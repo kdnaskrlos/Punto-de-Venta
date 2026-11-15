@@ -1,7 +1,7 @@
 import { titulo } from '../nucleo/producto.js';
 // Venta en curso: el carrito (prendas, descuento y cliente) se guarda en el aparato mientras se vende.
 // Si la app se cierra o se sale sin querer, al volver pregunta "¿Continuar venta?" (igual que Pedidos).
-import { h, icono, abrirVentana } from '../ui.js';
+import { h, icono, abrirVentana, despuesDeCerrar } from '../ui.js';
 import { navegar } from '../app.js';
 
 const VIGENCIA = 24 * 60 * 60 * 1000;
@@ -50,6 +50,7 @@ export function ofrecerRetomar(ctx) {
     ctx.carrito = { lineas: c.lineas.filter(l => existe(l.sku)), descuento: c.descuento || null, autorizacion: c.autorizacion || null, ...(c.cliente ? { cliente: c.cliente } : {}) };
     v.cerrar();
     window.dispatchEvent(new CustomEvent('pos:carrito'));
-    if (location.hash !== '#/vender') navegar('/vender');
+    // v2.13: se va al carrito cuando la ventana termina de cerrarse (antes el «atrás» del cierre deshacía el cambio de pantalla).
+    despuesDeCerrar(() => { if (location.hash !== '#/vender') navegar('/vender'); });
   };
 }

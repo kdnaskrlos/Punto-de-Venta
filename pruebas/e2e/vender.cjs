@@ -206,6 +206,14 @@ casos('vender', [
     await p.click('#retomar-si');
     await p.waitForFunction(() => window.__pos.ctx.carrito?.lineas?.length === 2);
     a.strictEqual(await p.evaluate(() => location.hash), '#/vender');
+    // v2.13: si la app se abre en otra pantalla, «Continuar» lleva al carrito
+    await p.evaluate(() => { location.hash = '/inicio'; }); await p.waitForTimeout(300);
+    await p.reload();
+    await p.waitForSelector('.capa:has-text("¿Continuar venta?")');
+    await p.click('#retomar-si');
+    await p.waitForTimeout(700);
+    a.strictEqual(await p.evaluate(() => location.hash), '#/vender', 'queda en el carrito');
+    a.ok(await p.isVisible('.zona-carrito .linea'));
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
     await p.reload(); await p.waitForTimeout(1200);
     a.strictEqual(await p.$('.capa:has-text("¿Continuar venta?")'), null, 'carrito vacío: no pregunta');
