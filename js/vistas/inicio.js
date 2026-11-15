@@ -8,6 +8,7 @@ import { aCop } from '../nucleo/tasas.js';
 import { fmtCop } from '../nucleo/dinero.js';
 import { hoy, sumarDias, inicioDia } from '../nucleo/fechas.js';
 import { escucharVentasConCosto, listaVentas } from './ventas-rango.js';
+import { prendas } from './inventario.js';
 
 // Tarjetas como en la app de Pedidos: chip con ícono + etiqueta, valor grande, subtítulo de color e ícono de fondo.
 // Al tocarlas llevan a la pantalla que explica ese número.
@@ -102,7 +103,13 @@ registrarVista('/inicio', {
         ponerTile('ganancia', !cargando && r.ganancia != null && !r.gananciaParcial, 'var(--tono-rosa)', 'Ganancia', r.ganancia == null ? '—' : fmtCop(r.ganancia), 'Total menos costo', 'grafica');
         ponerTile('caja', cajasOk, 'var(--tono-ambar)', 'En cajas abiertas', fmtCop(enCaja), abiertas.length === 1 ? '1 abierta, en pesos' : `${abiertas.length} abiertas, en pesos`, 'cartera');
         ponerTile('cobrado', apartadosListos && (!mia || porCaja.listo(mia.id)), 'var(--tono-naranja)', 'Cobrado por mí hoy', fmtCop(cobrado), 'solo informativo', 'monedas');
-        ponerTile('bajas', true, 'var(--tono-turquesa)', 'Existencias bajas', String(bajas.length), 'en el mínimo o menos', 'caja');
+        // v2.15: semáforo (rojo si hay prendas agotadas, amarillo si hay bajas, verde si no) y, al tocar, el
+        // Inventario ya filtrado: primero las de stock bajo; si no hay, las agotadas. Cuenta prendas, como el Inventario.
+        const G = prendas(Object.values(ctx.productos).filter(p => p.activo !== false));
+        const nBajo = G.filter(x => x.st === 'low').length, nAgot = G.filter(x => x.st === 'out').length;
+        DESTINO.bajas = nBajo ? '/inventario?st=low' : nAgot ? '/inventario?st=out' : '/inventario';
+        ponerTile('bajas', true, nAgot ? 'var(--stk-agotado)' : nBajo ? 'var(--stk-bajo)' : 'var(--stk-ok)', 'Existencias bajas', String(nBajo + nAgot),
+          nAgot && nBajo ? `${nBajo} bajas · ${nAgot} agotadas` : nAgot ? `${nAgot} ${nAgot === 1 ? 'agotada' : 'agotadas'}` : nBajo ? 'en el mínimo o menos' : 'todo en orden', 'caja');
       } else {
         const mia = ctx.miCaja;
         porCaja.actualizar(mia ? [mia] : []);

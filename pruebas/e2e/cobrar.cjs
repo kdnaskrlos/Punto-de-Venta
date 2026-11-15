@@ -19,7 +19,7 @@ const ventas = p => p.evaluate(() => [...window.__pos.ctx.almacen._estado('venta
 casos('cobrar', [
   ['Cobrar sin cliente pide registrarlo primero; teléfono conocido completa el nombre', async (env, a) => {
     const p = await preparar(env, { ancho: 360, alto: 780, sinCliente: true });
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.waitForSelector('.capa #cli-tel');
     a.strictEqual(await p.$('#cobrar-final'), null, 'todavía no abre el cobro');
     await p.fill('#cli-tel', '0412-123.45.67');
@@ -33,7 +33,7 @@ casos('cobrar', [
   }],
   ['Pago mixto: efectivo pesos 50.000 + pago móvil sugerido = Falta 0', async (env, a) => {
     const p = await preparar(env);
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.fill('.pago[data-forma="efectivo-cop"] input', '50.000');
     await p.click('.forma[data-forma="pago-movil"]');
@@ -57,7 +57,7 @@ casos('cobrar', [
   }],
   ['Doble clic rápido en Cobrar: una sola venta', async (env, a) => {
     const p = await preparar(env);
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.dblclick('#cobrar-final');
     await p.waitForSelector('text=Venta exitosa');
@@ -66,7 +66,7 @@ casos('cobrar', [
   }],
   ['Vuelto: solo en monedas con efectivo (ya no hay efectivo en Bs)', async (env, a) => {
     const p = await preparar(env);
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.click('.forma[data-forma="efectivo-usd"]');
     await p.fill('.pago[data-forma="efectivo-usd"] input', '40');
     a.ok((await texto(p, '.barra-falta')).startsWith('Vuelto'));
@@ -77,14 +77,14 @@ casos('cobrar', [
   ['Sin tasa de Bs: botones de bolívares desactivados', async (env, a) => {
     const p = await preparar(env);
     await p.evaluate(() => { const c = window.__pos.ctx; c.tasas = { ...c.tasas, bsPorUsd: null }; });
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     a.strictEqual(await p.$eval('.forma[data-forma="pago-movil"]', b => b.disabled), true);
     a.ok((await p.innerText('.capa')).includes('Sin tasa de Bs'));
   }],
   ['Sin conexión y quedan pocas: aviso antes de cobrar', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'B-L', cantidad: 1 }], descuento: null, cliente: { nombre: 'Ana Pérez', telefono: '584121234567' } }; c.almacen.simularSinConexion(true); window.dispatchEvent(new CustomEvent('pos:carrito')); });
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.click('#cobrar-final');
     await p.waitForSelector('text=Estás sin conexión y quedan pocas. Confirma con la tienda antes de cobrar.');
@@ -106,7 +106,7 @@ casos('cobrar', [
   ['Si cambian los precios mientras se cobra, no guarda una venta distinta (revisión final)', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', caja: true, ruta: '/vender' });
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }], descuento: null, cliente: { nombre: 'Ana Pérez', telefono: '584121234567' } }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.evaluate(() => window.__pos.ctx.almacen.aplicarImportacion({ nuevos: [], cambios: [{ sku: 'J-M', campos: { precios: [50000, 40000, 38000, 36000, 34000] } }], iguales: [], faltantes: [] }));
     await p.click('#cobrar-final');
@@ -116,7 +116,7 @@ casos('cobrar', [
   ['Si otro vendió primero, avisa el producto y el carrito queda igual', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'B-L', cantidad: 1 }], descuento: null, cliente: { nombre: 'Ana Pérez', telefono: '584121234567' } }; window.dispatchEvent(new CustomEvent('pos:carrito')); c.almacen._estado('productos').get('B-L').existencia = 0; });
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.click('#cobrar-final');
     await p.waitForSelector('text=Ya no hay existencia de Buzo Etanol Caballero Gris · Talla L');
@@ -126,7 +126,7 @@ casos('cobrar', [
   }],
   ['Teléfono: Cobrar no abre el teclado solo; el pago elegido aparece debajo del total y el botón Cobrar a la vista', async (env, a) => {
     const p = await preparar(env, { movil: true });
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.waitForSelector('#cobrar-final');
     await p.waitForTimeout(150);
     a.notStrictEqual(await p.evaluate(() => document.activeElement.tagName), 'INPUT');
@@ -142,11 +142,11 @@ casos('cobrar', [
   }],
   ['El ejemplo de teléfono no parece un dato escrito', async (env, a) => {
     const p = await preparar(env, { ancho: 360, alto: 780, sinCliente: true });
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     a.match(await p.getAttribute('#cli-tel', 'placeholder'), /^Ej\. /);
   }],
   ['Carrito: el monto del descuento va alineado a la derecha, como los demás', async (env, a) => {
-    const p = await preparar(env);
+    const p = await preparar(env, { movil: true }); // v2.15: la PC usa la tabla (el descuento se ve en el cobro)
     const d = await p.evaluate(() => {
       const fila = document.querySelector('.zona-carrito .fila-total.desc'), sub = document.querySelector('.zona-carrito .fila-total:not(.desc) .num');
       return { desc: fila.querySelector('.num').getBoundingClientRect().right, sub: sub.getBoundingClientRect().right };
@@ -156,7 +156,7 @@ casos('cobrar', [
   ['Cliente en pantalla aparte: nombre primero, sugerencias, Editar desde el cobro y recibo opcional al final', async (env, a) => {
     const p = await preparar(env, { sinCliente: true });
     a.strictEqual(await p.$('.lado-carrito #cli-registrar'), null, 'el carrito ya no registra cliente');
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.waitForSelector('.capa.ventana.completa #cli-nombre');
     a.deepStrictEqual(await p.$$eval('.capa .cliente label', l => l.map(x => x.textContent)), ['Nombre del cliente', 'Teléfono']);
     await p.click('#cli-guardar');
@@ -179,24 +179,24 @@ casos('cobrar', [
   }],
   ['Las formas ya agregadas quedan resaltadas y ningún botón queda marcado por el foco', async (env, a) => {
     const p = await preparar(env, { movil: true });
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.click('.forma[data-forma="efectivo-usd"]');
     a.deepStrictEqual(await p.$$eval('.forma-cobro.activa', e => e.map(x => x.dataset.formaCard)), ['efectivo-usd']);
     a.strictEqual(await p.evaluate(() => document.activeElement.classList.contains('forma')), false);
   }],
   ['El carrito muestra en dólares y bolívares lo mismo que se cobrará (redondeado hacia arriba)', async (env, a) => {
     const p = await preparar(env);
-    a.strictEqual(await texto(p, '.barra-cobro .equivalentes'), '29,75 USD · 31.974,36 Bs'); // 116.000 COP
+    a.strictEqual(await texto(p, '[data-cobro] .equivalentes'), '29,75 USD · 31.974,36 Bs'); // 116.000 COP
   }],
   ['El texto del tramo en el carrito se lee (12 px o más)', async (env, a) => {
-    const p = await preparar(env);
+    const p = await preparar(env, { movil: true });
     await p.click('.zona-carrito .linea.mini');
     const tam = await p.$eval('.zona-carrito .linea .lc-tramo', e => parseFloat(getComputedStyle(e).fontSize));
     a.ok(tam >= 12, `${tam}px`);
   }],
   ['Registrar cliente y pasar al cobro: al cerrar sigue en la app', async (env, a) => {
     const p = await preparar(env, { sinCliente: true });
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.fill('#cli-tel', '0412-123.45.67'); await p.click('#cli-guardar');
     await p.waitForSelector('#cobrar-final');
     await p.goBack(); // v2.06: el cobro no tiene flecha ni X; se cierra con atrás (o Esc)
@@ -206,7 +206,7 @@ casos('cobrar', [
   }],
   ['v2.06 · Cobro: tocar el monto no quita el pago; en el teléfono se quita deslizando (sin papelera); descuento fuera del total; «Faltan»', async (env, a) => {
     const p = await preparar(env, { ancho: 390, alto: 844 });
-    await p.click('.lado-carrito .cobrar');
+    await p.click('[data-cobro] .cobrar');
     await p.waitForSelector('#cobrar-final');
     a.strictEqual(await p.$('.capa .cb-volver'), null, 'sin flecha atrás');
     a.strictEqual(await p.$('.cb-total #car-descuento'), null, 'el descuento va fuera del recuadro verde');
@@ -228,7 +228,7 @@ casos('cobrar', [
   ['v2.14 · Al tocar un monto se vacía (el anterior queda de guía); si no se escribe nada vuelve; si se escribe, queda lo nuevo', async (env, a) => {
     for (const opc of [{ ancho: 390, alto: 844 }, { ancho: 1440, alto: 900 }]) {
       const p = await preparar(env, opc);
-      await p.click('.lado-carrito .cobrar'); await p.waitForSelector('#cobrar-final');
+      await p.click('[data-cobro] .cobrar'); await p.waitForSelector('#cobrar-final');
       await p.click('.forma[data-forma="efectivo-cop"]'); await p.waitForTimeout(300);
       const sel = '.pago[data-forma="efectivo-cop"] input';
       await p.$eval(sel, i => i.blur());
@@ -245,7 +245,7 @@ casos('cobrar', [
   }],
   ['v2.08 · Cobro: la barra Vuelto ↔ Faltan cambia de alto con animación; quitar un pago con monto ofrece Deshacer', async (env, a) => {
     const p = await preparar(env, { ancho: 1440, alto: 900 });
-    await p.click('.lado-carrito .cobrar'); await p.waitForSelector('#cobrar-final');
+    await p.click('[data-cobro] .cobrar'); await p.waitForSelector('#cobrar-final');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.fill('.pago[data-forma="efectivo-cop"] input', '200.000');
     await p.waitForSelector('.barra-falta.vuelto');
@@ -264,7 +264,7 @@ casos('cobrar', [
   ['v2.09 · «separado»: los bodies no suman al tramo de las demás ni llevan descuento; la venta lo guarda así', async (env, a) => {
     const p = await preparar(env); // Buzo + Jogger normales; 2 bodies «separado»; descuento 10.000 autorizado
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.productos['Y-6m'].separado), true);
-    await p.click('.lado-carrito .cobrar'); await p.waitForSelector('#cobrar-final');
+    await p.click('[data-cobro] .cobrar'); await p.waitForSelector('#cobrar-final');
     await p.click('.forma[data-forma="efectivo-cop"]');
     await p.click('#cobrar-final');
     await p.waitForSelector('.exito');

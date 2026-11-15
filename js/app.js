@@ -40,10 +40,11 @@ function irPestana(ruta) {
 // Accesos: en PC la barra lateral muestra los de `pc`; en el teléfono, los de `movil` en ese orden.
 const ACCESOS = [
   { ruta: '/inicio', titulo: 'Inicio', icono: 'home', pc: 1, movil: 1 },
-  { ruta: '/vender', titulo: 'Vender', icono: 'carrito', pc: 2, movil: 3, centro: true },
-  { ruta: '/apartados', titulo: 'Apartados', icono: 'apartado', pc: 3, movil: 2 },
-  { ruta: '/inventario', titulo: 'Inventario', icono: 'caja', pc: 4, movil: 4 },
-  { ruta: '/caja', titulo: 'Caja', icono: 'cartera', pc: 5 },
+  // v2.15: en la PC, Vender va al centro de la barra (verde y sin nombre, como en el teléfono).
+  { ruta: '/vender', titulo: 'Vender', icono: 'carrito', pc: 5, movil: 3, centro: true },
+  { ruta: '/apartados', titulo: 'Apartados', icono: 'apartado', pc: 2, movil: 2 },
+  { ruta: '/inventario', titulo: 'Inventario', icono: 'caja', pc: 3, movil: 4 },
+  { ruta: '/caja', titulo: 'Caja', icono: 'cartera', pc: 4 },
   { ruta: '/reportes', titulo: 'Reportes', icono: 'grafica', pc: 6 },
   { ruta: '/usuarios', titulo: 'Usuarios', icono: 'usuarios', pc: 7, accion: 'ajustes' },
   { ruta: '/ajustes', titulo: 'Ajustes', icono: 'ajustes', pc: 8, accion: 'ajustes' },
@@ -125,12 +126,15 @@ function pintarNav() {
   const lista = ACCESOS.filter(a => (tel ? a.movil : a.pc) && (!a.accion || ctx.puedeVer(a.accion)))
     .sort((x, y) => (tel ? x.movil - y.movil : x.pc - y.pc));
   const actual = rutaActual();
+  // v2.15: en la PC, arriba va el perfil del usuario (en vez del logo); abajo solo la versión.
+  const cuenta = ctx.sesion ? h('button', { class: 'ibtn cuenta-btn', 'aria-label': 'Mi cuenta', onclick: () => { const c = abrirHoja({ titulo: 'Mi cuenta', contenido: opcionesCuenta(ctx, () => c.cerrar()) }); } },
+    h('span', { class: 'avatar' }, (ctx.sesion.nombre || ctx.sesion.usuario).slice(0, 1).toUpperCase())) : null;
   barra.replaceChildren(
-    h('div', { class: 'logo', 'aria-hidden': 'true' }, logo()),
+    tel ? h('div', { class: 'logo', 'aria-hidden': 'true' }, logo()) : cuenta,
     ...lista.map(a => {
       const enMas = tel && a.ruta === '/mas' && ['/caja', '/reportes', '/ajustes', '/comisiones', '/usuarios'].includes(actual);
       const activo = actual === a.ruta || enMas;
-      const centro = tel && a.centro;
+      const centro = !!a.centro;
       // v2.11: en el ícono de Vender, un punto avisa que hay una venta en curso en el carrito (fuera de Vender).
       const punto = a.ruta === '/vender' ? h('i', { class: 'nav-punto', 'aria-hidden': 'true' }) : null;
       return h('a', { class: 'nav' + (centro ? ' centro' : ''), href: '#' + a.ruta, 'data-ruta': a.ruta, 'aria-label': a.titulo, 'aria-current': activo ? 'true' : 'false', onclick: e => { e.preventDefault(); irPestana(a.ruta); } },
@@ -138,8 +142,6 @@ function pintarNav() {
         centro ? null : h('span', {}, a.titulo));
     }),
     h('div', { class: 'grow' }),
-    ctx.sesion ? h('button', { class: 'ibtn cuenta-btn', 'aria-label': 'Mi cuenta', onclick: () => { const c = abrirHoja({ titulo: 'Mi cuenta', contenido: opcionesCuenta(ctx, () => c.cerrar()) }); } },
-      h('span', { class: 'avatar' }, (ctx.sesion.nombre || ctx.sesion.usuario).slice(0, 1).toUpperCase())) : null,
     h('div', { class: 'ver' }, APP_VERSION));
   marcarCarrito();
 }
@@ -160,8 +162,13 @@ export function pintarCabecera() {
   cabecera.replaceChildren(
     h('span', { class: 'conn' + (conn.error ? ' err' : conn.enLinea ? '' : ' off'), role: 'status' }, h('i'), textoConn),
     h('span', { class: 'sp' }),
-    h('button', { class: 'pill tasas' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), 'aria-label': 'Tasas del día', title: t.ultimaConocida ? 'Bs: última tasa conocida' : '', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
-      h('span', { class: 'num' }, '$ ', h('b', { class: 'c-cop' }, fmt(t.copPorUsd)), ' / Bs ', h('b', { class: 'c-bs' }, fmt(t.bsPorUsd)))),
+    // v2.15: en la PC, dos pastillas: la tasa del peso y la de Bs (con su fuente: Binance, BCV o Manual).
+    ...(esTelefono() ? [h('button', { class: 'pill tasas' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), 'aria-label': 'Tasas del día', title: t.ultimaConocida ? 'Bs: última tasa conocida' : '', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
+      h('span', { class: 'num' }, '$ ', h('b', { class: 'c-cop' }, fmt(t.copPorUsd)), ' / Bs ', h('b', { class: 'c-bs' }, fmt(t.bsPorUsd))))]
+      : [h('button', { class: 'pill tasas tasa-pc', 'aria-label': 'Tasa del peso', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
+          h('span', { class: 'num' }, h('small', {}, 'Peso'), h('b', { class: 'c-cop' }, fmt(t.copPorUsd)))),
+        h('button', { class: 'pill tasas tasa-pc' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), 'aria-label': 'Tasa de Bs', title: t.ultimaConocida ? 'Bs: última tasa conocida' : '', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
+          h('span', { class: 'num' }, h('small', {}, ({ binance: 'Binance', bcv: 'BCV', manual: 'Manual' })[t.fuenteBs] || 'Bs'), h('b', { class: 'c-bs' }, fmt(t.bsPorUsd))))]),
     h('button', { class: 'ibtn', 'aria-label': 'Calculadora', onclick: () => alAbrirCalculadora() }, icono('calculadora')),
     h('span', { class: 'pill fecha' }, fechaCorta()));
 }
@@ -200,7 +207,7 @@ export function mostrarApp() {
     window.addEventListener('hashchange', () => { if (ctx.sesion) montar(); });
     window.addEventListener('pos:carrito', () => { if (ctx.sesion) marcarCarrito(); });
     window.addEventListener('pos:datos', e => { if (ctx.sesion && ['tasas', 'conexion'].includes(e.detail.que) && cabecera) pintarCabecera(); });
-    matchMedia('(max-width:839px)').addEventListener('change', () => { if (ctx.sesion) pintarNav(); });
+    matchMedia('(max-width:839px)').addEventListener('change', () => { if (ctx.sesion) { pintarNav(); pintarCabecera(); } });
     addEventListener('online', () => ctx.sesion && pintarCabecera()); addEventListener('offline', () => ctx.sesion && pintarCabecera());
   }
   raiz.dataset.listo = '1';

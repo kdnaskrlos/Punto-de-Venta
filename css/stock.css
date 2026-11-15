@@ -295,3 +295,28 @@ html.stk-sin-barra::-webkit-scrollbar,html.stk-sin-barra body::-webkit-scrollbar
 .stk .ti-btn::after{content:"";position:absolute;inset:-4px}
 .stk .ti-btn:active{transform:scale(.92)}
 .stk .ti-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+/* v2.15 · PC: cabecera del Inventario con jerarquía. Arriba la búsqueda (lo más usado) y las acciones;
+   abajo los estados de stock como pestañas con su número (filtran) y Género / Marca a la derecha.
+   Sin botón de escáner: el lector USB escribe en la búsqueda. */
+.stk .seg .tj{cursor:pointer;font:inherit;text-align:left}
+@media (min-width:840px){
+  .stk .top{grid-template-columns:minmax(0,1fr) auto!important;grid-template-areas:"search adm" "seg filters";column-gap:16px!important;row-gap:12px!important;align-items:center}
+  .stk .top:not(.con-adm){grid-template-areas:"search search" "seg filters"}
+  .stk .top>.search{grid-area:search;grid-column:auto!important}
+  .stk .top>.adm{grid-area:adm;grid-column:auto!important;margin:0}
+  .stk .top>.seg{grid-area:seg;grid-column:auto!important;display:flex!important;gap:8px;flex-wrap:wrap}
+  .stk .top>.filters{grid-area:filters;grid-column:auto!important;display:flex!important;gap:8px;margin:0;justify-self:end}
+  .stk .top>.filters #fSt{display:none}
+  .stk .top>.filters .filtro-menu{min-width:170px}
+  .stk .search .scanbtn{display:none}
+  .stk .adm .sbtn{flex:0 0 auto!important;min-width:140px}
+  .stk .seg .tj{flex-direction:row!important;align-items:center;gap:8px;min-height:40px!important;padding:0 14px!important;border-radius:99px!important;background:var(--surface)!important;border:1px solid var(--line)!important}
+  .stk .seg .tj::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--stk-ok);flex:none}
+  .stk .seg .tj[data-st=all]::before{background:var(--muted)}
+  .stk .seg .tj.w::before{background:#eab308}.stk .seg .tj.x::before{background:var(--stk-agotado)}
+  .stk .seg .tj b{order:2;font-size:14px!important;font-weight:700;color:var(--ink)!important}
+  .stk .seg .tj span{order:1;font-size:14px!important;font-weight:600;color:var(--ink)!important}
+  .stk .seg .tj[aria-pressed=true]{background:var(--ink)!important;border-color:var(--ink)!important}
+  .stk .seg .tj[aria-pressed=true] b,.stk .seg .tj[aria-pressed=true] span{color:#fff!important}
+}
+@media (min-width:840px){.stk .top>.search,.stk .top>.adm{align-self:start;margin-top:0!important}.stk .top{padding-top:16px!important}}

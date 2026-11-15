@@ -159,7 +159,7 @@ function abrirDetalle(ctx, ap) {
         h('div', { class: 'ap-cif-saldo' }, h('span', { class: 'nota' }, pendiente ? 'Saldo pendiente' : 'Total'), h('b', { class: 'num grande' + (pendiente ? ' rojo' : ''), 'data-largo': largo(fmtCop(pendiente ? ap.saldo : ap.total)) }, fmtCop(pendiente ? ap.saldo : ap.total)))),
       h('div', { class: 'ap-barra', role: 'progressbar', 'aria-label': 'Pagado', 'aria-valuenow': String(pct), 'aria-valuemin': '0', 'aria-valuemax': '100' }, h('i', { style: `width:${pct}%` }))),
     // v2.00: prendas y último abono como filas (cantidad en su cuadrito, nombre corto y «color · tela · talla»).
-    h('div', { class: 'det-sec' },
+    h('div', { class: 'det-sec ap-sec-prendas' },
       h('h3', { class: 'det-t' }, icono('franela'), 'Prendas', h('span', { class: 'det-t-der' }, (() => { const n = ap.lineas.reduce((s, l) => s + (l.cantidad || 0), 0); return `${n} ${n === 1 ? 'prenda' : 'prendas'}`; })())),
       ...ap.lineas.map(l => {
         const p = ctx.productos?.[l.sku];
@@ -169,7 +169,7 @@ function abrirDetalle(ctx, ap) {
           h('span', { class: 'n' }, h('b', {}, nombre), det ? h('small', {}, det) : null),
           h('span', { class: 'v num' }, l.subtotal != null ? fmtCop(l.subtotal) : ''));
       })),
-    ultimo ? h('div', { class: 'det-sec' },
+    ultimo ? h('div', { class: 'det-sec ap-sec-abono' },
       h('h3', { class: 'det-t' }, icono('cartera'), 'Último abono'),
       h('div', { class: 'dfila' }, h('span', { class: 'n' }, h('b', {}, ultimo.nombre || ultimo.forma), ultimo.fecha ? h('small', {}, diaCorto(ultimo.fecha).replace(/\.$/, '')) : null), h('span', { class: 'v num' }, textoAbono(ultimo))),
       abonos.length ? h('button', { type: 'button', class: 'det-ver', id: 'ap-historial', onclick: historial }, `Ver historial de abonos (${abonos.length})`, icono('der')) : null) : null,

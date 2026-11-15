@@ -6,7 +6,7 @@ const existencia = (p, sku) => p.evaluate(s => window.__pos.ctx.productos[s].exi
 
 async function apartar(p, abono) {
   await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-L', cantidad: 2 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
-  await p.click('.lado-carrito .cobrar'); // v2.06: Apartar está en la pantalla de cobro
+  await p.click('[data-cobro] .cobrar'); // v2.06: Apartar está en la pantalla de cobro
   await p.fill('#cli-tel', '0412-123.45.67');
   await p.click('#cli-guardar');
   if (abono != null) {
@@ -102,7 +102,7 @@ casos('apartados', [
     for (const opc of [{ ancho: 390, alto: 844 }, { ancho: 1440, alto: 900 }]) {
       const p = await env.pagina({ ...opc, usuario: 'vendedora', caja: true, ruta: '/vender' });
       await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-L', cantidad: 2 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
-      await p.click('.lado-carrito .cobrar');
+      await p.click('[data-cobro] .cobrar');
       await p.fill('#cli-tel', '0412-123.45.67'); await p.click('#cli-guardar');
       await p.click('.forma[data-forma="efectivo-cop"]'); await tocar(p, `apartar ${opc.ancho}`);
       await p.fill('.pago[data-forma="efectivo-cop"] input', '20.000');

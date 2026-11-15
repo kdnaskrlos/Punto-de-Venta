@@ -268,6 +268,7 @@ registrarVista('/ajustes', {
     const cambio = () => { boton.disabled = false; pintarAviso(); };
     const t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
     const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el };
+    for (const [k, el] of Object.entries(secciones)) el.classList.add('aj-' + k); // v2.15: para el diseño de PC
     // Un solo botón para guardar; aparece cuando se cambia algo.
     for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button, button[aria-pressed], .modo-bs')) cambio(); }); }
     boton.addEventListener('click', e => unaVez(e.currentTarget, async () => {

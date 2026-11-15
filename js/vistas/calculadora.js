@@ -12,7 +12,10 @@ const CAMPOS = [
   { id: 'bs', moneda: 'BS', nombre: 'Bs (VES)', prefijo: 'Bs.', ic: 'banco', copiar: 'Copiar Bs', clase: 'c-bs' },
 ];
 
+// v2.15: una sola calculadora; tocar el ícono otra vez la cierra.
+let abierta = null;
 export function abrirCalculadora(ctx) {
+  if (abierta && abierta.el.isConnected) { abierta.cerrar(); abierta = null; return null; }
   let usdBase = null, fuente = null;
   const inputs = {};
   const estado = h('span', { class: 'solo-lector', role: 'status', 'aria-live': 'polite' });
@@ -76,7 +79,8 @@ export function abrirCalculadora(ctx) {
   hj.el.querySelector('.cab h2')?.prepend(icono('calculadora')); // v2.06: ícono en la cabecera
   const lado = document.querySelector('.lado-carrito');
   if (!tel && lado && lado.offsetParent) hj.el.querySelector('.caja').style.marginRight = `${hj.el.getBoundingClientRect().right - lado.getBoundingClientRect().left + 8}px`;
-  hj.alCerrar = () => window.removeEventListener('pos:datos', alDatos);
+  hj.alCerrar = () => { window.removeEventListener('pos:datos', alDatos); if (abierta === hj) abierta = null; };
+  abierta = hj;
   return hj;
 }
 

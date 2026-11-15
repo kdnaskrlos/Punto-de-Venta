@@ -31,7 +31,7 @@ casos('vender', [
     a.strictEqual(await texto(p, '.linea[data-sku="B-M"] .cant'), '2');
   }],
   ['El mix pasa ambas líneas al precio 6–11 con el total correcto', async (env, a) => {
-    const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
+    const p = await env.pagina({ movil: true, usuario: 'vendedora', caja: true, ruta: '/vender' });
     await agregar(p, 'Buzo Etanol Caballero Gris', 'M', 2);
     await agregar(p, 'Franela AS Niño Blanco', '6', 2);
     a.strictEqual(await p.$('.aviso-tramo, .aviso-sep'), null, 'v2.10: sin avisos de «Con N prendas más»');
@@ -41,8 +41,8 @@ casos('vender', [
       await p.click(`.zona-carrito .linea[data-sku="${sku}"].mini`);
       a.ok((await texto(p, `.zona-carrito .linea[data-sku="${sku}"] .lc-tramo`)).includes('6–11'), sku);
     }
-    a.strictEqual(await texto(p, '.barra-cobro .total-cop'), '186.000');
-    a.ok((await texto(p, '.barra-cobro .equivalentes')).includes('47,70'));
+    a.strictEqual(await texto(p, '[data-cobro] .total-cop'), '186.000');
+    a.ok((await texto(p, '[data-cobro] .equivalentes')).includes('47,70'));
   }],
   ['Agotada: pastilla roja y tallas sin elegir', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
@@ -65,7 +65,7 @@ casos('vender', [
     a.strictEqual(await p.inputValue('#buscar'), '');
     a.strictEqual(await p.isVisible('.rejilla'), false, 'la lista se oculta');
     a.ok(await p.isVisible('.zona-carrito .linea[data-sku="B-S"]'));
-    a.strictEqual(await texto(p, '.barra-cobro .total-cop'), '48.000');
+    a.strictEqual(await texto(p, '[data-cobro] .total-cop'), '48.000');
     // v2.06: la barra es un solo botón (Descuento y Apartar pasan a la pantalla de cobro).
     a.deepStrictEqual(await p.$$eval('.barra-cobro button', b => b.map(x => x.querySelector('.bt-cnt').textContent.trim())), ['1']);
     await p.waitForTimeout(350); // la barra termina de subir
@@ -257,12 +257,18 @@ casos('vender', [
     a.strictEqual(await p.$$eval('.rejilla .tarjeta-prenda', e => e.length), 0);
     a.ok(await p.isVisible('#todos-productos'));
   }],
-  ['v1.97 · Computadora: carrito a la izquierda y columna derecha con el botón de cobro (total adentro)', async (env, a) => {
+  ['v2.15 · Computadora: carrito en tabla y barra de cobro abajo (cliente, total y Cobrar); sin escáner; F1 cliente', async (env, a) => {
     const p = await env.pagina({ ancho: 1440, alto: 900, usuario: 'vendedora', caja: true, ruta: '/vender' });
-    a.strictEqual(await p.isVisible('.lado-carrito'), false, 'sin prendas, sin columna');
+    a.ok(await p.isVisible('.tabla-pc .tp-vacio'), 'tabla vacía con su mensaje');
+    a.strictEqual(await p.$eval('.pie-pc .cobrar', b => b.disabled), true);
+    a.strictEqual(await p.isVisible('#escanear-vender'), false);
     await agregar(p, 'Jogger Texcol Caballero Negro', 'M', 1);
-    const r = await p.evaluate(() => { const l = document.querySelector('.zona-carrito .linea').getBoundingClientRect(), d = document.querySelector('.lado-carrito').getBoundingClientRect(), c = document.querySelector('.barra-cobro .cobrar').getBoundingClientRect(), t = document.querySelector('.barra-cobro .cobrar .total-cop').getBoundingClientRect(); return [l.right < d.left, Math.round(innerWidth - d.right), t.top >= c.top && t.bottom <= c.bottom, getComputedStyle(document.querySelector('.lado-carrito')).position !== 'fixed']; });
-    a.deepStrictEqual(r, [true, 0, true, true]);
+    a.ok(await p.isVisible('.tabla-pc .fila-pc[data-sku="J-M"]'));
+    const r = await p.evaluate(() => { const t = document.querySelector('.tabla-pc').getBoundingClientRect(), pie = document.querySelector('.pie-pc').getBoundingClientRect(); return [pie.top >= t.bottom - 1, Math.round(innerHeight - pie.bottom)]; });
+    a.ok(r[0] && r[1] >= 0 && r[1] <= 40, 'la barra de cobro va abajo: ' + r);
+    a.strictEqual(await texto(p, '.pie-pc .total-cop'), '42.000');
+    await p.keyboard.press('F1'); await p.waitForSelector('#cli-guardar');
+    a.match(await p.innerText('#cli-guardar'), /Guardar cliente/);
   }],
   ['v1.98 · Teléfono: al entrar a Vender la barra de cobro sube desde abajo (nunca aparece a media pantalla); al quitar una prenda se desvanece; al vaciar el carrito la barra baja', async (env, a) => {
     const p = await env.pagina({ movil: true, usuario: 'vendedora', caja: true, ruta: '/inicio' });
@@ -279,7 +285,7 @@ casos('vender', [
     await p.waitForFunction(() => document.querySelector('.lado-carrito').hidden);
   }],
   ['v2.10 · Barra de cobro: un solo botón con la cantidad en una camiseta y el total con sus equivalentes (teléfono y computadora); «Todos los productos» al centro', async (env, a) => {
-    for (const opc of [{ movil: true }, { ancho: 1440, alto: 900 }]) {
+    for (const opc of [{ movil: true }]) {
       const p = await env.pagina({ ...opc, usuario: 'vendedora', caja: true, ruta: '/vender' });
       const v = await p.$eval('#todos-productos', b => { const r = b.getBoundingClientRect(), s = document.querySelector('.vender-main .buscador').getBoundingClientRect(), n = document.querySelector('.side').getBoundingClientRect(); const fin = innerWidth < 840 ? n.top : innerHeight; return Math.abs((r.top + r.bottom) / 2 - (s.bottom + fin) / 2); });
       a.ok(v < 40, 'centrado en el espacio libre: ' + v);

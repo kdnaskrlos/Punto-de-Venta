@@ -60,7 +60,9 @@ export function ventanaCliente(ctx, alListo) {
   const c = ctx.carrito;
   const editar = !!c.cliente;
   const campos = camposCliente(ctx, () => {}, c.cliente && { nombre: c.cliente.nombre, telefonoTexto: telefonoLegible(c.cliente.telefono) });
-  const b = h('button', { class: 'btn primary grande', id: 'cli-guardar' }, editar ? icono('check') : null, editar ? 'Guardar cliente' : 'Continuar al pago', editar ? null : icono('der'));
+  // v2.15: sin un paso siguiente (cliente agregado desde la barra de la PC) el botón solo guarda.
+  const guardarSolo = editar || !alListo;
+  const b = h('button', { class: 'btn primary grande', id: 'cli-guardar' }, guardarSolo ? icono('check') : null, guardarSolo ? 'Guardar cliente' : 'Continuar al pago', guardarSolo ? null : icono('der'));
   const v = abrirVentana({ titulo: editar ? 'Editar cliente' : 'Cliente', pantallaCompleta: true, contenido: h('div', { class: 'pila' }, h('p', { class: 'nota' }, editar ? 'Corrige los datos del cliente.' : '¿A nombre de quién es la venta?'), campos.el), acciones: b });
   v.alCerrar = () => campos.quitar();
   if (!esTelefono()) setTimeout(() => campos.foco(), 40);

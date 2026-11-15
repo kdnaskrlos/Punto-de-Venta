@@ -1,6 +1,6 @@
 // Inventario (§7): consulta con la apariencia de la app «Stock, Comic Shop», escáner, ajustes con motivo,
 // ofertas, sincronizar con la Carga Masiva y fotos por código de imagen.
-import { h, icono, abrirVentana, abrirCapaPropia, abrirMenu, toast, esTelefono, pedirMotivo, sin, unaVez } from '../ui.js';
+import { h, icono, abrirVentana, abrirCapaPropia, abrirMenu, toast, esTelefono, pedirMotivo, sin, unaVez, teclearEn } from '../ui.js';
 import { titulo, grupoDe, detalle, textoBusqueda, fotoDe, nombreVariante } from '../nucleo/producto.js';
 import { abrirEscaner } from './escaner.js';
 import { compararTallas } from '../nucleo/tipo-prenda.js';
@@ -365,9 +365,9 @@ function abrirPrenda(ctx, clave, costos, tema, abrirTalla) {
     sh.innerHTML = `<div class="grab"></div><div class="det2">
   <div class="det-cab"><div><h2>${esc(titulo(p))}</h2>${p.color || p.tela ? `<span class="det-sub">${p.color ? `<i class="punto-color"${pc ? ` style="--pc:${esc(pc)}"` : ''}></i>` : ''}${esc([p.color, p.tela].filter(Boolean).join(' · '))}</span>` : ''}</div><div class="det-der"><button class="det-x" type="button" data-act="close" aria-label="Cerrar">${ic('x')}</button></div></div>
   ${foto ? `<div class="card fotocard"><img src="${esc(foto)}" alt="Foto de ${esc(x.nombre)}"></div>` : ''}
-  <div class="det-sec"><h3 class="det-t">${ic('caja')}Tallas<span class="det-t-der">${fmtN(x.total)} uds en total</span></h3><div class="tallas-inv">${x.vs.map(v => { const k = st(v); return `<div class="talla-inv dfila talla2" data-sku="${esc(v.sku)}"><span class="n ti-t"><b>${esc(v.talla ? 'Talla ' + v.talla : 'Talla única')}</b></span><span class="uds ti-u ${k}"><b class="${uds(k)}">${k === 'out' ? 'Agotada' : fmtN(v.existencia) + ' uds'}</b><small>mín. ${fmtN(v.minimo || 0)}</small></span>${accTalla(v)}</div>`; }).join('')}</div></div>
-  <div class="det-sec"><h3 class="det-t">${ic('etiqueta')}Precios por cantidad${oferta}</h3><div class="prices">${pri.map(o => `<div><span>${esc(tramo(o.i))}</span><b>${o.v ? fmtCop(o.v) : '—'}</b></div>`).join('')}</div></div>
-  <div class="det-sec"><h3 class="det-t">${ic('recibo')}Ficha</h3><div class="ficha3">${ficha('Tipo', p.tipo)}${ficha('Género', p.genero)}${ficha('Marca', p.marca)}${ficha('Modelo', p.modelo)}${ficha('Código de imagen', p.id_imagen)}${verCostos ? `<div><span>Costo</span><button class="reveal ver-costo" type="button" data-cost="${costo != null ? fmtCop(costo) : '—'}">Mostrar</button></div>` : ''}</div></div>
+  <div class="det-sec det-tallas"><h3 class="det-t">${ic('caja')}Tallas<span class="det-t-der">${fmtN(x.total)} uds en total</span></h3><div class="tallas-inv">${x.vs.map(v => { const k = st(v); return `<div class="talla-inv dfila talla2" data-sku="${esc(v.sku)}"><span class="n ti-t"><b>${esc(v.talla ? 'Talla ' + v.talla : 'Talla única')}</b></span><span class="uds ti-u ${k}"><b class="${uds(k)}">${k === 'out' ? 'Agotada' : fmtN(v.existencia) + ' uds'}</b><small>mín. ${fmtN(v.minimo || 0)}</small></span>${accTalla(v)}</div>`; }).join('')}</div></div>
+  <div class="det-sec det-precios"><h3 class="det-t">${ic('etiqueta')}Precios por cantidad${oferta}</h3><div class="prices">${pri.map(o => `<div><span>${esc(tramo(o.i))}</span><b>${o.v ? fmtCop(o.v) : '—'}</b></div>`).join('')}</div></div>
+  <div class="det-sec det-ficha"><h3 class="det-t">${ic('recibo')}Ficha</h3><div class="ficha3">${ficha('Tipo', p.tipo)}${ficha('Género', p.genero)}${ficha('Marca', p.marca)}${ficha('Modelo', p.modelo)}${ficha('Código de imagen', p.id_imagen)}${verCostos ? `<div><span>Costo</span><button class="reveal ver-costo" type="button" data-cost="${costo != null ? fmtCop(costo) : '—'}">Mostrar</button></div>` : ''}</div></div>
   </div>
   <div class="det2"><div class="det-sec" id="prenda-acciones" hidden><h3 class="det-t">Acciones</h3><div class="acc"></div></div></div>`;
     const g = { grupo: clave, titulo: titulo(p), color: p.color, tela: p.tela, variantes: x.vs, id_imagen: p.id_imagen, foto };
@@ -408,6 +408,8 @@ registrarVista('/inventario', {
     document.documentElement.classList.add('stk-sin-barra');
     let costos = {}; const abiertas = new Set();
     const F = { q: '', st: 'all', cat: '', brand: '', sort: 'name', shown: 80 };
+    // v2.15: desde Inicio se llega con el filtro de stock ya puesto (#/inventario?st=low | out).
+    { const st0 = new URLSearchParams(location.hash.split('?')[1] || '').get('st'); if (['low', 'out'].includes(st0)) F.st = st0; }
     const admSinc = puedeAdmin(ctx, 'importar'), admFotos = puedeAdmin(ctx, 'fotosMasivas');
     cont.innerHTML = `<div class="wrap">
   <header class="top${admSinc || admFotos ? ' con-adm' : ''}">
@@ -470,8 +472,8 @@ registrarVista('/inventario', {
       const R = cacheR, has = R.length > 0, G = cacheG;
       const low = G.filter(x => x.st === 'low').length, out = G.filter(x => x.st === 'out').length;
       const seg = [['all', 'Todos', G.length, '', SVG.caja], ['low', 'Stock bajo', low, 'w', SVG.alerta], ['out', 'Agotados', out, 'x', SVG.agotado]];
-      // Solo informativas (filtrar es con «Stock»).
-      $('#seg').innerHTML = seg.map(([, l, n, c]) => `<div class="tj ${c}"><b>${fmtN(n)}</b><span>${l}</span></div>`).join('');
+      // v2.15: también filtran (como «Stock»): tocar una muestra solo esas prendas.
+      $('#seg').innerHTML = seg.map(([k, l, n, c]) => `<button type="button" class="tj ${c}" data-st="${k}" aria-pressed="${F.st === k}"><b>${fmtN(n)}</b><span>${l}</span></button>`).join('');
       $('#qc').hidden = !F.q;
       const list = has ? filtered(G) : [], part = list.slice(0, F.shown);
       // Tarjetas listado: la misma tarjeta de Vender (v1.91), sin el círculo del carrito.
@@ -519,6 +521,7 @@ registrarVista('/inventario', {
     menu('#fCat', 'Género', () => [['', 'Todos'], ...opGenero.map(g => [g, g])], () => F.cat, v => { F.cat = v; });
     menu('#fBrand', 'Marca', () => [['', 'Todas'], ...opMarca.map(m => [m, m])], () => F.brand, v => { F.brand = v; });
     menu('#fSt', 'Stock', () => ESTADOS, () => F.st, v => { F.st = v; });
+    $('#seg').addEventListener('click', e => { const b = e.target.closest('[data-st]'); if (!b) return; F.st = F.st === b.dataset.st && b.dataset.st !== 'all' ? 'all' : b.dataset.st; F.shown = 80; pintarFiltros(); render(); });
     $('#bScan').onclick = () => {
       if (!filas().length) { toast('Primero sincroniza el inventario'); return; }
       abrirEscaner({ tema: TEMA, alLeer: c => lookup(c, false) });
@@ -535,6 +538,7 @@ registrarVista('/inventario', {
     };
     window.addEventListener('pos:datos', alDatos);
     build(); render();
-    return () => { quitar(); window.removeEventListener('pos:datos', alDatos); document.documentElement.classList.remove('stk-sin-barra'); };
+    const sinLector = teclearEn($('#q')); // v2.15: lector USB en la PC (sin botón de escáner)
+    return () => { sinLector(); quitar(); window.removeEventListener('pos:datos', alDatos); document.documentElement.classList.remove('stk-sin-barra'); };
   },
 });

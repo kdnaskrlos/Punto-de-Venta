@@ -483,3 +483,16 @@ export function alEnfocarCampo(inp) {
     setTimeout(fin, 0);
   } else inp.select();
 }
+
+// v2.15 · PC sin botón de escáner: el lector USB «teclea» el código y un Enter. Si se teclea sin ningún campo
+// enfocado (y sin ventanas abiertas), el foco pasa al buscador de la pantalla y el código cae ahí.
+export function teclearEn(input) {
+  const f = e => {
+    if (esTelefono() || e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1 || !input.isConnected) return;
+    const a = document.activeElement;
+    if (a && (a.matches('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) || hayCapas()) return;
+    input.focus();
+  };
+  document.addEventListener('keydown', f, true);
+  return () => document.removeEventListener('keydown', f, true);
+}

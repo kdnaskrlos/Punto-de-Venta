@@ -5,21 +5,23 @@ const texto = (p, s) => p.$eval(s, e => e.textContent.replace(/\s+/g, ' ').trim(
 casos('calculadora', [
   ['La pastilla muestra $ 3.900 / Bs 1.075 y el detalle', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora' });
-    a.strictEqual(await texto(p, '.topbar .tasas'), '$ 3.900 / Bs 1.075');
+    // v2.15: en la PC, dos pastillas: Peso y Bs (con su fuente)
+    a.deepStrictEqual(await p.$$eval('.topbar .tasas', b => b.map(x => x.textContent.replace(/\s+/g, ' ').trim())), ['Peso3.900', 'Manual1.075']);
     await p.click('.topbar .tasas');
     const d = await texto(p, '.capa');
     // El título de Bs es la fuente elegida en Ajustes (el demo usa la tasa manual).
     for (const t of ['3.900', '1.075', 'Pesos por dólar', 'Tasa manual']) a.ok(d.includes(t), `falta ${t} en ${d}`);
   }],
-  ['PC: panel derecho sin tapar el carrito; 100 USD = 390.000 COP = 107.500,00 Bs', async (env, a) => {
+  ['PC: panel derecho sin tapar la barra de cobro; 100 USD = 390.000 COP = 107.500,00 Bs', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
     await p.click('.topbar [aria-label="Calculadora"]');
     a.ok(await p.$('.capa.hoja.derecha'));
     await p.waitForTimeout(350); // fin de la animación de entrada
     const calc = await p.$eval('.capa .caja', e => e.getBoundingClientRect().toJSON());
-    const carro = await p.$eval('.lado-carrito', e => e.getBoundingClientRect().toJSON());
-    a.ok(calc.right <= carro.left + 1, `la calculadora (${calc.left}-${calc.right}) tapa el carrito (${carro.left}-${carro.right})`);
+    // v2.15: en la PC la calculadora termina encima de la barra de cobro (no tapa Cobrar)
+    const pie = await p.$eval('.pie-pc', e => e.getBoundingClientRect().toJSON());
+    a.ok(calc.bottom <= pie.top + 1, `la calculadora (hasta ${calc.bottom}) tapa la barra de cobro (desde ${pie.top})`);
     await p.click('.zona-carrito .linea b'); // el carrito sigue usable con la calculadora abierta
     a.ok(await p.$('.capa .caja'));
     await p.fill('#calc-usd', '100');
@@ -38,7 +40,7 @@ casos('calculadora', [
     const p = await env.pagina({ usuario: 'admin' });
     await p.evaluate(() => window.__pos.ctx.almacen.guardarAjustes('tasas', { bsModo: 'binance' }));
     await p.waitForFunction(() => window.__pos.ctx.tasas.bsPorUsd === null);
-    a.strictEqual(await texto(p, '.topbar .tasas'), '$ 3.900 / Bs —');
+    a.strictEqual(await p.$$eval('.topbar .tasas', b => b[1].textContent.replace(/\s+/g, ' ').trim()), 'Binance—');
     await p.click('.topbar [aria-label="Calculadora"]');
     await p.fill('#calc-usd', '10');
     a.strictEqual(await p.inputValue('#calc-bs'), '');

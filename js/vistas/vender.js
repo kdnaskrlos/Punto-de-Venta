@@ -1,7 +1,7 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
 import { abrirEscaner, ICONO_ESCANER } from './escaner.js';
 import { buscarCodigo } from './inventario.js';
-import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, campoBusqueda, deslizarParaQuitar, alEnfocarCampo } from '../ui.js';
+import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, campoBusqueda, deslizarParaQuitar, alEnfocarCampo, teclearEn } from '../ui.js';
 import { coincide, textoPreparado } from '../nucleo/busqueda.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
@@ -12,6 +12,7 @@ import { calcularCarrito, etiquetaTramo } from '../nucleo/tramos.js';
 import { aplicarDescuento, requiereAutorizacion } from '../nucleo/descuento.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { desdeCop } from '../nucleo/tasas.js';
+import { ventanaCliente, telefonoLegible } from './cliente.js';
 
 
 export function carrito(ctx) {
@@ -268,7 +269,7 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
 function barraCobro(ctx, r) {
   // v2.06: la barra entera es el botón de cobrar («ticket»): cuántas prendas en un círculo, «Cobrar» y el total con
   // sus equivalentes a la derecha. Descuento y Apartar están en la pantalla de cobro.
-  return h('div', { class: 'barra-cobro bcT' },
+  return h('div', { class: 'barra-cobro bcT', 'data-cobro': '' },
     h('button', { class: 'btn primary cobrar bt', type: 'button', 'aria-label': `Cobrar ${fmtCop(r.total)} COP, ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') },
       // v2.10: sin texto; la cantidad va dentro de una camiseta blanca rellena.
       h('span', { class: 'bt-cnt' }, icono('franela'), h('b', { class: 'num', 'data-n': r.unidades > 99 ? '3' : null }, String(r.unidades))),
@@ -276,6 +277,40 @@ function barraCobro(ctx, r) {
         h('span', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total)), h('span', { class: 'moneda' }, 'COP')),
         equivalentes(ctx, r.total)),
       icono('der')));
+}
+
+// v2.15 · PC: el carrito como tabla (prenda, precio, cantidad, unidad y total) y, abajo, una barra fija con el
+// cliente a la izquierda y el total con Cobrar a la derecha. En el teléfono sigue igual.
+function tablaPC(ctx, r, alTodos) {
+  const aj = ctx.ajustes;
+  const filas = r.lineas.map(l => {
+    const p = ctx.productos[l.sku];
+    const g = { titulo: titulo(p), tipo: p.tipo, genero: p.genero, foto: fotoDe(p, ctx.imagenes) };
+    return h('div', { class: 'linea fila-pc', 'data-sku': l.sku },
+      h('span', { class: 'fp-prenda' }, miniatura(g, 'foto'), h('span', { class: 'fp-t' }, h('b', {}, g.titulo), h('small', {}, [p.color, p.talla].filter(Boolean).join(' · ') || p.sku))),
+      h('span', { class: 'fp-tramo' }, h('span', { class: 'lc-tramo' + (l.oferta ? ' oferta' : '') }, l.oferta ? 'Oferta' : `Precio ${etiquetaTramo(l.tramo, aj.tramos)}`), circuloFalta(l)),
+      h('span', { class: 'fp-cant' }, contador(ctx, l)),
+      h('span', { class: 'fp-unit num' }, fmtCop(l.precioUnit)),
+      h('span', { class: 'fp-total num' }, fmtCop(l.subtotal), h('small', { class: 'moneda c-cop' }, 'COP')),
+      h('button', { type: 'button', class: 'ibtn fp-quitar', 'aria-label': 'Quitar prenda', onclick: e => { e.stopPropagation(); quitarLinea(ctx, l.sku); } }, icono('borrar')));
+  });
+  return h('div', { class: 'carrito tabla-pc' },
+    h('div', { class: 'tp-cab', 'aria-hidden': 'true' }, h('span', {}, 'Prenda'), h('span', {}, 'Precio'), h('span', {}, 'Cantidad'), h('span', {}, 'Unidad'), h('span', {}, 'Total'), h('span', {})),
+    filas.length ? h('div', { class: 'lineas' }, filas)
+      : h('div', { class: 'tp-vacio' }, icono('carrito'), h('b', {}, 'Busca o escanea una prenda'), h('button', { type: 'button', class: 'btn', onclick: alTodos }, icono('cuadricula'), 'Todos los productos')));
+}
+function piePC(ctx, r) {
+  const c = carrito(ctx).cliente;
+  return h('div', { class: 'pie-pc', 'data-cobro': '' },
+    h('div', { class: 'pc-cli' }, h('span', { class: 'pc-et' }, 'Cliente'),
+      h('button', { type: 'button', class: 'pc-cli-btn' + (c ? ' con' : ''), id: 'pc-cliente', onclick: () => ventanaCliente(ctx) },
+        icono('usuario'), c ? h('span', {}, h('b', {}, c.nombre), h('small', { class: 'num' }, telefonoLegible(c.telefono))) : h('span', {}, 'Agregar cliente'), h('kbd', {}, 'F1'))),
+    h('div', { class: 'pc-tot' },
+      h('div', { class: 'pc-tot-num' },
+        h('div', { class: 'total' }, h('span', { class: 'moneda c-cop' }, 'COP'), h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total))),
+        r.unidades ? equivalentes(ctx, r.total) : h('div', { class: 'equivalentes' }, `${r.unidades} prendas`)),
+      h('button', { type: 'button', class: 'btn primary cobrar pc-cobrar', disabled: !r.unidades, onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') },
+        r.unidades ? h('span', { class: 'pc-cant' }, icono('franela'), h('b', { class: 'num' }, String(r.unidades))) : null, 'Cobrar', h('kbd', {}, 'F9'))));
 }
 
 // Descuento por monto, en pesos o en dólares (sin porcentaje). En dólares se convierte a pesos con la tasa del día.
@@ -458,6 +493,7 @@ registrarVista('/vender', {
     // Total, Cobrar, Descuento y Apartar van en la barra de cobro: abajo en el teléfono, columna derecha en la computadora.
     const lado = h('aside', { class: 'lado-carrito barra-cobro-lado', hidden: true });
     const zonaCarrito = h('div', { class: 'zona-carrito' });
+    const pie = h('div', { class: 'pie-pc-cont', hidden: true });
     gestoCarrito(ctx, zonaCarrito);
     const btnTodos = h('button', { class: 'btn btn-todos', type: 'button', id: 'todos-productos', onclick: () => { catalogo = true; buscar.value = TODOS; busqueda = ''; pintar(); } }, icono('cuadricula'), 'Todos los productos');
     const vacio = h('div', { class: 'venta-vacia' }, btnTodos);
@@ -511,6 +547,21 @@ registrarVista('/vender', {
       antes = ahora;
       if (nueva && (busqueda || catalogo)) { buscar.value = ''; busqueda = ''; catalogo = false; buscar.dispatchEvent(new Event('input', { bubbles: true })); return; }
       const lista = !!busqueda.trim() || catalogo;
+      if (!esTelefono()) {
+        // v2.15 · PC: tabla del carrito siempre a la vista (vacía, con «Todos los productos») y barra de cobro abajo.
+        vacio.hidden = true; lado.hidden = true;
+        zonaCarrito.hidden = lista; pie.hidden = lista;
+        ponerCarrito(zonaCarrito, tablaPC(ctx, r, () => { catalogo = true; buscar.value = TODOS; busqueda = ''; pintar(); }));
+        if (nueva) zonaCarrito.querySelector(`.linea[data-sku="${CSS.escape(nueva)}"]`)?.scrollIntoView({ block: 'nearest' });
+        const totalAntes = pie.querySelector('.total-cop')?.textContent;
+        pie.replaceChildren(piePC(ctx, r));
+        const t = pie.querySelector('.total-cop');
+        if (totalAntes && t && t.textContent !== totalAntes && !MENOS_MOV()) t.animate([{ transform: 'translateY(4px)', opacity: .35 }, { transform: 'none', opacity: 1 }], { duration: 200, easing: 'cubic-bezier(.22,.9,.3,1)' });
+        cont.classList.add('pc');
+        sinCaja.hidden = !!ctx.miCaja || !ctx.puedeVer('cajaFisica');
+        return;
+      }
+      cont.classList.remove('pc'); pie.hidden = true;
       vacio.hidden = lista || !!r.unidades;
       zonaCarrito.hidden = lista || !r.unidades;
       if (r.unidades) ponerCarrito(zonaCarrito, panelCarrito(ctx, { enHoja: true })); else zonaCarrito.replaceChildren();
@@ -550,6 +601,7 @@ registrarVista('/vender', {
     });
     const teclas = e => {
       if (e.key === 'F2') { e.preventDefault(); buscar.focus(); buscar.select(); }
+      if (e.key === 'F1' && !esTelefono() && !hayCapas()) { e.preventDefault(); ventanaCliente(ctx); }
       if (e.key === 'F9' && carrito(ctx).lineas.length && !hayCapas()) { e.preventDefault(); ctx.abrirCobro && ctx.abrirCobro('venta'); }
     };
     const alDatos = e => { if (['productos', 'imagenes'].includes(e.detail.que)) cacheG = null; if (['productos', 'imagenes', 'ajustes', 'tasas', 'caja'].includes(e.detail.que)) pintar(); };
@@ -558,9 +610,13 @@ registrarVista('/vender', {
     window.addEventListener('pos:carrito', pintarCarrito);
 
     cont.classList.add('vender');
-    cont.append(h('div', { class: 'vender-main' }, sinCaja, h('div', { class: 'buscador' }, campoBusqueda(buscar), escanear), filtros, rejilla, vacio, zonaCarrito), lado);
+    cont.append(h('div', { class: 'vender-main' }, sinCaja, h('div', { class: 'buscador' }, campoBusqueda(buscar), escanear, h('button', { class: 'btn btn-todos-pc', type: 'button', onclick: () => { catalogo = true; buscar.value = TODOS; busqueda = ''; pintar(); } }, icono('cuadricula'), 'Todos los productos')), filtros, rejilla, vacio, zonaCarrito, pie), lado);
+    // v2.15: al pasar de teléfono a PC (o al revés) el carrito cambia de forma.
+    const mq = matchMedia('(max-width:839px)'), alCambiarAncho = () => pintar();
+    mq.addEventListener('change', alCambiarAncho);
     pintar();
     if (!esTelefono()) setTimeout(() => buscar.focus(), 50);
-    return () => { clearTimeout(tLista); document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
+    const sinLector = teclearEn(buscar); // v2.15: lector USB en la PC
+    return () => { sinLector(); mq.removeEventListener('change', alCambiarAncho); clearTimeout(tLista); document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
   },
 });

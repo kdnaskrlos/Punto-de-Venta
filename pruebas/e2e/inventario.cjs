@@ -38,7 +38,8 @@ casos('inventario', [
     a.ok(await p.$(itemDe('B-L') + ' .tp-disp.y'), 'pastilla de stock bajo');
     a.ok(await p.$(itemDe('R-M') + '.agotada .est.r'), 'pastilla de agotado');
     a.strictEqual(await p.$('.stk .en-carrito'), null, 'sin círculo del carrito');
-    a.strictEqual(await p.$('#seg [data-st], #meta'), null, 'tarjetas solo informativas y sin línea de conteo');
+    a.strictEqual(await p.$('#meta'), null, 'sin línea de conteo');
+    a.strictEqual(await p.$$eval('#seg [data-st]', b => b.length), 3, 'v2.15: Todos / Stock bajo / Agotados filtran');
     a.ok(await p.$(itemDe('J-M') + ' .foto svg'), 'sin foto: recuadro con ícono');
     a.strictEqual(await texto(p, '#fSt'), 'Stock');
     await p.click('#fSt'); await p.click('.menu-it:has-text("Agotados")');
@@ -74,7 +75,7 @@ casos('inventario', [
     a.deepStrictEqual(p.errores, []);
   }],
   ['Escáner: el código escrito abre la tarjeta del producto; uno que no existe avisa', async (env, a) => {
-    const p = await env.pagina({ ruta: '/inventario' });
+    const p = await env.pagina({ movil: true, ruta: '/inventario' }); // v2.15: el botón solo está en el teléfono
     const codigo = await p.evaluate(() => window.__pos.ctx.productos['B-M'].codigo);
     await p.click('#bScan');
     await p.waitForSelector('.stk-capa.escaner #manualQ');
@@ -176,7 +177,7 @@ casos('inventario', [
     await p.fill('#buscar', 'jogger');
     await p.waitForSelector('.tarjeta-prenda[data-nombre="Jogger Texcol Caballero Negro"] .tp-estado');
     await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'J-M', cantidad: 1 }] }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
-    a.strictEqual(await texto(p, '.barra-cobro .total-cop'), '37.800');
+    a.strictEqual(await texto(p, '[data-cobro] .total-cop'), '37.800');
   }],
   ['Admin: una foto por código de imagen la muestran todas sus variantes, sin copiarla a cada sku', async (env, a) => {
     const p = await env.pagina({ usuario: 'admin', ruta: '/inventario' });
@@ -264,7 +265,8 @@ casos('inventario', [
     const { izq, der } = await p.$eval('.stk .wrap', w => { const r = w.getBoundingClientRect(); return { izq: r.left - document.querySelector('.vista').getBoundingClientRect().left, der: innerWidth - r.right }; });
     a.deepStrictEqual({ izq, der }, { izq: 16, der: 16 }, 'todo el ancho con 16 px de borde, como las demás pantallas');
     await p.waitForTimeout(400); // termina la animación de entrada de la pantalla
-    a.strictEqual(await p.$eval('.stk .seg', e => Math.round(e.getBoundingClientRect().top)), await p.$eval('.topbar', e => Math.round(e.getBoundingClientRect().bottom)) + 16, 'mismo espacio arriba que las demás pantallas');
+    a.strictEqual(await p.$eval('.stk .search', e => Math.round(e.getBoundingClientRect().top)), await p.$eval('.topbar', e => Math.round(e.getBoundingClientRect().bottom)) + 16, 'mismo espacio arriba que las demás pantallas (v2.15: la búsqueda va primero)');
+    a.strictEqual(await p.isVisible('#bScan'), false, 'v2.15: sin botón de escáner en la PC');
     a.ok(await p.isVisible('.stk .adm #bSync') && await p.isVisible('.stk .adm #bData'));
   }],
   ['Teléfono angosto (320 px) con muchas prendas: centrado, nada se sale por la derecha', async (env, a) => {
@@ -299,5 +301,20 @@ casos('inventario', [
     const v = await env.pagina({ ancho: 390, alto: 844, usuario: 'vendedora', ruta: '/inventario' });
     await abrirPrenda(v, 'J-M');
     a.strictEqual(await v.$('.stk-capa .ti-btn'), null);
+  }],
+  ['v2.15 · PC: el lector USB (teclea el código y Enter sin campo enfocado) abre la prenda; Inicio lleva al Inventario filtrado', async (env, a) => {
+    const p = await env.pagina({ ancho: 1440, alto: 900, usuario: 'admin', ruta: '/inventario' });
+    const codigo = await p.evaluate(() => window.__pos.ctx.productos['B-M'].codigo);
+    await p.evaluate(() => document.activeElement?.blur());
+    await p.keyboard.type(String(codigo)); await p.keyboard.press('Enter');
+    await p.waitForSelector('.stk-capa .sheet.in');
+    a.match(await hoja(p), /Buzo/);
+    await p.keyboard.press('Escape');
+    await p.waitForSelector('.stk-capa', { state: 'detached' });
+    await p.evaluate(() => { location.hash = '/inicio'; }); await p.waitForSelector('.tile[data-k="bajas"]');
+    await p.click('.tile[data-k="bajas"]');
+    await p.waitForFunction(() => location.hash.startsWith('#/inventario?st='));
+    await p.waitForSelector('#seg [aria-pressed="true"]');
+    a.strictEqual(await p.$eval('#seg [aria-pressed="true"]', b => b.dataset.st), await p.evaluate(() => location.hash.split('st=')[1]));
   }],
 ]);
