@@ -202,7 +202,7 @@ function quitar(capa) {
   if (!caja || !el.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); return; }
   el.style.pointerEvents = 'none';
   const salida = el.classList.contains('abajo') ? [{ transform: caja.style.transform || 'none' }, { transform: 'translateY(100%)' }]
-    : el.classList.contains('derecha') ? [{ transform: 'none' }, { transform: 'translateX(100%)' }]
+    : el.classList.contains('derecha') ? [{ transform: 'none' }, { transform: 'translateX(calc(100% + 24px))' }]
     : el.classList.contains('desplegable') ? [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-14px) scaleY(.92)' }]
     : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(14px) scale(.985)' }];
   const dur = el.classList.contains('hoja') ? 180 : 130;

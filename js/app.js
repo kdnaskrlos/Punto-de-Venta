@@ -164,12 +164,13 @@ export function pintarCabecera() {
     h('span', { class: 'conn' + (conn.error ? ' err' : conn.enLinea ? '' : ' off'), role: 'status' }, h('i'), textoConn),
     h('span', { class: 'sp' }),
     // v2.15: en la PC, dos pastillas: la tasa del peso y la de Bs (con su fuente: Binance, BCV o Manual).
-    ...(esTelefono() ? [h('button', { class: 'pill tasas' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), 'aria-label': 'Tasas del día', title: t.ultimaConocida ? 'Bs: última tasa conocida' : '', onclick: () => ctx.abrirTasas && ctx.abrirTasas() },
+    // v2.18: las pastillas de tasas solo informan (ya no abren ventana).
+    ...(esTelefono() ? [h('span', { class: 'pill tasas info' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), title: t.ultimaConocida ? 'Bs: última tasa conocida' : 'Tasas del día' },
       h('span', { class: 'num' }, '$ ', h('b', { class: 'c-cop' }, fmt(t.copPorUsd)), ' / Bs ', h('b', { class: 'c-bs' }, fmt(t.bsPorUsd))))]
       // v2.16: «COP» y «Bs» (sin nombres); cada pastilla abre solo su tasa.
-      : [h('button', { class: 'pill tasas tasa-pc', 'aria-label': 'Tasa del peso', onclick: () => ctx.abrirTasas && ctx.abrirTasas('cop') },
+      : [h('span', { class: 'pill tasas tasa-pc info', title: 'Tasa del peso' },
           h('span', { class: 'num' }, h('small', {}, 'COP'), h('b', { class: 'c-cop' }, fmt(t.copPorUsd)))),
-        h('button', { class: 'pill tasas tasa-pc' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), 'aria-label': 'Tasa de Bs', title: t.ultimaConocida ? 'Bs: última tasa conocida' : '', onclick: () => ctx.abrirTasas && ctx.abrirTasas('bs') },
+        h('span', { class: 'pill tasas tasa-pc info' + (!t.bsPorUsd || t.ultimaConocida ? ' vieja' : ''), title: t.ultimaConocida ? 'Bs: última tasa conocida' : 'Tasa de Bs' },
           h('span', { class: 'num' }, h('small', {}, 'Bs'), h('b', { class: 'c-bs' }, fmt(t.bsPorUsd))))]),
     h('button', { class: 'ibtn', 'aria-label': 'Calculadora', onclick: () => alAbrirCalculadora() }, icono('calculadora')),
     h('span', { class: 'pill fecha' }, fechaCorta()));

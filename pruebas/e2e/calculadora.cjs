@@ -7,10 +7,9 @@ casos('calculadora', [
     const p = await env.pagina({ usuario: 'vendedora' });
     // v2.15: en la PC, dos pastillas: Peso y Bs (con su fuente)
     a.deepStrictEqual(await p.$$eval('.topbar .tasas', b => b.map(x => x.textContent.replace(/\s+/g, ' ').trim())), ['COP3.900', 'Bs1.075']);
-    await p.click('.topbar .tasas');
-    const d = await texto(p, '.capa');
-    // El título de Bs es la fuente elegida en Ajustes (el demo usa la tasa manual).
-    for (const t of ['3.900', 'Pesos por dólar']) a.ok(d.includes(t), `falta ${t} en ${d}`); // v2.16: la pastilla COP muestra solo el peso
+    // v2.18: las pastillas solo informan: tocarlas no abre nada.
+    await p.click('.topbar .tasas'); await p.waitForTimeout(300);
+    a.strictEqual(await p.$('.capa'), null);
   }],
   ['PC: panel derecho sin tapar la barra de cobro; 100 USD = 390.000 COP = 107.500,00 Bs', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
@@ -63,17 +62,13 @@ casos('calculadora', [
     a.match(await p.innerText('.calc-fila:first-child .calc-tasa'), /^Tasa: /);
     a.strictEqual(await p.$$eval('.calc-fila', f => f.every(x => x.scrollWidth <= x.clientWidth)), true);
   }],
-  ['Tasas del día: sin tarjetas ni pastillas; la tuerca de arriba abre Ajustes y se queda ahí', async (env, a) => {
-    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/inicio' });
-    await p.click('.topbar .tasas');
-    a.strictEqual(await p.$('.capa .tasa-tile, .capa .equiv'), null);
-    a.strictEqual(await p.$('.capa .pie'), null, 'sin botón abajo');
-    await p.click('.capa #tasas-ajustes');
-    await p.waitForTimeout(500);
+  ['v2.18 · PC: la tuerca de la calculadora abre Ajustes › Tasas', async (env, a) => {
+    const p = await env.pagina({ ruta: '/inicio' });
+    await p.click('.topbar [aria-label="Calculadora"]');
+    await p.click('#calc-ajustes'); await p.waitForTimeout(500);
     a.strictEqual(await p.evaluate(() => location.hash), '#/ajustes');
-    a.strictEqual(await p.$('.capa'), null);
-    await p.goBack(); await p.waitForTimeout(300);
-    a.strictEqual(await p.evaluate(() => location.hash), '#/inicio');
+    a.strictEqual(await p.getAttribute('#aj-tab-tasas', 'aria-selected'), 'true');
+    a.strictEqual(await p.$('.calc2'), null);
   }],
   ['Calculadora: sin "0" de ejemplo, borrador arriba limpia todo y Enter oculta el teclado', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780 });

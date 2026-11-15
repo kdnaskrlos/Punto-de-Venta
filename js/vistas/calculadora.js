@@ -4,7 +4,6 @@ import { navegar } from '../app.js';
 import { abrirPestana } from './ajustes.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { copPorBs } from '../nucleo/tasas.js';
-import { fechaHora } from '../nucleo/fechas.js';
 import { leerTasaRemota } from '../datos/tasa-remota.js';
 
 const CAMPOS = [
@@ -77,38 +76,16 @@ export function abrirCalculadora(ctx) {
   // En PC no tapa el carrito: se abre a su izquierda y sin bloquear la pantalla.
   const tel = esTelefono();
   const borrar = h('button', { class: 'ibtn', id: 'calc-borrar', 'aria-label': 'Borrar todo', onclick: () => { usdBase = null; fuente = null; pintar(); } }, icono('borrador'));
-  const hj = abrirHoja({ titulo: 'Calculadora', contenido: h('div', { class: 'pila calc' }, ...filas, estado, ...(refs ? [refs.el] : [])), modal: tel, extraCab: borrar });
+  // v2.18 · PC: junto al borrador, una tuerca que lleva a Ajustes › Tasas.
+  const ajustes = tel ? null : h('button', { class: 'ibtn', id: 'calc-ajustes', 'aria-label': 'Ajustes de tasas', onclick: () => { abrirPestana('tasas'); hj.cerrar(); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca'));
+  const hj = abrirHoja({ titulo: 'Calculadora', contenido: h('div', { class: 'pila calc' }, ...filas, estado, ...(refs ? [refs.el] : [])), modal: tel, extraCab: ajustes ? h('span', { class: 'calc-extra' }, borrar, ajustes) : borrar });
   hj.el.querySelector('.caja')?.classList.add('calc2');
   hj.el.querySelector('.cab h2')?.prepend(icono('calculadora')); // v2.06: ícono en la cabecera
-  const lado = document.querySelector('.lado-carrito');
-  if (!tel && lado && lado.offsetParent) hj.el.querySelector('.caja').style.marginRight = `${hj.el.getBoundingClientRect().right - lado.getBoundingClientRect().left + 8}px`;
   hj.alCerrar = () => { window.removeEventListener('pos:datos', alDatos); refs?.quitar(); if (abierta === hj) abierta = null; };
   abierta = hj;
   return hj;
 }
 
-const TITULO_BS = { binance: 'Binance P2P', bcv: 'BCV oficial', manual: 'Tasa manual' };
-
-// v2.16: en la PC cada pastilla abre solo su tasa (solo: 'cop' | 'bs'); sin «solo», las dos (teléfono).
-export function abrirDetalleTasas(ctx, solo) {
-  const t = ctx.tasas;
-  // Sin el día de la semana: «12 nov · 8:00 am».
-  const cuando = iso => (iso ? fechaHora(iso).replace(/^\S+ /, '') : 'sin fecha');
-  const fila = (cls, ic, etiqueta, valor, moneda, fuente, fecha) => h('div', { class: 'tasa-fila ' + cls },
-    h('span', { class: 'tasa-ic' }, icono(ic)),
-    h('div', { class: 'tasa-txt' }, h('span', { class: 'tasa-et' }, etiqueta), h('span', { class: 'tasa-dato nota' }, fuente ? h('b', {}, fuente) : null, fuente ? ' · ' : null, cuando(fecha))),
-    h('span', { class: 'tasa-val num' }, valor ?? '—', valor != null ? h('small', {}, moneda) : null));
-  const tuerca = ctx.puedeVer('cambiarTasas') ? h('button', { class: 'tasas-ajustar', id: 'tasas-ajustes', onclick: () => { v.cerrar(); abrirPestana('tasas'); despuesDeCerrar(() => navegar('/ajustes')); } }, icono('tuerca'), 'Cambiar tasas') : null;
-  const cont = h('div', { class: 'tasas-dia' },
-    solo === 'bs' ? null : fila('cop', 'monedas', 'Pesos por dólar', t.copPorUsd ? fmtCop(t.copPorUsd) : null, 'COP', '', t.copActualizada),
-    // El título es la fuente elegida en Ajustes (Binance P2P, BCV oficial o Tasa manual), sin el recargo; abajo solo la fecha.
-    solo === 'cop' ? null : fila('bs', 'banco', TITULO_BS[t.fuenteBs] || t.fuenteBs || 'Bs por dólar',
-      t.bsPorUsd ? fmtDec(t.bsPorUsd) : null, 'Bs', t.ultimaConocida ? 'Última conocida' : '', t.bsActualizada),
-    !t.bsPorUsd && solo !== 'cop' ? h('div', { class: 'aviso' }, icono('alerta'), 'Sin tasa de Bs: los pagos en Bs quedan desactivados.') : null,
-    tuerca);
-  const v = abrirVentana({ titulo: solo === 'cop' ? 'Tasa del peso' : solo === 'bs' ? 'Tasa de Bs' : 'Tasas del día', contenido: cont, clase: 'desplegable' + (solo ? ' tasa-' + solo : ''), sinCabecera: true });
-  return v;
-}
 
 // v2.17 · Referencias de la Super Calculadora (Binance P2P y BCV), con el mismo diseño y los mismos textos.
 // Lee el tasa.json que ya trae la app (ctx.tasaRemota); «Actualizar» lo vuelve a leer al instante.

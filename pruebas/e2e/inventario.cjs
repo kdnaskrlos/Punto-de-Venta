@@ -195,7 +195,8 @@ casos('inventario', [
     a.ok(await p.$(itemDe('F-B-8') + ' .foto img'));
     a.strictEqual(await p.$(itemDe('F-N-8') + ' .foto img'), null, 'otro código sigue sin foto');
     await abrirPrenda(p, 'F-B-8');
-    a.strictEqual(await p.$$eval('.stk-capa .fotocard img', e => e.length), 1, 'la prenda muestra la foto arriba');
+    a.strictEqual(await p.$$eval('.stk-capa .det-mini img', e => e.length), 1, 'v2.18: la prenda muestra la miniatura junto al nombre');
+    await p.click('.stk-capa .det-mini'); await p.waitForSelector('.det-foto-grande'); await p.keyboard.press('Escape'); await p.waitForSelector('.det-foto-grande', { state: 'detached' });
     await p.keyboard.press('Escape'); await p.waitForSelector('.stk-capa', { state: 'detached' });
     await abrirSku(p, 'F-B-8');
     a.strictEqual(await p.$$eval('.stk-capa .fotocard img', e => e.length), 1, 'la talla muestra la foto arriba');
@@ -210,10 +211,10 @@ casos('inventario', [
     const png = await sharp({ create: { width: 40, height: 40, channels: 3, background: '#888' } }).png().toBuffer();
     await abrirPrenda(p, 'B-M');
     a.match(await hoja(p), /Código de imagen\s*img-0003/);
-    a.strictEqual(await p.$('.stk-capa .fotocard'), null, 'sin foto no hay tarjeta de foto');
+    a.strictEqual(await p.$('.stk-capa .det-mini'), null, 'sin foto no hay miniatura');
     await p.setInputFiles('#foto-codigo-archivo', { name: 'cualquiera.png', mimeType: 'image/png', buffer: png });
     await p.waitForSelector('text=Foto guardada para img-0003');
-    await p.waitForSelector('.stk-capa .fotocard img');
+    await p.waitForSelector('.stk-capa .det-mini img');
     a.strictEqual(await texto(p, '#foto-codigo'), 'Cambiar foto');
     a.ok(await p.evaluate(() => !!window.__pos.ctx.imagenes['img-0003']), 'registro');
     a.deepStrictEqual(p.errores, []);

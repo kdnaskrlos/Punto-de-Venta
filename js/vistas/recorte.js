@@ -13,18 +13,34 @@ export function avatarDe(u, tam = '') {
 }
 
 // Abre el recorte libre de una imagen. Devuelve el dataURL recortado o null si se cancela.
-export function recortarImagen(archivo) {
+// v2.18: las fotos del teléfono (12 MP o más) se achican primero a 1280 px; así el recorte abre rápido y fluido.
+async function prepararFoto(archivo) {
+  try {
+    const bmp = await createImageBitmap(archivo, { imageOrientation: 'from-image' });
+    const k = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+    const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height); bmp.close?.();
+    const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9));
+    return URL.createObjectURL(blob || archivo);
+  } catch { return URL.createObjectURL(archivo); }
+}
+
+export async function recortarImagen(archivo) {
+  const url = await prepararFoto(archivo);
+  const img = h('img', { class: 'rc-img', src: url, alt: '', draggable: 'false' });
+  // v2.18: la ventana se abre con la foto ya cargada (antes abría vacía y luego crecía: el «brinco»).
+  try { await img.decode(); } catch { /* se intenta igual */ }
   return new Promise(resolver => {
-    const url = URL.createObjectURL(archivo);
-    const img = h('img', { class: 'rc-img', src: url, alt: '', draggable: 'false' });
     const caja = h('div', { class: 'rc-caja rc-circulo' }, ...['nw', 'ne', 'sw', 'se'].map(k => h('i', { class: 'rc-asa ' + k, 'data-asa': k })));
     const marco = h('div', { class: 'rc-marco' }, img, h('div', { class: 'rc-sombra' }), caja);
     let r = null, listo = false; // recuadro en px dentro del marco
     const pintar = () => { Object.assign(caja.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' }); };
-    img.onload = () => {
-      const W = img.clientWidth, H = img.clientHeight, l = Math.min(W, H) * 0.8;
+    const iniciar = () => {
+      const W = img.clientWidth, H = img.clientHeight; if (!W || !H) return requestAnimationFrame(iniciar);
+      const l = Math.min(W, H) * 0.8;
       r = { x: (W - l) / 2, y: (H - l) / 2, w: l, h: l }; listo = true; pintar();
     };
+    requestAnimationFrame(iniciar);
     let arr = null;
     marco.addEventListener('pointerdown', e => {
       if (!listo) return;

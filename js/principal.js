@@ -5,7 +5,7 @@ import { h, cerrarCapaSuperior, hayCapas } from './ui.js';
 import { crearAlmacen, MODO_DEMO, DEMO_DIRECTO, usuarioDemo } from './datos/index.js';
 import { iniciarDatos } from './datos/vivos.js';
 import { pantallaEntrada, pantallaPrimerAdmin } from './vistas/entrar.js';
-import { abrirCalculadora, abrirDetalleTasas } from './vistas/calculadora.js';
+import { abrirCalculadora } from './vistas/calculadora.js';
 import { abrirCobrar } from './vistas/cobrar.js';
 import { abrirApartar } from './vistas/apartados.js';
 import { conCliente } from './vistas/cliente.js';
@@ -21,7 +21,6 @@ import './vistas/mas.js';
 
 window.__pos = { ctx };
 definirCalculadora(() => abrirCalculadora(ctx));
-ctx.abrirTasas = solo => abrirDetalleTasas(ctx, solo);
 ctx.abrirApartar = () => abrirApartar(ctx);
 ctx.abrirCobro = modo => { if (!carrito(ctx).lineas.length) return; conCliente(ctx, () => (modo === 'venta' ? abrirCobrar(ctx) : abrirApartar(ctx))); };
 

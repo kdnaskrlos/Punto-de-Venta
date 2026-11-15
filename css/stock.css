@@ -331,3 +331,10 @@ html.stk-sin-barra::-webkit-scrollbar,html.stk-sin-barra body::-webkit-scrollbar
 /* v2.16 · PC: acciones de la prenda en la cabecera de la ventana */
 .stk .det-cab .det-der{display:flex;align-items:center;gap:8px}
 .stk .det-cab .det-der .det-acc-cab{min-height:36px;padding:0 14px;flex:none;width:auto}
+/* v2.18 · Detalle de prenda: miniatura junto al nombre (la foto completa se abre al tocarla) */
+.stk .det-cab-izq{display:flex;align-items:center;gap:14px;min-width:0}
+.stk .det-mini{position:relative;flex:none;width:76px;height:76px;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface-2);cursor:zoom-in}
+.stk .det-mini img{width:100%;height:100%;object-fit:cover;display:block}
+.stk .det-mini-lupa{position:absolute;right:4px;bottom:4px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.92);color:#0f172a;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.foto-grande .caja{width:min(560px,calc(100vw - 32px))!important}
+.det-foto-grande{display:block;width:100%;max-height:70vh;object-fit:contain;border-radius:12px;background:var(--surface-2)}
