@@ -1,5 +1,5 @@
 // Tarea 12: cobrar con pagos mixtos, cliente obligatorio, vuelto, recibo, doble toque, sin tasa y sin conexión.
-const { casos } = require('./_servidor.cjs');
+const { cambiarA, casos } = require('./_servidor.cjs');
 const texto = (p, s) => p.$eval(s, e => e.textContent.replace(/\s+/g, ' ').trim());
 
 async function preparar(env, { sinCliente, ...opciones } = {}) {
@@ -97,6 +97,54 @@ casos('cobrar', [
     await p.click('.linea[data-sku="B-S"] [aria-label="Menos"]');
     await p.waitForSelector('text=Se quitó el descuento');
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.descuento), null);
+  }],
+  ['v2.26 · Apagón al cobrar: la venta ya guardada no se ofrece cobrar otra vez; si no se guardó, se retoma con el mismo id y los pagos escritos', async (env, a) => {
+    const p = await preparar(env, { ancho: 390, alto: 844 });
+    await p.click('[data-cobro] .cobrar'); await p.waitForSelector('#cobrar-final');
+    await p.click('.forma[data-forma="efectivo-cop"]'); await p.waitForTimeout(300);
+    const borrador = await p.evaluate(() => JSON.parse(localStorage.getItem('pos-venta-vendedora')).c);
+    a.ok(borrador.ventaId, 'el id de la venta va en el borrador antes de cobrar');
+    a.strictEqual(borrador.pagos[0].forma, 'efectivo-cop', 'los pagos escritos también');
+    // Caso 1: la luz se va sin guardar → al volver se retoma con el mismo id y el pago escrito
+    await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+    await p.evaluate(async () => { const c = window.__pos.ctx; c.carrito = null; const m = await import('/js/vistas/venta-en-curso.js'); await m.ofrecerRetomar(c); });
+    await p.click('#retomar-si'); await p.waitForTimeout(500);
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.ventaId), borrador.ventaId);
+    await p.click('[data-cobro] .cobrar'); await p.waitForSelector('#cobrar-final');
+    a.ok(await p.$('.pago[data-forma="efectivo-cop"]'), 'el pago escrito vuelve');
+    // Caso 2: la venta sí quedó guardada antes del corte → aviso y no se ofrece cobrarla otra vez
+    await p.click('#cobrar-final'); await p.waitForSelector('text=Venta exitosa');
+    await p.evaluate(id => { const c = window.__pos.ctx; localStorage.setItem('pos-venta-vendedora', JSON.stringify({ c: { lineas: [{ sku: 'B-S', cantidad: 1 }], ventaId: id }, en: Date.now() })); c.carrito = null; }, borrador.ventaId);
+    await p.evaluate(async () => { const m = await import('/js/vistas/venta-en-curso.js'); await m.ofrecerRetomar(window.__pos.ctx); });
+    await p.waitForSelector('text=La venta ya se guardó');
+    a.strictEqual(await p.$('#retomar-si'), null);
+    a.strictEqual(await p.evaluate(() => localStorage.getItem('pos-venta-vendedora')), null, 'el borrador se descarta');
+    a.strictEqual((await ventas(p)).filter(v => v.id === borrador.ventaId).length, 1);
+    a.deepStrictEqual(p.errores, []);
+  }],
+  ['v2.26 · Venta sin conexión que deja existencia negativa: al reconectar queda como conflicto y gestión lo ve en Inicio', async (env, a) => {
+    const p = await preparar(env);
+    await p.evaluate(() => { const c = window.__pos.ctx; c.almacen.simularSinConexion(true); const ex = c.productos['B-S'].existencia;
+      c.carrito = { lineas: [{ sku: 'B-S', cantidad: ex + 1 }], descuento: null, autorizacion: null, cliente: { nombre: 'Ana', telefono: '584121112233' } }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.click('[data-cobro] .cobrar'); await p.waitForSelector('#cobrar-final');
+    await p.click('.forma[data-forma="efectivo-cop"]'); await p.waitForTimeout(300);
+    await p.click('#cobrar-final');
+    const igual = await p.waitForSelector('button:has-text("Cobrar igual")', { timeout: 3000 }).catch(() => null);
+    if (igual) await igual.click();
+    await p.waitForSelector('text=Venta exitosa');
+    a.strictEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('pos-pendientes-vendedora') || '[]').length), 1, 'queda anotada para revisar');
+    await p.evaluate(async () => { window.__pos.ctx.almacen.simularSinConexion(false); const m = await import('/js/datos/pendientes.js'); await m.revisarPendientes(window.__pos.ctx); });
+    a.strictEqual(await p.evaluate(() => localStorage.getItem('pos-pendientes-vendedora')), null, 'revisada');
+    const cf = await p.evaluate(() => [...window.__pos.ctx.almacen._estado('conflictos').values()]);
+    a.strictEqual(cf.length, 1); a.strictEqual(cf[0].tipo, 'inventario');
+    await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+    await cambiarA(p, 'admin');
+    await p.evaluate(() => { location.hash = '/inicio'; });
+    await p.click('#ver-conflictos');
+    await p.waitForSelector('.conflicto.inventario');
+    await p.click('.conflicto button:has-text("Revisado")');
+    await p.waitForFunction(() => !document.querySelector('#ver-conflictos'));
+    a.deepStrictEqual(p.errores, []);
   }],
   ['F9 dos veces abre una sola ventana de cobro (revisión final)', async (env, a) => {
     const p = await preparar(env);

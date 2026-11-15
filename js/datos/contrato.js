@@ -17,7 +17,7 @@
 // Otros:       guardarAjustes(doc, datos) · guardarCliente({telefono, nombre}) · solicitarAutorizacion(a) · responderAutorizacion(id, aprobada)
 //              pagarComisiones(reg) · congelarCostoVenta(ventaId, costo) · estadoSync(cb({enLinea, pendientes, error})) → desuscribir
 // Modo prueba: cargarEjemplos({productos, costos, clientes, ventas, apartados}) · quitarEjemplos() (solo admin; todo con demo:true)
-export const NOMBRES = ['productos', 'ventas', 'apartados', 'cajas', 'autorizaciones', 'ajustes', 'clientes', 'comisiones', 'costos', 'costosVenta', 'movimientos', 'usuarios'];
+export const NOMBRES = ['productos', 'ventas', 'apartados', 'cajas', 'autorizaciones', 'ajustes', 'clientes', 'comisiones', 'costos', 'costosVenta', 'movimientos', 'usuarios', 'conflictos'];
 
 export function nuevoId() {
   const r = globalThis.crypto?.randomUUID?.() || (Date.now().toString(36) + Math.random().toString(36).slice(2));

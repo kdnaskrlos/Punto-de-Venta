@@ -9,6 +9,7 @@ import { fmtCop } from '../nucleo/dinero.js';
 import { hoy, sumarDias, inicioDia } from '../nucleo/fechas.js';
 import { escucharVentasConCosto, listaVentas } from './ventas-rango.js';
 import { prendas } from './inventario.js';
+import { abrirConflictos } from './conflictos.js';
 
 // Tarjetas como en la app de Pedidos: chip con ícono + etiqueta, valor grande, subtítulo de color e ícono de fondo.
 // Al tocarlas llevan a la pantalla que explica ese número.
@@ -65,7 +66,7 @@ registrarVista('/inicio', {
     const dia = hoy();
     const clave = `${ctx.sesion?.usuario}|${dia}`;
     const guardado = memo.clave === clave ? memo : {};
-    let datos = guardado.datos || null, cajas = guardado.cajas || [], apartados = guardado.apartados || [], autorizaciones = [];
+    let datos = guardado.datos || null, cajas = guardado.cajas || [], apartados = guardado.apartados || [], autorizaciones = [], conflictos = [];
     let llegaron = !!datos;
     // v2.00: cada recuadro sabe si sus datos ya llegaron. Mientras no, muestra lo último que se vio (o el gris
     // que respira la primera vez); así ya no aparecen 0 o «—» por un instante ni montos que saltan.
@@ -129,7 +130,12 @@ registrarVista('/inicio', {
             h('button', { class: 'btn primary', onclick: e => unaVez(e.currentTarget, async () => { const r = await ctx.almacen.responderAutorizacion(a.id, true); toast(r.ok ? 'Aprobado' : 'No se pudo', { malo: !r.ok }); })() }, 'Aprobar'))))] : []));
       const alerta = (txt, detalle) => h('div', { class: 'aviso grave' }, icono('alerta'), h('div', {}, h('b', {}, txt), detalle ? h('div', { class: 'nota' }, detalle) : null));
       const cierres = cajas.filter(c => c.estado === 'cerrada' && c.cierre?.fecha >= inicioDia(dia) && (c.cierre.filas || []).some(f => f.nivel !== 'ok'));
-      alertas.replaceChildren(...(gestion ? [
+      // v2.26: conflictos de sincronización (rechazadas o que dejaron existencia negativa), primero y en rojo.
+      const avisoConflictos = conflictos.length ? h('div', { class: 'aviso grave conflictos-aviso' }, icono('alerta'),
+        h('div', {}, h('b', {}, `${conflictos.length} ${conflictos.length === 1 ? 'conflicto' : 'conflictos'} por revisar`),
+          h('div', { class: 'nota' }, conflictos.some(c => c.tipo === 'rechazada') ? 'Hay cobros que no llegaron al sistema.' : 'Ventas sin conexión que dejaron existencia negativa.')),
+        h('button', { class: 'btn', id: 'ver-conflictos', onclick: () => abrirConflictos(ctx, conflictos) }, 'Revisar')) : null;
+      alertas.replaceChildren(...(gestion ? [avisoConflictos,
         negativos.length ? alerta('Existencia negativa', negativos.map(p => `${nombreVenta(p)} · ${p.talla ? 'Talla ' + p.talla : 'Talla única'} (${p.existencia})`).join(', ') + '. Se vendió sin conexión más de lo que había: revisa las ventas y ajusta.') : null,
         ...(ctx.porArquear || []).filter(c => c.tipo !== 'personal').map(c => h('div', { class: 'aviso' }, icono('alerta'), h('div', {}, h('b', {}, `La caja de @${c.usuario} del ${diaCorto(c.cierre?.fecha || c.abierta)} se cerró sola y falta arquearla`), h('div', { class: 'nota' }, 'Se arquea cuando cuente el dinero al abrir la caja de hoy.')))),
         ...cierres.map(c => alerta(`Cierre con diferencia · @${c.usuario}`, `${c.cierre.totalCop > 0 ? '+' : ''}${fmtCop(c.cierre.totalCop)} COP · ${c.cierre.nota || ''}`)),
@@ -152,6 +158,7 @@ registrarVista('/inicio', {
       q.push(ctx.almacen.escuchar('cajas', l => { abiertas = l; okA = true; unir(); }, { estado: 'abierta' }));
       q.push(ctx.almacen.escuchar('cajas', l => { recientes = l; okR = true; unir(); }, { desde: inicioDia(sumarDias(dia, -3)) }));
     }
+    if (gestion) q.push(ctx.almacen.escuchar('conflictos', l => { conflictos = l.filter(c => c.estado === 'pendiente').sort((a, b) => String(b.detectado).localeCompare(String(a.detectado))); pintar(); }));
     if (ctx.puedeVer('aprobarDescuento')) q.push(ctx.almacen.escuchar('autorizaciones', l => { autorizaciones = l; pintar(); }, { estado: 'pendiente' }));
     const alDatos = e => { if (['productos', 'caja', 'tasas', 'ajustes'].includes(e.detail.que)) pintar(); };
     window.addEventListener('pos:datos', alDatos);

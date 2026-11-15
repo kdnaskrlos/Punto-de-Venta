@@ -2,7 +2,7 @@
 // Cumple el contrato de contrato.js. Las reglas de firestore.rules repiten estos permisos en el servidor.
 import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocs, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion, documentId } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocFromServer, getDocs, waitForPendingWrites, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion, documentId } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { puede } from '../nucleo/permisos.js';
 import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
@@ -16,7 +16,7 @@ const pinPass = pin => 'cs-' + pin;
 const correo = u => `${u}.${Math.random().toString(36).slice(2, 6)}@comicshop-pos.app`;
 const limpiarUsuario = s => String(s || '').trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, '.').replace(/[^a-z0-9._-]/g, '');
 const RESTRINGIDAS = ['costos', 'costosVenta', 'comisiones', 'movimientos'];
-const PROPIAS = ['ventas', 'cajas', 'autorizaciones'];
+const PROPIAS = ['ventas', 'cajas', 'autorizaciones', 'conflictos'];
 
 function cumpleFiltro(d, f) {
   if (!f) return true;
@@ -326,6 +326,30 @@ export function crearFirebase(config) {
     },
     async obtener(nombre, id) {
       try { const s = await getDoc(ref(nombre, id)); return s.exists() ? { id: s.id, ...s.data() } : null; } catch { return null; }
+    },
+    // v2.26 · Conflictos de sincronización: lectura directa del servidor (lanza si no hay conexión),
+    // espera a que suba lo pendiente, y registro / revisión de conflictos.
+    async verificarServidor(nombre, id) {
+      const s = await getDocFromServer(ref(nombre, id));
+      return s.exists() ? { id: s.id, ...s.data() } : null;
+    },
+    async esperarSubidas(topeMs = 15000) {
+      return Promise.race([waitForPendingWrites(db).then(() => true), new Promise(r => setTimeout(() => r(false), topeMs))]);
+    },
+    async registrarConflicto(c) {
+      if (!sesion) return NO('sesion');
+      try {
+        await setDoc(ref('conflictos', c.id), limpiarIndefinidos({ ...c, usuario: sesion.usuario, uid: sesion.uid, estado: 'pendiente', detectado: ahora() }));
+        return SI();
+      } catch (e) {
+        // Ya registrado (la regla no deja reescribirlo): cuenta como hecho.
+        try { if ((await getDocFromServer(ref('conflictos', c.id))).exists()) return SI(); } catch { /* sin conexión */ }
+        return NO(e.code === 'permission-denied' ? 'permiso' : 'error');
+      }
+    },
+    async revisarConflicto(id, nota) {
+      const e = exigir('verReportesTodos'); if (e) return NO(e);
+      return sinEsperar(updateDoc(ref('conflictos', id), { estado: 'revisado', revision: { por: sesion.usuario, fecha: ahora(), nota: String(nota || '').trim() } }));
     },
 
     // ---- ventas ----

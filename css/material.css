@@ -1519,3 +1519,21 @@ label[for=aj-redondeo]{font-weight:600!important}
 .rep-cierre .rc-nota span{font-size:12px;color:var(--muted)}.rep-cierre .rc-nota p{margin:2px 0 0;font-size:14px}
 @media (max-width:420px){.rep-cierre .rc-fila{grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,.9fr));font-size:12px;padding:8px 10px}}
 .rep-cierre .rc-fila.cab > span:first-child{text-align:left}
+/* v2.26 · Conflictos de sincronización */
+.conflictos-aviso{align-items:center}
+.conflictos-aviso > .btn{margin-left:auto;flex:none}
+.lista-conflictos{gap:12px!important}
+.conflicto{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.conflicto.rechazada{border-color:var(--r-bd)}
+.conflicto.inventario{border-color:var(--y-bd)}
+.conflicto .cf-cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.conflicto .cf-cab .nota{margin-left:auto}
+.conflicto .cf-txt{margin:0;font-size:13px;color:var(--muted);line-height:1.45}
+.conflicto .cf-datos{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.conflicto .cf-datos span{display:inline-flex;align-items:center;gap:6px}
+.conflicto .cf-datos svg.i{width:15px;height:15px;color:var(--muted)}
+.conflicto .cf-neg{font-size:12.5px}
+.conflicto .cf-acc{display:flex;gap:8px}
+.conflicto .cf-acc .inp{flex:1;min-width:0;min-height:40px}
+.conflicto .cf-acc .btn{flex:none}
+.conflicto .cf-et{font-size:12px;color:var(--muted);margin-bottom:-4px}

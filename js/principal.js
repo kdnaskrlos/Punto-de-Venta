@@ -1,6 +1,7 @@
 // Punto de entrada: crea el almacén, muestra la entrada o la app según la sesión y registra el service worker.
 import { ctx, mostrarApp, definirCalculadora } from './app.js';
 import { vigilarVentaEnCurso, ofrecerRetomar } from './vistas/venta-en-curso.js';
+import { vigilarPendientes } from './datos/pendientes.js';
 import { h, icono, cerrarCapaSuperior, hayCapas } from './ui.js';
 import { crearAlmacen, MODO_DEMO, DEMO_DIRECTO, usuarioDemo } from './datos/index.js';
 import { iniciarDatos } from './datos/vivos.js';
@@ -44,7 +45,7 @@ async function iniciar() {
     while (hayCapas()) cerrarCapaSuperior();
     pararDatos && pararDatos(); pararDatos = null;
     ctx.carrito = null;
-    if (s) { pararDatos = iniciarDatos(ctx); mostrarApp(); setTimeout(() => ofrecerRetomar(ctx), 700); }
+    if (s) { pararDatos = iniciarDatos(ctx); mostrarApp(); setTimeout(() => ofrecerRetomar(ctx), 700); setTimeout(revisarPendientes, 4000); }
     else {
       // La consulta a Firebase puede tardar: si mientras tanto alguien entró, su respuesta atrasada no debe
       // tapar la app con la pantalla de entrada (antes pasaba y ya no se podía entrar sin recargar).
@@ -56,6 +57,7 @@ async function iniciar() {
   });
 }
 vigilarVentaEnCurso(ctx);
+const revisarPendientes = vigilarPendientes(ctx);
 iniciar();
 
 // Actualizaciones: se buscan al volver a la app y cada 10 minutos (antes solo al recargar con el botón que se quitó).

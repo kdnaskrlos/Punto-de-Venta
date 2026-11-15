@@ -140,6 +140,17 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // v2.26 · Conflictos de sincronización (ventas, apartados o abonos que el servidor rechazó, o que dejaron
+    // existencia negativa): los registra quien los tuvo; gestión los ve y los marca como revisados. Nadie los borra.
+    match /conflictos/{id} {
+      allow read: if esGestion() || (activo() && resource.data.usuario == yo());
+      allow create: if activo() && request.resource.data.usuario == yo() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.estado == 'pendiente';
+      allow update: if esGestion() && resource.data.estado == 'pendiente' && soloCambian(['estado', 'revision'])
+        && request.resource.data.estado == 'revisado';
+      allow delete: if false;
+    }
+
     match /clientes/{telefono} {
       allow read, write: if activo();
     }

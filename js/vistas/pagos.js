@@ -10,9 +10,11 @@ export const nombreCorto = n => (n.split('/')[0].replace(/\(.*?\)/g, '').replace
 const GRUPOS = [['COP', 'Pesos', 'c-cop'], ['USD', 'Dólares', 'c-usd'], ['BS', 'Bs', 'c-bs']];
 
 // total: monto a cubrir en COP. permitirMenos: en abonos de apartado se puede pagar menos que el total.
-export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar = () => {} }) {
+// iniciales (v2.26): pagos ya escritos [{ forma, monto }] (borrador recuperado tras un apagón).
+export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar = () => {}, iniciales = null }) {
   const formas = (ctx.ajustes.formasPago || []).filter(f => f.activa !== false);
   const pagos = [];
+  for (const x of iniciales || []) { const forma = formas.find(f => f.id === x.forma); if (forma && x.monto > 0 && !pagos.some(p => p.forma.id === forma.id)) pagos.push({ forma, monto: x.monto }); }
   const lista = h('div', { class: 'pagos' });
   let botones = null;
   let monedaVuelto = 'COP';
@@ -163,6 +165,8 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     ponerTotal(n) { total = n; pintarBarra(); avisar(); },
     barra, // la ventana la coloca en el pie, siempre visible
     estado,
+    // v2.26: lo escrito, para guardarlo en el borrador de la venta.
+    borrador: () => pagos.filter(p => p.monto > 0).map(p => ({ forma: p.forma.id, monto: p.monto })),
     // Pagos y vuelto listos para guardar en la venta o el apartado.
     resultado() {
       const e = estado();

@@ -6,6 +6,8 @@ import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento, equivalentes, abrirDescuento } from './vender.js';
 import { crearApartado } from './apartados.js';
 import { crearPanelPagos } from './pagos.js';
+import { guardarVentaEnCurso } from './venta-en-curso.js';
+import { anotarPendiente } from '../datos/pendientes.js';
 import { comisionesVenta } from '../nucleo/comisiones.js';
 import { repartirDescuento } from '../nucleo/descuento.js';
 import { enlaceWhatsApp } from '../nucleo/recibo.js';
@@ -62,7 +64,12 @@ export function abrirCobrar(ctx) {
   let r0 = resumenCarrito(ctx);
   if (!r0.lineas.length) return;
   if (r0.total <= 0) { toast('El total debe ser mayor que 0', { malo: true }); return; }
-  const idVenta = ctx.almacen.nuevoId(), idApartado = ctx.almacen.nuevoId();
+  // v2.26 · Apagones: los ids van en el borrador del carrito ANTES de enviar. Si la luz se va a mitad del cobro,
+  // al volver se revisa si esa venta ya existe (no se cobra dos veces) y, si no, se cobra con el mismo id.
+  const c0 = carrito(ctx);
+  c0.ventaId ||= ctx.almacen.nuevoId(); c0.apartadoId ||= ctx.almacen.nuevoId();
+  guardarVentaEnCurso(ctx);
+  const idVenta = c0.ventaId, idApartado = c0.apartadoId;
   let guardando = false, hecha = false;
   // v2.06: sin encabezado «Cobrar». Arriba, volver y el cliente; el total con su Descuento; abajo Apartar y Cobrar.
   const final = h('button', { class: 'btn primary grande', id: 'cobrar-final' });
@@ -78,7 +85,7 @@ export function abrirCobrar(ctx) {
     apartar.disabled = guardando || e.vueltoCop > 0 || e.cuadra || e.pagos.some(p => p.equivalenteCop == null);
     abonoTxt.hidden = !(abono > 0 && !e.cuadra); abonoTxt.textContent = `abono ${fmtCop(abono)}`;
   };
-  const panel = crearPanelPagos(ctx, { total: r0.total, alCambiar: () => actualizar() });
+  const panel = crearPanelPagos(ctx, { total: r0.total, iniciales: c0.pagos, alCambiar: () => { actualizar(); if (!hecha) { carrito(ctx).pagos = panel.borrador(); guardarVentaEnCurso(ctx); } } });
   const cliente = resumenCliente(ctx);
   const totalBox = h('div', { class: 'total-cobro tarjeta cb-total' });
   const descBox = h('div', { class: 'cb-desc' });
@@ -148,6 +155,7 @@ export function abrirCobrar(ctx) {
         return;
       }
       hecha = true;
+      if (res.offline) anotarPendiente(ctx, { que: 'venta', id: idVenta, offline: true, datos: venta }); // v2.26: se revisa al reconectar
       ctx.almacen.guardarCliente(venta.cliente);
       const guardada = await ctx.almacen.obtener('ventas', idVenta) || venta;
       const enlace = enlaceWhatsApp(guardada, ctx.ajustes.tienda || { nombre: 'Comic Shop' }, ctx.ajustes.recibo);

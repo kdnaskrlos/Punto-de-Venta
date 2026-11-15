@@ -56,7 +56,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
     if (!sesion) return false;
     const r = rol();
     if (['costos', 'costosVenta', 'comisiones', 'movimientos'].includes(nombre)) return puede(r, 'verCostos');
-    if (['ventas', 'cajas'].includes(nombre)) return puede(r, 'verReportesTodos') || doc.usuario === sesion.usuario;
+    if (['ventas', 'cajas', 'conflictos'].includes(nombre)) return puede(r, 'verReportesTodos') || doc.usuario === sesion.usuario;
     if (nombre === 'autorizaciones') return r === 'admin' || doc.usuario === sesion.usuario;
     return true;
   };
@@ -165,6 +165,19 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       return () => { const i = oyentes.indexOf(o); if (i >= 0) oyentes.splice(i, 1); };
     },
     async obtener(nombre, id) { const d = col[nombre].get(id); return d && visible(nombre, d) ? copia(d) : null; },
+    async verificarServidor(nombre, id) { if (offline) throw new Error('sin conexión'); return api.obtener(nombre, id); },
+    async esperarSubidas() { return !offline; },
+    async registrarConflicto(c) {
+      if (!sesion) return NO('sesion');
+      if (!col.conflictos.has(c.id)) col.conflictos.set(c.id, { ...copia(c), usuario: sesion.usuario, uid: sesion.uid, estado: 'pendiente', detectado: ahora() });
+      avisar('conflictos'); return SI();
+    },
+    async revisarConflicto(id, nota) {
+      const e = exigir('verReportesTodos'); if (e) return NO(e);
+      const c = col.conflictos.get(id); if (!c) return NO('no-existe');
+      c.estado = 'revisado'; c.revision = { por: sesion.usuario, fecha: ahora(), nota: String(nota || '').trim() };
+      avisar('conflictos'); return SI();
+    },
 
     // ---- ventas ----
     async guardarVenta(venta) {

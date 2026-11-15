@@ -7,6 +7,8 @@ import { navegar } from '../app.js';
 const VIGENCIA = 24 * 60 * 60 * 1000;
 const clave = ctx => 'pos-venta-' + (ctx.sesion?.usuario || '');
 
+export function guardarVentaEnCurso(ctx) { guardar(ctx); }
+
 function guardar(ctx) {
   if (!ctx.sesion) return;
   const c = ctx.carrito;
@@ -30,10 +32,22 @@ export function vigilarVentaEnCurso(ctx) {
   window.addEventListener('pagehide', g);
 }
 
-export function ofrecerRetomar(ctx) {
+export async function ofrecerRetomar(ctx) {
   const d = leer(ctx);
   if (!d || ctx.carrito?.lineas?.length) return;
   const c = d.c;
+  // v2.26 · Si la luz se fue justo al cobrar, la venta (o el apartado) pudo quedar guardada: no se ofrece cobrarla otra vez.
+  const ya = (c.ventaId && await ctx.almacen.obtener('ventas', c.ventaId)) ? 'venta' : (c.apartadoId && await ctx.almacen.obtener('apartados', c.apartadoId)) ? 'apartado' : null;
+  if (ya) {
+    try { localStorage.removeItem(clave(ctx)); } catch { /* */ }
+    const ok = h('button', { class: 'btn primary', id: 'ya-guardada' }, 'Entendido');
+    const v = abrirVentana({ titulo: ya === 'venta' ? 'La venta ya se guardó' : 'El apartado ya se guardó', contenido: h('p', { class: 'nota' },
+      `${ya === 'venta' ? 'La venta' : 'El apartado'}${c.cliente?.nombre ? ' de ' + c.cliente.nombre : ''} que estaba en curso sí quedó guardado antes del corte. No hay que cobrarlo otra vez.`),
+      acciones: h('div', { class: 'acciones' }, ok) });
+    ok.onclick = () => v.cerrar();
+    return;
+  }
+  if (ctx.carrito?.lineas?.length) return;
   const prendas = c.lineas.reduce((s, l) => s + l.cantidad, 0);
   const nombres = [...new Set(c.lineas.map(l => (ctx.productos?.[l.sku] ? titulo(ctx.productos[l.sku]) : l.sku)))];
   const continuar = h('button', { class: 'btn primary', id: 'retomar-si' }, icono('check'), 'Continuar');
@@ -47,7 +61,8 @@ export function ofrecerRetomar(ctx) {
   cancelar.onclick = () => { try { localStorage.removeItem(clave(ctx)); } catch { /* */ } v.cerrar(); };
   continuar.onclick = () => {
     const existe = sku => !ctx.productos || !Object.keys(ctx.productos).length || ctx.productos[sku];
-    ctx.carrito = { lineas: c.lineas.filter(l => existe(l.sku)), descuento: c.descuento || null, autorizacion: c.autorizacion || null, ...(c.cliente ? { cliente: c.cliente } : {}) };
+    ctx.carrito = { lineas: c.lineas.filter(l => existe(l.sku)), descuento: c.descuento || null, autorizacion: c.autorizacion || null, ...(c.cliente ? { cliente: c.cliente } : {}),
+      ...(c.ventaId ? { ventaId: c.ventaId, apartadoId: c.apartadoId } : {}), ...(c.pagos?.length ? { pagos: c.pagos } : {}) }; // v2.26: mismos ids y pagos escritos
     v.cerrar();
     window.dispatchEvent(new CustomEvent('pos:carrito'));
     // v2.13: se va al carrito cuando la ventana termina de cerrarse (antes el «atrás» del cierre deshacía el cambio de pantalla).
