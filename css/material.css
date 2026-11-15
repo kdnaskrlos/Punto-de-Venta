@@ -1039,3 +1039,9 @@ label[for=aj-redondeo]{font-weight:600!important}
 .rd-hero{padding:12px 14px!important;gap:10px 16px!important}.rh-num{font-size:26px!important}.rh-num[data-largo=l]{font-size:23px!important}.rh-num[data-largo=xl]{font-size:20px!important}
 .rh-pila i{transform-origin:left;animation:repLlena .55s cubic-bezier(.22,.9,.3,1) both .1s}
 @media (prefers-reduced-motion:reduce){.rh-pila i{animation:none}}
+/* v2.05: carrito plegado — color y talla debajo del nombre; el monto alineado con la línea base de esa segunda línea */
+.linea.mini{align-items:last baseline}
+.linea.mini > .lc-q,.linea.mini > svg.i{align-self:center}
+.linea.mini .lc-t{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.linea.mini .lc-t b,.linea.mini .lc-t small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.linea.mini .lc-t small{font-size:13px;color:var(--muted)}

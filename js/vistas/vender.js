@@ -94,7 +94,8 @@ function lineaCarrito(ctx, l, aj, compacta) {
   const alternar = () => { const c = carrito(ctx); c.abierta = c.abierta === l.sku ? null : l.sku; window.dispatchEvent(new CustomEvent('pos:carrito')); };
   if (compacta) return h('div', { class: 'linea mini', 'data-sku': l.sku, role: 'button', tabindex: '0', 'aria-expanded': 'false', onclick: alternar, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } } },
     h('span', { class: 'lc-q num' }, String(l.cantidad)),
-    h('span', { class: 'lc-t' }, h('b', {}, g.titulo), h('small', {}, ` · ${variante}`)),
+    // v2.05: color y talla en una segunda línea, debajo del nombre; el monto sobre la línea base de esa línea.
+    h('span', { class: 'lc-t' }, h('b', {}, g.titulo), h('small', {}, variante)),
     h('span', { class: 'lc-monto' }, h('span', { class: 'num monto' }, fmtCop(l.subtotal))),
     icono('abajo'));
   const plegable = carrito(ctx).lineas.length > MAX_ABIERTAS;
