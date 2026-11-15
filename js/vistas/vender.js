@@ -459,7 +459,14 @@ export function tarjetaPrenda(ctx, g, { alTocar, carrito: conCarrito = false, po
       !agotada && oferta ? h('span', { class: 'tp-estado tp-oferta' }, 'oferta') : null));
 }
 function tarjeta(ctx, g) {
-  return tarjetaPrenda(ctx, g, { carrito: true, alTocar: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? abrirTallas(ctx, g) : abrirCajaVentana(ctx)) });
+  // v2.04: si la prenda tiene una sola talla se agrega directo (1 unidad por toque); con varias, la ventana de tallas.
+  const tocar = () => {
+    if (g.variantes.length !== 1) return abrirTallas(ctx, g);
+    const p = g.variantes[0];
+    if (p.existencia - enCarrito(ctx, p.sku) <= 0) { toast(enCarrito(ctx, p.sku) ? 'No hay más existencia' : 'No hay existencia'); return; }
+    agregarAlCarrito(ctx, p.sku, 1);
+  };
+  return tarjetaPrenda(ctx, g, { carrito: true, alTocar: () => (ctx.miCaja || !ctx.puedeVer('cajaFisica') ? tocar() : abrirCajaVentana(ctx)) });
 }
 
 registrarVista('/vender', {

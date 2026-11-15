@@ -350,4 +350,18 @@ casos('vender', [
     await p.evaluate(() => { location.hash = '/ajustes'; }); await p.waitForSelector('#aj-tab-recibo'); await p.click('#aj-tab-recibo');
     a.strictEqual(await p.$eval('#aj-plantilla', e => Math.round(e.getBoundingClientRect().height)), 520);
   }],
+  ['v2.04 · Prenda de una sola talla: un toque la agrega sin abrir la ventana de tallas; otro toque suma; sin existencia avisa', async (env, a) => {
+    const p = await env.pagina({ ancho: 390, alto: 844, usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.evaluate(() => { const c = window.__pos.ctx; const b = c.productos['J-M'];
+      c.productos['G-U'] = { ...b, sku: 'G-U', codigo: '7700001', nombre: 'Gorra Trucker Unisex Negro', tipo: 'Gorra', marca: 'Trucker', genero: 'Unisex', color: 'Negro', tela: '', talla: '', grupo: undefined, titulo: undefined, existencia: 1 };
+      window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que: 'productos' } })); });
+    await p.fill('#buscar', 'gorra'); await p.waitForSelector('.tarjeta-prenda[data-nombre^="Gorra"]');
+    await p.click('.tarjeta-prenda[data-nombre^="Gorra"]');
+    a.strictEqual(await p.$('.capa .talla-mas'), null, 'sin ventana de tallas');
+    await p.waitForSelector('.zona-carrito .linea[data-sku="G-U"]');
+    a.strictEqual(await p.inputValue('#buscar'), '');
+    await p.fill('#buscar', 'gorra'); await p.click('.tarjeta-prenda[data-nombre^="Gorra"]');
+    await p.waitForSelector('.toast:has-text("No hay más existencia")');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.lineas.find(l => l.sku === 'G-U').cantidad), 1);
+  }],
 ]);
