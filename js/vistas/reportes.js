@@ -1,11 +1,11 @@
-import { nombreVenta } from '../nucleo/producto.js';
+import { nombreVenta, titulo } from '../nucleo/producto.js';
 // Reportes (§15) y comisiones (§14).
 import { h, icono, toast, sin, unaVez, abrirVentana, largo } from '../ui.js';
 import { registrarVista } from '../app.js';
 import { resumenDia, masVendidos, inventarioBajo, valorInventario, ventasPorPeriodo, cobrosEnPesos } from '../nucleo/reportes.js';
 import { resumenComisiones, ganaComision } from '../nucleo/comisiones.js';
 import { fmtCop, fmtMonto } from '../nucleo/dinero.js';
-import { NOMBRE_MONEDA } from '../nucleo/formas.js';
+import { NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
 import { hoy, sumarDias, rangoCorto } from '../nucleo/fechas.js';
 import { abrirCalendarioRango } from './calendario.js';
 import { escucharVentasConCosto, listaVentas } from './ventas-rango.js';
@@ -13,18 +13,18 @@ import { escucharVentasConCosto, listaVentas } from './ventas-rango.js';
 // v1.94: Ventas y Ganancia van en dos columnas iguales; la letra baja antes (desde 8 caracteres) para que no se toquen.
 const largoKpi = t => { const n = String(t).length; return n >= 12 ? 'xl' : n >= 10 ? 'l' : n >= 8 ? 'm' : null; };
 
-// Selector de rango: Hoy / Semana / 7 días / Este mes, o cualquier rango con el calendario propio.
+// Selector de rango: Hoy / Semana / Mes / Año (v2.01), o cualquier rango con el calendario propio.
 function selectorRango(alCambiar, inicial = 'hoy') {
   const d = hoy();
   const lunes = sumarDias(d, -((new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7));
-  const RANGOS = { hoy: [d, d], semana: [lunes, d], siete: [sumarDias(d, -6), d], mes: [d.slice(0, 8) + '01', d] };
+  const RANGOS = { hoy: [d, d], semana: [lunes, d], mes: [d.slice(0, 8) + '01', d], ano: [d.slice(0, 5) + '01-01', d] };
   let [desde, hasta] = RANGOS[inicial];
   let activo = inicial;
   const seg = h('div', { class: 'segmentado' });
   const boton = h('button', { type: 'button', class: 'pill rango-btn', id: 'rango-btn', 'aria-label': 'Elegir fechas' });
   const fijar = (a, b, k) => { [desde, hasta] = [a, b]; activo = k; pintar(); alCambiar(desde, hasta); };
   const pintar = () => {
-    seg.replaceChildren(...[['hoy', 'Hoy'], ['semana', 'Semana'], ['siete', '7 días'], ['mes', 'Este mes']].map(([k, t]) =>
+    seg.replaceChildren(...[['hoy', 'Hoy'], ['semana', 'Semana'], ['mes', 'Mes'], ['ano', 'Año']].map(([k, t]) =>
       h('button', { 'aria-pressed': String(k === activo), onclick: () => fijar(...RANGOS[k], k) }, t)));
     boton.replaceChildren(h('span', {}, icono('calendario'), rangoCorto(desde, hasta)));
   };
@@ -50,12 +50,21 @@ function tonosPorForma(ids, monedaDe) {
 function graficaVentas(p) {
   const max = Math.max(...p.barras.map(b => b.total), 0);
   const salto = p.barras.length > 16 ? Math.ceil(p.barras.length / 8) : p.barras.length > 9 ? 2 : 1;
-  return h('div', { class: 'graf', role: 'img', 'aria-label': `Ventas por ${p.modo === 'hora' ? 'hora' : 'día'}` },
-    h('div', { class: 'graf-barras' }, ...p.barras.map(b => h('div', { class: 'graf-col' + (max && b.total === max ? ' max' : ''), title: `${b.etiqueta}: ${fmtCop(b.total)}` },
+  return h('div', { class: 'graf', role: 'img', 'aria-label': `Ventas por ${p.modo === 'hora' ? 'hora' : p.modo === 'mes' ? 'mes' : 'día'}` },
+    h('div', { class: 'graf-barras' }, ...p.barras.map((b, i) => h('div', { class: 'graf-col' + (max && b.total === max ? ' max' : ''), style: `--i:${i}`, title: `${b.etiqueta}: ${fmtCop(b.total)}` },
       max && b.total === max ? h('span', { class: 'graf-tope num' }, fmtCop(b.total)) : null,
       h('i', { style: `height:${max ? Math.max(b.total ? 3 : 0, (b.total / max) * 100) : 0}%` })))),
     h('div', { class: 'graf-ejes' }, ...p.barras.map((b, i) => h('span', {}, i % salto === 0 ? b.etiqueta : ''))));
 }
+
+// v2.01 · Contenido de las ventanas de Reportes: un total arriba y filas con ícono o puesto, nombre, detalle,
+// monto y una barra de proporción. Sencillo, con el color de cada forma de pago.
+const rdTotal = (et, valor, sub) => h('div', { class: 'rd-tot' }, h('span', {}, et), h('b', { class: 'num', 'data-largo': largo(valor) }, valor), sub ? h('small', {}, sub) : null);
+const rdFila = ({ ic, puesto, color, nombre, detalle, valor, sub, pct: p, extra }) => h('div', { class: 'rd-fila' + (p != null ? ' con-barra' : ''), style: color ? `--c:${color}` : '' },
+  puesto != null ? h('span', { class: 'rd-puesto num' + (puesto <= 3 ? ' top' : '') }, String(puesto)) : ic ? h('span', { class: 'rd-ic' }, icono(ic)) : null,
+  h('span', { class: 'rd-n' }, h('b', {}, nombre), detalle ? h('small', {}, detalle) : null, extra || null),
+  h('span', { class: 'rd-v' }, typeof valor === 'string' ? h('b', { class: 'num' }, valor) : valor, sub ? h('small', {}, sub) : null),
+  p != null ? h('span', { class: 'rd-barra', 'aria-hidden': 'true' }, h('i', { style: `width:${Math.max(2, p)}%` })) : null);
 
 // Fila de sección que abre el detalle.
 const filaSeccion = (cls, ic, titulo, resumen, alAbrir) => h('button', { type: 'button', class: 'rep-fila ' + cls, onclick: alAbrir },
@@ -66,6 +75,11 @@ registrarVista('/reportes', {
     const gestion = ctx.puedeVer('verReportesTodos');
     let quitar = null, datos = { ventas: [], costosVenta: null, costos: {} }, rangoActual = [hoy(), hoy()];
     const cuerpo = h('div', { class: 'pila rep' });
+    // v2.01: al cambiar de Hoy/Semana/Mes/Año el contenido entra con un fundido y las gráficas crecen. Las piezas
+    // que no cambian se reusan, para que una actualización de datos no reinicie la animación.
+    let animar = true, tAnim = 0;
+    const memo = new Map();
+    const reusar = (k, clave, armar) => { const m = memo.get(k); if (m && m.clave === clave) return m.el; const el = armar(); memo.set(k, { clave, el }); return el; };
     const pintar = () => {
       const r = resumenDia(datos.ventas, datos.costosVenta, ctx.ajustes.formasPago);
       const formas = ctx.ajustes.formasPago;
@@ -89,39 +103,50 @@ registrarVista('/reportes', {
           h('span', {}, h('b', { class: 'num' }, String(r.ventas)), r.ventas === 1 ? ' venta' : ' ventas'),
           h('span', {}, h('b', { class: 'num' }, String(r.unidades)), r.unidades === 1 ? ' prenda' : ' prendas'),
           h('span', {}, 'ticket ', h('b', { class: 'num' }, fmtCop(r.ticketPromedio)))),
-        r.ventas ? graficaVentas(ventasPorPeriodo(datos.ventas, ...rangoActual)) : null);
+        r.ventas ? (() => { const pp = ventasPorPeriodo(datos.ventas, ...rangoActual); return reusar('graf', pp.modo + pp.barras.map(b => b.total).join(','), () => graficaVentas(pp)); })() : null);
 
       const pagos = h('div', { class: 'tarjeta rep-pagos' }, h('h2', { class: 'sec-t' }, 'Cobros'),
         sumaPesos ? h('div', { class: 'rep-pila', role: 'img', 'aria-label': 'Reparto de cobros por forma de pago' },
           ...enPesos.map(([id, m]) => h('i', { style: `width:${(m / sumaPesos) * 100}%;--c:${tono[id]};--o:1`, title: nombreForma(id).nombre }))) : null,
         sumaPesos ? h('div', { class: 'rep-leyenda' }, ...enPesos.map(([id, m]) => h('span', {},
           h('i', { style: `--c:${tono[id]};--o:1` }), nombreForma(id).nombre, h('b', { class: 'num' }, ` ${pct(m, sumaPesos)}%`)))) : h('p', { class: 'nota' }, 'Sin cobros.'),
-        sumaPesos ? h('button', { type: 'button', class: 'rep-ver', onclick: () => abrirVentana({ titulo: 'Cobros por forma de pago', contenido: h('div', { class: 'rep-det' },
-          ...Object.entries(r.porForma).map(([id, m]) => { const f = nombreForma(id); return h('div', { class: 'fila-rep' }, h('span', {}, f.nombre), h('b', { class: 'num' }, `${fmtMonto(m, f.moneda)} ${NOMBRE_MONEDA[f.moneda]}`)); })) }) }, 'Ver montos', icono('der')) : null);
+        sumaPesos ? h('button', { type: 'button', class: 'rep-ver', onclick: () => abrirVentana({ titulo: 'Cobros por forma de pago', contenido: h('div', { class: 'rd' },
+          rdTotal('Cobrado en total, en pesos', fmtCop(sumaPesos)),
+          ...enPesos.map(([id, mCop]) => { const f = nombreForma(id), m = r.porForma[id] || 0;
+            return rdFila({ ic: iconoForma(f), color: tono[id], nombre: f.nombre, detalle: f.moneda === 'COP' ? 'Pesos' : `${NOMBRE_MONEDA[f.moneda]} · ≈ ${fmtCop(mCop)} COP`,
+              valor: `${fmtMonto(m, f.moneda)} ${NOMBRE_MONEDA[f.moneda]}`, sub: `${pct(mCop, sumaPesos)} %`, pct: pct(mCop, sumaPesos) }); })) }) }, 'Ver montos', icono('der')) : null);
 
       const maxU = top[0]?.unidades || 0;
       const vendidos = h('div', { class: 'tarjeta mas-vendidos' }, h('h2', { class: 'sec-t' }, 'Más vendidos'),
-        top.length ? h('div', { class: 'rep-top' }, ...top.slice(0, 5).map(m => h('div', { class: 'rep-top-fila' },
-          h('span', { class: 'rep-top-n' }, m.nombre), h('span', { class: 'rep-top-barra' }, h('i', { style: `width:${pct(m.unidades, maxU)}%` })), h('b', { class: 'num' }, String(m.unidades))))) : h('p', { class: 'nota' }, 'Sin ventas en este período.'),
-        top.length ? h('button', { type: 'button', class: 'rep-ver', id: 'rep-ver-vendidos', onclick: () => abrirVentana({ titulo: 'Más vendidos', contenido: h('div', { class: 'rep-det' },
-          ...top.map((m, i) => h('div', { class: 'fila-rep' }, h('span', { class: 'mv-nombre' }, `${i + 1}. ${m.nombre}`, h('span', { class: 'nota' }, 'Tallas ' + Object.entries(m.tallas).map(([t, n]) => `${t} (${n})`).join(', '))), h('b', { class: 'num' }, `${m.unidades}`)))) }) }, top.length > 5 ? `Ver los ${top.length}` : 'Ver tallas', icono('der')) : null);
+        top.length ? reusar('top', top.slice(0, 5).map(m => m.nombre + m.unidades).join('|'), () => h('div', { class: 'rep-top' }, ...top.slice(0, 5).map((m, i) => h('div', { class: 'rep-top-fila', style: `--i:${i}` },
+          h('span', { class: 'rep-top-n' }, m.nombre), h('span', { class: 'rep-top-barra' }, h('i', { style: `width:${pct(m.unidades, maxU)}%` })), h('b', { class: 'num' }, String(m.unidades)))))) : h('p', { class: 'nota' }, 'Sin ventas en este período.'),
+        top.length ? h('button', { type: 'button', class: 'rep-ver', id: 'rep-ver-vendidos', onclick: () => abrirVentana({ titulo: 'Más vendidos', contenido: h('div', { class: 'rd' },
+          rdTotal('Prendas vendidas', String(top.reduce((s2, m) => s2 + m.unidades, 0)), `${top.length} ${top.length === 1 ? 'producto' : 'productos'}`),
+          ...top.map((m, i) => rdFila({ puesto: i + 1, nombre: m.nombre, extra: h('span', { class: 'rd-tallas' }, ...Object.entries(m.tallas).map(([t, n]) => h('span', { class: 'rd-chip num' }, `${t} · ${n}`))),
+            valor: String(m.unidades), sub: m.unidades === 1 ? 'prenda' : 'prendas', pct: pct(m.unidades, maxU) }))) }) }, top.length > 5 ? `Ver los ${top.length}` : 'Ver tallas', icono('der')) : null);
 
       const inv = gestion ? valorInventario(productos, datos.costos) : null;
       cuerpo.replaceChildren(...sin(resumen, h('div', { class: 'rep-dos' }, pagos, vendidos),
         h('div', { class: 'rep-filas tarjeta' },
-          filaSeccion('rep-ventas', 'historial', 'Ventas', `${validas} en este período`, () => abrirVentana({ titulo: 'Ventas', contenido: listaVentas(ctx, datos.ventas, 200) })),
-          gestion ? filaSeccion('bajas', 'alerta', 'Existencias bajas', bajas.length ? `${bajas.length} ${bajas.length === 1 ? 'talla' : 'tallas'} en el mínimo o menos` : 'Todo en orden', () => abrirVentana({ titulo: 'Existencias bajas', contenido: h('div', { class: 'rep-det bajas-det' },
-            ...(bajas.length ? bajas.slice(0, 100).map(p => h('div', { class: 'fila-rep' }, h('span', {}, `${nombreVenta(p)} · ${p.talla ? 'Talla ' + p.talla : 'Talla única'}`), h('b', { class: 'num ' + (p.existencia <= 0 ? 'neg' : '') }, `${p.existencia} / mín. ${p.minimo || 0}`))) : [h('p', { class: 'nota' }, 'Ninguna talla está en el mínimo.')])) })) : null,
-          gestion ? filaSeccion('rep-inv', 'caja', 'Valor del inventario', [`${fmtCop(inv.aCosto)} a costo`, h('br'), `${fmtCop(inv.aPrecio)} a precio`], () => abrirVentana({ titulo: 'Valor del inventario', contenido: h('div', { class: 'rep-det' },
-            h('div', { class: 'fila-rep' }, h('span', {}, 'A costo'), h('b', { class: 'num' }, fmtCop(inv.aCosto))),
-            h('div', { class: 'fila-rep' }, h('span', {}, 'A precio detal'), h('b', { class: 'num' }, fmtCop(inv.aPrecio))),
-            h('div', { class: 'fila-rep' }, h('span', {}, 'Diferencia'), h('b', { class: 'num' }, fmtCop(inv.aPrecio - inv.aCosto)))) })) : null)));
+          filaSeccion('rep-ventas', 'historial', 'Ventas', `${validas} en este período`, () => abrirVentana({ titulo: 'Ventas', contenido: h('div', { class: 'rd' },
+            rdTotal(`${validas} ${validas === 1 ? 'venta' : 'ventas'} en el período`, fmtCop(r.total), r.ventas ? `Ticket promedio ${fmtCop(r.ticketPromedio)}` : null), listaVentas(ctx, datos.ventas, 200)) })),
+          gestion ? filaSeccion('bajas', 'alerta', 'Existencias bajas', bajas.length ? `${bajas.length} ${bajas.length === 1 ? 'talla' : 'tallas'} en el mínimo o menos` : 'Todo en orden', () => abrirVentana({ titulo: 'Existencias bajas', contenido: h('div', { class: 'rd bajas-det' },
+            ...(bajas.length ? [rdTotal('Tallas en el mínimo o menos', String(bajas.length), `${bajas.filter(p => p.existencia <= 0).length} agotadas`),
+              ...bajas.slice(0, 100).map(p => rdFila({ ic: 'alerta', color: p.existencia <= 0 ? 'var(--err)' : 'var(--tono-ambar)', nombre: titulo(p), detalle: [p.talla ? 'Talla ' + p.talla : 'Talla única', p.color, p.tela].filter(Boolean).join(' · '),
+                valor: h('span', { class: 'est num ' + (p.existencia <= 0 ? 'r' : 'y') }, p.existencia <= 0 ? 'Agotada' : `${p.existencia} ${p.existencia === 1 ? 'ud.' : 'uds'}`), sub: `mín. ${p.minimo || 0}` }))] : [h('p', { class: 'nota' }, 'Ninguna talla está en el mínimo.')])) })) : null,
+          gestion ? filaSeccion('rep-inv', 'caja', 'Valor del inventario', [`${fmtCop(inv.aCosto)} a costo`, h('br'), `${fmtCop(inv.aPrecio)} a precio`], () => abrirVentana({ titulo: 'Valor del inventario', contenido: h('div', { class: 'rd' },
+            h('div', { class: 'rd-stats' },
+              h('div', { class: 'rd-stat' }, h('span', {}, 'A costo'), h('b', { class: 'num', 'data-largo': largo(fmtCop(inv.aCosto)) }, fmtCop(inv.aCosto))),
+              h('div', { class: 'rd-stat' }, h('span', {}, 'A precio detal'), h('b', { class: 'num', 'data-largo': largo(fmtCop(inv.aPrecio)) }, fmtCop(inv.aPrecio)))),
+            h('div', { class: 'rd-stat ganancia' }, h('span', {}, 'Ganancia posible'), h('b', { class: 'num', 'data-largo': largo(fmtCop(inv.aPrecio - inv.aCosto)) }, fmtCop(inv.aPrecio - inv.aCosto)),
+              h('small', {}, inv.aPrecio ? `${pct(inv.aPrecio - inv.aCosto, inv.aPrecio)} % del precio detal` : ''))) })) : null)));
+      if (animar) { animar = false; cuerpo.classList.remove('rep-anim'); void cuerpo.offsetWidth; cuerpo.classList.add('rep-anim'); clearTimeout(tAnim); tAnim = setTimeout(() => cuerpo.classList.remove('rep-anim'), 900); }
     };
-    const cargar = (desde, hasta) => { rangoActual = [desde, hasta]; quitar && quitar(); quitar = escucharVentasConCosto(ctx, { desde, hasta }, d => { datos = d; pintar(); }); };
+    const cargar = (desde, hasta) => { rangoActual = [desde, hasta]; animar = true; memo.clear(); quitar && quitar(); quitar = escucharVentasConCosto(ctx, { desde, hasta }, d => { datos = d; pintar(); }); };
     const rango = selectorRango(cargar);
     cont.append(h('div', { class: 'cab-vista' }, gestion ? rango.el : h('span', { class: 'nota' }, 'Tus ventas de hoy')), cuerpo);
     cargar(...(gestion ? rango.valor() : [hoy(), hoy()]));
-    return () => quitar && quitar();
+    return () => { clearTimeout(tAnim); quitar && quitar(); };
   },
 });
 
@@ -163,9 +188,10 @@ registrarVista('/comisiones', {
           h('div', { class: 'com-fila' }, h('span', {}, 'Comisión normal'), h('b', { class: 'num' }, fmtCop(r.normal))),
           h('div', { class: 'com-fila' }, h('span', {}, 'Comisión reducida', h('small', { class: 'nota' }, ' (descuento u oferta)')), h('b', { class: 'num' }, fmtCop(r.reducida))),
           h('div', { class: 'com-fila' }, h('span', {}, 'Ya pagado'), h('b', { class: 'num' }, fmtCop(r.pagado))),
-          propias.length ? h('button', { type: 'button', class: 'rep-ver', id: 'com-ver-ventas', onclick: () => abrirVentana({ titulo: `Ventas de ${quien?.nombre || vendedor}`, contenido: h('div', { class: 'rep-det' },
-            ...propias.map(v => h('div', { class: 'fila-rep' }, h('span', {}, v.cliente?.nombre || 'Sin cliente', h('span', { class: 'nota' }, ` · ${v.numero || ''}`)),
-              h('b', { class: 'num' }, fmtCop((v.lineas || []).reduce((s, l) => s + (l.comision || 0), 0)))))) }) }, 'Ver comisión por venta', icono('der')) : null));
+          propias.length ? h('button', { type: 'button', class: 'rep-ver', id: 'com-ver-ventas', onclick: () => abrirVentana({ titulo: `Ventas de ${quien?.nombre || vendedor}`, contenido: h('div', { class: 'rd' },
+            rdTotal('Comisión en el período', fmtCop(r.total), `${propias.length} ${propias.length === 1 ? 'venta' : 'ventas'}`),
+            ...propias.map(v => { const c = (v.lineas || []).reduce((s, l) => s + (l.comision || 0), 0), n = (v.lineas || []).reduce((s, l) => s + (l.cantidad || 0), 0);
+              return rdFila({ ic: 'recibo', nombre: v.cliente?.nombre || 'Sin cliente', detalle: [v.numero, `${n} ${n === 1 ? 'prenda' : 'prendas'}`].filter(Boolean).join(' · '), valor: fmtCop(c) }); })) }) }, 'Ver comisión por venta', icono('der')) : null));
     };
     const cargar = (d, hh) => { desde = d; hasta = hh; quitarVentas && quitarVentas(); quitarVentas = escucharVentasConCosto(ctx, { desde, hasta }, x => { ventas = x.ventas; pintar(); }); };
     const rango = selectorRango(cargar, 'semana');

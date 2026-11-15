@@ -68,3 +68,12 @@ test('cobrosEnPesos: suma el equivalente en COP por forma, resta el vuelto y omi
   ];
   assert.deepEqual(cobrosEnPesos(vs), { 'efectivo-usd': 78000, 'efectivo-cop': -8000, nequi: 50000 });
 });
+
+test('ventasPorPeriodo: un año se agrupa por mes', () => {
+  const vs = [{ fecha: '2026-02-10T15:00:00Z', total: 1000, lineas: [] }, { fecha: '2026-02-20T15:00:00Z', total: 500, lineas: [] }, { fecha: '2026-11-01T15:00:00Z', total: 200, lineas: [] }];
+  const r = ventasPorPeriodo(vs, '2026-01-01', '2026-11-14');
+  assert.equal(r.modo, 'mes');
+  assert.equal(r.barras.length, 11);
+  assert.deepEqual(r.barras.slice(0, 2).map(b => [b.etiqueta, b.total]), [['ene', 0], ['feb', 1500]]);
+  assert.equal(r.barras[10].total, 200);
+});

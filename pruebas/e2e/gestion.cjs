@@ -84,7 +84,29 @@ casos('gestion', [
     await p.waitForSelector('.mas-vendidos');
     a.ok((await texto(p, '.mas-vendidos')).includes('Jogger Texcol Caballero Negro'));
     await p.click('.rep-fila.bajas');
-    a.ok((await texto(p, '.bajas-det')).includes('Buzo Etanol Caballero Gris'));
+    a.ok((await texto(p, '.bajas-det')).includes('Buzo Etanol Caballero'));
+    a.match(await texto(p, '.bajas-det .rd-fila .rd-n small'), /^Talla \S+ · Gris/, 'talla, color y tela debajo del nombre');
+  }],
+  ['v2.01 · Reportes: Hoy / Semana / Mes / Año; Año va por meses; ventanas con total arriba', async (env, a) => {
+    const p = await env.pagina({ usuario: 'admin', caja: true });
+    await vender(p);
+    await p.evaluate(() => { location.hash = '/reportes'; });
+    await p.waitForSelector('.rep-resumen');
+    a.deepStrictEqual(await p.$$eval('.cab-vista .segmentado button', b => b.map(x => x.textContent)), ['Hoy', 'Semana', 'Mes', 'Año']);
+    await p.click('.cab-vista .segmentado button:text("Año")');
+    await p.waitForSelector('.graf[aria-label="Ventas por mes"]');
+    a.ok(await p.$('.rep.rep-anim'), 'anima al cambiar de período');
+    a.strictEqual(await p.$eval('.rep-pagos .rep-ver', e => getComputedStyle(e).color), 'rgb(21, 128, 61)');
+    await p.click('.rep-pagos .rep-ver');
+    await p.waitForSelector('.capa .rd .rd-tot');
+    a.ok(await p.$$eval('.capa .rd-fila', f => f.length >= 1));
+  }],
+  ['v2.01 · Inventario: Género en orden Todos / Unisex / Dama / Niño / Niña', async (env, a) => {
+    const p = await env.pagina({ ruta: '/inventario' });
+    await p.click('#fCat'); await p.waitForTimeout(250);
+    const ops = await p.$$eval('[role="menu"] [role="menuitem"], .menu-op, .capa button', b => b.map(x => x.textContent.trim()).filter(Boolean));
+    const g = ['Todos', 'Unisex', 'Dama', 'Niño', 'Niña'].filter(x => ops.includes(x));
+    a.deepStrictEqual(ops.filter(x => g.includes(x)), g, ops.join(' / '));
   }],
   ['Ninguna pantalla muestra "null" ni "undefined"', async (env, a) => {
     for (const usuario of ['vendedora', 'encargada', 'admin']) {

@@ -69,6 +69,18 @@ export function ventasPorPeriodo(ventas, desde, hasta) {
     for (let k = ini; k <= fin; k++) barras.push({ clave: k, etiqueta: etiquetaHora(k), total: por[k] || 0 });
     return { modo: 'hora', barras };
   }
+  // v2.01: rangos largos (más de 62 días, p. ej. «Año») se agrupan por mes.
+  if ((new Date(`${hasta}T12:00:00Z`) - new Date(`${desde}T12:00:00Z`)) / 864e5 > 62) {
+    const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const porMes = {};
+    for (const v of vs) { const k = diaLocalDe(v.fecha).slice(0, 7); porMes[k] = (porMes[k] || 0) + v.total; }
+    const barras = [];
+    for (let y = Number(desde.slice(0, 4)), m = Number(desde.slice(5, 7)); `${y}-${String(m).padStart(2, '0')}` <= hasta.slice(0, 7); m === 12 ? (y++, m = 1) : m++) {
+      const k = `${y}-${String(m).padStart(2, '0')}`;
+      barras.push({ clave: k, etiqueta: MESES[m - 1], total: porMes[k] || 0 });
+    }
+    return { modo: 'mes', barras };
+  }
   const por = {};
   for (const v of vs) { const k = diaLocalDe(v.fecha); por[k] = (por[k] || 0) + v.total; }
   const barras = [];

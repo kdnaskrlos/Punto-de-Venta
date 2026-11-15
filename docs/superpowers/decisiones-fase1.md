@@ -478,3 +478,10 @@ Suite final: npm test 99/99 · e2e 59/59
   - Sin barras de desplazamiento visibles en todo el sistema.
   - Modo demo: sin la descripción ni la línea bajo el título.
   - Detalle del apartado: una sola línea entre filas y sin la línea sobre los botones.
+- v2.01 (aprobado con boceto HTML):
+  - Reportes: Hoy / Semana / Mes / Año (sin «7 días»; Año agrupa la gráfica por mes). Ventas y Ganancia con un solo tamaño (el reducido) en los 4 períodos. «Ver montos» / «Ver los N» como fila verde con flecha. Al cambiar de período el contenido entra con fundido, las barras crecen y se llenan (las piezas que no cambian se reusan para no reiniciar la animación).
+  - Ventanas de Reportes rediseñadas (total arriba y filas con ícono o puesto, detalle, monto y barra): Ver montos, Más vendidos (tallas en cuadritos), Ventas (total, cantidad y ticket), Existencias bajas (nombre y debajo «talla · color · tela», existencia frente al mínimo), Valor del inventario (dos recuadros y la ganancia posible en verde) y Comisión por venta.
+  - Detalle del apartado: los 3 botones siempre en una línea (también a 360 px).
+  - Inventario: menú Género en orden Todos / Unisex / Dama / Niño / Niña; menú Marca con Etanol antes que Comic Shop.
+  - Usuarios: «Eliminar» centrado.
+  - Modo demo: vuelve la línea bajo el título de la ventana.

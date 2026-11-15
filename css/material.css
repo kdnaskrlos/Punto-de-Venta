@@ -869,5 +869,63 @@ button.pill:not(.demo){border-color:transparent!important}
 /* Listas largas: el navegador no dibuja las tarjetas que no se ven (búsqueda más fluida). */
 .rejilla .tarjeta-prenda{content-visibility:auto;contain-intrinsic-size:auto 80px}
 .vender-main .mostrar-mas{align-self:center;margin:4px auto 8px}
-/* Modo demo: sin línea bajo el título de la ventana. */
-.capa:has(.demo-roles) .cab{border-bottom:0!important}
+
+/* ===== v2.01 · Reportes ===== */
+/* Cifras principales con un solo tamaño en Hoy, Semana, Mes y Año (el reducido); solo bajan más si son muy largas. */
+.rep-kpis .rep-kpi .val,.rep-kpis[data-largo=m] .rep-kpi .val,.rep-kpis[data-largo=l] .rep-kpi .val{font-size:24px!important}
+.rep-kpis[data-largo=xl] .rep-kpi .val{font-size:20px!important}
+@media (max-width:380px){.rep-kpis .rep-kpi .val,.rep-kpis[data-largo=m] .rep-kpi .val,.rep-kpis[data-largo=l] .rep-kpi .val{font-size:21px!important}.rep-kpis[data-largo=xl] .rep-kpi .val{font-size:18px!important}}
+/* «Ver montos», «Ver los N»…: fila tocable de 44 px en verde, con la flecha al final (como «Ver historial de abonos»). */
+.rep-ver{display:flex!important;align-items:center;justify-content:space-between;width:100%;min-height:44px;margin-top:12px!important;padding:0!important;border:0!important;border-top:1px solid var(--line)!important;background:none!important;font-size:14px!important;font-weight:600!important;color:var(--accent)!important;text-align:left}
+.rep-ver svg.i{width:18px!important;height:18px!important}
+.rep-ver::after{content:none!important}
+/* Al cambiar de período: el contenido entra con un fundido y las gráficas crecen. */
+@keyframes repCrece{from{transform:scaleY(0)}to{transform:none}}
+@keyframes repLlena{from{transform:scaleX(0)}to{transform:none}}
+.rep.rep-anim > *{animation:aparece .28s cubic-bezier(.22,.9,.3,1) both}
+.rep.rep-anim > :nth-child(2){animation-delay:50ms}.rep.rep-anim > :nth-child(3){animation-delay:100ms}
+.rep.rep-anim .graf-col i{transform-origin:bottom;animation:repCrece .55s cubic-bezier(.22,.9,.3,1) both;animation-delay:calc(var(--i,0) * 18ms + 80ms)}
+.rep.rep-anim .rep-pila i{transform-origin:left;animation:repLlena .6s cubic-bezier(.22,.9,.3,1) both .12s}
+.rep.rep-anim .rep-top-barra i{transform-origin:left;animation:repLlena .55s cubic-bezier(.22,.9,.3,1) both;animation-delay:calc(var(--i,0) * 50ms + 150ms)}
+.rep.rep-anim .graf-tope{animation:aparece .3s ease-out both .45s}
+/* Ventanas de Reportes: total arriba y filas con ícono o puesto, nombre, detalle, monto y barra. */
+.rd{display:flex;flex-direction:column}
+.rd-tot{display:flex;flex-direction:column;gap:2px;padding:4px 0 16px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.rd-tot span{font-size:13px;color:var(--muted)}
+.rd-tot b{font-size:26px;font-weight:700;line-height:1.15;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.rd-tot b[data-largo=l]{font-size:23px}.rd-tot b[data-largo=xl]{font-size:20px}
+.rd-tot small{font-size:12.5px;color:var(--muted)}
+.rd-fila{--c:var(--accent);display:grid;grid-template-columns:36px minmax(0,1fr) auto;grid-template-areas:"ic n v" "ic b b";align-items:center;column-gap:12px;row-gap:6px;padding:12px 0;border-top:1px solid var(--line)}
+.rd-tot + .rd-fila{border-top:0}
+.rd-fila:not(.con-barra){grid-template-areas:"ic n v"}
+.rd-ic,.rd-puesto{grid-area:ic;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;align-self:start}
+.rd-ic{color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--surface))}
+.rd-ic svg.i{width:18px;height:18px}
+.rd-puesto{background:var(--surface-2);font-size:13.5px;font-weight:700;color:var(--muted)}
+.rd-puesto.top{background:color-mix(in srgb,var(--accent) 14%,var(--surface));color:var(--accent)}
+.rd-n{grid-area:n;display:flex;flex-direction:column;gap:2px;min-width:0}
+.rd-n b{font-size:14.5px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.rd-n small{font-size:12.5px;color:var(--muted)}
+.rd-v{grid-area:v;display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;white-space:nowrap}
+.rd-v b{font-size:15px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.rd-v small{font-size:12px;color:var(--muted)}
+.rd-barra{grid-area:b;height:6px;border-radius:99px;background:color-mix(in srgb,var(--c) 10%,#eef1f4);overflow:hidden}
+.rd-barra i{display:block;height:100%;border-radius:99px;background:var(--c);transform-origin:left;animation:repLlena .5s cubic-bezier(.22,.9,.3,1) both .1s}
+.rd-tallas{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.rd-chip{font-size:11.5px;font-weight:600;color:var(--muted);background:var(--surface-2);border-radius:6px;padding:2px 6px}
+.rd .lista-ventas{margin-top:4px}
+.rd-stats{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.rd-stat{display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:12px;background:var(--surface-2);min-width:0}
+.rd-stat span{font-size:12.5px;color:var(--muted)}
+.rd-stat b{font-size:19px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.rd-stat b[data-largo=l]{font-size:17px}.rd-stat b[data-largo=xl]{font-size:15px}
+.rd-stat small{font-size:12px;color:var(--muted)}
+.rd-stat.ganancia{margin-top:8px;background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 14%,var(--surface)) 0%,var(--surface) 75%);border:1px solid color-mix(in srgb,var(--accent) 25%,var(--line))}
+.rd-stat.ganancia b{font-size:24px;color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.rep.rep-anim > *,.rep.rep-anim .graf-col i,.rep.rep-anim .rep-pila i,.rep.rep-anim .rep-top-barra i,.rep.rep-anim .graf-tope,.rd-barra i{animation:none!important}}
+/* Usuarios: «Eliminar» centrado. */
+.u-eliminar{align-self:center!important;justify-content:center!important;margin-inline:auto!important}
+.cab-vista .rango .segmentado{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+.stk.ap-hoja .ap-acc{flex-wrap:nowrap!important}
+.stk.ap-hoja .ap-acc .btn{min-width:0!important;flex:0 1 auto;padding:0 16px!important;white-space:nowrap}
+.stk.ap-hoja .ap-acc .btn.texto{padding:0 12px!important}

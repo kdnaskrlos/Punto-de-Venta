@@ -445,7 +445,10 @@ registrarVista('/inventario', {
     };
     const build = () => {
       const R = filas(), orden = xs => [...new Set(xs.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
-      opGenero = orden(R.map(p => p.genero)); opMarca = orden(R.map(p => p.marca));
+      // v2.01: Género en el orden Unisex / Dama / Niño / Niña (otros después); en Marca, Etanol antes que Comic Shop.
+      const primero = lista => (a, b) => { const i = x => { const k = lista.indexOf(String(x).toLowerCase()); return k < 0 ? lista.length : k; }; return i(a) - i(b) || a.localeCompare(b, 'es'); };
+      opGenero = orden(R.map(p => p.genero)).sort(primero(['unisex', 'dama', 'niño', 'niña']));
+      opMarca = orden(R.map(p => p.marca)).sort(primero(['etanol', 'comic shop']));
       pintarFiltros();
     };
     // Filtra prendas: una prenda entra si alguna de sus tallas coincide con la búsqueda.
