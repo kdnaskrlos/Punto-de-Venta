@@ -1161,3 +1161,12 @@ label[for=aj-redondeo]{font-weight:600!important}
 .mini-tallas .mt b{color:var(--stk-ok)!important}
 .mini-tallas .mt.y b{color:var(--stk-bajo)!important}
 .mini-tallas .mt.r b{color:var(--stk-agotado)!important}
+/* v2.10: botón de cobro sin «prendas en total»: camiseta blanca rellena con la cantidad adentro */
+.vista.vender .bcT .cobrar.bt{grid-template-columns:48px minmax(0,1fr) 20px!important}
+.vista.vender .bcT .bt-total{justify-self:end}
+.bcT .bt-cnt{position:relative}
+.bcT .bt-cnt svg.i{width:40px;height:40px;fill:#fff;stroke:#fff;stroke-width:1;color:#fff}
+.bcT .bt-cnt b{position:absolute;left:0;right:0;top:53%;transform:translateY(-50%);text-align:center;font-size:15px;font-weight:800;color:var(--accent);line-height:1;letter-spacing:-.02em}
+.bcT .bt-cnt b[data-n]{font-size:13px}
+/* v2.10: aviso de tramo de las prendas «separado» (mismo estilo que el aviso del carrito) */
+.carrito .aviso-sep{margin:0}

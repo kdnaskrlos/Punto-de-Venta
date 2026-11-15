@@ -62,5 +62,13 @@ export function calcularCarrito(lineas, productosPorSku, { limites = LIMITES_DEF
     const sig = limites[t + 1];
     if (sig != null && sig - cantidadMix <= 3) aviso = { faltan: sig - cantidadMix, etiqueta: etiquetaTramo(t + 1, limites) };
   }
-  return { lineas: resultado, cantidadMix, subtotal, subtotalDescontable, aviso, invalidas };
+  // v2.10: cada producto «separado» tiene su propio aviso de «con N más pasan a precio …».
+  const avisosSeparado = [];
+  for (const [k, n] of porProducto) {
+    const t = tramoDe(n, limites), sig = limites[t + 1];
+    if (sig == null || sig - n > 3) continue;
+    const p = productosPorSku[validas.find(l => esSep(l) && claveProducto(productosPorSku[l.sku]) === k).sku];
+    avisosSeparado.push({ faltan: sig - n, etiqueta: etiquetaTramo(t + 1, limites), nombre: [p.tipo, p.marca].filter(Boolean).join(' ') });
+  }
+  return { lineas: resultado, cantidadMix, subtotal, subtotalDescontable, aviso, avisosSeparado, invalidas };
 }

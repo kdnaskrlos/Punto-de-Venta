@@ -242,7 +242,8 @@ export function panelCarrito(ctx, { enHoja = false } = {}) {
   return h('div', { class: 'carrito' + (enHoja ? ' en-hoja' : '') },
     enHoja ? null : h('div', { class: 'sec-t' }, icono('carrito'), `Carrito · ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`),
     h('div', { class: 'lineas' + (r.lineas.length > MAX_ABIERTAS ? ' compactas' : '') }, r.lineas.map(l => lineaCarrito(ctx, l, aj, r.lineas.length > MAX_ABIERTAS && c.abierta !== l.sku))),
-    r.aviso ? h('div', { class: 'aviso aviso-tramo' }, icono('etiqueta'), `Con ${r.aviso.faltan} ${r.aviso.faltan === 1 ? 'prenda' : 'prendas'} más pasan a precio ${r.aviso.etiqueta}`) : null,
+    // v2.10: sin avisos de «Con N prendas más pasan a precio …» (ni del mix ni de las «separado»).
+
     h('div', { class: 'totales' },
       r.descuento ? h('div', { class: 'fila-total' }, h('span', {}, 'Subtotal'), h('span', { class: 'num' }, fmtCop(r.subtotal), h('span', { class: 'c-cop moneda' }, 'COP'))) : null,
       // Sin descuento no hay fila: ya está el botón «Descuento» abajo.
@@ -265,9 +266,8 @@ function barraCobro(ctx, r) {
   // sus equivalentes a la derecha. Descuento y Apartar están en la pantalla de cobro.
   return h('div', { class: 'barra-cobro bcT' },
     h('button', { class: 'btn primary cobrar bt', type: 'button', 'aria-label': `Cobrar ${fmtCop(r.total)} COP, ${r.unidades} ${r.unidades === 1 ? 'prenda' : 'prendas'}`, onclick: () => ctx.abrirCobro && ctx.abrirCobro('venta') },
-      h('span', { class: 'bt-cnt num' }, String(r.unidades)),
-      // v2.06: sin la palabra «Cobrar»: el botón entero ya es cobrar.
-      h('span', { class: 'bt-txt' }, h('b', {}, r.unidades === 1 ? 'prenda' : 'prendas'), h('small', {}, r.descuento ? `en total · −${fmtCop(r.descuento)}` : 'en total')),
+      // v2.10: sin texto; la cantidad va dentro de una camiseta blanca rellena.
+      h('span', { class: 'bt-cnt' }, icono('franela'), h('b', { class: 'num', 'data-n': r.unidades > 99 ? '3' : null }, String(r.unidades))),
       h('span', { class: 'bt-total' },
         h('span', { class: 'total' }, h('span', { class: 'total-cop num', 'data-largo': largo(fmtCop(r.total)) }, fmtCop(r.total)), h('span', { class: 'moneda' }, 'COP')),
         equivalentes(ctx, r.total)),

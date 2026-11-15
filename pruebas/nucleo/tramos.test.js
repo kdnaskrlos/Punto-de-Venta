@@ -91,3 +91,10 @@ test('los tramos guardados con el 49 viejo pasan a 48; otros personalizados se r
   assert.deepEqual(normalizarTramos([1, 6, 12, 24, 49]), [1, 6, 12, 24, 48]);
   assert.deepEqual(normalizarTramos([1, 5, 10, 20, 40]), [1, 5, 10, 20, 40]);
 });
+
+test('v2.10 · las prendas «separado» tienen su propio aviso de «con N más»', () => {
+  const s = calcularCarrito([{ sku: 'F', cantidad: 1 }, { sku: 'Y', cantidad: 3 }, { sku: 'Y2', cantidad: 2 }], P, opts);
+  assert.deepEqual(s.avisosSeparado, [{ faltan: 1, etiqueta: '6–11', nombre: 'Body Serfe' }]);
+  assert.equal(s.aviso, null, 'la franela sola está lejos del siguiente tramo');
+  assert.deepEqual(calcularCarrito([{ sku: 'Y', cantidad: 1 }], P, opts).avisosSeparado, []);
+});

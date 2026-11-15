@@ -34,7 +34,7 @@ casos('vender', [
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await agregar(p, 'Buzo Etanol Caballero Gris', 'M', 2);
     await agregar(p, 'Franela AS Niño Blanco', '6', 2);
-    a.ok((await texto(p, '.aviso-tramo')).includes('Con 2 prendas más pasan a precio 6–11'));
+    a.strictEqual(await p.$('.aviso-tramo, .aviso-sep'), null, 'v2.10: sin avisos de «Con N prendas más»');
     await agregar(p, 'Franela AS Niño Blanco', '8', 2);
     a.strictEqual(await p.$$eval('.zona-carrito .linea.mini', e => e.length), 3, 'con más de 2 prendas el carrito se compacta');
     for (const sku of ['B-M', 'F-B-6', 'F-B-8']) {
@@ -67,7 +67,7 @@ casos('vender', [
     a.ok(await p.isVisible('.zona-carrito .linea[data-sku="B-S"]'));
     a.strictEqual(await texto(p, '.barra-cobro .total-cop'), '48.000');
     // v2.06: la barra es un solo botón (Descuento y Apartar pasan a la pantalla de cobro).
-    a.deepStrictEqual(await p.$$eval('.barra-cobro button', b => b.map(x => x.querySelector('.bt-txt').innerText.replace(/\s+/g, ' ').trim())), ['prenda en total']);
+    a.deepStrictEqual(await p.$$eval('.barra-cobro button', b => b.map(x => x.querySelector('.bt-cnt').textContent.trim())), ['1']);
     await p.waitForTimeout(350); // la barra termina de subir
     const r = await p.$eval('.lado-carrito', e => { const b = e.getBoundingClientRect(), n = document.querySelector('.side').getBoundingClientRect(); return [Math.round(b.left), Math.round(innerWidth - b.right), Math.round(n.top - b.bottom), getComputedStyle(e).position]; });
     a.ok(r[0] === 0 && r[1] === 0 && Math.abs(r[2]) <= 2 && r[3] === 'fixed', 'de borde a borde, justo encima de la barra de íconos: ' + r);
@@ -270,7 +270,7 @@ casos('vender', [
     a.strictEqual(await p.$eval('.lado-carrito', e => e.hidden), false, 'primero baja');
     await p.waitForFunction(() => document.querySelector('.lado-carrito').hidden);
   }],
-  ['v2.06 · Barra de cobro: un solo botón con prendas en total y el total con sus equivalentes (teléfono y computadora); «Todos los productos» al centro', async (env, a) => {
+  ['v2.10 · Barra de cobro: un solo botón con la cantidad en una camiseta y el total con sus equivalentes (teléfono y computadora); «Todos los productos» al centro', async (env, a) => {
     for (const opc of [{ movil: true }, { ancho: 1440, alto: 900 }]) {
       const p = await env.pagina({ ...opc, usuario: 'vendedora', caja: true, ruta: '/vender' });
       const v = await p.$eval('#todos-productos', b => { const r = b.getBoundingClientRect(), s = document.querySelector('.vender-main .buscador').getBoundingClientRect(), n = document.querySelector('.side').getBoundingClientRect(); const fin = innerWidth < 840 ? n.top : innerHeight; return Math.abs((r.top + r.bottom) / 2 - (s.bottom + fin) / 2); });
@@ -280,9 +280,8 @@ casos('vender', [
       a.strictEqual(await p.$$eval('.barra-cobro button', b => b.length), 1);
       a.strictEqual(await p.$('.barra-cobro #car-descuento'), null, 'Descuento está en la pantalla de cobro');
       a.strictEqual(await texto(p, '.barra-cobro .bt-cnt'), '2');
-      a.strictEqual(await texto(p, '.barra-cobro .bt-txt b'), 'prendas');
-      a.strictEqual(await texto(p, '.barra-cobro .bt-txt small'), 'en total');
-      a.strictEqual(await p.$eval('.barra-cobro .bt-txt small', e => getComputedStyle(e).fontWeight), '400', '«en total» sin negrita');
+      a.strictEqual(await p.$('.barra-cobro .bt-txt'), null, 'v2.10: sin «prendas en total»');
+      a.ok(await p.$('.barra-cobro .bt-cnt svg.i'), 'camiseta con la cantidad adentro');
       a.ok(/^Cobrar /.test(await p.$eval('.barra-cobro .cobrar', b => b.getAttribute('aria-label'))));
     }
   }],
