@@ -1,5 +1,5 @@
 // Panel de pagos reutilizable (cobrar, apartar, abonar, completar): formas por moneda, montos, falta y vuelto (§9.2).
-import { h, icono, esTelefono, deslizarParaQuitar, alEnfocarCampo } from '../ui.js';
+import { h, icono, esTelefono, deslizarParaQuitar, alEnfocarCampo, toast } from '../ui.js';
 import { estadoCobro, montoSugerido, vueltoEn } from '../nucleo/cobro.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
 import { formaEfectivo, NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
@@ -83,9 +83,14 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   }
 
   // Quitar un pago: la tarjeta se cierra (alto y opacidad) y luego se recalcula.
+  // v2.08: si el pago ya tenía monto, al quitarlo se ofrece «Deshacer» (vuelve en su lugar con su monto).
+  function avisarQuitado(p, i) {
+    if (!(p.monto > 0)) return;
+    toast(`${nombreCorto(p.forma.nombre)} quitado`, { deshacer: () => { if (!lista.isConnected || pagos.includes(p)) return; pagos.splice(Math.min(i, pagos.length), 0, p); pintar(); avisar(); } });
+  }
   function quitarPago(p) {
     const fila = lista.querySelector(`.pago[data-forma="${p.forma.id}"]`);
-    const fin = () => { const i = pagos.indexOf(p); if (i >= 0) pagos.splice(i, 1); pintar(); avisar(); };
+    const fin = () => { const i = pagos.indexOf(p); if (i >= 0) pagos.splice(i, 1); pintar(); avisar(); avisarQuitado(p, i); };
     if (!fila || !fila.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { fin(); return; }
     // Un solo movimiento continuo: la tarjeta se encoge y se desvanece a la vez (300 ms), y la forma de pago
     // de abajo se desmarca al instante, para que lo que se ve coincida con lo que se tocó.
@@ -100,7 +105,23 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       { duration: 210, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = fin;
   }
 
+  // v2.08: cuando la barra cambia de tipo (Faltan ↔ Vuelto, que es más alto con sus monedas), su alto y su
+  // color pasan suave en vez de saltar.
+  let tipoBarra = '';
+  function animarBarra(antes, alto0) {
+    if (!antes || antes === barra.className || !barra.animate || !barra.isConnected || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const alto1 = barra.offsetHeight;
+    barra.getAnimations().forEach(a => a.cancel());
+    barra.animate([{ height: alto0 + 'px', overflow: 'hidden' }, { height: alto1 + 'px', overflow: 'hidden' }], { duration: 220, easing: 'cubic-bezier(.4,0,.2,1)' });
+    [...barra.children].forEach(c => c.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' }));
+  }
   function pintarBarra() {
+    const antes = tipoBarra, alto0 = barra.offsetHeight;
+    pintarBarraYa();
+    tipoBarra = barra.className;
+    animarBarra(antes, alto0);
+  }
+  function pintarBarraYa() {
     const e = estado();
     pagos.forEach(p => p.pintarEq && p.pintarEq());
     if (e.vueltoCop >= red / 2 && !permitirMenos) {
@@ -123,7 +144,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     if (!p) return;
     const tarjeta = botones.querySelector(`[data-forma-card="${p.forma.id}"]`);
     tarjeta?.classList.remove('activa'); tarjeta?.setAttribute('aria-pressed', 'false');
-    const fin = () => { const i = pagos.indexOf(p); if (i >= 0) pagos.splice(i, 1); pintar(); avisar(); };
+    const fin = () => { const i = pagos.indexOf(p); if (i >= 0) pagos.splice(i, 1); pintar(); avisar(); avisarQuitado(p, i); };
     if (!fila.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { fin(); return; }
     const cs = getComputedStyle(fila), tx = fila.style.transform;
     fila.style.overflow = 'hidden'; fila.style.pointerEvents = 'none';

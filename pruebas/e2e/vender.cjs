@@ -396,4 +396,18 @@ casos('vender', [
     a.ok(tr[0] - tr[tr.length - 1] > 40, 'la de abajo subió');
     a.ok(Math.max(...saltos) < 25, 'sin salto brusco: ' + Math.round(Math.max(...saltos)));
   }],
+  ['v2.08 · Papelera del carrito y quitar descuento con Deshacer; semáforo en la ventana de tallas', async (env, a) => {
+    const p = await env.pagina({ ancho: 1440, alto: 900, usuario: 'admin', caja: true, ruta: '/vender' });
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'B-S', cantidad: 1 }], descuento: { tipo: 'monto', valor: 5000, moneda: 'COP' }, autorizacion: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.click('.zona-carrito .linea[data-sku="B-S"] .quitar');
+    await p.click('.toast button:has-text("Deshacer")');
+    await p.waitForSelector('.zona-carrito .linea[data-sku="B-S"]');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.descuento?.valor), 5000);
+    await p.evaluate(() => { const c = window.__pos.ctx; c.productos['J-S'].existencia = 0; c.productos['J-M'].existencia = 1; c.productos['J-M'].minimo = 3; c.productos['J-L'].existencia = 10; c.productos['J-L'].minimo = 3; window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que: 'productos' } })); });
+    await p.fill('#buscar', 'jogger'); await p.click('.tarjeta-prenda[data-nombre^="Jogger"]');
+    const col = sku => p.$eval(`.capa .talla-fila-v[data-sku="${sku}"] .tf-disp`, e => getComputedStyle(e).color);
+    a.strictEqual(await col('J-L'), 'rgb(21, 128, 61)', 'verde: hay');
+    a.strictEqual(await col('J-M'), 'rgb(161, 98, 7)', 'amarillo: stock bajo');
+    a.strictEqual(await col('J-S'), 'rgb(185, 28, 28)', 'rojo: agotado');
+  }],
 ]);

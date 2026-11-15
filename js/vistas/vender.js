@@ -82,7 +82,7 @@ const TODOS = 'Todos los productos';
 function contador(ctx, l) {
   return h('div', { class: 'stepper lc-cont' },
     l.cantidad === 1
-      ? h('button', { 'aria-label': 'Quitar', class: 'quitar', onclick: e => { e.stopPropagation(); agregarAlCarrito(ctx, l.sku, -1); } }, icono('borrar'))
+      ? h('button', { 'aria-label': 'Quitar', class: 'quitar', onclick: e => { e.stopPropagation(); quitarLinea(ctx, l.sku); } }, icono('borrar'))
       : h('button', { 'aria-label': 'Menos', onclick: e => { e.stopPropagation(); agregarAlCarrito(ctx, l.sku, -1); } }, icono('menos')),
     h('span', { class: 'cant num' }, String(l.cantidad)),
     h('button', { 'aria-label': 'Más', onclick: e => { e.stopPropagation(); agregarAlCarrito(ctx, l.sku, 1); } }, icono('mas1')));
@@ -205,14 +205,16 @@ export function ponerCarrito(cont, nuevo) {
 
 // v2.03 · Deslizar una prenda del carrito hacia la izquierda para quitarla (igual que en Pedidos). v2.06: el gesto
 // vive en ui.js (deslizarParaQuitar) y también lo usan las formas de pago del cobro.
+// v2.08: quitar una prenda del carrito (papelera o deslizando) siempre ofrece «Deshacer».
+function quitarLinea(ctx, sku) {
+  const c = carrito(ctx), i = c.lineas.findIndex(l => l.sku === sku), linea = c.lineas[i];
+  if (i < 0) return;
+  c.lineas.splice(i, 1);
+  window.dispatchEvent(new CustomEvent('pos:carrito'));
+  toast('Prenda quitada', { deshacer: () => { const cc = carrito(ctx); cc.lineas.splice(Math.min(i, cc.lineas.length), 0, linea); window.dispatchEvent(new CustomEvent('pos:carrito')); } });
+}
 function gestoCarrito(ctx, cont) {
-  deslizarParaQuitar(cont, '.linea[data-sku]', f => {
-    const sku = f.dataset.sku, c = carrito(ctx), i = c.lineas.findIndex(l => l.sku === sku), linea = c.lineas[i];
-    if (i < 0) return;
-    c.lineas.splice(i, 1);
-    window.dispatchEvent(new CustomEvent('pos:carrito'));
-    toast('Prenda quitada', { deshacer: () => { const cc = carrito(ctx); cc.lineas.splice(Math.min(i, cc.lineas.length), 0, linea); window.dispatchEvent(new CustomEvent('pos:carrito')); } });
-  });
+  deslizarParaQuitar(cont, '.linea[data-sku]', f => quitarLinea(ctx, f.dataset.sku));
 }
 
 function moverIcono(aviso) {
@@ -295,7 +297,12 @@ export function abrirDescuento(ctx) {
   valor.addEventListener('input', pintar);
   const nota = ctx.rol() === 'vendedora' ? h('p', { class: 'nota' }, 'El descuento se aplica cuando lo autorice el administrador o la encargada.') : null;
   const aplicar = h('button', { class: 'btn primary' }, 'Aplicar');
-  const quitarDesc = c.descuento ? h('button', { type: 'button', class: 'btn texto peligro', id: 'desc-quitar', onclick: () => { c.descuento = null; c.autorizacion = null; v.cerrar(); toast('Descuento quitado'); window.dispatchEvent(new CustomEvent('pos:carrito')); } }, 'Quitar descuento') : null;
+  const quitarDesc = c.descuento ? h('button', { type: 'button', class: 'btn texto peligro', id: 'desc-quitar', onclick: () => {
+    // v2.08: con «Deshacer»: volver a ponerlo pediría otra autorización.
+    const d = c.descuento, au = c.autorizacion;
+    c.descuento = null; c.autorizacion = null; v.cerrar(); window.dispatchEvent(new CustomEvent('pos:carrito'));
+    toast('Descuento quitado', { deshacer: () => { c.descuento = d; c.autorizacion = au; window.dispatchEvent(new CustomEvent('pos:carrito')); } });
+  } }, 'Quitar descuento') : null;
   const v = abrirVentana({ titulo: 'Descuento', contenido: h('div', { class: 'pila' }, segm,
     h('div', { class: 'campo' }, h('label', { for: 'desc-valor' }, 'Monto a descontar'), h('div', { class: 'desc-entrada' }, valor, sufijo), equiv, err), nota),
     acciones: h('div', { class: 'acciones' }, quitarDesc, aplicar) });

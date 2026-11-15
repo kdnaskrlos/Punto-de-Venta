@@ -1139,3 +1139,25 @@ label[for=aj-redondeo]{font-weight:600!important}
   .vista.vender .barra-cobro.bcT{background:none!important;border:0!important;box-shadow:none!important;padding:0 0 8px!important}
 }
 .vista.vender .bcT .cobrar.bt{background:linear-gradient(115deg,color-mix(in srgb,var(--accent) 78%,#22c55e) 0%,var(--accent) 55%,color-mix(in srgb,var(--accent) 80%,#064e3b) 100%)!important;border:0!important;box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 38%,transparent),0 2px 6px rgba(15,23,42,.12)!important}
+/* v2.08 · Semáforo de existencias, el mismo en toda la app: verde = hay, amarillo = stock bajo (en el mínimo o menos),
+   rojo = agotado. Lo usan la ventana de tallas, las tarjetas de prenda, el detalle del Inventario y Reportes. */
+:root{--stk-ok:#15803d;--stk-bajo:#a16207;--stk-agotado:#b91c1c;--stk-ok-bg:#f0fdf4;--stk-bajo-bg:#fef9c3;--stk-agotado-bg:#fef2f2;--stk-ok-bd:#bbf7d0;--stk-bajo-bd:#fde047;--stk-agotado-bd:#fecaca}
+.barra-falta{transition:background-color .2s ease,border-color .2s ease,color .2s ease}
+/* ventana de tallas */
+.tf-disp{color:var(--stk-ok)!important;font-weight:600!important}
+.tf-disp.pocas{color:var(--stk-bajo)!important}
+.talla-fila-v.agotada .tf-disp{color:var(--stk-agotado)!important}
+/* pastillas de las tarjetas */
+.est.tp-disp.g{background:var(--stk-ok-bg)!important;border-color:var(--stk-ok-bd)!important;color:var(--stk-ok)!important}
+.est.tp-disp.y{background:var(--stk-bajo-bg)!important;border-color:var(--stk-bajo-bd)!important;color:var(--stk-bajo)!important}
+.tarjeta-prenda .est.r.tp-estado{background:var(--stk-agotado-bg)!important;border-color:var(--stk-agotado-bd)!important;color:var(--stk-agotado)!important}
+/* detalle de la prenda (Inventario) */
+.stk .talla-inv .ti-u b,.stk .det2 .talla2 .uds b{color:var(--stk-ok)!important}
+.stk .talla-inv .ti-u.low b,.stk .det2 .talla2 .uds b.low{color:var(--stk-bajo)!important}
+.stk .talla-inv .ti-u.out b,.stk .det2 .talla2 .uds b.out{color:var(--stk-agotado)!important}
+.stk .stk.low{color:var(--stk-bajo)!important}.stk .stk.out{color:var(--stk-agotado)!important}
+.stk .item .pr .u.low{color:var(--stk-bajo)!important}.stk .item .pr .u.out{color:var(--stk-agotado)!important}
+/* Reportes · existencias bajas */
+.mini-tallas .mt b{color:var(--stk-ok)!important}
+.mini-tallas .mt.y b{color:var(--stk-bajo)!important}
+.mini-tallas .mt.r b{color:var(--stk-agotado)!important}
