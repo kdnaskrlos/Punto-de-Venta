@@ -147,11 +147,15 @@ function pintarNav() {
   marcarCarrito();
 }
 // Muestra u oculta el punto del carrito: hay prendas y no se está en Vender.
+// v2.19: la barra se repinta al cambiar de pantalla; el punto solo anima cuando aparece de verdad (antes «brincaba» en cada cambio).
+let puntoVisible = false;
 function marcarCarrito() {
   const n = barra?.querySelector('.nav[data-ruta="/vender"]');
   if (!n) return;
   const hay = !!ctx.carrito?.lineas?.length && rutaActual() !== '/vender';
   n.classList.toggle('con-carrito', hay);
+  n.classList.toggle('punto-nuevo', hay && !puntoVisible);
+  puntoVisible = hay;
   n.setAttribute('aria-label', hay ? 'Vender · venta en curso' : 'Vender');
 }
 

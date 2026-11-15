@@ -1182,7 +1182,8 @@ label[for=aj-redondeo]{font-weight:600!important}
 .nav .ring,.nav .nav-ic{position:relative}
 .nav .nav-ic{display:inline-grid;place-items:center}
 .nav-punto{display:none;position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 2px var(--surface,#fff)}
-.nav.con-carrito .nav-punto{display:block;animation:puntoEntra .25s cubic-bezier(.22,.9,.3,1)}
+.nav.con-carrito .nav-punto{display:block}
+.nav.con-carrito.punto-nuevo .nav-punto{animation:puntoEntra .25s cubic-bezier(.22,.9,.3,1)}
 @keyframes puntoEntra{from{transform:scale(0)}to{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.nav.con-carrito .nav-punto{animation:none}}
 .calc-caja .inp,.calc .inp.num{text-align:left!important} /* v2.15: montos de la calculadora a la izquierda (teléfono y PC) */
@@ -1467,3 +1468,17 @@ label[for=aj-redondeo]{font-weight:600!important}
   .calc-refs .quote{padding:10px 12px 8px}
 }
 .u-av .u-lapiz,.pf-lapiz,.pf-lapiz:hover{background:#fff!important;color:var(--ink)!important;border-color:var(--line)!important}
+
+/* v2.19 · Aviso de versión nueva animado */
+.toast.version{gap:12px;padding:10px 10px 10px 14px;animation:verEntra .42s cubic-bezier(.22,1.2,.36,1) both}
+@keyframes verEntra{from{transform:translate(-50%,140%);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.toast.version .ver-ico{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb,var(--g-bd) 22%,transparent);color:var(--g-bd);flex:none}
+.toast.version .ver-ico svg.i{width:17px;height:17px;animation:verGiro 3s cubic-bezier(.6,0,.3,1) infinite .6s}
+@keyframes verGiro{0%,62%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.toast.version .ver-btn{position:relative;background:var(--accent)!important;color:#fff!important;padding:8px 14px}
+.toast.version .ver-btn::after{content:"";position:absolute;inset:-3px;border-radius:11px;border:2px solid var(--accent);opacity:0;animation:verLate 2s ease-out infinite 1s;pointer-events:none}
+@keyframes verLate{0%{opacity:.7;transform:scale(1)}70%,100%{opacity:0;transform:scale(1.18)}}
+.toast.version.actualizando .ver-ico svg.i{animation:verGiroSin .8s linear infinite}
+@keyframes verGiroSin{to{transform:rotate(360deg)}}
+.toast.version.actualizando .ver-btn{opacity:.7}.toast.version.actualizando .ver-btn::after{animation:none}
+@media (prefers-reduced-motion:reduce){.toast.version,.toast.version .ver-ico svg.i,.toast.version .ver-btn::after{animation:none!important}}

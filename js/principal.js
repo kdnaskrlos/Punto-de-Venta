@@ -1,7 +1,7 @@
 // Punto de entrada: crea el almacén, muestra la entrada o la app según la sesión y registra el service worker.
 import { ctx, mostrarApp, definirCalculadora } from './app.js';
 import { vigilarVentaEnCurso, ofrecerRetomar } from './vistas/venta-en-curso.js';
-import { h, cerrarCapaSuperior, hayCapas } from './ui.js';
+import { h, icono, cerrarCapaSuperior, hayCapas } from './ui.js';
 import { crearAlmacen, MODO_DEMO, DEMO_DIRECTO, usuarioDemo } from './datos/index.js';
 import { iniciarDatos } from './datos/vivos.js';
 import { pantallaEntrada, pantallaPrimerAdmin } from './vistas/entrar.js';
@@ -82,6 +82,14 @@ const sinNadaAMedias = () => !document.querySelector('.capa') && !(window.__pos?
 function avisarVersionNueva(sw) {
   if (sinNadaAMedias()) { sw.postMessage('activar'); return; }
   document.querySelector('.toast.version')?.remove();
-  document.body.append(h('div', { class: 'toast version', role: 'status' }, 'Hay una versión nueva',
-    h('button', { onclick: () => sw.postMessage('activar') }, 'Actualizar')));
+  // v2.19: aviso animado (entra desde abajo, el ícono gira de vez en cuando y el botón late);
+  // al tocar «Actualizar», el ícono gira sin parar con «Actualizando…» hasta que la app se recarga.
+  const ico = h('span', { class: 'ver-ico' }, icono('actualizar'));
+  const boton = h('button', { class: 'ver-btn', onclick: () => {
+    aviso.classList.add('actualizando'); boton.disabled = true; texto.textContent = 'Actualizando…'; boton.textContent = 'Un momento';
+    sw.postMessage('activar');
+  } }, 'Actualizar');
+  const texto = h('span', {}, 'Hay una versión nueva');
+  const aviso = h('div', { class: 'toast version', role: 'status' }, ico, texto, boton);
+  document.body.append(aviso);
 }
