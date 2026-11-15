@@ -1,7 +1,7 @@
 // Pantalla Vender (§8): tarjetas por modelo y color, tallas, carrito con tramos, descuento y atajos.
 import { abrirEscaner, ICONO_ESCANER } from './escaner.js';
 import { buscarCodigo } from './inventario.js';
-import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, campoBusqueda, deslizarParaQuitar } from '../ui.js';
+import { h, icono, abrirVentana, abrirHoja, toast, esTelefono, hayCapas, largo, campoBusqueda, deslizarParaQuitar, alEnfocarCampo } from '../ui.js';
 import { coincide, textoPreparado } from '../nucleo/busqueda.js';
 import { abrirCajaVentana } from './caja.js';
 import { registrarVista, navegar } from '../app.js';
@@ -139,8 +139,9 @@ export function ponerCarrito(cont, nuevo) {
     const ultima = [...cont.querySelectorAll('.linea[data-sku]')].pop();
     if (!ancla && !ultima) return;
     const h0 = antes.get(v.dataset.sku)?.h || v.offsetHeight;
-    v.classList.remove('recien'); v.setAttribute('aria-hidden', 'true'); v.removeAttribute('data-sku');
-    v.style.pointerEvents = 'none'; v.style.overflow = 'hidden';
+    v.setAttribute('aria-hidden', 'true'); v.removeAttribute('data-sku');
+    // v2.07: sin el alto mínimo de la tarjeta el hueco se cierra entero (antes se quedaba en 56–68 px y luego saltaba).
+    v.style.pointerEvents = 'none'; v.style.overflow = 'hidden'; v.style.minHeight = '0px';
     if (ancla) ancla.before(v); else ultima.after(v);
     const g = parseFloat(getComputedStyle(v.parentElement).rowGap) || 0;
     // v2.06: si salió deslizándola, ya está fuera de la pantalla: solo se cierra su hueco (sin volver a aparecer).
@@ -351,7 +352,7 @@ function abrirTallas(ctx, g) {
             onclick: () => { cuentas[p.sku] = Math.max(0, n - 1); pintar(); } }, icono('menos')),
           h('input', { class: 'tf-cant num' + (n ? ' con' : ''), type: 'text', inputmode: 'numeric', enterkeyhint: 'done', autocomplete: 'off', value: String(n),
             'aria-label': `Cantidad talla ${nombre}`, disabled: agotada,
-            onfocus: e => e.target.select(),
+            onfocus: e => alEnfocarCampo(e.target),
             oninput: e => { const d = e.target.value.replace(/\D/g, ''); e.target.value = d; cuentas[p.sku] = Math.min(p.existencia, Number(d) || 0); resumen(); },
             onchange: () => pintar(),
             onkeydown: e => { if (e.key === 'Enter') e.target.blur(); } }),
@@ -443,7 +444,7 @@ registrarVista('/vender', {
     gestoCarrito(ctx, zonaCarrito);
     const btnTodos = h('button', { class: 'btn btn-todos', type: 'button', id: 'todos-productos', onclick: () => { catalogo = true; buscar.value = TODOS; busqueda = ''; pintar(); } }, icono('cuadricula'), 'Todos los productos');
     const vacio = h('div', { class: 'venta-vacia' }, btnTodos);
-    let catalogo = false, antes = new Map(), tRecien = 0, tLista = 0;
+    let catalogo = false, antes = new Map(), tLista = 0;
     const sinCaja = h('div', { class: 'aviso sin-caja' }, icono('cartera'), h('span', {}, 'Abre tu caja para vender'), h('span', { class: 'sp' }), h('button', { class: 'btn primary', onclick: () => abrirCajaVentana(ctx) }, 'Abrir caja'));
 
     // El mismo escáner del Inventario (cámara, foto del código o escribirlo / lector USB): lo leído se agrega al carrito.
@@ -496,7 +497,8 @@ registrarVista('/vender', {
       vacio.hidden = lista || !!r.unidades;
       zonaCarrito.hidden = lista || !r.unidades;
       if (r.unidades) ponerCarrito(zonaCarrito, panelCarrito(ctx, { enHoja: true })); else zonaCarrito.replaceChildren();
-      if (nueva) { clearTimeout(tRecien); const el = zonaCarrito.querySelector(`.linea[data-sku="${CSS.escape(nueva)}"]`); if (el) { el.classList.add('recien'); el.scrollIntoView({ block: 'nearest' }); tRecien = setTimeout(() => el.classList.remove('recien'), 1600); } }
+      // v2.07: sin resaltado verde al agregar o cambiar cantidades; solo se asegura que la prenda quede a la vista.
+      if (nueva) zonaCarrito.querySelector(`.linea[data-sku="${CSS.escape(nueva)}"]`)?.scrollIntoView({ block: 'nearest' });
       // v1.98: la barra de cobro sube al aparecer (CSS) y baja antes de esconderse; el total late al cambiar.
       if (r.unidades) {
         const totalAntes = lado.querySelector('.total-cop')?.textContent;
@@ -542,6 +544,6 @@ registrarVista('/vender', {
     cont.append(h('div', { class: 'vender-main' }, sinCaja, h('div', { class: 'buscador' }, campoBusqueda(buscar), escanear), filtros, rejilla, vacio, zonaCarrito), lado);
     pintar();
     if (!esTelefono()) setTimeout(() => buscar.focus(), 50);
-    return () => { clearTimeout(tRecien); clearTimeout(tLista); document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
+    return () => { clearTimeout(tLista); document.removeEventListener('keydown', teclas); window.removeEventListener('pos:datos', alDatos); window.removeEventListener('pos:carrito', pintarCarrito); };
   },
 });

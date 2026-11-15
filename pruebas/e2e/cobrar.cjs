@@ -225,4 +225,16 @@ casos('cobrar', [
     await p.waitForFunction(() => !document.querySelector('.pagos .pago'));
     a.strictEqual(await p.$eval('.forma[data-forma="efectivo-cop"]', e => e.getAttribute('aria-pressed')), 'false');
   }],
+  ['v2.07 · Teléfono: tocar el monto no selecciona el texto (sin menú Cortar/Copiar); computadora sí selecciona todo', async (env, a) => {
+    for (const [opc, selecciona] of [[{ ancho: 390, alto: 844 }, false], [{ ancho: 1440, alto: 900 }, true]]) {
+      const p = await preparar(env, opc);
+      await p.click('.lado-carrito .cobrar'); await p.waitForSelector('#cobrar-final');
+      await p.click('.forma[data-forma="efectivo-cop"]'); await p.waitForTimeout(300);
+      await p.$eval('.pago[data-forma="efectivo-cop"] input', i => i.blur());
+      if (selecciona) await p.focus('.pago[data-forma="efectivo-cop"] input'); else await p.tap('.pago[data-forma="efectivo-cop"] input').catch(() => p.click('.pago[data-forma="efectivo-cop"] input'));
+      await p.waitForTimeout(100);
+      const r = await p.$eval('.pago[data-forma="efectivo-cop"] input', i => [i.selectionStart, i.selectionEnd, i.value.length]);
+      a.strictEqual(r[0] !== r[1], selecciona, `${opc.ancho}px: selección ${r}`);
+    }
+  }],
 ]);

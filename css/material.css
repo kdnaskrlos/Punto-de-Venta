@@ -645,7 +645,6 @@ button.pill:not(.demo){border-color:transparent!important}
 .zona-carrito .carrito{padding:0!important;border:0!important;background:none!important}
 .zona-carrito .caja-total,.zona-carrito .acciones-carrito{display:none!important}
 .zona-carrito .totales:not(:has(.fila-total)){display:none!important}
-.linea.recien{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 45%,transparent)!important;transition:box-shadow .2s ease}
 /* Barra de cobro: total + equivalentes, Cobrar, y debajo Descuento | Apartar. */
 .barra-cobro{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"tot cob" "des apa";gap:10px 8px;align-items:center}
 .barra-cobro .bco-total{grid-area:tot;min-width:0;line-height:1.15}
@@ -1047,10 +1046,6 @@ label[for=aj-redondeo]{font-weight:600!important}
 .linea.mini .lc-t small{font-size:13px;color:var(--muted)}
 /* v2.06: la papelera del pago ya no tapa la tarjeta (su zona táctil cubría el campo del monto y al tocarlo se quitaba el pago) */
 .pago-quitar{position:relative!important;top:0!important;right:0!important}
-/* v2.06: al agregar, la prenda ya no se marca con un contorno verde: su fondo se ilumina un instante y se apaga */
-.linea.recien{box-shadow:none!important;animation:recien 1.4s ease-out}
-@keyframes recien{0%,25%{background:color-mix(in srgb,var(--accent) 10%,var(--surface))}100%{background:var(--surface)}}
-@media (prefers-reduced-motion:reduce){.linea.recien{animation:none}}
 /* v2.06: ícono de calculadora en su cabecera */
 .calc2 .cab h2{display:flex;align-items:center;gap:10px}
 .calc2 .cab h2 svg.i{width:22px;height:22px;flex:none;color:var(--accent)}

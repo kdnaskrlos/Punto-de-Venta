@@ -449,3 +449,12 @@ export function deslizarParaQuitar(cont, sel, quitar, { soloTelefono = false } =
   // Un deslizamiento no cuenta como toque.
   cont.addEventListener('click', e => { if (Date.now() - tocoHace < 350 && e.target.closest(sel)) { e.stopPropagation(); e.preventDefault(); } }, true);
 }
+
+// v2.07 · Al enfocar un campo de número: en la computadora se selecciona todo (para escribir encima); en el
+// teléfono solo se pone el cursor al final, porque seleccionar abre el menú «Cortar / Copiar» del sistema.
+export function alEnfocarCampo(inp) {
+  if (matchMedia('(pointer:coarse)').matches || esTelefono()) {
+    const fin = () => { try { const n = inp.value.length; inp.setSelectionRange(n, n); } catch {} };
+    setTimeout(fin, 0);
+  } else inp.select();
+}

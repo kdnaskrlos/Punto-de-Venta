@@ -1,5 +1,5 @@
 // Panel de pagos reutilizable (cobrar, apartar, abonar, completar): formas por moneda, montos, falta y vuelto (§9.2).
-import { h, icono, esTelefono, deslizarParaQuitar } from '../ui.js';
+import { h, icono, esTelefono, deslizarParaQuitar, alEnfocarCampo } from '../ui.js';
 import { estadoCobro, montoSugerido, vueltoEn } from '../nucleo/cobro.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
 import { formaEfectivo, NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
@@ -43,7 +43,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       inp.addEventListener('input', () => { p.monto = parseMonto(inp.value, f.moneda) || 0; tam(); pintarBarra(); avisar(); });
       inp.addEventListener('blur', () => { inp.value = p.monto ? fmtMonto(p.monto, f.moneda) : ''; tam(); });
       tam();
-      inp.addEventListener('focus', () => inp.select());
+      inp.addEventListener('focus', () => alEnfocarCampo(inp)); // v2.07: sin menú Cortar/Copiar en el teléfono
       inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') inp.blur(); });
       const eq = h('span', { class: 'nota num equiv' });
       p.pintarEq = () => { const e = estado().pagos.find(x => x.forma === f.id); eq.textContent = f.moneda === 'COP' ? '' : (e?.equivalenteCop == null ? 'Sin tasa' : e.equivalenteCop > 0 ? `≈ ${fmtCop(e.equivalenteCop)} COP` : ''); };

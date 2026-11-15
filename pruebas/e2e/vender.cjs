@@ -380,4 +380,20 @@ casos('vender', [
     await p.click('#todos-productos'); await p.click('.buscar-borrar');
     a.strictEqual(await p.isVisible('.rejilla'), false, 'la × también la quita');
   }],
+  ['v2.07 · Quitar deslizando: las de abajo suben sin salto y al agregar no hay resaltado verde', async (env, a) => {
+    const p = await env.pagina({ ancho: 390, alto: 844, usuario: 'vendedora', caja: true, ruta: '/vender' });
+    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [{ sku: 'B-S', cantidad: 1 }, { sku: 'J-M', cantidad: 1 }, { sku: 'J-L', cantidad: 1 }, { sku: 'Y-3m', cantidad: 1 }], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.waitForTimeout(600);
+    a.strictEqual(await p.$('.zona-carrito .linea.recien'), null, 'sin resaltado');
+    await p.evaluate(() => { const t0 = performance.now(); window.__tr = []; const f = () => { const l = document.querySelector('.zona-carrito .linea[data-sku="J-M"]'); if (l) window.__tr.push(l.getBoundingClientRect().top); if (performance.now() - t0 < 1800) requestAnimationFrame(f); }; requestAnimationFrame(f); });
+    const b = await (await p.$('.zona-carrito .linea[data-sku="B-S"]')).boundingBox(), y = b.y + b.height / 2;
+    await p.mouse.move(b.x + b.width - 30, y); await p.mouse.down();
+    for (let x = b.x + b.width - 30; x > 8; x -= 25) await p.mouse.move(x, y);
+    await p.mouse.up();
+    await p.waitForTimeout(1500);
+    const tr = await p.evaluate(() => window.__tr);
+    const saltos = tr.slice(1).map((t, i) => Math.abs(t - tr[i]));
+    a.ok(tr[0] - tr[tr.length - 1] > 40, 'la de abajo subió');
+    a.ok(Math.max(...saltos) < 25, 'sin salto brusco: ' + Math.round(Math.max(...saltos)));
+  }],
 ]);
