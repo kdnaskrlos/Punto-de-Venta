@@ -511,3 +511,4 @@ Suite final: npm test 99/99 · e2e 59/59
 - v2.19: aviso de versión nueva animado (entra desde abajo, ícono que gira cada 3 s, botón que late; al tocar, «Actualizando…» con giro continuo); el punto del carrito en la barra ya no brinca al cambiar de pantalla (solo anima cuando aparece).
 - v2.20: calculadora PC del alto de su contenido (sin espacio blanco abajo).
 - v2.21: la tuerca de la calculadora (a Ajustes › Tasas) también en el teléfono.
+- v2.22: calculadora PC centrada a lo alto (pegada a la derecha); recorte de foto sin el menú copiar/descargar/compartir al mantener presionado. Lápiz del perfil con foto: reabre el recorte (de la foto original si se eligió en esa edición) y «Otra foto» abre la galería.

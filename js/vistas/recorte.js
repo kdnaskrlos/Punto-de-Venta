@@ -16,6 +16,7 @@ export function avatarDe(u, tam = '') {
 // v2.18: las fotos del teléfono (12 MP o más) se achican primero a 1280 px; así el recorte abre rápido y fluido.
 async function prepararFoto(archivo) {
   try {
+    if (typeof archivo === 'string') archivo = await (await fetch(archivo)).blob(); // v2.22: reeditar la foto ya guardada
     const bmp = await createImageBitmap(archivo, { imageOrientation: 'from-image' });
     const k = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
     const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
@@ -25,7 +26,8 @@ async function prepararFoto(archivo) {
   } catch { return URL.createObjectURL(archivo); }
 }
 
-export async function recortarImagen(archivo) {
+// alOtra (v2.22): botón «Otra foto»; se llama dentro del toque para poder abrir la galería.
+export async function recortarImagen(archivo, { alOtra } = {}) {
   const url = await prepararFoto(archivo);
   const img = h('img', { class: 'rc-img', src: url, alt: '', draggable: 'false' });
   // v2.18: la ventana se abre con la foto ya cargada (antes abría vacía y luego crecía: el «brinco»).
@@ -41,6 +43,8 @@ export async function recortarImagen(archivo) {
       r = { x: (W - l) / 2, y: (H - l) / 2, w: l, h: l }; listo = true; pintar();
     };
     requestAnimationFrame(iniciar);
+    // v2.22: sin el menú del teléfono (copiar / descargar / compartir imagen) al dejar el dedo apretado.
+    marco.addEventListener('contextmenu', e => e.preventDefault());
     let arr = null;
     marco.addEventListener('pointerdown', e => {
       if (!listo) return;
@@ -67,7 +71,7 @@ export async function recortarImagen(archivo) {
     marco.addEventListener('pointerup', soltar); marco.addEventListener('pointercancel', soltar);
     let hecho = false;
     const usar = h('button', { class: 'btn primary grande', id: 'rc-usar' }, icono('check'), 'Usar foto');
-    const v = abrirVentana({ titulo: 'Recortar foto', contenido: h('div', { class: 'rc' }, marco, h('p', { class: 'nota' }, 'Mueve el círculo y agrándalo desde sus puntos.')), acciones: h('div', { class: 'acciones' }, usar) });
+    const v = abrirVentana({ titulo: 'Recortar foto', contenido: h('div', { class: 'rc' }, marco, h('p', { class: 'nota' }, 'Mueve el círculo y agrándalo desde sus puntos.')), acciones: h('div', { class: 'acciones' }, alOtra ? h('button', { class: 'btn', type: 'button', id: 'rc-otra', onclick: () => { v.cerrar(); alOtra(); } }, icono('imagen'), 'Otra foto') : null, usar) });
     v.alCerrar = () => { URL.revokeObjectURL(url); if (!hecho) resolver(null); };
     usar.onclick = () => {
       if (!listo) return;
@@ -87,15 +91,19 @@ export function editarPerfil(ctx, u) {
   const pintarFoto = () => vista.replaceChildren(avatarDe({ ...u, foto }, 'grande'));
   pintarFoto();
   const archivo = h('input', { type: 'file', accept: 'image/*', hidden: true });
-  archivo.onchange = async () => { const f = archivo.files[0]; archivo.value = ''; if (!f) return; const d = await recortarImagen(f); if (d) { foto = d; pintarFoto(); quitar.hidden = false; } };
-  const quitar = h('button', { class: 'btn texto peligro pf-quitar', type: 'button', hidden: !foto, onclick: () => { foto = null; pintarFoto(); quitar.hidden = true; } }, icono('borrar'), 'Quitar foto');
+  // v2.22: con foto, el lápiz reabre el recorte (de la foto original si se eligió ahora); «Otra foto» abre la galería.
+  let original = null;
+  const recortar = async fuente => { const d = await recortarImagen(fuente, { alOtra: () => archivo.click() }); if (d) { foto = d; pintarFoto(); quitar.hidden = false; } };
+  const lapiz = () => (foto ? recortar(original || foto) : archivo.click());
+  archivo.onchange = async () => { const f = archivo.files[0]; archivo.value = ''; if (!f) return; original = f; await recortar(f); };
+  const quitar = h('button', { class: 'btn texto peligro pf-quitar', type: 'button', hidden: !foto, onclick: () => { foto = null; original = null; pintarFoto(); quitar.hidden = true; } }, icono('borrar'), 'Quitar foto');
   const nombre = h('input', { class: 'inp', id: 'pf-nombre', value: u.nombre || '', autocapitalize: 'words', 'data-no-limpiar': '' });
   const err = h('p', { class: 'error', role: 'alert' });
   const guardar = h('button', { class: 'btn primary grande', id: 'pf-guardar' }, icono('check'), 'Guardar');
   const pc = true; // v2.17: mismo diseño en PC y teléfono
   // v2.17: la foto grande y centrada, con un lápiz abajo a la derecha del círculo para cambiarla.
   const arriba = pc
-    ? h('div', { class: 'pf-arriba pf-centro' }, h('div', { class: 'pf-circulo' }, vista, h('button', { class: 'pf-lapiz', type: 'button', id: 'pf-elegir', 'aria-label': 'Cambiar foto', onclick: () => archivo.click() }, icono('lapiz'))), quitar, archivo)
+    ? h('div', { class: 'pf-arriba pf-centro' }, h('div', { class: 'pf-circulo' }, vista, h('button', { class: 'pf-lapiz', type: 'button', id: 'pf-elegir', 'aria-label': 'Editar foto', onclick: lapiz }, icono('lapiz'))), quitar, archivo)
     : h('div', { class: 'pf-arriba' }, vista, h('div', { class: 'pf-botones' }, h('button', { class: 'btn', type: 'button', id: 'pf-elegir', onclick: () => archivo.click() }, icono('imagen'), 'Elegir foto'), quitar), archivo);
   const v = abrirVentana({ titulo: 'Editar perfil', clase: pc ? 'pf-ventana' : undefined, contenido: h('div', { class: 'pila pf' }, arriba,
     h('div', { class: 'campo' }, h('label', { for: 'pf-nombre' }, 'Nombre'), nombre), err), acciones: h('div', { class: 'acciones' }, guardar) });

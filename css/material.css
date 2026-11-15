@@ -1446,7 +1446,7 @@ label[for=aj-redondeo]{font-weight:600!important}
 /* v2.18 · Calculadora PC: panel flotante a la derecha que sale deslizándose desde el borde, con esquinas redondeadas */
 .calc-extra{display:inline-flex;align-items:center;gap:4px}
 @media (min-width:840px){
-  .capa.hoja.derecha:has(.calc2){padding:64px 12px 12px 0;align-items:flex-start}
+  .capa.hoja.derecha:has(.calc2){padding:64px 12px 12px 0;align-items:center}
   .capa.hoja.derecha .caja.calc2,body:has(.vista.vender.pc .pie-pc-cont:not([hidden])) .capa.hoja.derecha .caja.calc2{height:auto!important;max-height:100%;margin:0!important;border:1px solid var(--line)!important;border-radius:18px!important;overflow:hidden;
     box-shadow:0 18px 48px rgba(15,23,42,.18),0 2px 8px rgba(15,23,42,.08);animation:calcSale .28s cubic-bezier(.22,.9,.28,1)!important}
   @keyframes calcSale{from{transform:translateX(calc(100% + 24px))}to{transform:none}}
@@ -1482,3 +1482,6 @@ label[for=aj-redondeo]{font-weight:600!important}
 @keyframes verGiroSin{to{transform:rotate(360deg)}}
 .toast.version.actualizando .ver-btn{opacity:.7}.toast.version.actualizando .ver-btn::after{animation:none}
 @media (prefers-reduced-motion:reduce){.toast.version,.toast.version .ver-ico svg.i,.toast.version .ver-btn::after{animation:none!important}}
+/* v2.22 · Recorte: sin menú de imagen al mantener presionado */
+.rc-marco,.rc-marco *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.rc-img{pointer-events:none}
