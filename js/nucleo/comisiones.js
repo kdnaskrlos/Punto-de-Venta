@@ -24,7 +24,7 @@ export function comisionLinea({ tramo, cantidad, subtotal }, producto, defectos 
 
 export function comisionesVenta(lineasCalculadas, productosPorSku, defectos, hayDescuento) {
   return lineasCalculadas.map(l => {
-    const reducida = !!(hayDescuento || l.oferta);
+    const reducida = !!((hayDescuento && !l.separado) || l.oferta); // v2.09: «separado» no lleva el descuento
     return { sku: l.sku, comision: comisionLinea(l, productosPorSku[l.sku], defectos, reducida), reducida };
   });
 }

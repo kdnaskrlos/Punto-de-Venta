@@ -7,7 +7,7 @@ async function preparar(env, { sinCliente, ...opciones } = {}) {
   // Buzo S 48.000 + Jogger M 42.000 + 2 bodies (separados, 18.000) = 126.000 − 10.000 de descuento = 116.000
   await p.evaluate(sin => {
     const c = window.__pos.ctx;
-    c.carrito = { lineas: [{ sku: 'B-S', cantidad: 1 }, { sku: 'J-M', cantidad: 1 }, { sku: 'Y-6m', cantidad: 1 }, { sku: 'Y-3m', cantidad: 1 }], descuento: { tipo: 'monto', valor: 10000 }, autorizacion: { id: 'a1', por: 'admin', subtotal: 126000 }, cliente: { nombre: 'Ana Pérez', telefono: '584121234567' } }; // 7,9%: autorizado por el admin
+    c.carrito = { lineas: [{ sku: 'B-S', cantidad: 1 }, { sku: 'J-M', cantidad: 1 }, { sku: 'Y-6m', cantidad: 1 }, { sku: 'Y-3m', cantidad: 1 }], descuento: { tipo: 'monto', valor: 10000 }, autorizacion: { id: 'a1', por: 'admin', subtotal: 90000 }, cliente: { nombre: 'Ana Pérez', telefono: '584121234567' } }; // autorizado por el admin sobre las prendas con descuento (v2.09: los bodies van aparte)
     if (sin) delete c.carrito.cliente;
     window.dispatchEvent(new CustomEvent('pos:carrito'));
   }, !!sinCliente);
@@ -51,7 +51,7 @@ casos('cobrar', [
     a.strictEqual(v.total, 116000);
     a.deepStrictEqual(v.pagos.map(x => [x.forma, x.monto]), [['efectivo-cop', 50000], ['pago-movil', 18192.31]]);
     a.strictEqual(v.descuento.monto, 10000);
-    a.ok(v.lineas.every(l => l.reducida), 'descuento → comisión reducida');
+    a.ok(v.lineas.every(l => l.reducida === !l.sku.startsWith('Y')), 'descuento → comisión reducida (los bodies «separado» no)');
     await p.click('text=Nueva venta');
     a.strictEqual(await p.$('.lado-carrito .linea'), null);
   }],
@@ -254,5 +254,19 @@ casos('cobrar', [
     await p.fill('.pago[data-forma="transferencia-cop"] input', '');
     await p.click('.pago[data-forma="transferencia-cop"] .pago-quitar'); await p.waitForTimeout(400);
     a.strictEqual(await p.$('.toast button'), null, 'un pago vacío se quita sin Deshacer');
+  }],
+  ['v2.09 · «separado»: los bodies no suman al tramo de las demás ni llevan descuento; la venta lo guarda así', async (env, a) => {
+    const p = await preparar(env); // Buzo + Jogger normales; 2 bodies «separado»; descuento 10.000 autorizado
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.productos['Y-6m'].separado), true);
+    await p.click('.lado-carrito .cobrar'); await p.waitForSelector('#cobrar-final');
+    await p.click('.forma[data-forma="efectivo-cop"]');
+    await p.click('#cobrar-final');
+    await p.waitForSelector('.exito');
+    const v = await p.evaluate(() => [...window.__pos.ctx.almacen._estado('ventas').values()][0]);
+    a.strictEqual(v.total, 116000);
+    const d = Object.fromEntries(v.lineas.map(l => [l.sku, l.descuento]));
+    a.strictEqual(d['Y-6m'] + d['Y-3m'], 0, 'los bodies no llevan descuento');
+    a.strictEqual(d['B-S'] + d['J-M'], 10000);
+    a.deepStrictEqual(v.lineas.filter(l => l.sku.startsWith('Y')).map(l => l.reducida), [false, false]);
   }],
 ]);

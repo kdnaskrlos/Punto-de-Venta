@@ -24,7 +24,9 @@ export function resumenCarrito(ctx) {
   const c = carrito(ctx);
   const aj = ctx.ajustes;
   const calc = calcularCarrito(c.lineas, ctx.productos, { limites: aj.tramos, redondeo: aj.redondeo });
-  const { descuento, total } = aplicarDescuento(calc.subtotal, c.descuento);
+  // v2.09: el descuento solo se aplica a las prendas normales (las «separado» quedan fuera).
+  const { descuento } = aplicarDescuento(calc.subtotalDescontable, c.descuento);
+  const total = calc.subtotal - descuento;
   return { ...calc, descuento, total, unidades: calc.lineas.reduce((s, l) => s + l.cantidad, 0) };
 }
 
@@ -33,7 +35,7 @@ export function resumenCarrito(ctx) {
 export function revisarDescuento(ctx) {
   const c = carrito(ctx);
   if (!c.descuento) return true;
-  const sub = calcularCarrito(c.lineas, ctx.productos, { limites: ctx.ajustes.tramos, redondeo: ctx.ajustes.redondeo }).subtotal;
+  const sub = calcularCarrito(c.lineas, ctx.productos, { limites: ctx.ajustes.tramos, redondeo: ctx.ajustes.redondeo }).subtotalDescontable;
   const pct = c.descuento.tipo === 'pct' ? c.descuento.valor : (sub ? c.descuento.valor * 100 / sub : 100);
   const invalido = c.autorizacion ? c.autorizacion.subtotal !== sub
     : (requiereAutorizacion(ctx.rol(), pct, 0) || pct >= 100);
@@ -277,6 +279,9 @@ function barraCobro(ctx, r) {
 export function abrirDescuento(ctx) {
   const c = carrito(ctx);
   const r = resumenCarrito(ctx);
+  // v2.09: las prendas «separado» no llevan descuento.
+  if (!r.subtotalDescontable && !c.descuento) { toast('Estas prendas no llevan descuento'); return; }
+  const aparte = r.lineas.filter(l => l.separado).reduce((s, l) => s + l.cantidad, 0);
   const max = 0; // la vendedora no da descuentos por su cuenta: todo descuento suyo necesita autorización
   const tasa = ctx.tasas?.copPorUsd || 0;
   let moneda = c.descuento?.moneda === 'USD' && tasa ? 'USD' : 'COP';
@@ -295,6 +300,7 @@ export function abrirDescuento(ctx) {
     ...[['COP', 'Pesos (COP)'], ['USD', 'Dólares (USD)']].map(([m, txt]) => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === moneda), disabled: m === 'USD' && !tasa,
       onclick: e => { moneda = m; segm.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); valor.value = ''; err.textContent = ''; pintar(); } }, txt)));
   valor.addEventListener('input', pintar);
+  const notaAparte = aparte ? h('p', { class: 'nota' }, `No aplica a ${aparte} ${aparte === 1 ? 'prenda que va' : 'prendas que van'} aparte; se descuenta de ${fmtCop(r.subtotalDescontable)} COP.`) : null;
   const nota = ctx.rol() === 'vendedora' ? h('p', { class: 'nota' }, 'El descuento se aplica cuando lo autorice el administrador o la encargada.') : null;
   const aplicar = h('button', { class: 'btn primary' }, 'Aplicar');
   const quitarDesc = c.descuento ? h('button', { type: 'button', class: 'btn texto peligro', id: 'desc-quitar', onclick: () => {
@@ -304,19 +310,19 @@ export function abrirDescuento(ctx) {
     toast('Descuento quitado', { deshacer: () => { c.descuento = d; c.autorizacion = au; window.dispatchEvent(new CustomEvent('pos:carrito')); } });
   } }, 'Quitar descuento') : null;
   const v = abrirVentana({ titulo: 'Descuento', contenido: h('div', { class: 'pila' }, segm,
-    h('div', { class: 'campo' }, h('label', { for: 'desc-valor' }, 'Monto a descontar'), h('div', { class: 'desc-entrada' }, valor, sufijo), equiv, err), nota),
+    h('div', { class: 'campo' }, h('label', { for: 'desc-valor' }, 'Monto a descontar'), h('div', { class: 'desc-entrada' }, valor, sufijo), equiv, err), notaAparte, nota),
     acciones: h('div', { class: 'acciones' }, quitarDesc, aplicar) });
   pintar();
   aplicar.addEventListener('click', async () => {
     const n = enPesos();
     if (!n) { err.textContent = 'Escribe un monto'; return; }
-    const pct = r.subtotal ? n * 100 / r.subtotal : 100;
-    if (pct >= 100) { err.textContent = 'Debe ser menor que el total'; return; }
+    const pct = r.subtotalDescontable ? n * 100 / r.subtotalDescontable : 100;
+    if (pct >= 100) { err.textContent = aparte ? 'Debe ser menor que el total de las prendas con descuento' : 'Debe ser menor que el total'; return; }
     const tipo = 'monto';
     const desc = { tipo, valor: n, moneda, valorUsd: moneda === 'USD' ? parseMonto(valor.value, 'USD') : null };
     if (requiereAutorizacion(ctx.rol(), pct, max)) {
       aplicar.disabled = true;
-      const s = await ctx.almacen.solicitarAutorizacion({ pct: Math.round(pct * 100) / 100, tipo, valor: n, subtotal: r.subtotal });
+      const s = await ctx.almacen.solicitarAutorizacion({ pct: Math.round(pct * 100) / 100, tipo, valor: n, subtotal: r.subtotalDescontable });
       if (!s.ok) { aplicar.disabled = false; err.textContent = s.error === 'red' ? 'Necesitas internet para pedir autorización' : 'No se pudo pedir'; return; }
       err.textContent = '';
       aplicar.textContent = 'Esperando autorización…';
@@ -324,7 +330,7 @@ export function abrirDescuento(ctx) {
         const a = lista.find(x => x.id === s.id);
         if (!a || a.estado === 'pendiente') return;
         setTimeout(() => quitar && quitar());
-        if (a.estado === 'aprobada') { c.descuento = desc; c.autorizacion = { id: a.id, por: a.aprueba, subtotal: r.subtotal }; v.cerrar(); toast('Descuento autorizado'); window.dispatchEvent(new CustomEvent('pos:carrito')); }
+        if (a.estado === 'aprobada') { c.descuento = desc; c.autorizacion = { id: a.id, por: a.aprueba, subtotal: r.subtotalDescontable }; v.cerrar(); toast('Descuento autorizado'); window.dispatchEvent(new CustomEvent('pos:carrito')); }
         else { aplicar.disabled = false; aplicar.textContent = 'Aplicar'; err.textContent = 'Descuento rechazado'; }
       });
       v.alCerrar = () => quitar && quitar();

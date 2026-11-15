@@ -23,10 +23,19 @@ test('el mix suma prendas de distintos productos', () => {
   assert.equal(r.lineas[0].subtotal, 72000);
 });
 
-test('«separado» se guarda pero todavía no cambia el tramo: todo cuenta en el mix', () => {
+test('v2.09 · «separado» no suma al mix ni recibe el de las demás: va por su propia cantidad', () => {
   const s = calcularCarrito([{ sku: 'F', cantidad: 4 }, { sku: 'Y', cantidad: 2 }], P, opts);
-  assert.equal(s.cantidadMix, 6);
-  assert.deepEqual(s.lineas.map(l => l.tramo), [1, 1]);
+  assert.equal(s.cantidadMix, 4, 'los bodies separados no cuentan para las franelas');
+  assert.deepEqual(s.lineas.map(l => l.tramo), [0, 0]);
+  assert.deepEqual(s.lineas.map(l => l.separado), [false, true]);
+  assert.equal(s.subtotalDescontable, 4 * 25000);
+});
+
+test('v2.09 · las prendas «separado» del mismo producto (otras tallas) cuentan juntas para su tramo', () => {
+  const s = calcularCarrito([{ sku: 'F', cantidad: 1 }, { sku: 'Y', cantidad: 4 }, { sku: 'Y2', cantidad: 2 }], P, opts);
+  assert.deepEqual(s.lineas.map(l => l.tramo), [0, 1, 1]);
+  assert.equal(s.lineas[1].precioUnit, 17000);
+  assert.equal(s.cantidadMix, 1);
 });
 
 test('tramo 48+ sin precio 5 usa el del tramo 4', () => {

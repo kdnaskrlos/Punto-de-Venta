@@ -22,3 +22,8 @@ test('autorización: solo la vendedora por encima del máximo', () => {
   assert.ok(!requiereAutorizacion('encargada', 30, 5));
   assert.ok(!requiereAutorizacion('admin', 50, 5));
 });
+
+test('v2.09 · el descuento no se reparte a prendas «separado» (subtotal 0 en el reparto)', () => {
+  const partes = repartirDescuento([{ subtotal: 48000 }, { subtotal: 0 }, { subtotal: 42000 }], 9000);
+  assert.deepEqual(partes, [4800, 0, 4200]);
+});

@@ -73,3 +73,8 @@ test('ganaComision: por defecto solo la vendedora; la marca del administrador ma
   assert.equal(ganaComision({ rol: 'encargada', ganaComision: true }), true);
   assert.equal(ganaComision({ rol: 'vendedora', ganaComision: false }), false);
 });
+
+test('v2.09 · con descuento, una prenda «separado» conserva su comisión normal', () => {
+  const c = comisionesVenta([{ sku: 'F', tramo: 0, cantidad: 1, subtotal: 25000, separado: true }, { sku: 'F', tramo: 0, cantidad: 1, subtotal: 25000 }], P, COMISIONES_DEFECTO, true);
+  assert.deepEqual(c.map(x => x.reducida), [false, true]);
+});

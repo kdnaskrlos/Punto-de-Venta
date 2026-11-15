@@ -20,8 +20,9 @@ function nombreLinea(ctx, sku) {
 
 export function lineasParaGuardar(ctx, r) {
   const aj = ctx.ajustes;
+  // v2.09: el descuento se reparte solo entre las prendas normales; las «separado» no lo llevan (ni la comisión reducida por él).
   const coms = comisionesVenta(r.lineas, ctx.productos, aj.comisiones, r.descuento > 0);
-  const descLinea = repartirDescuento(r.lineas, r.descuento);
+  const descLinea = repartirDescuento(r.lineas.map(l => (l.separado ? { ...l, subtotal: 0 } : l)), r.descuento);
   return r.lineas.map((l, i) => {
     const p = ctx.productos[l.sku];
     return { sku: l.sku, nombre: nombreVenta(p), talla: p.talla || '', cantidad: l.cantidad, tramo: l.tramo, precioUnit: l.precioUnit, subtotal: l.subtotal, oferta: l.oferta, descuento: descLinea[i], comision: coms[i].comision, reducida: coms[i].reducida };
