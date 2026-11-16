@@ -528,3 +528,4 @@ Suite final: npm test 99/99 · e2e 59/59
 - v2.32: Modo prueba: si Firebase rechaza los ejemplos por permisos, el aviso dice que hay que publicar las reglas nuevas (antes solo «No se pudieron cargar»).
 - v2.33: Modo prueba: antes de cargar se quitan los ejemplos que hubiera (de una carga anterior o a medias); las reglas no dejan reescribir ventas, apartados ni pagos de comisión existentes y eso hacía fallar la carga con «sin permiso».
 - v2.34: a pedido de Carlos, el Modo prueba vuelve a como estaba en la v2.30 (sin vendedora simulada, cajas ni comisiones de ejemplo) y las reglas vuelven a las de la v2.27 (sin las reglas de cajas y comisiones de ejemplo). El resto de cambios (cliente en la PC, etc.) se mantiene.
+- v2.35: vuelve el Modo prueba con vendedora simulada (v2.33). La falla anterior era que las reglas se publicaron en el proyecto de Pedidos, no en punto-de-venta-comic-shop.
