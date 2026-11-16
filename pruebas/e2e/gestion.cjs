@@ -20,6 +20,18 @@ async function cambiarA(p, usuario, pin) {
 }
 
 casos('gestion', [
+  ['v2.27 · Actividad: el ajuste de tasas y el de inventario quedan registrados con quién y desde qué aparato; la vendedora no la ve', async (env, a) => {
+    const p = await env.pagina({ ruta: '/reportes' });
+    await p.evaluate(async () => { const A = window.__pos.ctx.almacen; await A.guardarAjustes('tasas', { copPorUsd: 3333 }); await A.ajustarExistencia('B-S', -1, 'Dañada', 'mancha'); });
+    await p.click('.rep-fila.rep-act'); await p.waitForSelector('.act-fila');
+    const t = await p.innerText('.act-lista');
+    for (const x of ['Ajustes', 'Tasa del peso', '3.333', 'Ajuste de inventario', 'Dañada: mancha', '@admin']) a.ok(t.includes(x), `falta ${x} en ${t.slice(0, 300)}`);
+    await p.click('.act-filtros .chip:has-text("Inventario")');
+    a.strictEqual(await p.$$eval('.act-fila', f => f.every(x => /^(inventario|oferta|foto)\./.test(x.dataset.tipo))), true);
+    const v = await env.pagina({ usuario: 'vendedora', ruta: '/reportes' });
+    a.strictEqual(await v.$('.rep-fila.rep-act'), null, 'la vendedora no ve Actividad');
+    a.deepStrictEqual(p.errores, []);
+  }],
   ['Inicio admin: ventas de hoy y ganancia; la vendedora no ve ganancia', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true });
     await vender(p);

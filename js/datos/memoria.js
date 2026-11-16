@@ -4,6 +4,8 @@ import { puede } from '../nucleo/permisos.js';
 import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
 import { NOMBRES, nuevoId } from './contrato.js';
+import { describir, diferencias } from './eventos.js';
+import { dispositivo } from './dispositivo.js';
 
 const ahora = () => new Date().toISOString();
 const copia = x => (x == null ? x : JSON.parse(JSON.stringify(x)));
@@ -56,6 +58,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
     if (!sesion) return false;
     const r = rol();
     if (['costos', 'costosVenta', 'comisiones', 'movimientos'].includes(nombre)) return puede(r, 'verCostos');
+    if (nombre === 'eventos') return puede(r, 'verReportesTodos');
     if (['ventas', 'cajas', 'conflictos'].includes(nombre)) return puede(r, 'verReportesTodos') || doc.usuario === sesion.usuario;
     if (nombre === 'autorizaciones') return r === 'admin' || doc.usuario === sesion.usuario;
     return true;
@@ -453,6 +456,39 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       avisarSync();
     },
   };
+
+  // v2.27 · Registro de actividad (igual que en Firebase, con eventos/describir): cada acción que sale bien deja su evento.
+  const anotarEvento = (metodo, args, x) => {
+    const ev = sesion && describir(metodo, args, x); if (!ev) return;
+    const id = nuevoId(), d = (typeof localStorage !== 'undefined') ? dispositivo() : { id: 'prueba', nombre: 'Prueba' };
+    col.eventos.set(id, { id, ...copia(ev), en: ahora(), enLocal: ahora(), fecha: ahora(), uid: sesion.uid, usuario: sesion.usuario, rol: sesion.rol, dispositivo: d.id, nombreDispositivo: d.nombre });
+    avisar('eventos');
+  };
+  const previo = {
+    anularVenta: ([id]) => ({ venta: col.ventas.get(id) }),
+    abonarApartado: ([id]) => ({ ap: col.apartados.get(id) }), cancelarApartado: ([id]) => ({ ap: col.apartados.get(id) }),
+    reabrirCaja: ([id]) => ({ caja: col.cajas.get(id) }),
+    guardarAjustes: ([doc, datos]) => ({ cambios: diferencias(col.ajustes.get(doc) || {}, datos) }),
+    guardarCliente: ([c]) => { const t = telefonoInternacional(c?.telefono); return { telefono: t, antes: col.clientes.get(t)?.nombre || null, igual: col.clientes.get(t)?.nombre === String(c?.nombre || '').trim() }; },
+    marcarComision: ([uid]) => ({ u: col.usuarios.get(uid) }), editarPerfil: ([uid]) => ({ u: col.usuarios.get(uid) }),
+    eliminarUsuario: ([uid]) => ({ u: col.usuarios.get(uid) }), activarUsuario: ([uid]) => ({ u: col.usuarios.get(uid) }),
+    cambiarPin: ([uid]) => ({ u: col.usuarios.get(uid) }), responderAutorizacion: ([id]) => ({ a: col.autorizaciones.get(id) }),
+    ajustarExistencia: ([sku]) => ({ nombre: col.productos.get(sku)?.nombre }),
+  };
+  for (const m of ['guardarVenta', 'guardarApartado', 'anularVenta', 'abonarApartado', 'completarApartado', 'cancelarApartado', 'abrirCaja', 'movimientoCaja',
+    'cerrarCaja', 'arquearCaja', 'reabrirCaja', 'ajustarExistencia', 'aplicarImportacion', 'guardarOferta', 'guardarImagen', 'guardarAjustes', 'guardarCliente',
+    'solicitarAutorizacion', 'responderAutorizacion', 'pagarComisiones', 'crearUsuario', 'cambiarPin', 'marcarComision', 'editarPerfil', 'eliminarUsuario',
+    'activarUsuario', 'registrarConflicto', 'revisarConflicto', 'entrar', 'cargarEjemplos', 'quitarEjemplos']) {
+    const f = api[m]; if (!f) continue;
+    api[m] = async (...args) => {
+      const x = previo[m]?.(args) || {};
+      const r = await f(...args);
+      if (r?.ok && !(m === 'guardarAjustes' && !x.cambios) && !(m === 'guardarCliente' && x.igual)) anotarEvento(m, args, { ...x, ...r, offline: r.offline });
+      return r;
+    };
+  }
+  const salir0 = api.salir;
+  api.salir = async () => { anotarEvento('salir', []); return salir0(); };
   return api;
 }
 

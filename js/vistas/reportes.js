@@ -9,6 +9,7 @@ import { NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
 import { hoy, sumarDias, rangoCorto, inicioDia } from '../nucleo/fechas.js';
 import { abrirCalendarioRango } from './calendario.js';
 import { escucharVentasConCosto, listaVentas } from './ventas-rango.js';
+import { abrirActividad } from './actividad.js';
 
 // v1.94: Ventas y Ganancia van en dos columnas iguales; la letra baja antes (desde 8 caracteres) para que no se toquen.
 const largoKpi = t => { const n = String(t).length; return n >= 12 ? 'xl' : n >= 10 ? 'l' : n >= 8 ? 'm' : null; };
@@ -156,7 +157,9 @@ registrarVista('/reportes', {
               h('div', { class: 'rd-stat' }, h('span', {}, 'A costo'), h('b', { class: 'num', 'data-largo': largo(fmtCop(inv.aCosto)) }, fmtCop(inv.aCosto))),
               h('div', { class: 'rd-stat' }, h('span', {}, 'A precio detal'), h('b', { class: 'num', 'data-largo': largo(fmtCop(inv.aPrecio)) }, fmtCop(inv.aPrecio)))),
             h('div', { class: 'rd-stat ganancia' }, h('span', {}, 'Ganancia posible'), h('b', { class: 'num', 'data-largo': largo(fmtCop(inv.aPrecio - inv.aCosto)) }, fmtCop(inv.aPrecio - inv.aCosto)),
-              h('small', {}, inv.aPrecio ? `${pct(inv.aPrecio - inv.aCosto, inv.aPrecio)} % del precio detal` : ''))) })) : null)));
+              h('small', {}, inv.aPrecio ? `${pct(inv.aPrecio - inv.aCosto, inv.aPrecio)} % del precio detal` : ''))) })) : null,
+          // v2.27 · Registro de actividad del período (gestión).
+          gestion ? filaSeccion('rep-act', 'historial', 'Actividad', rangoCorto(rangoActual[0], rangoActual[1]), () => abrirActividad(ctx, { desde: rangoActual[0], hasta: rangoActual[1] })) : null)));
       if (animar) { animar = false; cuerpo.classList.remove('rep-anim'); void cuerpo.offsetWidth; cuerpo.classList.add('rep-anim'); clearTimeout(tAnim); tAnim = setTimeout(() => cuerpo.classList.remove('rep-anim'), 900); }
     };
     // v2.03: una sola escucha para todo el año (desde el lunes si la semana empezó el año anterior). Hoy, Semana,

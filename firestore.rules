@@ -48,7 +48,12 @@ service cloud.firestore {
     match /productos/{sku} {
       allow read: if activo();
       allow create, delete: if esAdmin();
-      allow update: if esAdmin() || (activo() && soloCambian(['existencia']));
+      // v2.27: los demás solo cambian la existencia junto con su movimiento de inventario (misma escritura),
+      // y la diferencia tiene que ser exactamente la cantidad del movimiento.
+      allow update: if esAdmin() || (activo() && soloCambian(['existencia', 'ultimoMov'])
+        && getAfter(/databases/$(database)/documents/movimientos/$(request.resource.data.ultimoMov)).data.sku == sku
+        && getAfter(/databases/$(database)/documents/movimientos/$(request.resource.data.ultimoMov)).data.cantidad
+           == request.resource.data.existencia - resource.data.existencia);
     }
 
     // Costos: solo administrador y encargada los ven; solo el administrador los cambia (importación).
@@ -151,8 +156,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // v2.27: los clientes no se borran, y cada alta o cambio va con su evento en el registro de actividad.
     match /clientes/{telefono} {
-      allow read, write: if activo();
+      allow read: if activo();
+      allow create, update: if ejemploNuevo() || (activo()
+        && existsAfter(/databases/$(database)/documents/eventos/$(request.resource.data.ultimoEvento))
+        && (resource == null || request.resource.data.ultimoEvento != resource.data.ultimoEvento));
+      allow delete: if ejemploExistente();
+    }
+
+    // v2.27 · Registro de actividad: solo se agregan eventos, con la hora del servidor y a nombre de quien los hace.
+    // Nadie los edita ni los borra (ni el administrador desde la app). Solo gestión los lee.
+    match /eventos/{id} {
+      allow read: if esGestion();
+      allow create: if activo() && request.resource.data.uid == request.auth.uid && request.resource.data.usuario == yo()
+        && request.resource.data.en == request.time;
+      allow update, delete: if false;
     }
 
     // Autorizaciones de descuento: las pide cualquiera (a su nombre); solo el admin responde.

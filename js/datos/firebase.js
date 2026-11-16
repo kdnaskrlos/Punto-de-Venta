@@ -2,12 +2,15 @@
 // Cumple el contrato de contrato.js. Las reglas de firestore.rules repiten estos permisos en el servidor.
 import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocFromServer, getDocs, waitForPendingWrites, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion, documentId } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocFromServer, getDocs, waitForPendingWrites, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion, documentId } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { puede } from '../nucleo/permisos.js';
 import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
 import { nuevoId } from './contrato.js';
 import { subirFotoGitHub, CLAVE_TOKEN } from './github-fotos.js';
+import { describir, diferencias } from './eventos.js';
+import { dispositivo } from './dispositivo.js';
+import { APP_VERSION } from '../version.js';
 
 const ahora = () => new Date().toISOString();
 const NO = (error, extra = {}) => ({ ok: false, error, ...extra });
@@ -16,6 +19,7 @@ const pinPass = pin => 'cs-' + pin;
 const correo = u => `${u}.${Math.random().toString(36).slice(2, 6)}@comicshop-pos.app`;
 const limpiarUsuario = s => String(s || '').trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, '.').replace(/[^a-z0-9._-]/g, '');
 const RESTRINGIDAS = ['costos', 'costosVenta', 'comisiones', 'movimientos'];
+const SOLO_GESTION = ['eventos'];
 const PROPIAS = ['ventas', 'cajas', 'autorizaciones', 'conflictos'];
 
 function cumpleFiltro(d, f) {
@@ -57,11 +61,29 @@ export function crearFirebase(config) {
   const limpiarIndefinidos = v => Array.isArray(v) ? v.map(limpiarIndefinidos) : v && typeof v === 'object' && v.constructor === Object ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).map(([k, x]) => [k, limpiarIndefinidos(x)])) : v;
   const exigir = accion => (!sesion ? 'sesion' : !puede(sesion.rol, accion) ? 'permiso' : null);
   const ref = (n, id) => doc(db, n, id);
+  const nombreDeSku = sku => sku; // el nombre legible se arma en la pantalla de Actividad
   const porSku = lineas => { const m = {}; for (const l of lineas) m[l.sku] = (m[l.sku] || 0) + l.cantidad; return m; };
   const movimiento = (sku, cantidad, motivo, refId, nota) => {
     const id = nuevoId();
     return [ref('movimientos', id), { id, sku, cantidad, motivo, ref: refId || null, nota: nota || '', usuario: sesion.usuario, fecha: ahora() }];
   };
+  // v2.27 · Cambio de existencia SIEMPRE con su movimiento (las reglas lo exigen: ultimoMov apunta al movimiento
+  // creado en la misma escritura y su cantidad debe ser igual a la diferencia).
+  const mover = (b, sku, n, motivo, refId, nota) => {
+    const [mr, md] = movimiento(sku, n, motivo, refId, nota);
+    b.update(ref('productos', sku), { existencia: increment(n), ultimoMov: md.id });
+    b.set(mr, md);
+  };
+  // v2.27 · Registro de actividad: [ref, datos] del evento, para ir en la misma escritura que la acción.
+  const evento = ev => {
+    const id = nuevoId(), d = dispositivo();
+    return [ref('eventos', id), limpiarIndefinidos({ id, tipo: ev.tipo, en: serverTimestamp(), enLocal: ahora(), fecha: ahora(), uid: sesion.uid, usuario: sesion.usuario, rol: sesion.rol,
+      dispositivo: d.id, nombreDispositivo: d.nombre, version: APP_VERSION, ref: ev.ref || null, resumen: ev.resumen || '', motivo: ev.motivo || '',
+      antes: ev.antes ?? null, despues: ev.despues ?? null })];
+  };
+  const anotar = (b, metodo, args, x) => { const ev = describir(metodo, args, x); if (ev && sesion) b.set(...evento(ev)); };
+  // Acción de una sola escritura + su evento, juntos.
+  const conEvento = (escribir, metodo, args, x) => { const b = writeBatch(db); escribir(b); anotar(b, metodo, args, x); return sinEsperar(b.commit()); };
 
   // ---- sesión ----
   let errorPerfil = null; // por qué no se pudo cargar el perfil (se muestra en la entrada)
@@ -130,7 +152,7 @@ export function crearFirebase(config) {
   }
 
   // ---- venta/apartado con existencia ----
-  async function guardarConExistencia({ col, docu, lineas, motivo, numerar }) {
+  async function guardarConExistencia({ col, docu, lineas, motivo, numerar, ev }) {
     if (enCurso.has(docu.id)) return SI({ offline: false });
     enCurso.add(docu.id);
     try {
@@ -152,10 +174,12 @@ export function crearFirebase(config) {
               tx.set(ref('contadores', 'ventas'), { n });
             }
             for (const p of prods) {
-              tx.update(p.ref, { existencia: p.data().existencia - cant[p.id] });
-              tx.set(...movimiento(p.id, -cant[p.id], motivo, docu.id));
+              const [mr, md] = movimiento(p.id, -cant[p.id], motivo, docu.id);
+              tx.update(p.ref, { existencia: p.data().existencia - cant[p.id], ultimoMov: md.id });
+              tx.set(mr, md);
             }
             tx.set(ref(col, docu.id), { ...docu, ...(numerar ? { numero } : {}), offline: false });
+            if (ev) tx.set(...evento(ev));
             return SI({ offline: false });
           })]);
           return r;
@@ -167,11 +191,9 @@ export function crearFirebase(config) {
       try { if ((await getDocFromCache(ref(col, docu.id))).exists()) return SI({ offline: true }); } catch { /* no está en caché */ }
       // Sin conexión: se guarda en el teléfono y sube después; la existencia puede quedar negativa.
       const b = writeBatch(db);
-      for (const [sku, n] of Object.entries(cant)) {
-        b.update(ref('productos', sku), { existencia: increment(-n) });
-        b.set(...movimiento(sku, -n, motivo, docu.id));
-      }
+      for (const [sku, n] of Object.entries(cant)) mover(b, sku, -n, motivo, docu.id);
       b.set(ref(col, docu.id), { ...docu, ...(numerar ? { numero: null } : {}), offline: true });
+      if (ev) b.set(...evento({ ...ev, resumen: ev.resumen + ' · sin conexión' }));
       const r = await sinEsperar(b.commit());
       if (!r.ok) enCurso.delete(docu.id);
       return r.ok ? SI({ offline: true }) : r;
@@ -223,6 +245,7 @@ export function crearFirebase(config) {
         // Con el perfil del servidor en la mano se abre la sesión de una vez.
         if (!sesion || sesion.uid !== cred.user.uid) aplicarPerfil(cred.user, perfil.data());
         console.info('[entrar] listo', !!sesion);
+        if (sesion) conEvento(() => {}, 'entrar', []);
         return sesion ? SI() : NO('perfil', { detalle: errorPerfil || 'sin sesión' });
       } catch (e) {
         if (auth.currentUser && !sesion) signOut(auth).catch(() => {});
@@ -234,7 +257,11 @@ export function crearFirebase(config) {
         return NO('error', { detalle: c || e.message });
       }
     },
-    async salir() { errorPerfil = null; await signOut(auth); return SI(); },
+    async salir() {
+      errorPerfil = null;
+      if (sesion) { const b = writeBatch(db); anotar(b, 'salir', []); await Promise.race([b.commit().catch(() => {}), new Promise(r => setTimeout(r, 1500))]); }
+      await signOut(auth); return SI();
+    },
     // Por qué se cerró la sesión sola (perfil no encontrado, inactivo o sin permiso); la entrada lo muestra.
     motivoSalida() { const m = errorPerfil; errorPerfil = null; return m; },
     alCambiarSesion(cb) { oyentesSesion.add(cb); cb(sesion ? { ...sesion } : null); return () => oyentesSesion.delete(cb); },
@@ -248,6 +275,7 @@ export function crearFirebase(config) {
         const b = writeBatch(db);
         b.set(ref('usuarios', uid), { uid, usuario, nombre: nombre || usuario, rol, activo: true, creado: ahora() });
         b.set(ref('logins', usuario), { email, uid });
+        anotar(b, 'crearUsuario', [{ usuario, rol }], { uid });
         await b.commit();
         return SI({ uid });
       } catch (err) { console.warn(err); return NO(err.code === 'auth/network-request-failed' ? 'red' : 'error'); }
@@ -263,6 +291,7 @@ export function crearFirebase(config) {
           const user = auth.currentUser;
           await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, pinPass(pinActual)));
           await updatePassword(user, pinPass(pinNuevo));
+          conEvento(() => {}, 'cambiarPin', [uid], { u: sesion });
           return SI({ uid });
         }
         if (sesion.rol !== 'admin') return NO('permiso');
@@ -273,6 +302,7 @@ export function crearFirebase(config) {
         b.set(ref('usuarios', nuevo), { ...viejo, uid: nuevo, pinCambiado: ahora() });
         b.update(ref('usuarios', uid), { activo: false, reemplazadoPor: nuevo });
         b.set(ref('logins', viejo.usuario), { email, uid: nuevo });
+        anotar(b, 'cambiarPin', [uid], { u: viejo });
         await b.commit();
         return SI({ uid: nuevo });
       } catch (e) {
@@ -282,12 +312,14 @@ export function crearFirebase(config) {
     },
     async marcarComision(uid, gana) {
       const e = exigir('ajustes'); if (e) return NO(e);
-      return sinEsperar(updateDoc(ref('usuarios', uid), { ganaComision: !!gana }));
+      const u = (await api.obtener('usuarios', uid)) || null;
+      return conEvento(b => b.update(ref('usuarios', uid), { ganaComision: !!gana }), 'marcarComision', [uid, gana], { u });
     },
     // v2.16: nombre y foto (dataURL pequeño) del usuario.
     async editarPerfil(uid, { nombre, foto }) {
       const e = exigir('ajustes'); if (e) return NO(e);
-      return sinEsperar(updateDoc(ref('usuarios', uid), { nombre: String(nombre).trim(), foto: foto || null }));
+      const u = (await api.obtener('usuarios', uid)) || null;
+      return conEvento(b => b.update(ref('usuarios', uid), { nombre: String(nombre).trim(), foto: foto || null }), 'editarPerfil', [uid, { nombre, foto: !!foto }], { u });
     },
     // Eliminar: el perfil queda (las ventas viejas lo nombran) pero se apaga y se marca eliminado, y se borra
     // su entrada de «logins» para que nadie pueda entrar con ese usuario y se pueda volver a usar el nombre.
@@ -300,17 +332,20 @@ export function crearFirebase(config) {
       b.update(ref('usuarios', uid), { activo: false, eliminado: true, eliminadoEl: ahora() });
       const l = await getDoc(ref('logins', u.usuario));
       if (l.exists() && l.data().uid === uid) b.delete(ref('logins', u.usuario));
+      anotar(b, 'eliminarUsuario', [uid], { u });
       return sinEsperar(b.commit());
     },
     async activarUsuario(uid, activo) {
       const e = exigir('ajustes'); if (e) return NO(e);
-      return sinEsperar(updateDoc(ref('usuarios', uid), { activo: !!activo }));
+      const u = (await api.obtener('usuarios', uid)) || null;
+      return conEvento(b => b.update(ref('usuarios', uid), { activo: !!activo }), 'activarUsuario', [uid, activo], { u });
     },
 
     // ---- lectura ----
     escuchar(nombre, cb, filtro) {
       if (!sesion) { cb([]); return () => {}; }
       if (RESTRINGIDAS.includes(nombre) && !puede(sesion.rol, 'verCostos')) { cb([]); return () => {}; }
+      if (SOLO_GESTION.includes(nombre) && !puede(sesion.rol, 'verReportesTodos')) { cb([]); return () => {}; }
       let q = collection(db, nombre);
       const todos = puede(sesion.rol, 'verReportesTodos') || (nombre === 'autorizaciones' && sesion.rol === 'admin');
       const conds = [];
@@ -318,7 +353,7 @@ export function crearFirebase(config) {
       if (PROPIAS.includes(nombre) && !todos) conds.push(where('usuario', '==', sesion.usuario));
       if (nombre === 'ventas' && obj?.cajaId) conds.push(where('cajaId', '==', obj.cajaId));
       else if (nombre === 'movimientos' && obj?.sku) conds.push(where('sku', '==', obj.sku));
-      else if (!conds.length && ['ventas', 'movimientos', 'autorizaciones'].includes(nombre) && obj?.desde) conds.push(where('fecha', '>=', obj.desde));
+      else if (!conds.length && ['ventas', 'movimientos', 'autorizaciones', 'eventos'].includes(nombre) && obj?.desde) conds.push(where('fecha', '>=', obj.desde));
       if (conds.length) q = query(q, ...conds);
       if (nombre === 'usuarios' && sesion.rol !== 'admin') q = query(q, where('activo', '==', true));
       return onSnapshot(q, s => cb(s.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => cumpleFiltro(d, filtro))),
@@ -339,7 +374,10 @@ export function crearFirebase(config) {
     async registrarConflicto(c) {
       if (!sesion) return NO('sesion');
       try {
-        await setDoc(ref('conflictos', c.id), limpiarIndefinidos({ ...c, usuario: sesion.usuario, uid: sesion.uid, estado: 'pendiente', detectado: ahora() }));
+        const b = writeBatch(db);
+        b.set(ref('conflictos', c.id), limpiarIndefinidos({ ...c, usuario: sesion.usuario, uid: sesion.uid, estado: 'pendiente', detectado: ahora() }));
+        anotar(b, 'registrarConflicto', [c]);
+        await b.commit();
         return SI();
       } catch (e) {
         // Ya registrado (la regla no deja reescribirlo): cuenta como hecho.
@@ -349,7 +387,7 @@ export function crearFirebase(config) {
     },
     async revisarConflicto(id, nota) {
       const e = exigir('verReportesTodos'); if (e) return NO(e);
-      return sinEsperar(updateDoc(ref('conflictos', id), { estado: 'revisado', revision: { por: sesion.usuario, fecha: ahora(), nota: String(nota || '').trim() } }));
+      return conEvento(b => b.update(ref('conflictos', id), { estado: 'revisado', revision: { por: sesion.usuario, fecha: ahora(), nota: String(nota || '').trim() } }), 'revisarConflicto', [id, nota]);
     },
 
     // ---- ventas ----
@@ -358,7 +396,7 @@ export function crearFirebase(config) {
       await esperarCaja();
       if (!miCaja) return NO('sin-caja');
       const docu = { ...venta, uid: sesion.uid, usuario: sesion.usuario, cajaId: miCaja.id, estado: 'ok', creada: ahora() };
-      return guardarConExistencia({ col: 'ventas', docu, lineas: venta.lineas, motivo: 'venta', numerar: true });
+      return guardarConExistencia({ col: 'ventas', docu, lineas: venta.lineas, motivo: 'venta', numerar: true, ev: describir('guardarVenta', [venta]) });
     },
     async anularVenta(id, motivo) {
       const e = exigir('anularVenta'); if (e) return NO(e);
@@ -378,12 +416,10 @@ export function crearFirebase(config) {
       const movs = Object.entries(neto).map(([forma, m]) => [forma, Math.round(m * 100) / 100]).filter(([, m]) => m)
         .map(([forma, m]) => ({ tipo: m > 0 ? 'salida' : 'entrada', forma, monto: Math.abs(m), motivo: `anulación ${v.numero || ''}`.trim(), usuario: sesion.usuario, fecha: ahora() }));
       const b = writeBatch(db);
-      for (const [sku, n] of Object.entries(porSku(v.lineas))) {
-        b.update(ref('productos', sku), { existencia: increment(n) });
-        b.set(...movimiento(sku, n, 'anulación', id, motivo));
-      }
+      for (const [sku, n] of Object.entries(porSku(v.lineas))) mover(b, sku, n, 'anulación', id, motivo);
       if (movs.length) b.update(ref('cajas', caja.id), { movimientos: arrayUnion(...movs) });
       b.update(ref('ventas', id), { estado: 'anulada', anulacion: { por: sesion.usuario, motivo, fecha: ahora() } });
+      anotar(b, 'anularVenta', [id, motivo], { venta: v });
       const r = await sinEsperar(b.commit());
       if (!r.ok) enCurso.delete(clave);
       return r;
@@ -397,7 +433,7 @@ export function crearFirebase(config) {
       const abonos = (ap.abonos || []).map(a => ({ ...a, cajaId: miCaja.id, usuario: sesion.usuario, fecha: ahora() }));
       const abonado = abonos.reduce((s, a) => s + (a.equivalenteCop || 0), 0);
       const docu = { ...ap, abonos, saldo: Math.max(0, ap.total - abonado), uid: sesion.uid, usuario: sesion.usuario, estado: 'pendiente', creada: ahora() };
-      return guardarConExistencia({ col: 'apartados', docu, lineas: ap.lineas, motivo: 'apartado', numerar: false });
+      return guardarConExistencia({ col: 'apartados', docu, lineas: ap.lineas, motivo: 'apartado', numerar: false, ev: describir('guardarApartado', [ap]) });
     },
     async abonarApartado(id, pago) {
       const e = exigir('vender'); if (e) return NO(e);
@@ -409,7 +445,7 @@ export function crearFirebase(config) {
       if ((pago.equivalenteCop || 0) > ap.saldo + 50) return NO('excede');
       const abono = { ...pago, cajaId: miCaja.id, usuario: sesion.usuario, fecha: ahora() };
       // increment: dos abonos a la vez (dos teléfonos, o uno sin conexión) restan los dos.
-      return sinEsperar(updateDoc(ref('apartados', id), { abonos: arrayUnion(abono), saldo: increment(-(pago.equivalenteCop || 0)) }));
+      return conEvento(b => b.update(ref('apartados', id), { abonos: arrayUnion(abono), saldo: increment(-(pago.equivalenteCop || 0)) }), 'abonarApartado', [id, pago], { ap });
     },
     async completarApartado(id, venta) {
       const e = exigir('vender'); if (e) return NO(e);
@@ -421,6 +457,7 @@ export function crearFirebase(config) {
       const b = writeBatch(db);
       b.set(ref('ventas', venta.id), { ...venta, desdeApartado: id, uid: sesion.uid, usuario: sesion.usuario, cajaId: miCaja.id, numero: null, offline: !navigator.onLine, estado: 'ok', creada: ahora() });
       b.update(ref('apartados', id), { estado: 'completado', ventaId: venta.id, saldo: 0 });
+      anotar(b, 'completarApartado', [id, venta]);
       const r = await sinEsperar(b.commit());
       if (r.ok && navigator.onLine && puede(sesion.rol, 'verReportesTodos')) completarNumeros().catch(() => {});
       return r;
@@ -430,11 +467,9 @@ export function crearFirebase(config) {
       const ap = await api.obtener('apartados', id); if (!ap) return NO('no-existe');
       if (ap.estado !== 'pendiente') return NO('estado');
       const b = writeBatch(db);
-      for (const [sku, n] of Object.entries(porSku(ap.lineas))) {
-        b.update(ref('productos', sku), { existencia: increment(n) });
-        b.set(...movimiento(sku, n, 'cancelación', id, motivo));
-      }
+      for (const [sku, n] of Object.entries(porSku(ap.lineas))) mover(b, sku, n, 'cancelación', id, motivo);
       b.update(ref('apartados', id), { estado: 'cancelado', cancelacion: { por: sesion.usuario, motivo, fecha: ahora() } });
+      anotar(b, 'cancelarApartado', [id, motivo], { ap });
       return sinEsperar(b.commit());
     },
 
@@ -449,6 +484,7 @@ export function crearFirebase(config) {
       const b = writeBatch(db);
       b.set(ref('cajas', id), miCaja);
       b.set(ref('cajaAbierta', sesion.usuario), { cajaId: id, desde: miCaja.abierta });
+      anotar(b, 'abrirCaja', [fondo, { tipo }], { id });
       const r = await sinEsperar(b.commit());
       if (!r.ok) miCaja = null;
       return r.ok ? SI({ id, offline: r.offline }) : r;
@@ -457,7 +493,7 @@ export function crearFirebase(config) {
       if (!sesion) return NO('sesion');
       if (!miCaja || miCaja.id !== cajaId) return NO('cerrada');
       if (!(mov.monto > 0) || !['entrada', 'salida'].includes(mov.tipo)) return NO('datos');
-      return sinEsperar(updateDoc(ref('cajas', cajaId), { movimientos: arrayUnion({ ...mov, usuario: sesion.usuario, fecha: ahora() }) }));
+      return conEvento(b => b.update(ref('cajas', cajaId), { movimientos: arrayUnion({ ...mov, usuario: sesion.usuario, fecha: ahora() }) }), 'movimientoCaja', [cajaId, mov], { moneda: mov.moneda });
     },
     async cerrarCaja(cajaId, cierre) {
       if (!sesion) return NO('sesion');
@@ -465,6 +501,7 @@ export function crearFirebase(config) {
       const b = writeBatch(db);
       b.update(ref('cajas', cajaId), { estado: 'cerrada', cierre: { ...cierre, fecha: ahora() } });
       b.delete(ref('cajaAbierta', sesion.usuario));
+      anotar(b, 'cerrarCaja', [cajaId, cierre]);
       const r = await sinEsperar(b.commit());
       if (r.ok) miCaja = null;
       return r;
@@ -484,6 +521,7 @@ export function crearFirebase(config) {
       for (const c of vencidas) {
         b.update(ref('cajas', c.id), { estado: 'cerrada', cierre: { automatico: true, fecha: finDia(diaLocal(c.abierta)), porArquear: c.tipo !== 'personal', por: sesion.usuario } });
         b.delete(ref('cajaAbierta', c.usuario));
+        anotar(b, 'cierreAutomatico', [c]);
       }
       const r = await sinEsperar(b.commit());
       if (r.ok && vencidas.some(c => c.id === miCaja?.id)) miCaja = null;
@@ -494,7 +532,7 @@ export function crearFirebase(config) {
       const c = await api.obtener('cajas', cajaId); if (!c) return NO('no-existe');
       if (c.usuario !== sesion.usuario && !puede(sesion.rol, 'verReportesTodos')) return NO('permiso');
       if (c.estado !== 'cerrada' || !c.cierre?.porArquear) return NO('arqueada');
-      return sinEsperar(updateDoc(ref('cajas', cajaId), { cierre: { ...c.cierre, ...arqueo, porArquear: false, arqueo: { por: sesion.usuario, fecha: ahora() } } }));
+      return conEvento(b => b.update(ref('cajas', cajaId), { cierre: { ...c.cierre, ...arqueo, porArquear: false, arqueo: { por: sesion.usuario, fecha: ahora() } } }), 'arquearCaja', [cajaId, arqueo]);
     },
     async reabrirCaja(cajaId) {
       const e = exigir('reabrirCaja'); if (e) return NO(e);
@@ -504,6 +542,7 @@ export function crearFirebase(config) {
       const b = writeBatch(db);
       b.update(ref('cajas', cajaId), { estado: 'abierta', reaperturas: arrayUnion({ por: sesion.usuario, fecha: ahora() }) });
       b.set(ref('cajaAbierta', c.usuario), { cajaId, desde: ahora() });
+      anotar(b, 'reabrirCaja', [cajaId], { caja: c });
       return sinEsperar(b.commit());
     },
 
@@ -512,8 +551,8 @@ export function crearFirebase(config) {
       const e = exigir('ajustarInventario'); if (e) return NO(e);
       if (!Number.isInteger(cantidad) || !cantidad || !String(motivo || '').trim()) return NO('datos');
       const b = writeBatch(db);
-      b.update(ref('productos', sku), { existencia: increment(cantidad) });
-      b.set(...movimiento(sku, cantidad, 'ajuste', null, `${motivo}${nota ? ': ' + nota : ''}`));
+      mover(b, sku, cantidad, 'ajuste', null, `${motivo}${nota ? ': ' + nota : ''}`);
+      anotar(b, 'ajustarExistencia', [sku, cantidad, motivo, nota], { nombre: nombreDeSku(sku) });
       return sinEsperar(b.commit());
     },
     // Lotes de hasta 450 escrituras. Si se corta, repetir la importación es seguro: lo ya creado sale como "sin cambios".
@@ -543,6 +582,7 @@ export function crearFirebase(config) {
           ops.slice(i, i + 450).forEach(op => op(b));
           await b.commit();
         }
+        conEvento(() => {}, 'aplicarImportacion', [plan, { existencias }]);
         return SI();
       } catch (err) { console.warn(err); return NO(err.code === 'permission-denied' ? 'permiso' : 'error'); }
     },
@@ -552,6 +592,8 @@ export function crearFirebase(config) {
       const q = await getDocs(query(collection(db, 'productos'), where('grupo', '==', grupo)));
       const b = writeBatch(db);
       q.docs.forEach(d => b.update(d.ref, { oferta: { pct, activa: !!oferta?.activa && pct > 0 } }));
+      const d0 = q.docs[0]?.data();
+      anotar(b, 'guardarOferta', [grupo, { pct, activa: !!oferta?.activa }], { nombre: d0 ? [d0.tipo, d0.marca, d0.genero, d0.color].filter(Boolean).join(' ') : grupo });
       return sinEsperar(b.commit());
     },
     // Foto de un código de imagen (img-0001): un solo archivo fotos/img-0001.webp para todas las variantes
@@ -564,7 +606,7 @@ export function crearFirebase(config) {
       const subida = await subirFotoGitHub({ token, ruta: `fotos/${codigo.replace(/[^a-z0-9_-]/g, '')}.webp`, blob });
       if (!subida.ok) return NO(subida.error);
       const ruta = `${subida.ruta}?v=${Date.now()}`;
-      const r = await sinEsperar(setDoc(ref('ajustes', 'imagenes'), { fotos: { [codigo]: ruta } }, { merge: true }));
+      const r = await conEvento(b => b.set(ref('ajustes', 'imagenes'), { fotos: { [codigo]: ruta } }, { merge: true }), 'guardarImagen', [codigo]);
       return r.ok ? SI({ ruta }) : r;
     },
 
@@ -574,7 +616,14 @@ export function crearFirebase(config) {
       const e = exigir(nombreDoc === 'tasas' ? 'cambiarTasas' : 'ajustes'); if (e) return NO(e);
       // Los ajustes se cambian poco y casi siempre con conexión: se espera la respuesta del servidor (hasta 8 s)
       // para avisar si las reglas lo rechazan, en vez de dar por guardado algo que luego se deshace.
-      const p = setDoc(ref('ajustes', nombreDoc), limpiarIndefinidos(datos), { merge: true });
+      let antes = {};
+      try { antes = (await getDocFromCache(ref('ajustes', nombreDoc))).data() || {}; } catch { /* sin caché */ }
+      const limpio = limpiarIndefinidos(datos);
+      const cambios = diferencias(antes, limpio);
+      const b = writeBatch(db);
+      b.set(ref('ajustes', nombreDoc), limpio, { merge: true });
+      if (cambios) anotar(b, 'guardarAjustes', [nombreDoc, datos], { cambios });
+      const p = b.commit();
       sinEsperar(p);
       try {
         const r = await Promise.race([p.then(() => 'servidor'), new Promise(ok => setTimeout(() => ok('local'), 8000))]);
@@ -585,24 +634,35 @@ export function crearFirebase(config) {
       if (!sesion) return NO('sesion');
       const tel = telefonoInternacional(telefono);
       if (!tel || !String(nombre || '').trim()) return NO('datos');
-      const r = await sinEsperar(setDoc(ref('clientes', tel), { telefono: tel, nombre: String(nombre).trim() }));
+      const n = String(nombre).trim();
+      let previo = null;
+      try { previo = (await getDocFromCache(ref('clientes', tel))).data() || null; } catch { /* no está en caché */ }
+      if (previo?.nombre === n) return SI({ telefono: tel }); // sin cambios: no se escribe ni se anota
+      // v2.27: cada alta o cambio de cliente va con su evento (las reglas exigen ultimoEvento).
+      const b = writeBatch(db);
+      const ev = describir('guardarCliente', [{ telefono: tel, nombre: n }], { telefono: tel, antes: previo?.nombre || null });
+      const [er, ed] = evento(ev);
+      b.set(ref('clientes', tel), { telefono: tel, nombre: n, ultimoEvento: ed.id });
+      b.set(er, ed);
+      const r = await sinEsperar(b.commit());
       return r.ok ? SI({ telefono: tel }) : r;
     },
     async solicitarAutorizacion(a) {
       if (!sesion) return NO('sesion');
       if (!navigator.onLine) return NO('red');
       const id = nuevoId();
-      const r = await sinEsperar(setDoc(ref('autorizaciones', id), { ...a, id, uid: sesion.uid, usuario: sesion.usuario, solicita: sesion.usuario, estado: 'pendiente', fecha: ahora() }));
+      const r = await conEvento(b => b.set(ref('autorizaciones', id), { ...a, id, uid: sesion.uid, usuario: sesion.usuario, solicita: sesion.usuario, estado: 'pendiente', fecha: ahora() }), 'solicitarAutorizacion', [a], { id });
       return r.ok ? SI({ id }) : r;
     },
     async responderAutorizacion(id, aprobada) {
       const e = exigir('aprobarDescuento'); if (e) return NO(e);
-      return sinEsperar(updateDoc(ref('autorizaciones', id), { estado: aprobada ? 'aprobada' : 'rechazada', aprueba: sesion.usuario, respondida: ahora() }));
+      const a = await api.obtener('autorizaciones', id);
+      return conEvento(b => b.update(ref('autorizaciones', id), { estado: aprobada ? 'aprobada' : 'rechazada', aprueba: sesion.usuario, respondida: ahora() }), 'responderAutorizacion', [id, aprobada], { a });
     },
     async pagarComisiones(reg) {
       const e = exigir('pagarComisiones'); if (e) return NO(e);
       const id = nuevoId();
-      const r = await sinEsperar(setDoc(ref('comisiones', id), { ...reg, id, por: sesion.usuario, fecha: ahora() }));
+      const r = await conEvento(b => b.set(ref('comisiones', id), { ...reg, id, por: sesion.usuario, fecha: ahora() }), 'pagarComisiones', [reg], { id });
       return r.ok ? SI({ id }) : r;
     },
     // Modo prueba: ejemplos con demo:true, en lotes de 400 escrituras.
@@ -612,6 +672,7 @@ export function crearFirebase(config) {
       const ops = Object.entries(CLAVE).flatMap(([n, k]) => (lote[n] || []).map(d => [ref(n, String(d[k])), { ...d, demo: true }]));
       try {
         for (let i = 0; i < ops.length; i += 400) { const b = writeBatch(db); ops.slice(i, i + 400).forEach(([r, d]) => b.set(r, d)); await b.commit(); }
+        conEvento(() => {}, 'cargarEjemplos', []);
         return SI();
       } catch { return NO('red'); }
     },
@@ -622,6 +683,7 @@ export function crearFirebase(config) {
         for (const n of ['productos', 'costos', 'clientes', 'ventas', 'apartados']) (await getDocs(query(collection(db, n), where('demo', '==', true)))).forEach(d => refs.push(d.ref));
         (await getDocs(query(collection(db, 'costosVenta'), where(documentId(), '>=', 'demo-'), where(documentId(), '<', 'demo.')))).forEach(d => refs.push(d.ref));
         for (let i = 0; i < refs.length; i += 400) { const b = writeBatch(db); refs.slice(i, i + 400).forEach(r => b.delete(r)); await b.commit(); }
+        conEvento(() => {}, 'quitarEjemplos', []);
         return SI({ quitados: refs.length });
       } catch { return NO('red'); }
     },

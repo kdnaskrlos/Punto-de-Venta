@@ -130,7 +130,7 @@ function abrirMovimiento(ctx, caja) {
     const n = parseMonto(monto.value, f.moneda);
     if (!n || n <= 0) { err.textContent = 'Escribe el monto'; return; }
     if (!motivo.value.trim()) { err.textContent = 'Escribe el motivo'; return; }
-    const r = await ctx.almacen.movimientoCaja(caja.id, { tipo, forma: f.id, monto: n, motivo: motivo.value.trim() });
+    const r = await ctx.almacen.movimientoCaja(caja.id, { tipo, forma: f.id, moneda: f.moneda, monto: n, motivo: motivo.value.trim() });
     if (!r.ok) { err.textContent = 'No se pudo guardar'; return; }
     v.cerrar(); toast(tipo === 'salida' ? 'Salida guardada' : 'Entrada guardada');
   }));
