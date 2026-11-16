@@ -668,7 +668,7 @@ export function crearFirebase(config) {
     // Modo prueba: ejemplos con demo:true, en lotes de 400 escrituras.
     async cargarEjemplos(lote) {
       const e = exigir('ajustes'); if (e) return NO(e);
-      const CLAVE = { productos: 'sku', costos: 'sku', clientes: 'telefono', ventas: 'id', apartados: 'id' };
+      const CLAVE = { productos: 'sku', costos: 'sku', clientes: 'telefono', ventas: 'id', apartados: 'id', usuarios: 'uid', cajas: 'id', comisiones: 'id' };
       const ops = Object.entries(CLAVE).flatMap(([n, k]) => (lote[n] || []).map(d => [ref(n, String(d[k])), { ...d, demo: true }]));
       try {
         for (let i = 0; i < ops.length; i += 400) { const b = writeBatch(db); ops.slice(i, i + 400).forEach(([r, d]) => b.set(r, d)); await b.commit(); }
@@ -680,7 +680,7 @@ export function crearFirebase(config) {
       const e = exigir('ajustes'); if (e) return NO(e);
       try {
         const refs = [];
-        for (const n of ['productos', 'costos', 'clientes', 'ventas', 'apartados']) (await getDocs(query(collection(db, n), where('demo', '==', true)))).forEach(d => refs.push(d.ref));
+        for (const n of ['productos', 'costos', 'clientes', 'ventas', 'apartados', 'usuarios', 'cajas', 'comisiones']) (await getDocs(query(collection(db, n), where('demo', '==', true)))).forEach(d => refs.push(d.ref));
         (await getDocs(query(collection(db, 'costosVenta'), where(documentId(), '>=', 'demo-'), where(documentId(), '<', 'demo.')))).forEach(d => refs.push(d.ref));
         for (let i = 0; i < refs.length; i += 400) { const b = writeBatch(db); refs.slice(i, i + 400).forEach(r => b.delete(r)); await b.commit(); }
         conEvento(() => {}, 'quitarEjemplos', []);

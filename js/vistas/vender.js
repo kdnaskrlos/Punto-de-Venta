@@ -322,8 +322,15 @@ function piePC(ctx, r) {
   const c = carrito(ctx).cliente;
   return h('div', { class: 'pie-pc', 'data-cobro': '' },
     h('div', { class: 'pc-cli' }, h('span', { class: 'pc-et' }, 'Cliente'),
-      h('button', { type: 'button', class: 'pc-cli-btn' + (c ? ' con' : ''), id: 'pc-cliente', onclick: () => ventanaCliente(ctx) },
-        icono('usuario'), c ? h('span', {}, h('b', {}, c.nombre), h('small', { class: 'num' }, telefonoLegible(c.telefono))) : h('span', {}, 'Agregar cliente'), h('kbd', {}, 'F1'))),
+      h('div', { class: 'pc-cli-fila' },
+        h('button', { type: 'button', class: 'pc-cli-btn' + (c ? ' con' : ''), id: 'pc-cliente', title: c ? 'Editar cliente' : '', onclick: () => ventanaCliente(ctx) },
+          icono('usuario'), c ? h('span', {}, h('b', {}, c.nombre), h('small', { class: 'num' }, telefonoLegible(c.telefono))) : h('span', {}, 'Agregar cliente'), c ? null : h('kbd', {}, 'F1')),
+        // v2.31: con cliente puesto, cambiarlo por otro o quitarlo (antes quedaba fijo en el carrito).
+        c ? h('button', { type: 'button', class: 'ibtn pc-cli-acc', id: 'pc-cliente-cambiar', title: 'Cambiar cliente', 'aria-label': 'Cambiar cliente', onclick: () => ventanaCliente(ctx, null, { nuevo: true }) }, icono('cambio')) : null,
+        c ? h('button', { type: 'button', class: 'ibtn pc-cli-acc', id: 'pc-cliente-quitar', title: 'Quitar cliente', 'aria-label': 'Quitar cliente', onclick: () => {
+          const antes = carrito(ctx).cliente; delete carrito(ctx).cliente; window.dispatchEvent(new CustomEvent('pos:carrito'));
+          toast('Cliente quitado', { deshacer: () => { carrito(ctx).cliente = antes; window.dispatchEvent(new CustomEvent('pos:carrito')); } });
+        } }, icono('x')) : null)),
     h('div', { class: 'pc-tot' },
       // v2.17: el total de prendas grande, a la izquierda del total y separado por una línea (no en el botón).
       h('div', { class: 'pc-prendas-caja' + (r.unidades ? '' : ' cero'), 'aria-label': `${r.unidades} prendas` }, h('b', { class: 'num' }, String(r.unidades)), h('span', {}, r.unidades === 1 ? 'Prenda' : 'Prendas')),

@@ -38,12 +38,12 @@ export function bloquePrueba(ctx) {
   const pintar = () => { boton.classList.toggle('on', hay); boton.replaceChildren(icono('matraz'), 'Modo prueba'); };
   boton.onclick = e => unaVez(e.currentTarget, async () => {
     if (!hay) {
-      const r = await ctx.almacen.cargarEjemplos(generarEjemplos({ productos: ctx.productos, formas: ctx.ajustes.formasPago, tasas: ctx.tasas }));
+      const r = await ctx.almacen.cargarEjemplos(generarEjemplos({ productos: ctx.productos, formas: ctx.ajustes.formasPago, tasas: ctx.tasas, yo: ctx.sesion.usuario, limites: ctx.ajustes.tramos }));
       toast(r.ok ? 'Ejemplos cargados' : 'No se pudieron cargar', { malo: !r.ok });
       return;
     }
     const si = h('button', { class: 'btn danger', id: 'quitar-ejemplos' }, icono('borrar'), 'Quitar ejemplos');
-    const v = abrirVentana({ titulo: 'Quitar modo prueba', contenido: h('p', {}, 'Se borran las ventas, apartados, clientes y prendas de ejemplo. Tus datos reales no se tocan.'),
+    const v = abrirVentana({ titulo: 'Quitar modo prueba', contenido: h('p', {}, 'Se borran la vendedora de prueba y sus ventas, cajas, apartados y comisiones, y los clientes y prendas de ejemplo. Tus datos reales no se tocan.'),
       acciones: h('div', { class: 'acciones' }, h('button', { class: 'btn', onclick: () => v.cerrar() }, 'Cancelar'), si) });
     si.onclick = ev => unaVez(ev.currentTarget, async () => { const r = await ctx.almacen.quitarEjemplos(); v.cerrar(); toast(r.ok ? 'Ejemplos quitados' : 'No se pudieron quitar', { malo: !r.ok }); })();
   })();

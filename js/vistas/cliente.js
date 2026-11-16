@@ -56,14 +56,15 @@ export function telefonoLegible(t) {
 const avisar = () => window.dispatchEvent(new CustomEvent('pos:carrito'));
 
 // Ventana para registrar o editar el cliente del carrito.
-export function ventanaCliente(ctx, alListo) {
+// nuevo (v2.31): cambiar el cliente por otro (campos vacíos; el actual se reemplaza al guardar).
+export function ventanaCliente(ctx, alListo, { nuevo = false } = {}) {
   const c = ctx.carrito;
-  const editar = !!c.cliente;
-  const campos = camposCliente(ctx, () => {}, c.cliente && { nombre: c.cliente.nombre, telefonoTexto: telefonoLegible(c.cliente.telefono) });
+  const editar = !!c.cliente && !nuevo;
+  const campos = camposCliente(ctx, () => {}, editar && { nombre: c.cliente.nombre, telefonoTexto: telefonoLegible(c.cliente.telefono) });
   // v2.15: sin un paso siguiente (cliente agregado desde la barra de la PC) el botón solo guarda.
   const guardarSolo = editar || !alListo;
   const b = h('button', { class: 'btn primary grande', id: 'cli-guardar' }, guardarSolo ? icono('check') : null, guardarSolo ? 'Guardar cliente' : 'Continuar al pago', guardarSolo ? null : icono('der'));
-  const v = abrirVentana({ titulo: editar ? 'Editar cliente' : 'Cliente', pantallaCompleta: true, contenido: h('div', { class: 'pila' }, h('p', { class: 'nota' }, editar ? 'Corrige los datos del cliente.' : '¿A nombre de quién es la venta?'), campos.el), acciones: b });
+  const v = abrirVentana({ titulo: editar ? 'Editar cliente' : nuevo ? 'Cambiar cliente' : 'Cliente', pantallaCompleta: true, contenido: h('div', { class: 'pila' }, h('p', { class: 'nota' }, editar ? 'Corrige los datos del cliente.' : '¿A nombre de quién es la venta?'), campos.el), acciones: b });
   v.alCerrar = () => campos.quitar();
   if (!esTelefono()) setTimeout(() => campos.foco(), 40);
   b.onclick = () => {
