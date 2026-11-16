@@ -47,6 +47,8 @@ const ACCESOS = [
   { ruta: '/inventario', titulo: 'Inventario', icono: 'caja', pc: 3, movil: 4 },
   { ruta: '/caja', titulo: 'Caja', icono: 'cartera', pc: 4 },
   { ruta: '/reportes', titulo: 'Reportes', icono: 'grafica', pc: 6 },
+  // v2.28: Comisiones en la barra de la PC (antes solo se llegaba desde «Más» del teléfono).
+  { ruta: '/comisiones', titulo: 'Comisiones', icono: 'porcentaje', pc: 6.5, accion: 'pagarComisiones' },
   { ruta: '/usuarios', titulo: 'Usuarios', icono: 'usuarios', pc: 7, accion: 'ajustes' },
   { ruta: '/ajustes', titulo: 'Ajustes', icono: 'ajustes', pc: 8, accion: 'ajustes' },
   { ruta: '/mas', titulo: 'Más', icono: 'mas', movil: 5 },
