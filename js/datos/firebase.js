@@ -674,7 +674,7 @@ export function crearFirebase(config) {
         for (let i = 0; i < ops.length; i += 400) { const b = writeBatch(db); ops.slice(i, i + 400).forEach(([r, d]) => b.set(r, d)); await b.commit(); }
         conEvento(() => {}, 'cargarEjemplos', []);
         return SI();
-      } catch { return NO('red'); }
+      } catch (err) { console.warn('ejemplos', err); return NO(err.code === 'permission-denied' ? 'permiso' : 'red'); }
     },
     async quitarEjemplos() {
       const e = exigir('ajustes'); if (e) return NO(e);

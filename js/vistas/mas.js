@@ -39,7 +39,7 @@ export function bloquePrueba(ctx) {
   boton.onclick = e => unaVez(e.currentTarget, async () => {
     if (!hay) {
       const r = await ctx.almacen.cargarEjemplos(generarEjemplos({ productos: ctx.productos, formas: ctx.ajustes.formasPago, tasas: ctx.tasas, yo: ctx.sesion.usuario, limites: ctx.ajustes.tramos }));
-      toast(r.ok ? 'Ejemplos cargados' : 'No se pudieron cargar', { malo: !r.ok });
+      toast(r.ok ? 'Ejemplos cargados' : r.error === 'permiso' ? 'Firebase no dio permiso: publica las reglas nuevas (firestore.rules)' : 'No se pudieron cargar. Revisa la conexión', { malo: !r.ok });
       return;
     }
     const si = h('button', { class: 'btn danger', id: 'quitar-ejemplos' }, icono('borrar'), 'Quitar ejemplos');
