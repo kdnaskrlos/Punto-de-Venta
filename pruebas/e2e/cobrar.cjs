@@ -150,7 +150,11 @@ casos('cobrar', [
     const p = await preparar(env);
     await p.click('[data-cobro] .cobrar'); await p.waitForSelector('#cobrar-final');
     await p.click('.forma[data-forma="efectivo-cop"]'); await p.waitForTimeout(300);
-    a.strictEqual(await p.inputValue('.pago[data-forma="efectivo-cop"] input'), '116.000');
+    const sel = '.pago[data-forma="efectivo-cop"] input';
+    a.strictEqual(await p.inputValue(sel), '116.000');
+    a.strictEqual(await p.evaluate(s => document.activeElement === document.querySelector(s), sel), false, 'v2.30: no se enfoca ni selecciona solo');
+    await p.click(sel);
+    a.strictEqual(await p.inputValue(sel), '', 'al tocarlo se vacía, como en el teléfono');
   }],
   ['F9 dos veces abre una sola ventana de cobro (revisión final)', async (env, a) => {
     const p = await preparar(env);

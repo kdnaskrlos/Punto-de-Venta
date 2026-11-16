@@ -1579,4 +1579,5 @@ label[for=aj-redondeo]{font-weight:600!important}
 /* v2.29 · Cantidad escribible en las líneas del carrito: se ve como el número de antes; al tocarlo, un recuadro suave */
 .lc-cont input.cant{width:36px;min-width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:8px;background:transparent;font:inherit;font-weight:600;font-size:15px;text-align:center;color:var(--ink);outline:0;-webkit-appearance:none;appearance:none}
 .lc-cont input.cant:hover{border-color:var(--line)}
-.lc-cont input.cant:focus{border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
+.lc-cont input.cant:focus,.lc-cont input.cant:focus-visible{border-color:transparent;background:transparent;box-shadow:none;outline:0}
+.lc-cont input.cant:hover{border-color:transparent}

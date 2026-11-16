@@ -50,7 +50,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       const eq = h('span', { class: 'nota num equiv' });
       p.pintarEq = () => { const e = estado().pagos.find(x => x.forma === f.id); eq.textContent = f.moneda === 'COP' ? '' : (e?.equivalenteCop == null ? 'Sin tasa' : e.equivalenteCop > 0 ? `≈ ${fmtCop(e.equivalenteCop)} COP` : ''); };
       p.pintarEq();
-      if (enfocar === f.id && !esTelefono()) setTimeout(() => { inp.focus(); inp.select(); }, 20);
+      // v2.30: en la PC tampoco se enfoca ni se selecciona solo (igual que en el teléfono): al tocarlo se vacía.
       // Tarjeta de pago (v1.94): ícono; nombre con la moneda debajo (COP, USD, Bs);
       // el monto en su recuadro; un bote de basura al lado para quitarla.
       return h('div', { class: `pago m-${f.moneda.toLowerCase()}`, 'data-forma': f.id },

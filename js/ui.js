@@ -368,7 +368,19 @@ const revisarTeclado = () => {
   if (tecladoAbierto && !abierto && vv && ES_CAMPO(document.activeElement)) document.activeElement.blur();
   tecladoAbierto = abierto;
   document.body.classList.toggle('teclado', abierto);
+  suavizarTeclado(alto);
 };
+// v2.30 · Al abrir o cerrar el teclado la pantalla cambia de alto de golpe y el pie (barra Faltan/Vuelto y botones
+// de Cobrar) «brincaba». Ahora el pie y lo enfocado se deslizan desde donde estaban hasta su sitio nuevo (FLIP).
+let altoAntes = window.visualViewport ? visualViewport.height : innerHeight;
+function suavizarTeclado(alto) {
+  const d = altoAntes - alto; altoAntes = alto;
+  if (Math.abs(d) < 60 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const pies = document.querySelectorAll('.capa:last-of-type .pie, .capa:last-of-type .pie-cobro, .barra-cobro');
+  for (const el of pies) el.animate([{ transform: `translateY(${d}px)` }, { transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.22,.9,.3,1)' });
+  const campo = document.activeElement;
+  if (d > 0 && ES_CAMPO(campo)) setTimeout(() => campo.scrollIntoView({ block: 'center', behavior: 'smooth' }), 30);
+}
 let tecladoAbierto = false;
 
 // v2.14 · Al tocar un campo de monto o de texto, se vacía para escribir el dato nuevo (el anterior queda de guía,
