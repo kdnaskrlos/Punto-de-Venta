@@ -146,6 +146,12 @@ casos('cobrar', [
     await p.waitForFunction(() => !document.querySelector('#ver-conflictos'));
     a.deepStrictEqual(p.errores, []);
   }],
+  ['v2.29 · PC: al elegir una forma de pago, el campo muestra el monto (no se vacía solo)', async (env, a) => {
+    const p = await preparar(env);
+    await p.click('[data-cobro] .cobrar'); await p.waitForSelector('#cobrar-final');
+    await p.click('.forma[data-forma="efectivo-cop"]'); await p.waitForTimeout(300);
+    a.strictEqual(await p.inputValue('.pago[data-forma="efectivo-cop"] input'), '116.000');
+  }],
   ['F9 dos veces abre una sola ventana de cobro (revisión final)', async (env, a) => {
     const p = await preparar(env);
     await p.click('.vista'); await p.keyboard.press('F9'); await p.keyboard.press('F9');

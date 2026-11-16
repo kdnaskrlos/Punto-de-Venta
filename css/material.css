@@ -1570,3 +1570,13 @@ label[for=aj-redondeo]{font-weight:600!important}
 .act-filtros .chip{height:var(--flt-h)!important;min-height:var(--flt-h)!important;border:1px solid var(--flt-bd)!important;border-radius:10px!important;background:var(--surface)!important;color:var(--ink)!important;font:600 14px var(--f,inherit)!important;padding:0 12px!important;box-shadow:none!important;white-space:nowrap;flex:none}
 .act-filtros .chip.activo{background:var(--g-bg)!important;border-color:var(--g-bd)!important;color:var(--g-tx)!important}
 .act-persona{border:1px solid var(--flt-bd)!important;border-radius:10px!important;font:600 14px var(--f,inherit)!important}
+/* v2.29 · PC: íconos de la barra lateral en recuadros de color (como «Más» del teléfono) */
+@media (min-width:840px){
+  .side .nav-cuad{position:relative;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;color:var(--c);
+    background:linear-gradient(135deg,color-mix(in srgb,var(--c) 18%,var(--surface)),color-mix(in srgb,var(--c) 6%,var(--surface)));border:1px solid color-mix(in srgb,var(--c) 25%,var(--line))}
+  .side .nav-cuad svg.i{width:19px;height:19px;color:var(--c)}
+}
+/* v2.29 · Cantidad escribible en las líneas del carrito: se ve como el número de antes; al tocarlo, un recuadro suave */
+.lc-cont input.cant{width:36px;min-width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:8px;background:transparent;font:inherit;font-weight:600;font-size:15px;text-align:center;color:var(--ink);outline:0;-webkit-appearance:none;appearance:none}
+.lc-cont input.cant:hover{border-color:var(--line)}
+.lc-cont input.cant:focus{border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}

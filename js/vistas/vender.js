@@ -87,7 +87,14 @@ function contador(ctx, l) {
     l.cantidad === 1
       ? h('button', { 'aria-label': 'Quitar', class: 'quitar', onclick: e => { e.stopPropagation(); quitarLinea(ctx, l.sku); } }, icono('borrar'))
       : h('button', { 'aria-label': 'Menos', onclick: e => { e.stopPropagation(); agregarAlCarrito(ctx, l.sku, -1); } }, icono('menos')),
-    h('span', { class: 'cant num' }, String(l.cantidad)),
+    // v2.29: el número se puede escribir (mismas reglas que la ventana de tallas: solo números, tope en lo
+    // disponible con «Máximo N», al tocar se vacía y vuelve si no se escribe nada, Enter confirma, 0 o vacío quita).
+    h('input', { class: 'cant num', type: 'text', inputmode: 'numeric', enterkeyhint: 'done', autocomplete: 'off', value: String(l.cantidad),
+      'aria-label': 'Cantidad', onclick: e => e.stopPropagation(), onpointerdown: e => e.stopPropagation(),
+      onfocus: e => alEnfocarCampo(e.target),
+      oninput: e => { e.target.value = e.target.value.replace(/\D/g, ''); },
+      onkeydown: e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } },
+      onchange: e => fijarCantidad(ctx, l.sku, e.target.value) }),
     h('button', { 'aria-label': 'Más', onclick: e => { e.stopPropagation(); agregarAlCarrito(ctx, l.sku, 1); } }, icono('mas1')));
 }
 // v2.11: círculo amarillo con cuántas prendas faltan para el próximo tramo (solo cuando faltan 3 o menos).
@@ -213,6 +220,18 @@ export function ponerCarrito(cont, nuevo) {
 // v2.03 · Deslizar una prenda del carrito hacia la izquierda para quitarla (igual que en Pedidos). v2.06: el gesto
 // vive en ui.js (deslizarParaQuitar) y también lo usan las formas de pago del cobro.
 // v2.08: quitar una prenda del carrito (papelera o deslizando) siempre ofrece «Deshacer».
+// v2.29: cantidad escrita a mano en una línea del carrito.
+function fijarCantidad(ctx, sku, texto) {
+  const p = ctx.productos[sku], c = carrito(ctx), l = c.lineas.find(x => x.sku === sku);
+  if (!p || !l) return;
+  let n = Number(String(texto).replace(/\D/g, '')) || 0;
+  if (n <= 0) { quitarLinea(ctx, sku); return; }
+  if (n > p.existencia) { n = p.existencia; toast(`Máximo ${p.existencia}`); }
+  if (n === l.cantidad) { window.dispatchEvent(new CustomEvent('pos:carrito')); return; }
+  l.cantidad = n;
+  revisarDescuento(ctx);
+  window.dispatchEvent(new CustomEvent('pos:carrito'));
+}
 function quitarLinea(ctx, sku) {
   const c = carrito(ctx), i = c.lineas.findIndex(l => l.sku === sku), linea = c.lineas[i];
   if (i < 0) return;

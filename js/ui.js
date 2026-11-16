@@ -376,8 +376,13 @@ let tecladoAbierto = false;
 // buscadores, PIN, fechas, casillas, textos largos ni a la pantalla de entrada.
 const LIMPIABLE = el => el instanceof HTMLInputElement && ['text', 'tel', 'number', 'email', ''].includes(el.getAttribute('type') || '')
   && !el.readOnly && !el.disabled && !el.closest('.entrar, [data-no-limpiar]') && !el.matches('#buscar, #q, [data-no-limpiar]');
+// v2.29: solo cuando la persona toca el campo; si la app lo enfoca sola (p. ej. al elegir una forma de pago en la PC)
+// el monto se queda a la vista, seleccionado para escribir encima.
+let ultimoToque = null;
+document.addEventListener('pointerdown', e => { ultimoToque = { el: e.target, t: Date.now() }; }, true);
 document.addEventListener('focus', e => {
   const el = e.target;
+  if (!ultimoToque || ultimoToque.el !== el || Date.now() - ultimoToque.t > 1000) return;
   if (!LIMPIABLE(el) || !el.value || el.__antes != null) return;
   el.__antes = el.value; el.__guia = el.getAttribute('placeholder'); el.__escribio = false;
   el.value = ''; // v2.17: sin el valor anterior en gris dentro del campo

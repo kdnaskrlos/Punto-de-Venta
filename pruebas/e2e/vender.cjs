@@ -28,7 +28,7 @@ casos('vender', [
     a.ok(!(await p.innerText('.capa')).includes('Selecciona'), 'sin «Selecciona las tallas»');
     await p.click('.capa .talla-mas[data-talla="M"]'); await p.click('.capa .talla-mas[data-talla="M"]');
     await p.click('#tallas-agregar');
-    a.strictEqual(await texto(p, '.linea[data-sku="B-M"] .cant'), '2');
+    a.strictEqual(await p.inputValue('.linea[data-sku="B-M"] .cant'), '2');
   }],
   ['El mix pasa ambas líneas al precio 6–11 con el total correcto', async (env, a) => {
     const p = await env.pagina({ movil: true, usuario: 'vendedora', caja: true, ruta: '/vender' });
@@ -78,7 +78,7 @@ casos('vender', [
     a.strictEqual(await p.evaluate(() => document.activeElement.id), 'buscar');
     const codigo = await p.evaluate(() => window.__pos.ctx.productos['J-L'].codigo);
     await p.keyboard.type(codigo); await p.keyboard.press('Enter');
-    a.strictEqual(await texto(p, '.linea[data-sku="J-L"] .cant'), '1');
+    a.strictEqual(await p.inputValue('.linea[data-sku="J-L"] .cant'), '1');
     a.strictEqual(await p.inputValue('#buscar'), '');
   }],
   ['Sin caja abierta pide abrirla', async (env, a) => {
@@ -92,7 +92,7 @@ casos('vender', [
     a.strictEqual(await p.isDisabled('.capa .talla-mas[data-talla="L"]'), true);
     a.strictEqual(await texto(p, '.capa .talla-fila-v[data-sku="B-L"] .tf-max'), 'Máximo 1');
     await p.click('#tallas-agregar');
-    a.strictEqual(await texto(p, '.linea[data-sku="B-L"] .cant'), '1');
+    a.strictEqual(await p.inputValue('.linea[data-sku="B-L"] .cant'), '1');
     a.deepStrictEqual(p.errores, []);
   }],
   ['Sin caja: "Abrir caja" se abre aquí mismo, los campos vacíos cuentan como 0 y sigues en Vender', async (env, a) => {

@@ -40,17 +40,17 @@ function irPestana(ruta) {
 
 // Accesos: en PC la barra lateral muestra los de `pc`; en el teléfono, los de `movil` en ese orden.
 const ACCESOS = [
-  { ruta: '/inicio', titulo: 'Inicio', icono: 'home', pc: 1, movil: 1 },
+  { ruta: '/inicio', titulo: 'Inicio', icono: 'home', pc: 1, movil: 1, color: '#0d9488' },
   // v2.15: en la PC, Vender va al centro de la barra (verde y sin nombre, como en el teléfono).
   { ruta: '/vender', titulo: 'Vender', icono: 'carrito', pc: 5, movil: 3, centro: true },
-  { ruta: '/apartados', titulo: 'Apartados', icono: 'apartado', pc: 2, movil: 2 },
-  { ruta: '/inventario', titulo: 'Inventario', icono: 'caja', pc: 3, movil: 4 },
-  { ruta: '/caja', titulo: 'Caja', icono: 'cartera', pc: 4 },
-  { ruta: '/reportes', titulo: 'Reportes', icono: 'grafica', pc: 6 },
+  { ruta: '/apartados', titulo: 'Apartados', icono: 'apartado', pc: 2, movil: 2, color: '#4f46e5' },
+  { ruta: '/inventario', titulo: 'Inventario', icono: 'caja', pc: 3, movil: 4, color: 'var(--tono-naranja)' },
+  { ruta: '/caja', titulo: 'Caja', icono: 'cartera', pc: 4, color: 'var(--tono-verde)' },
+  { ruta: '/reportes', titulo: 'Reportes', icono: 'grafica', pc: 6, color: 'var(--tono-azul)' },
   // v2.28: Comisiones en la barra de la PC (antes solo se llegaba desde «Más» del teléfono).
-  { ruta: '/comisiones', titulo: 'Comisiones', icono: 'porcentaje', pc: 6.5, accion: 'pagarComisiones' },
-  { ruta: '/usuarios', titulo: 'Usuarios', icono: 'usuarios', pc: 7, accion: 'ajustes' },
-  { ruta: '/ajustes', titulo: 'Ajustes', icono: 'ajustes', pc: 8, accion: 'ajustes' },
+  { ruta: '/comisiones', titulo: 'Comisiones', icono: 'porcentaje', pc: 6.5, accion: 'pagarComisiones', color: 'var(--tono-violeta)' },
+  { ruta: '/usuarios', titulo: 'Usuarios', icono: 'usuarios', pc: 7, accion: 'ajustes', color: 'var(--tono-rosa)' },
+  { ruta: '/ajustes', titulo: 'Ajustes', icono: 'ajustes', pc: 8, accion: 'ajustes', color: 'var(--tono-turquesa)' },
   { ruta: '/mas', titulo: 'Más', icono: 'mas', movil: 5 },
 ];
 
@@ -141,7 +141,10 @@ function pintarNav() {
       // v2.11: en el ícono de Vender, un punto avisa que hay una venta en curso en el carrito (fuera de Vender).
       const punto = a.ruta === '/vender' ? h('i', { class: 'nav-punto', 'aria-hidden': 'true' }) : null;
       return h('a', { class: 'nav' + (centro ? ' centro' : ''), href: '#' + a.ruta, 'data-ruta': a.ruta, 'aria-label': a.titulo, 'aria-current': activo ? 'true' : 'false', onclick: e => { e.preventDefault(); irPestana(a.ruta); } },
-        centro ? h('span', { class: 'ring' }, icono(a.icono), punto) : punto ? h('span', { class: 'nav-ic' }, icono(a.icono), punto) : icono(!tel && a.ruta === '/ajustes' ? 'tuerca' : a.icono), // v2.16: tuerca en la PC
+        centro ? h('span', { class: 'ring' }, icono(a.icono), punto)
+          // v2.29 · PC: cada ícono en su recuadro de color (los mismos tonos de «Más» del teléfono).
+          : !tel && a.color ? h('span', { class: 'nav-cuad', style: `--c:${a.color}` }, icono(a.ruta === '/ajustes' ? 'tuerca' : a.icono), punto)
+          : punto ? h('span', { class: 'nav-ic' }, icono(a.icono), punto) : icono(!tel && a.ruta === '/ajustes' ? 'tuerca' : a.icono), // v2.16: tuerca en la PC
         centro ? null : h('span', {}, a.titulo));
     }),
     h('div', { class: 'grow' }),
