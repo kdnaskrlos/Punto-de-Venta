@@ -4,6 +4,8 @@
 //   · si no está → el servidor lo rechazó → «Conflicto: rechazada» (el dinero se cobró pero el registro no existe);
 //   · si es una venta/apartado hecho sin internet y dejó alguna prenda en negativo → «Conflicto de inventario».
 // Los conflictos se guardan en Firebase (colección «conflictos») para que gestión los vea desde cualquier aparato.
+import { capturarContexto } from './contexto.js';
+import { nuevoId } from './contrato.js';
 
 const clave = (usuario, ambitoPrueba) => ambitoPrueba ? ambitoPrueba + ':pendientes' : 'pos-pendientes-' + (usuario || '');
 
@@ -19,8 +21,38 @@ function escribir(usuario, lista, ambitoPrueba) {
 export function anotarPendiente(ctx, p) {
   const u = ctx.sesion?.usuario; if (!u) return;
   const lista = leerPendientes(u, ctx.ambitoPrueba).filter(x => !(x.que === p.que && x.id === p.id));
-  lista.push({ ...p, anotado: new Date().toISOString() });
+  const anotado = { ...p, anotado: new Date().toISOString(), intento: nuevoId() };
+  lista.push(anotado);
   escribir(u, lista, ctx.ambitoPrueba);
+  return anotado;
+}
+
+const mismaOperacion = (a, b) => a.que === b.que && a.id === b.id;
+const mismoIntento = (a, b) => mismaOperacion(a, b) && a.intento === b.intento && a.anotado === b.anotado;
+function retirarPendiente(usuario, ambito, p) {
+  // Lee la cola actual para no borrar operaciones agregadas mientras respondía Firebase.
+  const lista = leerPendientes(usuario, ambito);
+  escribir(usuario, lista.filter(a => !mismoIntento(a, p)), ambito);
+}
+
+// Se anota al entregar el lote a Firebase, antes de esperar su respuesta. Si la vista
+// deja de estar activa, el pendiente queda en la cuenta que hizo el envío.
+export function seguirEnvio(ctx, pendiente) {
+  const vigente = capturarContexto(ctx);
+  const { usuario } = ctx.sesion;
+  const ambito = ctx.ambitoPrueba;
+  let anotado;
+  return {
+    alEnviar() { if (vigente()) anotado = anotarPendiente(ctx, pendiente); },
+    alResponder(r) {
+      if (!vigente()) return;
+      if (r.ok && r.offline) {
+        if (!anotado) anotarPendiente(ctx, pendiente);
+      } else if (anotado) {
+        retirarPendiente(usuario, ambito, anotado);
+      }
+    },
+  };
 }
 
 const resumenDe = d => ({
@@ -30,19 +62,21 @@ const resumenDe = d => ({
 });
 
 // Revisa un pendiente contra el servidor. Devuelve: 'ok' | { conflicto } | 'esperar' (no se pudo saber todavía).
-export async function revisarUno(almacen, p, productosPorSku = {}) {
+export async function revisarUno(almacen, p, productosPorSku = {}, vigente = () => true) {
   const v = (col, id) => almacen.verificarServidor(col, id);
   let existe = false;
   if (p.que === 'venta') existe = !!(await v('ventas', p.id));
   else if (p.que === 'apartado') existe = !!(await v('apartados', p.id));
   else if (p.que === 'completar') existe = !!(await v('ventas', p.id));
   else if (p.que === 'abono') { const ap = await v('apartados', p.apartadoId); existe = !!ap?.abonos?.some(a => a.id === p.id); }
+  if (!vigente()) return 'esperar';
   if (!existe) return { conflicto: { id: `rechazada-${p.que}-${p.id}`, tipo: 'rechazada', que: p.que, refId: p.id, apartadoId: p.apartadoId || null, fecha: p.datos?.fecha || p.anotado, resumen: p.resumen || resumenDe(p.datos), datos: p.datos || null } };
   // H1: hecha sin internet y dejó existencias negativas.
   if (p.offline && (p.que === 'venta' || p.que === 'apartado')) {
     const negativos = [];
     for (const sku of [...new Set((p.datos?.lineas || []).map(l => l.sku))]) {
       const prod = (await v('productos', sku)) || productosPorSku[sku];
+      if (!vigente()) return 'esperar';
       if (prod && prod.existencia < 0) negativos.push({ sku, existencia: prod.existencia });
     }
     if (negativos.length) return { conflicto: { id: `inventario-${p.que}-${p.id}`, tipo: 'inventario', que: p.que, refId: p.id, fecha: p.datos?.fecha || p.anotado, negativos, resumen: p.resumen || resumenDe(p.datos), datos: p.datos || null } };
@@ -50,26 +84,31 @@ export async function revisarUno(almacen, p, productosPorSku = {}) {
   return 'ok';
 }
 
-let revisando = false;
+const revisiones = new WeakMap();
 export async function revisarPendientes(ctx) {
   const u = ctx.sesion?.usuario, almacen = ctx.almacen;
-  if (revisando || !u || !almacen?.verificarServidor || !navigator.onLine) return;
-  let lista = leerPendientes(u, ctx.ambitoPrueba);
-  if (!lista.length) return;
-  revisando = true;
+  const ambito = ctx.ambitoPrueba;
+  if (revisiones.get(ctx)?.() || !u || ambito || !almacen?.verificarServidor || !navigator.onLine) return;
+  const vigente = capturarContexto(ctx);
+  const lista = leerPendientes(u, ambito);
+  if (!vigente() || !lista.length) return;
+  revisiones.set(ctx, vigente);
   try {
-    if (!(await almacen.esperarSubidas())) return; // todavía subiendo: se reintenta luego
-    for (const p of [...lista]) {
-      let r;
-      try { r = await revisarUno(almacen, p, ctx.productos); } catch { return; } // sin conexión a mitad: se sigue luego
+    if (!(await almacen.esperarSubidas()) || !vigente()) return;
+    for (const p of lista) {
+      if (!leerPendientes(u, ambito).some(actual => mismoIntento(actual, p))) continue;
+      const r = await revisarUno(almacen, p, ctx.productos, vigente);
+      if (!vigente() || r === 'esperar') return;
+      if (!leerPendientes(u, ambito).some(actual => mismoIntento(actual, p))) continue;
       if (r !== 'ok') {
-        const g = await almacen.registrarConflicto(r.conflicto);
+        const g = await almacen.registrarConflicto(r.conflicto, { validar: () => vigente() ? null : 'sesion' });
+        if (!vigente()) return;
         if (!g.ok) continue; // p. ej. reglas sin publicar: se reintenta luego, sin perder el pendiente
       }
-      lista = lista.filter(x => x !== p);
-      escribir(u, lista, ctx.ambitoPrueba);
+      retirarPendiente(u, ambito, p);
     }
-  } finally { revisando = false; }
+  } catch { /* respuesta incierta: se conserva el pendiente */ }
+  finally { if (revisiones.get(ctx) === vigente) revisiones.delete(ctx); }
 }
 
 // Revisa al entrar, al volver la conexión y cada 2 minutos mientras haya pendientes.

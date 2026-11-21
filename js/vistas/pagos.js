@@ -4,6 +4,26 @@ import { estadoCobro, montoSugerido, vueltoEn } from '../nucleo/cobro.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
 import { formaEfectivo, NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
 
+export function avisarErrorPago(error) {
+  if (error === 'ajustes-pendientes') toast('Esperando los ajustes operativos', { malo: true });
+  else if (error === 'ajustes-cambiaron') toast('Cambió la configuración de pago. Vuelve a abrir el cobro y revisa los importes.', { malo: true });
+  else return false;
+  return true;
+}
+
+export function esperarAjustesDePago(ctx) {
+  if (ctx.ajustesListos !== false) return true;
+  avisarErrorPago('ajustes-pendientes');
+  return false;
+}
+
+function firmaDePago(ctx) {
+  const { formasPago, redondeo, redondeoUsd } = ctx.ajustes;
+  const { copPorUsd, bsPorUsd, fuenteBs } = ctx.tasas;
+  const formas = (formasPago || []).filter(f => f.activa !== false).map(f => [f.id, f.nombre, f.moneda, !!f.efectivo]);
+  return JSON.stringify([formas, redondeo || 100, redondeoUsd || 0.01, copPorUsd, bsPorUsd, fuenteBs]);
+}
+
 // En los botones el grupo ya dice la moneda: "Efectivo pesos" → "Efectivo", "Transferencia / Nequi / …" → "Transferencia".
 export const nombreCorto = n => (n.split('/')[0].replace(/\(.*?\)/g, '').replace(/\b(pesos|d[oó]lares|bol[ií]vares)\b/gi, '').replace(/\s+/g, ' ').trim()) || n;
 
@@ -12,6 +32,8 @@ const GRUPOS = [['COP', 'Pesos', 'c-cop'], ['USD', 'Dólares', 'c-usd'], ['BS', 
 // total: monto a cubrir en COP. permitirMenos: en abonos de apartado se puede pagar menos que el total.
 // iniciales (v2.26): pagos ya escritos [{ forma, monto }] (borrador recuperado tras un apagón).
 export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar = () => {}, iniciales = null }) {
+  const firma = firmaDePago(ctx);
+  const validar = () => ctx.ajustesListos === false ? 'ajustes-pendientes' : firma !== firmaDePago(ctx) ? 'ajustes-cambiaron' : null;
   const formas = (ctx.ajustes.formasPago || []).filter(f => f.activa !== false);
   const pagos = [];
   for (const x of iniciales || []) { const forma = formas.find(f => f.id === x.forma); if (forma && x.monto > 0 && !pagos.some(p => p.forma.id === forma.id)) pagos.push({ forma, monto: x.monto }); }
@@ -164,7 +186,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     // v2.06: el total puede cambiar dentro del cobro (descuento): se recalcula falta y vuelto.
     ponerTotal(n) { total = n; pintarBarra(); avisar(); },
     barra, // la ventana la coloca en el pie, siempre visible
-    estado,
+    estado, validar,
     // v2.26: lo escrito, para guardarlo en el borrador de la venta.
     borrador: () => pagos.filter(p => p.monto > 0).map(p => ({ forma: p.forma.id, monto: p.monto })),
     // Pagos y vuelto listos para guardar en la venta o el apartado.

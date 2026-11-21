@@ -6,8 +6,8 @@ const modulos = {
   auth: `
     export const getAuth = () => ({}), EmailAuthProvider = {};
     export function onAuthStateChanged(auth, cb) {
-      window.cambiarSesionDoble = cb;
-      queueMicrotask(() => cb({ uid: 'uid-real' }));
+      window.cambiarSesionDoble = user => { auth.currentUser = user; cb(user); };
+      queueMicrotask(() => window.cambiarSesionDoble({ uid: 'uid-real' }));
     }
     export const signOut = () => window.escrituraDoble('signOut');
     export const signInWithEmailAndPassword = signOut, createUserWithEmailAndPassword = signOut,
@@ -24,7 +24,9 @@ const modulos = {
     const snap = (id, d) => ({ id, data: () => d, exists: () => !!d, metadata: { fromCache: false, hasPendingWrites: false } });
     const filas = nombre => window.datosDobles[nombre] ??
       (nombre === 'ventas' && window.ventaSinNumeroDoble ? [...datos.ventas, window.ventaSinNumeroDoble] : datos[nombre] ?? []);
-    const leer = ref => snap(ref.id, ref.n === 'usuarios' ? perfil : ref.n === 'sistema' ? { iniciado: true } : filas(ref.n).find(d => d.id === ref.id));
+    const leer = ref => ({ ...snap(ref.id, ref.n === 'usuarios'
+      ? (ref.id === perfil.uid ? perfil : window.perfilesDobles[ref.id])
+      : ref.n === 'sistema' ? { iniciado: true } : filas(ref.n).find(d => d.id === ref.id)), ref });
     const campoDe = (d, campo) => campo.split('.').reduce((obj, key) => obj?.[key], d);
     const listar = ref => ({ docs: filas(ref.n)
       .filter(d => (ref.filtros || []).every(([campo, op, valor]) => op === '==' ? campoDe(d, campo) === valor : campoDe(d, campo) >= valor))
@@ -38,29 +40,46 @@ const modulos = {
       if (typeof opciones === 'function') cb = opciones;
       const observar = nombre => {
         if (nombre && nombre !== ref.n) return;
+        if (ref.n === 'usuarios' && ref.id === window.diferirPerfil) return;
         cb(ref.id ? leer(ref) : { ...listar(ref), metadata: { fromCache: window.coleccionesEnCache.has(ref.n), hasPendingWrites: false } });
       };
       observadores.add(observar);
       queueMicrotask(() => { if (observadores.has(observar)) observar(); });
       return () => observadores.delete(observar);
     }
-    export const getDoc = async ref => leer(ref), getDocFromCache = getDoc, getDocFromServer = getDoc, getDocs = async ref => listar(ref);
+    export async function getDoc(ref) {
+      if (window.diferirLectura === ref.n) {
+        await new Promise((resolve, reject) => { window.liberarLectura = { resolve, reject }; });
+        window.lecturaLiberada = ref.n;
+      }
+      return leer(ref);
+    }
+    export const getDocFromCache = getDoc, getDocFromServer = getDoc, getDocs = async ref => listar(ref);
     export async function getDocsFromServer(ref) {
       window.lecturasServidorDobles.push(ref.n);
       if (ref.n === 'cajas' && window.diferirCajas) await new Promise(resolve => { window.liberarCajas = resolve; });
       return listar(ref);
     }
-    export const waitForPendingWrites = () => new Promise(() => {}), serverTimestamp = () => null,
+    export const waitForPendingWrites = () => new Promise((resolve, reject) => {
+      if (window.diferirSubidas) window.liberarSubidas = { resolve, reject };
+      if (window.subidasListas) resolve();
+    }), serverTimestamp = () => null,
       increment = n => n, arrayUnion = (...x) => x, documentId = () => '__name__';
     export function writeBatch() {
-      if (!window.cerrarCajaDoble) return window.escrituraDoble('writeBatch');
+      if (!window.cerrarCajaDoble && !window.diferirLote) return window.escrituraDoble('writeBatch');
       const cambios = [];
       return {
         update: (ref, campos) => cambios.push({ ref, campos }),
         delete: () => {},
-        set: () => {},
+        set: (ref, campos) => cambios.push({ ref, campos }),
         async commit() {
+          if (window.diferirLote) {
+            window.lotesEnviados.push(cambios);
+            await new Promise((resolve, reject) => { window.liberarLote = { resolve, reject }; });
+            return;
+          }
           for (const { ref, campos } of cambios) {
+            if (ref.n === 'eventos') continue;
             if (ref.n !== 'cajas' || campos.estado !== 'cerrada') window.escrituraDoble('writeBatch inesperado');
             Object.assign(filas('cajas').find(d => d.id === ref.id), campos);
             window.cajasCerradasDobles.push(ref.id);
@@ -69,8 +88,25 @@ const modulos = {
         }
       };
     }
-    export const runTransaction = () => window.escrituraDoble('runTransaction');
-    export const setDoc = () => window.escrituraDoble('setDoc'), updateDoc = () => window.escrituraDoble('updateDoc');
+    export async function runTransaction(db, operacion) {
+      if (!window.transaccionDoble) return window.escrituraDoble('runTransaction');
+      const cambios = [];
+      const r = await operacion({
+        get: getDoc,
+        set: (ref, campos) => cambios.push({ ref, campos }),
+        update: (ref, campos) => cambios.push({ ref, campos }),
+      });
+      if (cambios.length) {
+        window.transaccionesEnviadas.push(cambios);
+        await new Promise((resolve, reject) => { window.liberarTransaccion = { resolve, reject }; });
+      }
+      return r;
+    }
+    export const setDoc = async (ref, campos) => {
+      if (!window.aceptarCostos || ref.n !== 'costosVenta') return window.escrituraDoble('setDoc');
+      window.costosEnviados.push(campos);
+    };
+    export const updateDoc = () => window.escrituraDoble('updateDoc');
   `,
 };
 
@@ -81,6 +117,10 @@ async function abrirConDoble(env, ruta = '/ajustes') {
     window.datosDobles = {};
     window.lecturasServidorDobles = [];
     window.cajasCerradasDobles = [];
+    window.costosEnviados = [];
+    window.lotesEnviados = [];
+    window.transaccionesEnviadas = [];
+    window.perfilesDobles = { 'uid-otra': { uid: 'uid-otra', usuario: 'otra', nombre: 'Otra administración', rol: 'admin', activo: true } };
     window.coleccionesEnCache = new Set();
     window.escrituraDoble = metodo => { window.escriturasDobles.push(metodo); throw new Error(metodo); };
   });
@@ -97,13 +137,289 @@ async function abrirConDoble(env, ruta = '/ajustes') {
     return r.abort();
   });
   const p = await contexto.newPage();
+  p.setDefaultTimeout(6000);
   await p.goto(URL_BASE + '#' + ruta);
   await p.waitForFunction(() => window.__pos?.ctx.sesion?.uid === 'uid-real');
   await p.waitForSelector('#modo-prueba');
   return p;
 }
 
+async function entrarEnPractica(p) {
+  await p.click('#modo-prueba');
+  await p.waitForSelector('#aviso-prueba:not([hidden])');
+}
+
+async function prepararCobroReal(p) {
+  await p.evaluate(() => {
+    const c = window.__pos.ctx;
+    const sku = 'prueba-XO-N-S';
+    window.datosDobles.productos = [{ ...c.productos[sku], precios: [35000, 35000, 35000, 35000, 35000] }];
+    window.datosDobles.cajas = [{ id: 'caja-real', usuario: 'real', tipo: 'personal', estado: 'abierta', abierta: new Date().toISOString() }];
+    window.publicarDoble('productos');
+    window.publicarDoble('cajas');
+    c.carrito = { lineas: [{ sku, cantidad: 1 }], cliente: { telefono: '584125550100', nombre: 'Cliente operativo' }, ventaId: 'borrador-real' };
+    window.dispatchEvent(new CustomEvent('pos:carrito'));
+  });
+}
+
+async function prepararApartadoReal(p) {
+  await p.evaluate(() => {
+    window.datosDobles.apartados = [{
+      id: 'apartado-real', usuario: 'real', estado: 'pendiente', fecha: new Date().toISOString(),
+      cliente: { nombre: 'Cliente operativo' }, lineas: [], abonos: [], total: 35000, saldo: 35000,
+    }];
+    window.publicarDoble('apartados');
+  });
+}
+
+async function abrirCobroReal(p) {
+  await p.click('.side [data-ruta="/vender"]');
+  await p.click('[data-cobro] .cobrar');
+  await p.click('[data-forma-card="efectivo-cop"]');
+}
+
 casos('modo-prueba', [
+  ['Reportes no congela costos operativos cuando termina una lectura iniciada antes de entrar en práctica', async (env, a) => {
+    const p = await abrirConDoble(env);
+    await p.evaluate(() => { window.diferirLectura = 'costosVenta'; });
+    await p.click('.side [data-ruta="/reportes"]');
+    await p.waitForFunction(() => !!window.liberarLectura);
+    await p.click('.side [data-ruta="/ajustes"]');
+    await entrarEnPractica(p);
+    await p.evaluate(async () => {
+      window.diferirLectura = null;
+      window.liberarLectura.resolve();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    a.deepStrictEqual(await p.evaluate(() => window.escriturasDobles), []);
+    await p.evaluate(() => { window.aceptarCostos = true; });
+    await p.click('#salir-prueba');
+    await p.waitForFunction(() => window.costosEnviados.length === 1);
+    a.strictEqual(await p.evaluate(() => window.costosEnviados[0].id), 'venta-real');
+  }],
+  ['Una lectura de Reportes rechazada no se interpreta como un costo inexistente', async (env, a) => {
+    const p = await abrirConDoble(env);
+    await p.evaluate(() => { window.diferirLectura = 'costosVenta'; window.aceptarCostos = true; });
+    await p.click('.side [data-ruta="/reportes"]');
+    await p.waitForFunction(() => !!window.liberarLectura);
+    await p.evaluate(async () => {
+      window.diferirLectura = null;
+      window.liberarLectura.reject(new Error('Lectura rechazada por el doble de Firebase'));
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    a.deepStrictEqual(await p.evaluate(() => window.costosEnviados), []);
+  }],
+  ['La conciliación suspendida conserva el pendiente y no registra conflictos durante la práctica', async (env, a) => {
+    const p = await abrirConDoble(env);
+    await p.evaluate(async () => {
+      const { revisarPendientes } = await import('/js/datos/pendientes.js');
+      localStorage.setItem('pos-pendientes-real', JSON.stringify([{ id: 'venta-pendiente', que: 'venta' }]));
+      window.diferirSubidas = true;
+      window.conciliacion = revisarPendientes(window.__pos.ctx);
+    });
+    await p.waitForFunction(() => !!window.liberarSubidas);
+    await entrarEnPractica(p);
+    await p.evaluate(async () => {
+      window.liberarSubidas.resolve();
+      await window.conciliacion;
+    });
+    a.deepStrictEqual(await p.evaluate(() => window.escriturasDobles), []);
+    a.strictEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('pos-pendientes-real'))[0].id), 'venta-pendiente');
+    await p.evaluate(() => {
+      window.datosDobles.ventas = [{ id: 'venta-pendiente', numero: 'V-0002' }];
+      window.subidasListas = true;
+    });
+    await p.click('#salir-prueba');
+    await p.waitForFunction(() => !localStorage.getItem('pos-pendientes-real'));
+    a.deepStrictEqual(await p.evaluate(() => window.escriturasDobles), []);
+  }],
+  ['Una confirmación tardía de un conflicto no cambia la cola real y la conciliación posterior conserva los nuevos pendientes', async (env, a) => {
+    const p = await abrirConDoble(env);
+    await p.evaluate(async () => {
+      const { revisarPendientes } = await import('/js/datos/pendientes.js');
+      localStorage.setItem('pos-pendientes-real', JSON.stringify([{ id: 'venta-pendiente', que: 'venta' }]));
+      window.diferirLote = true;
+      window.subidasListas = true;
+      window.conciliacion = revisarPendientes(window.__pos.ctx);
+    });
+    await p.waitForFunction(() => !!window.liberarLote);
+    await entrarEnPractica(p);
+    await p.evaluate(async () => {
+      const conflicto = window.lotesEnviados[0].find(c => c.ref.n === 'conflictos').campos;
+      window.datosDobles.conflictos = [{ ...conflicto }];
+      window.diferirLote = false;
+      window.liberarLote.resolve();
+      await window.conciliacion;
+    });
+    a.strictEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('pos-pendientes-real'))[0].id), 'venta-pendiente');
+    await p.evaluate(() => {
+      window.diferirLectura = 'ventas';
+      window.diferirLote = true;
+    });
+    await p.click('#salir-prueba');
+    await p.waitForFunction(() => !!window.liberarLectura);
+    await p.evaluate(async () => {
+      const { anotarPendiente } = await import('/js/datos/pendientes.js');
+      anotarPendiente(window.__pos.ctx, { id: 'venta-nueva', que: 'venta' });
+      window.diferirLectura = null;
+      window.liberarLectura.resolve();
+    });
+    await p.waitForFunction(() => window.lotesEnviados.length === 2);
+    await p.evaluate(() => window.liberarLote.reject(Object.assign(new Error('Ya existe'), { code: 'permission-denied' })));
+    await p.waitForFunction(() => JSON.parse(localStorage.getItem('pos-pendientes-real')).length === 1);
+    a.strictEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('pos-pendientes-real'))[0].id), 'venta-nueva');
+  }],
+  ['Cobrar espera los Ajustes operativos aun cuando la caja ya está validada', async (env, a) => {
+    const p = await abrirConDoble(env);
+    await prepararCobroReal(p);
+    await prepararApartadoReal(p);
+    await entrarEnPractica(p);
+    await p.evaluate(() => window.coleccionesEnCache.add('ajustes'));
+    await p.click('#salir-prueba');
+    await p.waitForFunction(() => !window.__pos.ctx.validandoCaja && !window.__pos.ctx.ajustesListos && !!window.__pos.ctx.miCaja);
+    await p.click('.side [data-ruta="/vender"]');
+    await p.click('[data-cobro] .cobrar');
+    a.strictEqual(await p.locator('#cobrar-final').count(), 0, 'Se abrió Cobrar sin confirmar Ajustes');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.carrito.ventaId), 'borrador-real');
+    a.deepStrictEqual(await p.evaluate(() => window.escriturasDobles), []);
+    a.deepStrictEqual(await p.evaluate(async () => {
+      const s = window.__pos.ctx.almacen;
+      return Promise.all([s.guardarVenta({}), s.guardarApartado({}), s.abonarApartado('apartado-real', {}),
+        s.completarApartado('apartado-real', {}), s.guardarAjustes('general', {})]);
+    }), Array(5).fill({ ok: false, error: 'ajustes-pendientes' }));
+    await p.click('.side [data-ruta="/apartados"]');
+    for (const [accion, boton] of [['abonar', 'abono'], ['completar', 'completar']]) {
+      await p.click('.apartado');
+      await p.click('#ap-' + accion);
+      await p.waitForSelector('#ap-' + accion, { state: 'hidden' });
+      await p.waitForSelector('.toast:has-text("Esperando los ajustes operativos")');
+      a.strictEqual(await p.locator('#' + boton + '-final').count(), 0);
+    }
+    await p.evaluate(() => {
+      window.datosDobles.ajustes = [
+        { id: 'general', formasPago: [{ id: 'transferencia-cop', nombre: 'Nequi', moneda: 'COP' }], redondeo: 500 },
+        { id: 'tasas', copPorUsd: 4750, bsModo: 'manual', bsManual: 720 },
+      ];
+      window.coleccionesEnCache.delete('ajustes');
+      window.publicarDoble('ajustes');
+    });
+    await p.click('.side [data-ruta="/vender"]');
+    await p.click('[data-cobro] .cobrar');
+    await p.waitForSelector('#cobrar-final');
+    a.strictEqual(await p.locator('[data-forma-card="efectivo-cop"]').count(), 0);
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.tasas.copPorUsd), 4750);
+    await p.evaluate(() => { window.transaccionDoble = true; });
+    await p.click('[data-forma-card="transferencia-cop"]');
+    await p.click('#cobrar-final');
+    await p.waitForFunction(() => !!window.liberarTransaccion);
+    const venta = await p.evaluate(() => {
+      const d = window.transaccionesEnviadas[0].find(c => c.ref.n === 'ventas').campos;
+      window.datosDobles.ventas = [d];
+      window.liberarTransaccion.resolve();
+      return d;
+    });
+    await p.waitForSelector('.exito:has-text("Venta exitosa")');
+    a.strictEqual(venta.id, 'borrador-real');
+    a.strictEqual(venta.pagos[0].forma, 'transferencia-cop');
+    a.strictEqual(venta.tasas.copPorUsd, 4750);
+  }],
+  ['Una actualización confirmada de formas, tasas y redondeo invalida un cobro que ya espera a Firebase', async (env, a) => {
+    const p = await abrirConDoble(env);
+    await prepararCobroReal(p);
+    await abrirCobroReal(p);
+    await p.evaluate(() => { window.transaccionDoble = true; window.diferirLectura = 'productos'; });
+    await p.click('#cobrar-final');
+    await p.waitForFunction(() => !!window.liberarLectura);
+    await p.evaluate(() => {
+      window.datosDobles.ajustes = [
+        { id: 'general', formasPago: [{ id: 'transferencia-cop', nombre: 'Nequi', moneda: 'COP' }], redondeo: 500, redondeoUsd: 1 },
+        { id: 'tasas', copPorUsd: 4750, bsModo: 'manual', bsManual: 720 },
+      ];
+      window.publicarDoble('ajustes');
+      window.diferirLectura = null;
+      window.liberarLectura.resolve();
+    });
+    await p.waitForSelector('.toast:has-text("Cambió la configuración de pago")');
+    a.deepStrictEqual(await p.evaluate(() => window.transaccionesEnviadas), []);
+    a.deepStrictEqual(await p.evaluate(() => window.__pos.ctx.carrito.pagos), [{ forma: 'efectivo-cop', monto: 35000 }]);
+  }],
+  ['Una transacción que ya envió sus escrituras no da éxito ni se duplica si Firebase tarda y se cambia de modo', async (env, a) => {
+    const p = await abrirConDoble(env);
+    await prepararCobroReal(p);
+    await abrirCobroReal(p);
+    await p.evaluate(() => { window.transaccionDoble = true; });
+    await p.clock.install();
+    await p.click('#cobrar-final');
+    await p.waitForFunction(() => !!window.liberarTransaccion);
+    await p.clock.runFor(4100);
+    await p.waitForSelector('.toast:has-text("El envío anterior sigue pendiente de confirmación")');
+    await p.evaluate(() => window.__pos.ctx.entrarModoPrueba());
+    await p.waitForSelector('#aviso-prueba:not([hidden])');
+    await p.click('#salir-prueba');
+    await p.waitForFunction(() => window.__pos.ctx.ajustesListos && !window.__pos.ctx.validandoCaja);
+    const repetida = await p.evaluate(() => window.__pos.ctx.almacen.guardarVenta({ id: 'borrador-real', lineas: [] }));
+    a.deepStrictEqual(repetida, { ok: false, error: 'en-curso' });
+    await p.evaluate(async () => {
+      window.liberarTransaccion.reject(Object.assign(new Error('Firebase rechazó el envío'), { code: 'permission-denied' }));
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    a.strictEqual(await p.locator('.exito').count(), 0);
+    a.strictEqual(await p.evaluate(() => window.transaccionesEnviadas.length), 1);
+    a.deepStrictEqual(await p.evaluate(() => window.escriturasDobles), []);
+    a.strictEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('pos-venta-real')).c.ventaId), 'borrador-real');
+  }],
+  ['Un abono enviado conserva la cola de su cuenta si Firebase responde después del cambio de cuenta', async (env, a) => {
+    const p = await abrirConDoble(env);
+    await prepararCobroReal(p);
+    await prepararApartadoReal(p);
+    await p.click('.side [data-ruta="/apartados"]');
+    await p.click('.apartado');
+    await p.click('#ap-abonar');
+    await p.click('[data-forma-card="efectivo-cop"]');
+    await p.fill('.pago[data-forma="efectivo-cop"] input', '5.000');
+    await p.click('[data-forma-card="transferencia-cop"]');
+    await p.fill('.pago[data-forma="transferencia-cop"] input', '5.000');
+    await p.evaluate(() => { window.diferirLote = true; });
+    await p.click('#abono-final');
+    await p.waitForFunction(() => !!window.liberarLote);
+    await p.evaluate(() => {
+      window.diferirPerfil = 'uid-otra';
+      window.cambiarSesionDoble({ uid: 'uid-otra' });
+    });
+    await p.evaluate(async () => {
+      window.liberarLote.resolve();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      window.diferirPerfil = null;
+      window.publicarDoble('usuarios');
+    });
+    await p.waitForFunction(() => window.__pos.ctx.sesion?.uid === 'uid-otra');
+    a.strictEqual(await p.locator('.toast:has-text("Abono guardado")').count(), 0);
+    a.strictEqual(await p.evaluate(() => window.lotesEnviados.length), 1);
+    const { real, otra } = await p.evaluate(() => ({
+      real: JSON.parse(localStorage.getItem('pos-pendientes-real')), otra: localStorage.getItem('pos-pendientes-otra'),
+    }));
+    a.strictEqual(real.length, 1);
+    a.strictEqual(real[0].que, 'abono');
+    a.strictEqual(real[0].datos.monto, 5000);
+    a.strictEqual(otra, null);
+  }],
+  ['Guardar Ajustes no continúa con General ni muestra éxito si Tasas se confirma en otro contexto', async (env, a) => {
+    const p = await abrirConDoble(env);
+    await p.evaluate(() => { window.diferirLote = true; });
+    await p.fill('#aj-cop', '4600');
+    await p.click('#aj-guardar');
+    await p.waitForFunction(() => !!window.liberarLote);
+    await entrarEnPractica(p);
+    await p.click('#salir-prueba');
+    await p.waitForFunction(() => window.__pos.ctx.ajustesListos);
+    await p.evaluate(async () => {
+      window.liberarLote.resolve();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    const documentos = await p.evaluate(() => window.lotesEnviados.flat().filter(c => c.ref.n === 'ajustes').map(c => c.ref.id));
+    a.deepStrictEqual(documentos, ['tasas']);
+    a.strictEqual(await p.locator('.toast:has-text("Cambios guardados")').count(), 0);
+  }],
   ['Aísla las operaciones, rechaza administrar ejemplos desde Firebase y restaura el contexto real', async (env, a) => {
     const p = await abrirConDoble(env);
     const originales = await p.evaluate(async () => {

@@ -2,12 +2,14 @@
 import { ctx, crearContexto, usarContexto, refrescarContexto, mostrarApp, definirCalculadora } from './app.js';
 import { vigilarVentaEnCurso, ofrecerRetomar } from './vistas/venta-en-curso.js';
 import { vigilarPendientes } from './datos/pendientes.js';
+import { capturarContexto } from './datos/contexto.js';
 import { h, icono, cerrarCapaSuperior, hayCapas, despuesDeCerrar } from './ui.js';
 import { crearAlmacen, crearAlmacenPrueba, cuentaDePrueba, MODO_DEMO, DEMO_DIRECTO, usuarioDemo } from './datos/index.js';
 import { iniciarDatos } from './datos/vivos.js';
 import { pantallaEntrada, pantallaPrimerAdmin } from './vistas/entrar.js';
 import { abrirCalculadora } from './vistas/calculadora.js';
 import { abrirCobrar } from './vistas/cobrar.js';
+import { esperarAjustesDePago } from './vistas/pagos.js';
 import { abrirApartar } from './vistas/apartados.js';
 import { conCliente } from './vistas/cliente.js';
 import { carrito } from './vistas/vender.js';
@@ -25,16 +27,16 @@ definirCalculadora(() => abrirCalculadora(ctx));
 function configurarCobro(contexto) {
   contexto.abrirApartar = () => { if (ctx === contexto) abrirApartar(contexto); };
   contexto.abrirCobro = modo => {
-    if (ctx !== contexto || !carrito(contexto).lineas.length) return;
+    const vigente = capturarContexto(contexto);
+    if (ctx !== contexto || !vigente() || !carrito(contexto).lineas.length || !esperarAjustesDePago(contexto)) return;
     conCliente(contexto, () => {
-      if (ctx === contexto) (modo === 'venta' ? abrirCobrar : abrirApartar)(contexto);
+      if (vigente()) (modo === 'venta' ? abrirCobrar : abrirApartar)(contexto);
     });
   };
 }
 
 function recuperar(contexto) {
-  const uid = contexto.sesion?.uid;
-  return ofrecerRetomar(contexto, () => ctx === contexto && contexto.sesion?.uid === uid);
+  return ofrecerRetomar(contexto, capturarContexto(contexto));
 }
 
 const CLAVE_PRUEBA_ACTIVA = 'pos-modo-prueba-activo';
@@ -50,7 +52,11 @@ async function iniciar() {
   const raiz = document.getElementById('app');
   const operativo = ctx;
   let marcaPrueba = leerPruebaActiva();
-  operativo.almacen = await crearAlmacen({ puedeSincronizar: () => !marcaPrueba });
+  operativo.almacen = await crearAlmacen({
+    puedeSincronizar: () => !marcaPrueba && ctx === operativo && !operativo.almacenReal,
+    generacion: () => operativo.generacion,
+    ajustesListos: () => operativo.ajustesListos !== false,
+  });
   configurarCobro(operativo);
   if (DEMO_DIRECTO) await operativo.almacen.entrar(usuarioDemo(), '1234');
   let anterior, pararDatos = null, turno = 0;
@@ -90,7 +96,7 @@ async function iniciar() {
         prueba.cerrarAlmacen();
         usarContexto(operativo);
         escuchar(operativo, { restaurarOperacion: true });
-        operativo.almacen.numerarPendientes?.();
+        reanudarOperacion();
         refrescarContexto();
         recuperar(operativo);
       });
@@ -98,6 +104,12 @@ async function iniciar() {
     usarContexto(prueba);
     escuchar(prueba);
   };
+
+  function reanudarOperacion() {
+    operativo.almacen.numerarPendientes?.();
+    operativo.almacen.reanudarCostos?.();
+    revisarPendientes();
+  }
 
   let entrandoPrueba = false;
   operativo.entrarModoPrueba = async () => {
@@ -122,16 +134,19 @@ async function iniciar() {
     }
   };
 
+  let ultimaCuenta = null;
   operativo.almacen.alCambiarSesion(async s => {
-    const clave = s ? s.uid + s.rol : null;
+    const clave = s ? JSON.stringify([s.uid, s.usuario, s.rol]) : null;
     // Solo se omite si la pantalla que se ve ya corresponde (app con sesión o entrada sin ella).
     const mostrando = s ? !!raiz.querySelector(':scope > .side') : !!raiz.querySelector('.puerta');
     if (clave === anterior && mostrando) {
-      operativo.sesion = s;
+      if (operativo.almacenReal) operativo.sesionReal = s;
+      else operativo.sesion = s;
       if (ctx === operativo) window.dispatchEvent(new CustomEvent('pos:sesion'));
       return;
     }
     const mio = ++turno;
+    operativo.generacion++;
     anterior = clave;
     cerrarCapas();
     if (ctx.ambitoPrueba) {
@@ -147,6 +162,9 @@ async function iniciar() {
     operativo.carrito = null;
     if (s) {
       const marca = marcaPrueba;
+      const cambioCuenta = !MODO_DEMO && !!ultimaCuenta && ultimaCuenta !== s.uid;
+      const restaurarOperacion = !!marca || cambioCuenta;
+      ultimaCuenta = s.uid;
       if (marca?.cuenta === cuentaDePrueba(s.uid) && operativo.puedeVer('ajustes')) {
         const datos = await crearAlmacenPrueba(s.uid);
         if (turno !== mio) return;
@@ -158,8 +176,8 @@ async function iniciar() {
         }
       }
       if (marca) olvidarPrueba(marca);
-      escuchar(operativo, { restaurarOperacion: !!marca });
-      if (marca) operativo.almacen.numerarPendientes?.();
+      escuchar(operativo, { restaurarOperacion, cambioCuenta });
+      if (restaurarOperacion) reanudarOperacion();
       mostrarApp();
       setTimeout(() => { if (ctx === operativo && turno === mio) recuperar(operativo); }, 700);
       setTimeout(revisarPendientes, 4000);

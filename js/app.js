@@ -61,6 +61,7 @@ export function crearContexto(datos = {}) {
     tasas: { copPorUsd: null, bsPorUsd: null },
     ajustes: {},
     vistaRol: null,
+    generacion: 0,
     ...datos,
   };
   contexto.rol = () => contexto.vistaRol || contexto.sesion?.rol;
@@ -95,6 +96,7 @@ export async function verComo(rol) {
     ctx.almacen = ctx.almacenReal; ctx.sesion = ctx.sesionReal || ctx.sesion;
     ctx.almacenReal = null; ctx.sesionReal = null;
   }
+  ctx.generacion++;
   ctx.vistaRol = rol;
   ctx.reiniciarDatos && ctx.reiniciarDatos();
   pintarAvisoDemo();
@@ -195,6 +197,7 @@ let desmontar = null;
 // Cada vista conserva su contexto. Un callback pendiente en una vista de prueba
 // sigue apuntando al almacén local aunque ya se haya vuelto a la operación real.
 export function usarContexto(contexto) {
+  ctx.generacion++;
   desmontar?.();
   desmontar = null;
   ctx = contexto;

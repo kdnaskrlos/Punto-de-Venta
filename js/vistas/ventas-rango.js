@@ -1,32 +1,36 @@
 // Ventas de un rango con su costo congelado (§15) y lista de ventas con "Anular" para gestión.
 import { h, icono, abrirVentana, toast, pedirMotivo, unaVez } from '../ui.js';
 import { conCaja } from './caja.js';
+import { capturarContexto } from '../datos/contexto.js';
 import { costoVenta } from '../nucleo/costos.js';
 import { fmtCop } from '../nucleo/dinero.js';
 import { fechaHora, inicioDia, sumarDias } from '../nucleo/fechas.js';
 
 // cb({ventas, costosVenta|null, costos}) cada vez que cambia algo. Devuelve la función para dejar de escuchar.
 export function escucharVentasConCosto(ctx, { desde, hasta }, cb) {
+  const vigente = capturarContexto(ctx);
+  const almacen = ctx.almacen;
   const filtro = { desde: inicioDia(desde), hasta: inicioDia(sumarDias(hasta, 1)) };
   const gestion = ctx.puedeVer('verCostos');
   let ventas = [], costos = null, congelados = gestion ? null : {}, ventasOk = false;
   const congelando = new Set();
   const avisar = () => {
+    if (!vigente()) return;
     if (gestion && costos && congelados) {
       // La primera vez que admin o encargada ven una venta, su costo queda congelado.
       for (const v of ventas) {
         if (congelados[v.id] || congelando.has(v.id)) continue;
         congelando.add(v.id);
-        ctx.almacen.congelarCostoVenta(v.id, costoVenta(v, costos));
+        almacen.congelarCostoVenta(v.id, costoVenta(v, costos));
       }
     }
     // v2.01: «listo» cuando ya llegaron ventas y, para gestión, los costos (así Reportes pinta una sola vez).
     cb({ ventas, costosVenta: gestion ? (congelados || {}) : null, costos: costos || {}, listo: ventasOk && (!gestion || (!!costos && !!congelados)) });
   };
-  const q = [ctx.almacen.escuchar('ventas', l => { ventas = l; ventasOk = true; avisar(); }, filtro)];
+  const q = [almacen.escuchar('ventas', l => { ventas = l; ventasOk = true; avisar(); }, filtro)];
   if (gestion) {
-    q.push(ctx.almacen.escuchar('costos', l => { costos = Object.fromEntries(l.map(c => [c.sku, c])); avisar(); }));
-    q.push(ctx.almacen.escuchar('costosVenta', l => { congelados = Object.fromEntries(l.map(c => [c.id, c])); avisar(); }));
+    q.push(almacen.escuchar('costos', l => { costos = Object.fromEntries(l.map(c => [c.sku, c])); avisar(); }));
+    q.push(almacen.escuchar('costosVenta', l => { congelados = Object.fromEntries(l.map(c => [c.id, c])); avisar(); }));
   }
   return () => q.forEach(x => x());
 }

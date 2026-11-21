@@ -1,6 +1,7 @@
 // Ajustes (solo administrador), en 4 apartados: Tasas, Venta, Pagos y Recibo. Los usuarios están en Más → Usuarios.
 import { h, icono, abrirVentana, toast, unaVez, desplegar, esTelefono } from '../ui.js';
 import { registrarVista, refrescar } from '../app.js';
+import { capturarContexto } from '../datos/contexto.js';
 import { bloquePrueba } from './mas.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { etiquetaTramo } from '../nucleo/tramos.js';
@@ -31,7 +32,7 @@ function haceTiempo(iso) {
 
 // Tasas como en la Calculadora de Tasas: pesos por dólar arriba y, para Bs, tres opciones en tarjetas
 // (Binance P2P con recargo, BCV oficial o Manual), cada una con su tasa a la derecha.
-function tasas(ctx) {
+function tasas(ctx, vigente) {
   const aj = ctx.ajustesTasas || {};
   const remota = ctx.tasaRemota || {};
   const modo = { value: aj.bsModo || 'binance' };
@@ -75,6 +76,7 @@ function tasas(ctx) {
     h('div', { class: 'campo' }, h('label', { class: 'et-moneda' }, 'Bs'), grupo));
   // Devuelve true si se guardó (o no había nada que guardar).
   const guardar = async () => {
+    if (!vigente()) return false;
     const ahora = new Date().toISOString();
     const vCop = num(cop, 'COP'), vMan = num(manual, 'BS');
     const datos = { bsModo: modo.value, bsRecargo: num(recargo, 'BS') || 0 };
@@ -82,6 +84,7 @@ function tasas(ctx) {
     if (vMan && vMan !== aj.bsManual) Object.assign(datos, { bsManual: vMan, bsManualActualizada: ahora });
     if (modo.value === 'manual' && !vMan) { toast('Escribe la tasa manual de Bs', { malo: true }); return false; }
     const r = await ctx.almacen.guardarAjustes('tasas', datos);
+    if (!vigente()) return false;
     if (!r.ok) toast(r.error === 'permiso' ? 'No se guardaron las tasas: Firebase no dio permiso (revisa las reglas)' : r.error === 'sesion' ? 'Tu sesión se cerró: vuelve a entrar' : 'No se guardaron las tasas. Revisa la conexión', { malo: true });
     return r.ok;
   };
@@ -272,6 +275,8 @@ registrarVista('/ajustes', {
       window.addEventListener('pos:datos', cargar);
       return () => window.removeEventListener('pos:datos', cargar);
     }
+    const enContexto = capturarContexto(ctx);
+    const vigente = () => enContexto() && ctx.ajustesListos;
     const boton = h('button', { class: 'btn primary', id: 'aj-guardar' }, icono('check'), 'Guardar cambios');
     boton.disabled = true;
     const barra = h('div', { class: 'guardar-ajustes' }, boton);
@@ -285,22 +290,24 @@ registrarVista('/ajustes', {
     let base = '';
     const evaluar = () => { boton.disabled = firma() === base; pintarAviso(); };
     const cambio = () => { evaluar(); setTimeout(evaluar); };
-    const t = tasas(ctx), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
+    const t = tasas(ctx, vigente), ve = venta(ctx), pa = pagos(ctx, cambio), re = recibo(ctx);
     const secciones = { tasas: t.el, venta: ve.el, pagos: pa.el, recibo: re.el };
     for (const [k, el] of Object.entries(secciones)) el.classList.add('aj-' + k); // v2.15: para el diseño de PC
     // Un solo botón para guardar; aparece cuando se cambia algo.
     for (const sec of [t.el, ve.el, re.el]) { sec.addEventListener('input', cambio); sec.addEventListener('change', cambio); sec.addEventListener('click', e => { if (e.target.closest('.segmentado button, button[aria-pressed], .modo-bs')) cambio(); }); }
     boton.addEventListener('click', e => unaVez(e.currentTarget, async () => {
-      let listo = false;
+      if (!vigente()) return;
       boton.replaceChildren(icono('check'), 'Guardando…');
       try {
-      if (!(await t.guardar())) return;
-      const partes = [await ve.guardar(), await pa.guardar(), await re.guardar()];
-      if (partes.some(x => !x)) return;
-      const r = await ctx.almacen.guardarAjustes('general', Object.assign({}, ...partes));
-      if (!r.ok) { toast(r.error === 'permiso' ? 'No se guardó: Firebase no dio permiso (revisa las reglas)' : 'No se pudo guardar. Revisa la conexión', { malo: true }); return; }
-      listo = true; document.activeElement?.blur(); toast('Cambios guardados');
-      setTimeout(() => { if (listo) { base = firma(); boton.disabled = true; pintarAviso(); } });
+        if (!(await t.guardar()) || !vigente()) return;
+        const partes = await Promise.all([ve.guardar(), pa.guardar(), re.guardar()]);
+        if (!vigente() || partes.some(x => !x)) return;
+        const r = await ctx.almacen.guardarAjustes('general', Object.assign({}, ...partes));
+        if (!vigente()) return;
+        if (!r.ok) { toast(r.error === 'permiso' ? 'No se guardó: Firebase no dio permiso (revisa las reglas)' : 'No se pudo guardar. Revisa la conexión', { malo: true }); return; }
+        document.activeElement?.blur();
+        toast(r.offline ? 'Cambios guardados en este dispositivo. Pendientes de envío.' : 'Cambios guardados');
+        setTimeout(() => { if (vigente()) { base = firma(); boton.disabled = true; pintarAviso(); } });
       } finally { boton.replaceChildren(icono('check'), 'Guardar cambios'); }
     })());
     const pest = h('div', { class: 'segmentado pestanas-aj', role: 'tablist' });
