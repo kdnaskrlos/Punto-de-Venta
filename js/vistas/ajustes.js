@@ -224,7 +224,7 @@ function recibo(ctx) {
   const area = h('textarea', { class: 'inp plantilla', id: 'aj-plantilla', rows: 12, spellcheck: 'true' });
   area.value = ctx.ajustes.recibo?.plantilla?.trim() ? ctx.ajustes.recibo.plantilla : PLANTILLA_DEFECTO;
   // v1.99: si se agranda el recuadro del mensaje, la app recuerda ese alto (en este aparato).
-  const CLAVE_ALTO = 'pos-recibo-alto';
+  const CLAVE_ALTO = ctx.ambitoPrueba ? ctx.ambitoPrueba + ':recibo-alto' : 'pos-recibo-alto';
   try { const alto = Number(localStorage.getItem(CLAVE_ALTO)); if (alto >= 120) area.style.height = `${alto}px`; } catch {}
   if ('ResizeObserver' in window) {
     let t = 0;
@@ -310,8 +310,6 @@ registrarVista('/ajustes', {
     base = firma();
     // En la computadora no hay pantalla «Más»: Modo prueba y Modo demo van al pie de Ajustes.
     if (esTelefono()) return undefined;
-    const prueba = bloquePrueba(ctx);
-    cont.append(prueba.el);
-    return prueba.quitar;
+    cont.append(bloquePrueba(ctx));
   },
 });

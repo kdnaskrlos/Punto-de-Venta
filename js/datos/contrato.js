@@ -16,7 +16,7 @@
 // Inventario:  ajustarExistencia(sku, cantidad, motivo, nota) · aplicarImportacion(plan) · guardarOferta(grupo, oferta) · guardarImagen(codigo, blob)
 // Otros:       guardarAjustes(doc, datos) · guardarCliente({telefono, nombre}) · solicitarAutorizacion(a) · responderAutorizacion(id, aprobada)
 //              pagarComisiones(reg) · congelarCostoVenta(ventaId, costo) · estadoSync(cb({enLinea, pendientes, error})) → desuscribir
-// Modo prueba: cargarEjemplos({productos, costos, clientes, ventas, apartados}) · quitarEjemplos() (solo admin; todo con demo:true)
+// Modo prueba: cargarEjemplos(lote) · quitarEjemplos() (solo admin en el almacén local de prueba).
 export const NOMBRES = ['productos', 'ventas', 'apartados', 'cajas', 'autorizaciones', 'ajustes', 'clientes', 'comisiones', 'costos', 'costosVenta', 'movimientos', 'usuarios', 'conflictos', 'eventos'];
 
 export function nuevoId() {

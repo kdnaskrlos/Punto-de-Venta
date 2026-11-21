@@ -50,14 +50,15 @@ export async function abrirActividad(ctx, { desde, hasta }) {
     lista.replaceChildren(...filas);
   };
   personas.onchange = () => { persona = personas.value; pintar(); };
-  const yo = dispositivo();
+  const claveDispositivo = ctx.ambitoPrueba ? ctx.ambitoPrueba + ':dispositivo' : undefined;
+  const yo = dispositivo(claveDispositivo);
   const nombreAparato = h('b', {}, yo.nombre);
   const pie = h('div', { class: 'act-aparato nota' }, icono('movil'), 'Este aparato: ', nombreAparato,
     h('button', { type: 'button', class: 'enlace', id: 'act-nombrar', onclick: () => {
       const inp = h('input', { class: 'inp', id: 'act-nombre', value: yo.nombre, 'data-no-limpiar': '' });
       const ok = h('button', { class: 'btn primary' }, icono('check'), 'Guardar');
       const v2 = abrirVentana({ titulo: 'Nombre de este aparato', contenido: h('div', { class: 'campo' }, h('label', { for: 'act-nombre' }, 'Nombre'), inp), acciones: h('div', { class: 'acciones' }, ok) });
-      ok.onclick = () => { const d = nombrarDispositivo(inp.value); nombreAparato.textContent = d.nombre; v2.cerrar(); toast('Nombre guardado'); };
+      ok.onclick = () => { const d = nombrarDispositivo(inp.value, claveDispositivo); nombreAparato.textContent = d.nombre; v2.cerrar(); toast('Nombre guardado'); };
     } }, 'Cambiar nombre'));
   const v = abrirVentana({ titulo: 'Actividad', clase: 'ventana-actividad', contenido: h('div', { class: 'pila actividad' }, h('div', { class: 'act-barra' }, chips, personas), lista, pie) });
   eventos = (await leerUnaVez(ctx, 'eventos', { desde: inicioDia(desde), hasta: finDia(hasta || desde) })).sort((a, b) => String(cuando(b)).localeCompare(String(cuando(a))));

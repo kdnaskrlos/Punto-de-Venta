@@ -45,11 +45,11 @@ Estos escenarios constan en la auditoría. Verificar su alcance antes de tratarl
 
 - Conciliar las instrucciones de sincronización y fotos de la guía con la interfaz actual. [Guía](../../GUIA.md) · [Inventario](../../js/vistas/inventario.js)
 - Conciliar el comentario del importador que dice que `separado` sigue sin uso con su aplicación en el cálculo del carrito. [Importador](../../js/nucleo/importar.js) · [Tramos](../../js/nucleo/tramos.js)
-- Revisar la cobertura del modo prueba en la lista de comprobación de Firestore a la luz de los ejemplos de v2.35. [Lista de comprobación](../../pruebas/REGLAS.md) · [Modo prueba](../../js/vistas/mas.js) · [Reglas](../../firestore.rules)
 
 ## Verificación de Firebase
 
 - Confirmar qué reglas están activas en el proyecto Firebase del POS y su compatibilidad con la versión en uso. El incidente por aplicar reglas al proyecto de Pedidos está documentado. El estado desplegado sigue sin verificar. [Reglas del repositorio](../../firestore.rules) · [Registro v2.35](../superpowers/decisiones-fase1.md) · [POS Comic Shop, mensajes 337–339](README.md#pos-comic-shop)
+- **Revisión independiente de ejemplos históricos.** Identificar por procedencia y relaciones los registros que llegaron a Firestore desde versiones anteriores del Modo prueba. La marca `demo: true` por sí sola no acredita que un registro pueda borrarse. Cualquier limpieza requiere una revisión y autorización propias. [Adaptador Firebase](../../js/datos/firebase.js) · [Reglas del repositorio](../../firestore.rules)
 
 ## Incorporación de memoria
 

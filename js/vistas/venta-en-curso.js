@@ -5,12 +5,12 @@ import { h, icono, abrirVentana, despuesDeCerrar } from '../ui.js';
 import { navegar } from '../app.js';
 
 const VIGENCIA = 24 * 60 * 60 * 1000;
-const clave = ctx => 'pos-venta-' + (ctx.sesion?.usuario || '');
+const clave = ctx => ctx.ambitoPrueba ? ctx.ambitoPrueba + ':carrito' : 'pos-venta-' + (ctx.sesion?.usuario || '');
 
 export function guardarVentaEnCurso(ctx) { guardar(ctx); }
 
 function guardar(ctx) {
-  if (!ctx.sesion) return;
+  if (!ctx.sesion || !ctx.carrito) return;
   const c = ctx.carrito;
   try {
     if (c?.lineas?.length) localStorage.setItem(clave(ctx), JSON.stringify({ c, en: Date.now() }));
@@ -25,19 +25,20 @@ function leer(ctx) {
   } catch { return null; }
 }
 
-export function vigilarVentaEnCurso(ctx) {
-  const g = () => guardar(ctx);
+export function vigilarVentaEnCurso(contexto) {
+  const g = () => guardar(contexto());
   window.addEventListener('pos:carrito', g);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') g(); });
   window.addEventListener('pagehide', g);
 }
 
-export async function ofrecerRetomar(ctx) {
+export async function ofrecerRetomar(ctx, activo = () => true) {
   const d = leer(ctx);
   if (!d || ctx.carrito?.lineas?.length) return;
   const c = d.c;
   // v2.26 · Si la luz se fue justo al cobrar, la venta (o el apartado) pudo quedar guardada: no se ofrece cobrarla otra vez.
   const ya = (c.ventaId && await ctx.almacen.obtener('ventas', c.ventaId)) ? 'venta' : (c.apartadoId && await ctx.almacen.obtener('apartados', c.apartadoId)) ? 'apartado' : null;
+  if (!activo()) return;
   if (ya) {
     try { localStorage.removeItem(clave(ctx)); } catch { /* */ }
     const ok = h('button', { class: 'btn primary', id: 'ya-guardada' }, 'Entendido');

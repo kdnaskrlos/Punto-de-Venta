@@ -1,8 +1,6 @@
 // "Más" en el teléfono: accesos que no caben en la barra inferior. "Mi cuenta" está dentro de Usuarios.
-import { h, icono } from '../ui.js';
+import { h, icono, abrirVentana, toast, unaVez, despuesDeCerrar } from '../ui.js';
 import { registrarVista, navegar, pastillaModoDemo } from '../app.js';
-import { abrirVentana, toast, unaVez } from '../ui.js';
-import { generarEjemplos } from '../nucleo/ejemplos.js';
 
 // Más: filas agrupadas con ícono de color, nombre, para qué sirve y flecha.
 registrarVista('/mas', {
@@ -23,30 +21,34 @@ registrarVista('/mas', {
         admin ? ir('/ajustes', 'ajustes', 'var(--tono-turquesa)', 'Ajustes', 'Tasas, pagos y recibo') : null),
     ].filter(Boolean));
     if (!admin) return undefined;
-    const { el, quitar } = bloquePrueba(ctx);
-    cont.append(el);
-    return quitar;
+    cont.append(bloquePrueba(ctx));
   },
 });
 
 // Pastillas «Modo prueba» (llena la app con ejemplos) y «Modo demo» (ver como vendedora o encargada).
 // Están en Más (teléfono) y al pie de Ajustes (computadora).
 export function bloquePrueba(ctx) {
-  // Modo prueba (como en Pedidos): llena la app con ejemplos para ver cómo se ve; se quitan sin tocar lo real.
-  const boton = h('button', { class: 'pill demo', id: 'modo-prueba' });
-  let hay = false;
-  const pintar = () => { boton.classList.toggle('on', hay); boton.replaceChildren(icono('matraz'), 'Modo prueba'); };
+  const prueba = ctx.ambitoPrueba;
+  const boton = h('button', { class: 'pill demo' + (prueba ? ' on' : ''), id: 'modo-prueba', type: 'button' }, icono('matraz'), 'Modo prueba');
   boton.onclick = e => unaVez(e.currentTarget, async () => {
-    if (!hay) {
-      const r = await ctx.almacen.cargarEjemplos(generarEjemplos({ productos: ctx.productos, formas: ctx.ajustes.formasPago, tasas: ctx.tasas, yo: ctx.sesion.usuario, limites: ctx.ajustes.tramos }));
-      toast(r.ok ? 'Ejemplos cargados' : r.error === 'permiso' ? 'Firebase no dio permiso: publica las reglas nuevas (firestore.rules)' : 'No se pudieron cargar. Revisa la conexión', { malo: !r.ok });
+    if (!prueba) {
+      if (!await ctx.entrarModoPrueba()) toast('No se pudo abrir el Modo prueba', { malo: true });
       return;
     }
     const si = h('button', { class: 'btn danger', id: 'quitar-ejemplos' }, icono('borrar'), 'Quitar ejemplos');
-    const v = abrirVentana({ titulo: 'Quitar modo prueba', contenido: h('p', {}, 'Se borran la vendedora de prueba y sus ventas, cajas, apartados y comisiones, y los clientes y prendas de ejemplo. Tus datos reales no se tocan.'),
+    const v = abrirVentana({ titulo: 'Quitar ejemplos', contenido: h('p', {}, 'Se borran los ejemplos y los cambios que hiciste en el Modo prueba de este dispositivo.'),
       acciones: h('div', { class: 'acciones' }, h('button', { class: 'btn', onclick: () => v.cerrar() }, 'Cancelar'), si) });
-    si.onclick = ev => unaVez(ev.currentTarget, async () => { const r = await ctx.almacen.quitarEjemplos(); v.cerrar(); toast(r.ok ? 'Ejemplos quitados' : 'No se pudieron quitar', { malo: !r.ok }); })();
+    si.onclick = ev => unaVez(ev.currentTarget, async () => {
+      const r = await ctx.almacen.quitarEjemplos();
+      if (!r.ok) { toast('No se pudieron quitar', { malo: true }); return; }
+      ctx.carrito = null;
+      for (const sufijo of ['carrito', 'pendientes']) {
+        try { localStorage.removeItem(prueba + ':' + sufijo); } catch { /* sin almacenamiento */ }
+      }
+      v.cerrar();
+      despuesDeCerrar(ctx.salirModoPrueba);
+      toast('Ejemplos quitados');
+    })();
   })();
-  pintar();
-  return { el: h('div', { class: 'modo-prueba' }, boton, pastillaModoDemo()), quitar: ctx.almacen.escuchar('apartados', l => { hay = l.some(a => a.demo); pintar(); }) };
+  return h('div', { class: 'modo-prueba' }, boton, prueba ? null : pastillaModoDemo());
 }

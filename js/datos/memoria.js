@@ -3,7 +3,7 @@
 import { puede } from '../nucleo/permisos.js';
 import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
-import { NOMBRES, nuevoId } from './contrato.js';
+import { NOMBRES, nuevoId as idAleatorio } from './contrato.js';
 import { describir, diferencias } from './eventos.js';
 import { dispositivo } from './dispositivo.js';
 
@@ -12,33 +12,41 @@ const copia = x => (x == null ? x : JSON.parse(JSON.stringify(x)));
 const NO = error => ({ ok: false, error });
 const SI = (extra = {}) => ({ ok: true, ...extra });
 
-export function crearMemoria(datos, { guardarEn = null } = {}) {
+export function crearMemoria(datos, { guardarEn = null, prueba = false } = {}) {
   const col = Object.fromEntries(NOMBRES.map(n => [n, new Map()]));
   const pins = new Map();
   let sesion = null, offline = false, pendientes = 0, contadorVentas = 0;
   const oyentes = [], oyentesSesion = new Set(), oyentesSync = new Set();
+  const nuevoId = prueba ? () => 'prueba-' + idAleatorio() : idAleatorio;
+  const claveCliente = telefono => prueba ? 'prueba-' + telefono : telefono;
+  const claveDispositivo = prueba ? guardarEn + ':dispositivo' : undefined;
 
-  for (const u of datos.usuarios || []) {
-    const uid = 'u-' + u.usuario;
-    col.usuarios.set(uid, { uid, usuario: u.usuario, nombre: u.nombre, rol: u.rol, activo: true });
-    pins.set(uid, u.pin);
-  }
+  const sembrarUsuariosYAjustes = () => {
+    for (const u of datos.usuarios || []) {
+      const uid = 'u-' + u.usuario;
+      col.usuarios.set(uid, { uid, usuario: u.usuario, nombre: u.nombre, rol: u.rol, activo: true });
+      pins.set(uid, u.pin);
+    }
+    for (const [k, v] of Object.entries(datos.ajustes || {})) col.ajustes.set(k, copia({ id: k, ...v }));
+  };
+  sembrarUsuariosYAjustes();
   for (const p of datos.productos || []) {
     col.productos.set(p.sku, copia(p));
     if (p.existencia) col.movimientos.set('ini-' + p.sku, { id: 'ini-' + p.sku, sku: p.sku, cantidad: p.existencia, motivo: 'inicial', ref: null, nota: '', usuario: 'admin', fecha: new Date(Date.now() - 864e5).toISOString() });
   }
   for (const c of datos.costos || []) col.costos.set(c.sku, copia(c));
-  for (const c of datos.clientes || []) col.clientes.set(c.telefono, copia(c));
-  for (const [k, v] of Object.entries(datos.ajustes || {})) col.ajustes.set(k, copia({ id: k, ...v }));
+  for (const c of datos.clientes || []) col.clientes.set(claveCliente(c.telefono), copia(c));
 
   // Demostración: lo guardado se guarda en el teléfono (localStorage): sobrevive a recargas, a cerrar la app y a las actualizaciones.
   let reloj = null;
+  const guardar = () => {
+    reloj = null;
+    try { localStorage.setItem(guardarEn, JSON.stringify({ col: Object.fromEntries(Object.entries(col).map(([k, m]) => [k, [...m]])), pins: [...pins], contadorVentas })); } catch { /* sin almacenamiento */ }
+  };
   const persistir = () => {
     if (!guardarEn || reloj) return;
-    reloj = setTimeout(() => {
-      reloj = null;
-      try { localStorage.setItem(guardarEn, JSON.stringify({ col: Object.fromEntries(Object.entries(col).map(([k, m]) => [k, [...m]])), pins: [...pins], contadorVentas })); } catch { /* sin almacenamiento */ }
-    }, 50);
+    if (prueba) guardar();
+    else reloj = setTimeout(guardar, 50);
   };
   if (guardarEn) {
     try {
@@ -85,7 +93,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
   };
   const porSku = lineas => { const m = {}; for (const l of lineas) m[l.sku] = (m[l.sku] || 0) + l.cantidad; return m; };
   const faltantes = lineas => Object.entries(porSku(lineas)).filter(([sku, n]) => (col.productos.get(sku)?.existencia ?? 0) < n).map(([sku]) => sku);
-  const numerar = () => 'V-' + String(++contadorVentas).padStart(4, '0');
+  const numerar = () => (prueba ? 'P-' : 'V-') + String(++contadorVentas).padStart(4, '0');
   const exigir = accion => (!sesion ? 'sesion' : !puede(rol(), accion) ? 'permiso' : null);
 
   const api = {
@@ -167,7 +175,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       cb(leer(nombre, filtro));
       return () => { const i = oyentes.indexOf(o); if (i >= 0) oyentes.splice(i, 1); };
     },
-    async obtener(nombre, id) { const d = col[nombre].get(id); return d && visible(nombre, d) ? copia(d) : null; },
+    async obtener(nombre, id) { const d = col[nombre].get(nombre === 'clientes' ? claveCliente(id) : id); return d && visible(nombre, d) ? copia(d) : null; },
     async verificarServidor(nombre, id) { if (offline) throw new Error('sin conexión'); return api.obtener(nombre, id); },
     async esperarSubidas() { return !offline; },
     async registrarConflicto(c) {
@@ -397,7 +405,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       if (!sesion) return NO('sesion');
       const tel = telefonoInternacional(telefono);
       if (!tel || !String(nombre || '').trim()) return NO('datos');
-      col.clientes.set(tel, { telefono: tel, nombre: String(nombre).trim() });
+      col.clientes.set(claveCliente(tel), { telefono: tel, nombre: String(nombre).trim() });
       avisar('clientes');
       return SI({ telefono: tel });
     },
@@ -425,19 +433,28 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       return SI({ id });
     },
     async cargarEjemplos(lote) {
+      if (!prueba) return NO('modo-prueba');
       const e = exigir('ajustes'); if (e) return NO(e);
       const CLAVE = { productos: 'sku', costos: 'sku', clientes: 'telefono', ventas: 'id', apartados: 'id', usuarios: 'uid', cajas: 'id', comisiones: 'id' };
-      for (const [n, k] of Object.entries(CLAVE)) for (const d of lote[n] || []) col[n].set(d[k], { ...copia(d), demo: true });
+      for (const [n, k] of Object.entries(CLAVE)) {
+        for (const d of lote[n] || []) {
+          const id = n === 'clientes' ? claveCliente(d[k]) : d[k];
+          col[n].set(id, { ...copia(d), demo: true });
+        }
+      }
       escribio(); avisar(...Object.keys(CLAVE));
       return SI();
     },
     async quitarEjemplos() {
+      if (!prueba) return NO('modo-prueba');
       const e = exigir('ajustes'); if (e) return NO(e);
-      let n = 0;
-      for (const nombre of ['productos', 'costos', 'clientes', 'ventas', 'apartados', 'usuarios', 'cajas', 'comisiones']) for (const [id, d] of col[nombre]) if (d.demo) { col[nombre].delete(id); n++; }
-      for (const id of [...col.costosVenta.keys()]) if (String(id).startsWith('demo-')) col.costosVenta.delete(id);
-      escribio(); avisar('productos', 'costos', 'clientes', 'ventas', 'apartados', 'costosVenta', 'usuarios', 'cajas', 'comisiones');
-      return SI({ quitados: n });
+      // Las operaciones de práctica pueden referirse a los ejemplos. Se restablece todo el almacén local.
+      for (const tabla of Object.values(col)) tabla.clear();
+      pins.clear();
+      contadorVentas = 0;
+      sembrarUsuariosYAjustes();
+      avisar(...NOMBRES);
+      return SI();
     },
     async congelarCostoVenta(ventaId, costo) {
       const e = exigir('verCostos'); if (e) return NO(e);
@@ -460,7 +477,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
   // v2.27 · Registro de actividad (igual que en Firebase, con eventos/describir): cada acción que sale bien deja su evento.
   const anotarEvento = (metodo, args, x) => {
     const ev = sesion && describir(metodo, args, x); if (!ev) return;
-    const id = nuevoId(), d = (typeof localStorage !== 'undefined') ? dispositivo() : { id: 'prueba', nombre: 'Prueba' };
+    const id = nuevoId(), d = (typeof localStorage !== 'undefined') ? dispositivo(claveDispositivo) : { id: 'prueba', nombre: 'Prueba' };
     col.eventos.set(id, { id, ...copia(ev), en: ahora(), enLocal: ahora(), fecha: ahora(), uid: sesion.uid, usuario: sesion.usuario, rol: sesion.rol, dispositivo: d.id, nombreDispositivo: d.nombre });
     avisar('eventos');
   };
@@ -469,7 +486,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
     abonarApartado: ([id]) => ({ ap: col.apartados.get(id) }), cancelarApartado: ([id]) => ({ ap: col.apartados.get(id) }),
     reabrirCaja: ([id]) => ({ caja: col.cajas.get(id) }),
     guardarAjustes: ([doc, datos]) => ({ cambios: diferencias(col.ajustes.get(doc) || {}, datos) }),
-    guardarCliente: ([c]) => { const t = telefonoInternacional(c?.telefono); return { telefono: t, antes: col.clientes.get(t)?.nombre || null, igual: col.clientes.get(t)?.nombre === String(c?.nombre || '').trim() }; },
+    guardarCliente: ([c]) => { const t = telefonoInternacional(c?.telefono); const cliente = col.clientes.get(claveCliente(t)); return { telefono: t, antes: cliente?.nombre || null, igual: cliente?.nombre === String(c?.nombre || '').trim() }; },
     marcarComision: ([uid]) => ({ u: col.usuarios.get(uid) }), editarPerfil: ([uid]) => ({ u: col.usuarios.get(uid) }),
     eliminarUsuario: ([uid]) => ({ u: col.usuarios.get(uid) }), activarUsuario: ([uid]) => ({ u: col.usuarios.get(uid) }),
     cambiarPin: ([uid]) => ({ u: col.usuarios.get(uid) }), responderAutorizacion: ([id]) => ({ a: col.autorizaciones.get(id) }),

@@ -23,7 +23,7 @@ const CLAVE_TASA = 'pos.tasaBs';
 function leerCache() { try { return JSON.parse(localStorage.getItem(CLAVE_TASA)); } catch { return null; } }
 function guardarCache(t) { try { if (t.bsPorUsd && !t.ultimaConocida && t.fuenteBs !== 'manual') localStorage.setItem(CLAVE_TASA, JSON.stringify({ bsPorUsd: t.bsPorUsd, fuenteBs: t.fuenteBs, bsActualizada: t.bsActualizada })); } catch { /* sin almacenamiento */ } }
 
-export function iniciarDatos(ctx) {
+export function iniciarDatos(ctx, { revisarAlIniciar = true } = {}) {
   const emitir = que => window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que } }));
   ctx.productos = {};
   ctx.ajustes = { ...AJUSTES_DEFECTO };
@@ -33,8 +33,8 @@ export function iniciarDatos(ctx) {
   ctx.porArquear = []; // cajas que se cerraron solas a medianoche y falta contar
   ctx.tasaRemota = ctx.tasaRemota || null;
   ctx.recalcularTasas = () => {
-    ctx.tasas = tasasVigentes(ctx.ajustesTasas, ctx.tasaRemota, leerCache());
-    guardarCache(ctx.tasas);
+    ctx.tasas = tasasVigentes(ctx.ajustesTasas, ctx.tasaRemota, ctx.ambitoPrueba ? null : leerCache());
+    if (!ctx.ambitoPrueba) guardarCache(ctx.tasas);
     emitir('tasas');
   };
   const quitar = [
@@ -58,12 +58,13 @@ export function iniciarDatos(ctx) {
   ];
   // Cierre automático de medianoche: al entrar y cada minuto se cierran las cajas abiertas en un día anterior.
   ctx.revisarCajas = () => ctx.almacen.cerrarCajasVencidas(hoy());
-  ctx.revisarCajas();
+  if (revisarAlIniciar) ctx.revisarCajas();
   const relojCajas = setInterval(ctx.revisarCajas, 60 * 1000);
   ctx.recalcularTasas();
   // tasa.json de la Calculadora de Tasas: al entrar y cada 10 minutos.
-  const leer = async () => { const t = await leerTasaRemota(fetch.bind(window)); if (t) { ctx.tasaRemota = t; ctx.recalcularTasas(); } };
+  let activo = true;
+  const leer = async () => { const t = await leerTasaRemota(fetch.bind(window)); if (activo && t) { ctx.tasaRemota = t; ctx.recalcularTasas(); } };
   leer();
   const reloj = setInterval(leer, 10 * 60 * 1000);
-  return () => { clearInterval(reloj); clearInterval(relojCajas); quitar.forEach(q => q && q()); };
+  return () => { activo = false; clearInterval(reloj); clearInterval(relojCajas); quitar.forEach(q => q && q()); };
 }

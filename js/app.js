@@ -54,35 +54,41 @@ const ACCESOS = [
   { ruta: '/mas', titulo: 'Más', icono: 'mas', movil: 5 },
 ];
 
-export const ctx = {
-  almacen: null,
-  sesion: null,
-  tasas: { copPorUsd: null, bsPorUsd: null },
-  ajustes: {},
-  // Modo demo: el administrador ve la app como otro rol (vistaRol) sobre una copia simulada de los
-  // datos (almacenReal guarda el de verdad); al salir se descarta todo lo hecho en la simulación.
-  vistaRol: null,
-  rol: () => ctx.vistaRol || ctx.sesion?.rol,
-  puedeVer: accion => !!ctx.sesion && puede(ctx.rol(), accion),
-  abrirCalculadora: () => alAbrirCalculadora(),
-};
+export function crearContexto(datos = {}) {
+  const contexto = {
+    almacen: null,
+    sesion: null,
+    tasas: { copPorUsd: null, bsPorUsd: null },
+    ajustes: {},
+    vistaRol: null,
+    ...datos,
+  };
+  contexto.rol = () => contexto.vistaRol || contexto.sesion?.rol;
+  contexto.puedeVer = accion => !!contexto.sesion && puede(contexto.rol(), accion);
+  contexto.abrirCalculadora = () => alAbrirCalculadora();
+  return contexto;
+}
+export let ctx = crearContexto();
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 export function fechaCorta(d = new Date()) { return `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`; }
 
-let raiz, contenedor, barra, cabecera, avisoDemo;
+let raiz, contenedor, barra, cabecera, avisoDemo, avisoPrueba;
 
 export const ROLES_DEMO = [['vendedora', 'Vendedora'], ['encargada', 'Encargada']];
 const nombreRol = r => (ROLES_DEMO.find(([k]) => k === r) || [, r])[1];
 export async function verComo(rol) {
+  if (ctx.ambitoPrueba) return;
   rol = rol || null;
   if (rol && rol !== ctx.vistaRol) {
+    const contexto = ctx, uid = ctx.sesion?.uid;
     // Se trabaja sobre una copia simulada: nada de lo que se haga en el modo demo se guarda de verdad.
     const real = ctx.almacenReal || ctx.almacen;
     const datos = await copiarDatos(real);
     const sim = crearSimulacion(datos, { rol, nombre: nombreRol(rol) });
     await sim.entrar('demo', '0000');
+    if (ctx !== contexto || ctx.sesion?.uid !== uid) return;
     ctx.almacenReal = real; ctx.sesionReal = ctx.sesionReal || ctx.sesion;
     ctx.almacen = sim; ctx.sesion = { uid: 'u-demo', usuario: 'demo', nombre: nombreRol(rol), rol };
   } else if (!rol && ctx.almacenReal) {
@@ -186,6 +192,25 @@ export function pintarCabecera() {
 }
 
 let desmontar = null;
+// Cada vista conserva su contexto. Un callback pendiente en una vista de prueba
+// sigue apuntando al almacén local aunque ya se haya vuelto a la operación real.
+export function usarContexto(contexto) {
+  desmontar?.();
+  desmontar = null;
+  ctx = contexto;
+}
+
+export function refrescarContexto() {
+  pintarAvisoDemo();
+  avisoPrueba.hidden = !ctx.ambitoPrueba;
+  avisoPrueba.replaceChildren(...(ctx.ambitoPrueba ? [
+    icono('matraz'), h('span', {}, h('b', {}, 'Modo prueba · Datos locales')),
+    h('button', { class: 'btn chico', id: 'salir-prueba', onclick: ctx.salirModoPrueba }, 'Salir'),
+  ] : []));
+  pintarCabecera();
+  montar();
+}
+
 function montar() {
   const ruta = rutaActual();
   pintarNav();
@@ -196,7 +221,7 @@ function montar() {
   contenedor.replaceChildren(cont);
   if (v && (!v.accion || ctx.puedeVer(v.accion))) desmontar = v.montar(cont, ctx) || null;
   else cont.append(h('div', { class: 'vacio' }, 'Próximamente'));
-  if (ruta === '/mas') cont.append(h('p', { class: 'ver-pie' }, `versión ${APP_VERSION} · ${MODO_DEMO ? 'modo demostración' : 'conectado a Firebase'}`));
+  if (ruta === '/mas') cont.append(h('p', { class: 'ver-pie' }, `versión ${APP_VERSION} · ${ctx.ambitoPrueba ? 'modo prueba' : MODO_DEMO ? 'modo demostración' : 'conectado a Firebase'}`));
   window.scrollTo(0, 0);
 }
 export function refrescar() { montar(); }
@@ -210,7 +235,8 @@ export function mostrarApp() {
   contenedor = h('main', { class: 'contenido' });
   ctx.vistaRol = null;
   avisoDemo = h('div', { class: 'aviso-demo', id: 'aviso-demo', role: 'status', hidden: true });
-  raiz.replaceChildren(barra, h('div', { class: 'main' }, cabecera, avisoDemo, contenedor));
+  avisoPrueba = h('div', { class: 'aviso-demo', id: 'aviso-prueba', role: 'status', hidden: true });
+  raiz.replaceChildren(barra, h('div', { class: 'main' }, cabecera, avisoDemo, avisoPrueba, contenedor));
   if (!location.hash || location.hash === '#') history.replaceState(null, '', '#/inicio');
   pintarCabecera();
   montar();

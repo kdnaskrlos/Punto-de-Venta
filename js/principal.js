@@ -1,9 +1,9 @@
 // Punto de entrada: crea el almacén, muestra la entrada o la app según la sesión y registra el service worker.
-import { ctx, mostrarApp, definirCalculadora } from './app.js';
+import { ctx, crearContexto, usarContexto, refrescarContexto, mostrarApp, definirCalculadora } from './app.js';
 import { vigilarVentaEnCurso, ofrecerRetomar } from './vistas/venta-en-curso.js';
 import { vigilarPendientes } from './datos/pendientes.js';
-import { h, icono, cerrarCapaSuperior, hayCapas } from './ui.js';
-import { crearAlmacen, MODO_DEMO, DEMO_DIRECTO, usuarioDemo } from './datos/index.js';
+import { h, icono, cerrarCapaSuperior, hayCapas, despuesDeCerrar } from './ui.js';
+import { crearAlmacen, crearAlmacenPrueba, MODO_DEMO, DEMO_DIRECTO, usuarioDemo } from './datos/index.js';
 import { iniciarDatos } from './datos/vivos.js';
 import { pantallaEntrada, pantallaPrimerAdmin } from './vistas/entrar.js';
 import { abrirCalculadora } from './vistas/calculadora.js';
@@ -20,32 +20,107 @@ import './vistas/ajustes.js';
 import './vistas/usuarios.js';
 import './vistas/mas.js';
 
-window.__pos = { ctx };
+window.__pos = { get ctx() { return ctx; } };
 definirCalculadora(() => abrirCalculadora(ctx));
-ctx.abrirApartar = () => abrirApartar(ctx);
-ctx.abrirCobro = modo => { if (!carrito(ctx).lineas.length) return; conCliente(ctx, () => (modo === 'venta' ? abrirCobrar(ctx) : abrirApartar(ctx))); };
+function configurarCobro(contexto) {
+  contexto.abrirApartar = () => { if (ctx === contexto) abrirApartar(contexto); };
+  contexto.abrirCobro = modo => {
+    if (ctx !== contexto || !carrito(contexto).lineas.length) return;
+    conCliente(contexto, () => {
+      if (ctx === contexto) (modo === 'venta' ? abrirCobrar : abrirApartar)(contexto);
+    });
+  };
+}
+
+function recuperar(contexto) {
+  const uid = contexto.sesion?.uid;
+  return ofrecerRetomar(contexto, () => ctx === contexto && contexto.sesion?.uid === uid);
+}
 
 async function iniciar() {
   const raiz = document.getElementById('app');
-  ctx.almacen = await crearAlmacen();
-  if (DEMO_DIRECTO) await ctx.almacen.entrar(usuarioDemo(), '1234');
+  const operativo = ctx;
+  operativo.almacen = await crearAlmacen();
+  configurarCobro(operativo);
+  if (DEMO_DIRECTO) await operativo.almacen.entrar(usuarioDemo(), '1234');
   let anterior, pararDatos = null, turno = 0;
+  const escuchar = (contexto, opciones) => {
+    pararDatos?.();
+    pararDatos = contexto.sesion ? iniciarDatos(contexto, opciones) : null;
+  };
   // Modo demo: cambia de almacén (real ↔ simulado) y vuelve a escuchar los datos del nuevo.
-  ctx.reiniciarDatos = () => { pararDatos && pararDatos(); ctx.carrito = null; pararDatos = ctx.sesion ? iniciarDatos(ctx) : null; };
-  ctx.almacen.alCambiarSesion(async s => {
+  operativo.reiniciarDatos = () => { operativo.carrito = null; escuchar(operativo); };
+
+  const cerrarCapas = () => { while (hayCapas()) cerrarCapaSuperior(); };
+  let entrandoPrueba = false;
+  operativo.entrarModoPrueba = async () => {
+    if (entrandoPrueba || ctx !== operativo || operativo.vistaRol || !operativo.puedeVer('ajustes')) return false;
+    const turnoInicial = turno;
+    const rutaOperativa = location.hash;
+    entrandoPrueba = true;
+    try {
+      const datos = await crearAlmacenPrueba(operativo.sesion.uid);
+      if (!datos || turno !== turnoInicial || ctx !== operativo || operativo.vistaRol || !operativo.puedeVer('ajustes')) return false;
+      const prueba = crearContexto(datos);
+      configurarCobro(prueba);
+      const dejarPerfil = prueba.almacen.alCambiarSesion(s => {
+        prueba.sesion = s;
+        if (s && ctx === prueba) window.dispatchEvent(new CustomEvent('pos:sesion'));
+      });
+      prueba.cerrarAlmacen = () => {
+        dejarPerfil();
+        prueba.sesion = null;
+        prueba.almacen.salir();
+        // Algunas vistas, como Reportes, escriben costos al montarse.
+        history.replaceState(null, '', rutaOperativa);
+      };
+      prueba.salirModoPrueba = () => {
+        if (ctx !== prueba) return;
+        cerrarCapas();
+        despuesDeCerrar(() => {
+          if (ctx !== prueba || turno !== turnoInicial) return;
+          prueba.cerrarAlmacen();
+          usarContexto(operativo);
+          escuchar(operativo, { revisarAlIniciar: false });
+          refrescarContexto();
+          recuperar(operativo);
+        });
+      };
+      cerrarCapas();
+      usarContexto(prueba);
+      escuchar(prueba);
+      refrescarContexto();
+      recuperar(prueba);
+      return true;
+    } finally {
+      entrandoPrueba = false;
+    }
+  };
+
+  operativo.almacen.alCambiarSesion(async s => {
     const clave = s ? s.uid + s.rol : null;
     // Solo se omite si la pantalla que se ve ya corresponde (app con sesión o entrada sin ella).
     const mostrando = s ? !!raiz.querySelector(':scope > .side') : !!raiz.querySelector('.puerta');
-    if (clave === anterior && mostrando) { ctx.sesion = s; window.dispatchEvent(new CustomEvent('pos:sesion')); return; } // v2.16: nombre o foto cambiados
+    if (clave === anterior && mostrando) {
+      operativo.sesion = s;
+      if (ctx === operativo) window.dispatchEvent(new CustomEvent('pos:sesion'));
+      return;
+    }
     const mio = ++turno;
     anterior = clave;
+    cerrarCapas();
+    if (ctx.ambitoPrueba) {
+      await new Promise(despuesDeCerrar);
+      if (mio !== turno) return;
+      ctx.cerrarAlmacen();
+      usarContexto(operativo);
+    }
     // Si se sale o cambia la sesión real estando en Modo demo, se vuelve al almacén real.
-    if (ctx.almacenReal) { ctx.almacen = ctx.almacenReal; ctx.almacenReal = null; ctx.sesionReal = null; ctx.vistaRol = null; }
-    ctx.sesion = s;
-    while (hayCapas()) cerrarCapaSuperior();
+    if (operativo.almacenReal) { operativo.almacen = operativo.almacenReal; operativo.almacenReal = null; operativo.sesionReal = null; operativo.vistaRol = null; }
+    operativo.sesion = s;
     pararDatos && pararDatos(); pararDatos = null;
-    ctx.carrito = null;
-    if (s) { pararDatos = iniciarDatos(ctx); mostrarApp(); setTimeout(() => ofrecerRetomar(ctx), 700); setTimeout(revisarPendientes, 4000); }
+    operativo.carrito = null;
+    if (s) { escuchar(operativo); mostrarApp(); setTimeout(() => { if (ctx === operativo && turno === mio) recuperar(operativo); }, 700); setTimeout(revisarPendientes, 4000); }
     else {
       // La consulta a Firebase puede tardar: si mientras tanto alguien entró, su respuesta atrasada no debe
       // tapar la app con la pantalla de entrada (antes pasaba y ya no se podía entrar sin recargar).
@@ -56,8 +131,8 @@ async function iniciar() {
     raiz.dataset.listo = '1';
   });
 }
-vigilarVentaEnCurso(ctx);
-const revisarPendientes = vigilarPendientes(ctx);
+vigilarVentaEnCurso(() => ctx);
+const revisarPendientes = vigilarPendientes(() => ctx);
 iniciar();
 
 // Actualizaciones: se buscan al volver a la app y cada 10 minutos (antes solo al recargar con el botón que se quitó).

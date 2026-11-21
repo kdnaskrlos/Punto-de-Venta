@@ -5,21 +5,22 @@
 //   · si es una venta/apartado hecho sin internet y dejó alguna prenda en negativo → «Conflicto de inventario».
 // Los conflictos se guardan en Firebase (colección «conflictos») para que gestión los vea desde cualquier aparato.
 
-const clave = usuario => 'pos-pendientes-' + (usuario || '');
+const clave = (usuario, ambitoPrueba) => ambitoPrueba ? ambitoPrueba + ':pendientes' : 'pos-pendientes-' + (usuario || '');
 
-export function leerPendientes(usuario) {
-  try { return JSON.parse(localStorage.getItem(clave(usuario)) || '[]'); } catch { return []; }
+export function leerPendientes(usuario, ambitoPrueba) {
+  try { return JSON.parse(localStorage.getItem(clave(usuario, ambitoPrueba)) || '[]'); } catch { return []; }
 }
-function escribir(usuario, lista) {
-  try { if (lista.length) localStorage.setItem(clave(usuario), JSON.stringify(lista)); else localStorage.removeItem(clave(usuario)); } catch { /* sin almacenamiento */ }
+function escribir(usuario, lista, ambitoPrueba) {
+  const k = clave(usuario, ambitoPrueba);
+  try { if (lista.length) localStorage.setItem(k, JSON.stringify(lista)); else localStorage.removeItem(k); } catch { /* sin almacenamiento */ }
 }
 
 // p: { que: 'venta'|'apartado'|'abono'|'completar', id, apartadoId?, abonoId?, offline, datos, resumen }
 export function anotarPendiente(ctx, p) {
   const u = ctx.sesion?.usuario; if (!u) return;
-  const lista = leerPendientes(u).filter(x => !(x.que === p.que && x.id === p.id));
+  const lista = leerPendientes(u, ctx.ambitoPrueba).filter(x => !(x.que === p.que && x.id === p.id));
   lista.push({ ...p, anotado: new Date().toISOString() });
-  escribir(u, lista);
+  escribir(u, lista, ctx.ambitoPrueba);
 }
 
 const resumenDe = d => ({
@@ -53,7 +54,7 @@ let revisando = false;
 export async function revisarPendientes(ctx) {
   const u = ctx.sesion?.usuario, almacen = ctx.almacen;
   if (revisando || !u || !almacen?.verificarServidor || !navigator.onLine) return;
-  let lista = leerPendientes(u);
+  let lista = leerPendientes(u, ctx.ambitoPrueba);
   if (!lista.length) return;
   revisando = true;
   try {
@@ -66,15 +67,18 @@ export async function revisarPendientes(ctx) {
         if (!g.ok) continue; // p. ej. reglas sin publicar: se reintenta luego, sin perder el pendiente
       }
       lista = lista.filter(x => x !== p);
-      escribir(u, lista);
+      escribir(u, lista, ctx.ambitoPrueba);
     }
   } finally { revisando = false; }
 }
 
 // Revisa al entrar, al volver la conexión y cada 2 minutos mientras haya pendientes.
-export function vigilarPendientes(ctx) {
-  const ir = () => revisarPendientes(ctx).catch(() => {});
+export function vigilarPendientes(contexto) {
+  const ir = () => revisarPendientes(contexto()).catch(() => {});
   window.addEventListener('online', () => setTimeout(ir, 1500));
-  setInterval(() => { if (ctx.sesion && leerPendientes(ctx.sesion.usuario).length) ir(); }, 2 * 60 * 1000);
+  setInterval(() => {
+    const ctx = contexto();
+    if (ctx.sesion && leerPendientes(ctx.sesion.usuario, ctx.ambitoPrueba).length) ir();
+  }, 2 * 60 * 1000);
   return ir;
 }

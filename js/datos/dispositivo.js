@@ -11,21 +11,21 @@ function nombreAutomatico() {
 
 const nuevoIdLocal = () => (crypto.randomUUID ? crypto.randomUUID() : 'd-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
 
-export function dispositivo() {
+export function dispositivo(clave = CLAVE) {
   try {
-    const d = JSON.parse(localStorage.getItem(CLAVE) || 'null');
+    const d = JSON.parse(localStorage.getItem(clave) || 'null');
     if (d?.id) return d;
     const nuevo = { id: nuevoIdLocal(), nombre: nombreAutomatico() };
-    localStorage.setItem(CLAVE, JSON.stringify(nuevo));
+    localStorage.setItem(clave, JSON.stringify(nuevo));
     return nuevo;
   } catch { return { id: 'sin-almacenamiento', nombre: nombreAutomatico() }; }
 }
 
-export function nombrarDispositivo(nombre) {
-  const d = dispositivo();
+export function nombrarDispositivo(nombre, clave = CLAVE) {
+  const d = dispositivo(clave);
   const n = String(nombre || '').trim().slice(0, 40);
   if (!n) return d;
   const nuevo = { ...d, nombre: n };
-  try { localStorage.setItem(CLAVE, JSON.stringify(nuevo)); } catch { /* sin almacenamiento */ }
+  try { localStorage.setItem(clave, JSON.stringify(nuevo)); } catch { /* sin almacenamiento */ }
   return nuevo;
 }
