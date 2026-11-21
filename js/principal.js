@@ -101,6 +101,14 @@ async function iniciar() {
         recuperar(operativo);
       });
     };
+    prueba.renovarModoPrueba = ambito => {
+      if (ctx !== prueba || turno !== turnoInicial) return;
+      prueba.generacion++;
+      prueba.ambitoPrueba = ambito;
+      prueba.carrito = null;
+      escuchar(prueba);
+      refrescarContexto();
+    };
     usarContexto(prueba);
     escuchar(prueba);
   };

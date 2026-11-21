@@ -25,7 +25,7 @@ registrarVista('/mas', {
   },
 });
 
-// Pastillas «Modo prueba» (llena la app con ejemplos) y «Modo demo» (ver como vendedora o encargada).
+// Pastillas «Modo prueba» (practicar con datos locales) y «Modo demo» (ver como vendedora o encargada).
 // Están en Más (teléfono) y al pie de Ajustes (computadora).
 export function bloquePrueba(ctx) {
   const prueba = ctx.ambitoPrueba;
@@ -36,17 +36,14 @@ export function bloquePrueba(ctx) {
       return;
     }
     const si = h('button', { class: 'btn danger', id: 'quitar-ejemplos' }, icono('borrar'), 'Quitar ejemplos');
-    const v = abrirVentana({ titulo: 'Quitar ejemplos', contenido: h('p', {}, 'Se borran los ejemplos y los cambios que hiciste en el Modo prueba de este dispositivo.'),
+    const v = abrirVentana({ titulo: 'Quitar ejemplos',
+      contenido: h('p', {}, 'Se borran los ejemplos y los cambios de práctica de este dispositivo. Puedes seguir practicando con un almacén vacío.'),
       acciones: h('div', { class: 'acciones' }, h('button', { class: 'btn', onclick: () => v.cerrar() }, 'Cancelar'), si) });
     si.onclick = ev => unaVez(ev.currentTarget, async () => {
       const r = await ctx.almacen.quitarEjemplos();
       if (!r.ok) { toast('No se pudieron quitar', { malo: true }); return; }
-      ctx.carrito = null;
-      for (const sufijo of ['carrito', 'pendientes']) {
-        try { localStorage.removeItem(prueba + ':' + sufijo); } catch { /* sin almacenamiento */ }
-      }
       v.cerrar();
-      despuesDeCerrar(ctx.salirModoPrueba);
+      despuesDeCerrar(() => ctx.renovarModoPrueba(r.ambitoPrueba));
       toast('Ejemplos quitados');
     })();
   })();

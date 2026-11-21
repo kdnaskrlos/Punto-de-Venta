@@ -149,6 +149,18 @@ async function entrarEnPractica(p) {
   await p.waitForSelector('#aviso-prueba:not([hidden])');
 }
 
+async function venderDespuesDeRetirar(p) {
+  return p.evaluate(async () => {
+    const s = window.__pos.ctx.almacen;
+    const sku = 'prueba-catalogo-nuevo';
+    const inventario = await s.aplicarImportacion({ nuevos: [{ sku, nombre: 'Prenda nueva', existencia: 2 }] });
+    const caja = await s.abrirCaja({}, { tipo: 'personal' });
+    const id = s.nuevoId();
+    const guardada = await s.guardarVenta({ id, fecha: new Date().toISOString(), lineas: [{ sku, cantidad: 1 }], total: 35000 });
+    return { inventario, caja, guardada, venta: await s.obtener('ventas', id) };
+  });
+}
+
 async function prepararCobroReal(p) {
   await p.evaluate(() => {
     const c = window.__pos.ctx;
@@ -516,12 +528,29 @@ casos('modo-prueba', [
     a.ok(await p.evaluate(id => window.__pos.ctx.almacen.obtener('ventas', id), id));
     await p.click('#modo-prueba');
     await p.click('#quitar-ejemplos');
+    await p.waitForSelector('text=Ejemplos quitados');
+    await p.click('#salir-prueba');
     await p.waitForSelector('#modo-prueba:not(.on)');
     a.ok(await p.evaluate(() => window.__pos.ctx.almacen.obtener('apartados', 'apartado-historico')));
     await p.click('#modo-prueba');
     await p.waitForSelector('#aviso-prueba:not([hidden])');
     a.strictEqual(await p.evaluate(id => window.__pos.ctx.almacen.obtener('ventas', id), id), null);
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.almacen.obtener('usuarios', 'prueba-vendedora')), null);
+    a.deepStrictEqual(await p.evaluate(() => window.escriturasDobles), []);
+  }],
+  ['El almacén que retira los ejemplos puede persistir nuevas ventas de práctica', async (env, a) => {
+    const p = await abrirConDoble(env);
+    await entrarEnPractica(p);
     a.ok(await p.evaluate(() => window.__pos.ctx.almacen.obtener('usuarios', 'prueba-vendedora')));
+    a.ok((await p.evaluate(() => window.__pos.ctx.almacen.quitarEjemplos())).ok);
+    const { inventario, caja, guardada, venta } = await venderDespuesDeRetirar(p);
+    a.ok(inventario.ok && caja.ok && guardada.ok && venta);
+    a.deepStrictEqual(await p.evaluate(() => window.escriturasDobles), []);
+    await p.reload();
+    await p.waitForSelector('#aviso-prueba:not([hidden])');
+    a.deepStrictEqual(await p.evaluate(id => window.__pos.ctx.almacen.obtener('ventas', id), venta.id), venta,
+      'La venta creada después de retirar los ejemplos debe sobrevivir a la recarga');
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.almacen.obtener('usuarios', 'prueba-vendedora')), null);
     a.deepStrictEqual(await p.evaluate(() => window.escriturasDobles), []);
   }],
   ['Termina la práctica cuando se pierde la sesión operativa', async (env, a) => {
@@ -606,24 +635,50 @@ casos('modo-prueba', [
     a.strictEqual(estado.porArquear, vencida);
     a.deepStrictEqual(estado.escrituras, []);
   }]),
-  ['Retirar ejemplos invalida las copias que quedaron abiertas en otra pestaña', async (env, a) => {
+  ['Quitar ejemplos mantiene la práctica abierta y otra pestaña no restaura su copia anterior', async (env, a) => {
     const p = await abrirConDoble(env);
-    await p.click('#modo-prueba');
-    await p.waitForSelector('#aviso-prueba:not([hidden])');
+    await entrarEnPractica(p);
+    const ambitoAnterior = await p.evaluate(() => window.__pos.ctx.ambitoPrueba);
     await p.evaluate(() => window.__pos.ctx.almacen.guardarCliente({ telefono: '584125550100', nombre: 'Ejemplo retirado' }));
+    await p.evaluate(ambito => {
+      localStorage.setItem(ambito + ':carrito', '{}');
+      localStorage.setItem(ambito + ':pendientes', '[]');
+    }, ambitoAnterior);
     const otra = await p.context().newPage();
     await otra.goto(URL_BASE + '#/ajustes');
-    await otra.click('#modo-prueba');
-    await otra.waitForSelector('#aviso-prueba:not([hidden])');
+    await entrarEnPractica(otra);
     a.strictEqual(await otra.evaluate(async () => (await window.__pos.ctx.almacen.obtener('clientes', '584125550100')).nombre), 'Ejemplo retirado');
     await p.click('#modo-prueba');
     await p.click('#quitar-ejemplos');
-    await p.waitForSelector('#modo-prueba:not(.on)');
-    await otra.click('#salir-prueba');
-    await otra.waitForSelector('#modo-prueba:not(.on)');
-    await p.click('#modo-prueba');
-    await p.waitForSelector('#aviso-prueba:not([hidden])');
-    a.notStrictEqual(await p.evaluate(async () => (await window.__pos.ctx.almacen.obtener('clientes', '584125550100')).nombre), 'Ejemplo retirado');
+    await p.waitForFunction(anterior => window.__pos.ctx.ambitoPrueba && window.__pos.ctx.ambitoPrueba !== anterior, ambitoAnterior);
+    a.ok(await p.isVisible('#aviso-prueba'));
+    const ambitoNuevo = await p.evaluate(() => window.__pos.ctx.ambitoPrueba);
+    const { inventario, caja, guardada, venta } = await venderDespuesDeRetirar(p);
+    a.ok(inventario.ok && caja.ok && guardada.ok && venta);
+    const retiroTardio = await otra.evaluate(async () => {
+      const s = window.__pos.ctx.almacen;
+      await s.guardarCliente({ telefono: '584125550100', nombre: 'Copia anterior' });
+      return s.quitarEjemplos();
+    });
+    a.strictEqual(retiroTardio.ok, false);
+    a.deepStrictEqual(await p.evaluate(ambito => ['', ':carrito', ':pendientes'].map(s => localStorage.getItem(ambito + s)), ambitoAnterior),
+      [null, null, null]);
     a.deepStrictEqual(await p.evaluate(() => window.escriturasDobles), []);
+    a.deepStrictEqual(await otra.evaluate(() => window.escriturasDobles), []);
+    for (const pagina of [p, otra]) {
+      await pagina.reload();
+      await pagina.waitForSelector('#aviso-prueba:not([hidden])');
+      const estado = await pagina.evaluate(async id => {
+        const c = window.__pos.ctx;
+        return {
+          ambito: c.ambitoPrueba,
+          venta: await c.almacen.obtener('ventas', id),
+          clienteAnterior: await c.almacen.obtener('clientes', '584125550100'),
+          vendedora: await c.almacen.obtener('usuarios', 'prueba-vendedora'),
+          escrituras: window.escriturasDobles,
+        };
+      }, venta.id);
+      a.deepStrictEqual(estado, { ambito: ambitoNuevo, venta, clienteAnterior: null, vendedora: null, escrituras: [] });
+    }
   }],
 ]);

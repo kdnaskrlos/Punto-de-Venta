@@ -29,15 +29,22 @@ export async function crearAlmacenPrueba(uid) {
   const claveGeneracion = cuenta + ':generacion';
   let generacion = null;
   try { generacion = localStorage.getItem(claveGeneracion); } catch { /* práctica sin persistencia */ }
-  // Cada reinicio cambia el espacio activo. Una pestaña con una copia anterior solo conoce su propia clave.
-  const ambitoPrueba = generacion ? cuenta + ':datos:' + generacion : cuenta;
+  // El almacén que retira los ejemplos adopta la nueva clave. Las demás pestañas conservan la anterior.
+  const ambitoActual = () => generacion === null ? cuenta : cuenta + ':datos:' + generacion;
+  const ambitoPrueba = ambitoActual();
   const vigente = () => localStorage.getItem(claveGeneracion) === generacion;
   const retirar = () => {
+    const anterior = ambitoActual();
+    const nueva = nuevoId();
     try {
-      if (vigente()) localStorage.setItem(claveGeneracion, nuevoId());
-      localStorage.removeItem(ambitoPrueba);
-      return true;
-    } catch { return false; }
+      if (!vigente()) return null;
+      localStorage.setItem(claveGeneracion, nueva);
+    } catch { return null; }
+    generacion = nueva;
+    try {
+      for (const sufijo of ['', ':carrito', ':pendientes', ':dispositivo', ':recibo-alto']) localStorage.removeItem(anterior + sufijo);
+    } catch { /* el ámbito anterior ya no está activo */ }
+    return ambitoActual();
   };
   const usuario = 'prueba-admin';
   const ajustes = semilla().ajustes;
@@ -45,7 +52,8 @@ export async function crearAlmacenPrueba(uid) {
     { guardarEn: ambitoPrueba, prueba: true, vigente, retirar });
   const entrada = await almacen.entrar(usuario, '');
   if (!entrada.ok) return null;
-  if (!await almacen.obtener('usuarios', 'prueba-vendedora')) {
+  // Una generación creada por «Quitar ejemplos» puede contener datos nuevos sin la vendedora de ejemplo.
+  if (generacion === null && !await almacen.obtener('usuarios', 'prueba-vendedora')) {
     const tasas = tasasVigentes(ajustes.tasas);
     await almacen.cargarEjemplos(generarEjemplos({ formas: ajustes.general.formasPago, tasas, yo: usuario, prefijo: 'prueba' }));
   }

@@ -12,14 +12,13 @@ const copia = x => (x == null ? x : JSON.parse(JSON.stringify(x)));
 const NO = error => ({ ok: false, error });
 const SI = (extra = {}) => ({ ok: true, ...extra });
 
-export function crearMemoria(datos, { guardarEn = null, prueba = false, vigente = () => true, retirar = () => true } = {}) {
+export function crearMemoria(datos, { guardarEn = null, prueba = false, vigente = () => true, retirar = null } = {}) {
   const col = Object.fromEntries(NOMBRES.map(n => [n, new Map()]));
   const pins = new Map();
   let sesion = null, offline = false, pendientes = 0, contadorVentas = 0;
   const oyentes = [], oyentesSesion = new Set(), oyentesSync = new Set();
   const nuevoId = prueba ? () => 'prueba-' + idAleatorio() : idAleatorio;
   const claveCliente = telefono => prueba ? 'prueba-' + telefono : telefono;
-  const claveDispositivo = prueba ? guardarEn + ':dispositivo' : undefined;
 
   const sembrarUsuariosYAjustes = () => {
     for (const u of datos.usuarios || []) {
@@ -450,14 +449,18 @@ export function crearMemoria(datos, { guardarEn = null, prueba = false, vigente 
     async quitarEjemplos() {
       if (!prueba) return NO('modo-prueba');
       const e = exigir('ajustes'); if (e) return NO(e);
-      if (!retirar()) return NO('almacenamiento');
+      if (retirar) {
+        const nuevoAmbito = retirar();
+        if (!nuevoAmbito) return NO('almacenamiento');
+        guardarEn = nuevoAmbito;
+      }
       // Las operaciones de práctica pueden referirse a los ejemplos. Se restablece todo el almacén local.
       for (const tabla of Object.values(col)) tabla.clear();
       pins.clear();
       contadorVentas = 0;
       sembrarUsuariosYAjustes();
       avisar(...NOMBRES);
-      return SI();
+      return SI({ ambitoPrueba: guardarEn });
     },
     async congelarCostoVenta(ventaId, costo) {
       const e = exigir('verCostos'); if (e) return NO(e);
@@ -480,6 +483,7 @@ export function crearMemoria(datos, { guardarEn = null, prueba = false, vigente 
   // v2.27 · Registro de actividad (igual que en Firebase, con eventos/describir): cada acción que sale bien deja su evento.
   const anotarEvento = (metodo, args, x) => {
     const ev = sesion && describir(metodo, args, x); if (!ev) return;
+    const claveDispositivo = prueba ? guardarEn + ':dispositivo' : undefined;
     const id = nuevoId(), d = (typeof localStorage !== 'undefined') ? dispositivo(claveDispositivo) : { id: 'prueba', nombre: 'Prueba' };
     col.eventos.set(id, { id, ...copia(ev), en: ahora(), enLocal: ahora(), fecha: ahora(), uid: sesion.uid, usuario: sesion.usuario, rol: sesion.rol, dispositivo: d.id, nombreDispositivo: d.nombre });
     avisar('eventos');

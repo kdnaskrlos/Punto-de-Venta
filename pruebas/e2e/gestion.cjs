@@ -354,6 +354,10 @@ casos('gestion', [
     a.ok(await p.$('.apartado.viejo .ap-hace.viejo'), 'un apartado con más de 15 días');
     await p.evaluate(() => { location.hash = '/mas'; });
     await p.click('#modo-prueba'); await p.click('#quitar-ejemplos');
+    await p.waitForSelector('text=Ejemplos quitados');
+    a.ok(await p.isVisible('#aviso-prueba'));
+    a.strictEqual(await p.evaluate(() => window.__pos.ctx.almacen._estado('ventas').size), 0);
+    await p.click('#salir-prueba');
     await p.waitForSelector('#modo-prueba:not(.on)');
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.almacen._estado('ventas').size), antes);
   }],
