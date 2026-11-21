@@ -21,6 +21,8 @@ Estado comprobado en el repositorio para v2.35.
 | Ejemplos y simulación | En «Modo prueba», administración carga y retira ejemplos de una vendedora simulada, ventas, cajas, apartados y comisiones. Se conservan por cuenta y dispositivo en un almacén local independiente. «Modo demo» permite probar otro rol sobre una copia que se descarta al salir. | [Modo prueba](../../js/vistas/mas.js), [almacén local](../../js/datos/index.js), [simulación de rol](../../js/app.js), [POS Comic Shop, mensajes 338–339](README.md#pos-comic-shop) |
 | Versionado | La versión de la app y el identificador de caché del service worker se coordinan al publicar una versión. | [Versión](../../js/version.js), [caché](../../sw.js) |
 
+Los datos de práctica se separan por proyecto y cuenta mediante claves de `localStorage`. `localStorage` no proporciona aislamiento de seguridad entre usuarios que comparten el mismo perfil del navegador. Esos usuarios comparten el almacenamiento del sitio. [Almacén local](../../js/datos/index.js)
+
 ## Reemplazadas
 
 | Antecedente | Decisión posterior | Fuente |

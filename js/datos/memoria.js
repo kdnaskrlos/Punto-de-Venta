@@ -12,7 +12,7 @@ const copia = x => (x == null ? x : JSON.parse(JSON.stringify(x)));
 const NO = error => ({ ok: false, error });
 const SI = (extra = {}) => ({ ok: true, ...extra });
 
-export function crearMemoria(datos, { guardarEn = null, prueba = false } = {}) {
+export function crearMemoria(datos, { guardarEn = null, prueba = false, vigente = () => true, retirar = () => true } = {}) {
   const col = Object.fromEntries(NOMBRES.map(n => [n, new Map()]));
   const pins = new Map();
   let sesion = null, offline = false, pendientes = 0, contadorVentas = 0;
@@ -41,7 +41,9 @@ export function crearMemoria(datos, { guardarEn = null, prueba = false } = {}) {
   let reloj = null;
   const guardar = () => {
     reloj = null;
-    try { localStorage.setItem(guardarEn, JSON.stringify({ col: Object.fromEntries(Object.entries(col).map(([k, m]) => [k, [...m]])), pins: [...pins], contadorVentas })); } catch { /* sin almacenamiento */ }
+    try {
+      if (vigente()) localStorage.setItem(guardarEn, JSON.stringify({ col: Object.fromEntries(Object.entries(col).map(([k, m]) => [k, [...m]])), pins: [...pins], contadorVentas }));
+    } catch { /* sin almacenamiento */ }
   };
   const persistir = () => {
     if (!guardarEn || reloj) return;
@@ -299,7 +301,7 @@ export function crearMemoria(datos, { guardarEn = null, prueba = false } = {}) {
       return SI();
     },
     // Cierra las cajas abiertas en un día anterior: a las 11:59 pm de su día. Las de tienda quedan por arquear.
-    async cerrarCajasVencidas(hoy) {
+    async cerrarCajasVencidas(hoy, { confirmar = false } = {}) {
       if (!sesion) return NO('sesion');
       const todas = puede(rol(), 'verReportesTodos');
       let cerradas = 0;
@@ -312,7 +314,7 @@ export function crearMemoria(datos, { guardarEn = null, prueba = false } = {}) {
         cerradas++;
       }
       if (cerradas) { escribio(); avisar('cajas'); }
-      return SI({ cerradas });
+      return SI({ cerradas, ...(confirmar ? { caja: copia(cajaAbierta(sesion.uid)) || null } : {}) });
     },
     // Arqueo de una caja que se cerró sola: lo contado, las diferencias y quién lo hizo.
     async arquearCaja(cajaId, arqueo) {
@@ -448,6 +450,7 @@ export function crearMemoria(datos, { guardarEn = null, prueba = false } = {}) {
     async quitarEjemplos() {
       if (!prueba) return NO('modo-prueba');
       const e = exigir('ajustes'); if (e) return NO(e);
+      if (!retirar()) return NO('almacenamiento');
       // Las operaciones de práctica pueden referirse a los ejemplos. Se restablece todo el almacén local.
       for (const tabla of Object.values(col)) tabla.clear();
       pins.clear();

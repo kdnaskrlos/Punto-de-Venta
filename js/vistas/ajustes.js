@@ -1,6 +1,6 @@
 // Ajustes (solo administrador), en 4 apartados: Tasas, Venta, Pagos y Recibo. Los usuarios están en Más → Usuarios.
 import { h, icono, abrirVentana, toast, unaVez, desplegar, esTelefono } from '../ui.js';
-import { registrarVista } from '../app.js';
+import { registrarVista, refrescar } from '../app.js';
 import { bloquePrueba } from './mas.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { etiquetaTramo } from '../nucleo/tramos.js';
@@ -266,6 +266,12 @@ export const abrirPestana = id => { pestanaActual = id; };
 registrarVista('/ajustes', {
   accion: 'ajustes',
   montar(cont, ctx) {
+    if (!ctx.ajustesListos) {
+      cont.append(h('p', { class: 'nota', role: 'status' }, 'Esperando los ajustes operativos…'));
+      const cargar = e => { if (e.detail.que === 'ajustes' && ctx.ajustesListos) refrescar(); };
+      window.addEventListener('pos:datos', cargar);
+      return () => window.removeEventListener('pos:datos', cargar);
+    }
     const boton = h('button', { class: 'btn primary', id: 'aj-guardar' }, icono('check'), 'Guardar cambios');
     boton.disabled = true;
     const barra = h('div', { class: 'guardar-ajustes' }, boton);

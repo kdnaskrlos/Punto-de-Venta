@@ -3,7 +3,7 @@ import { ctx, crearContexto, usarContexto, refrescarContexto, mostrarApp, defini
 import { vigilarVentaEnCurso, ofrecerRetomar } from './vistas/venta-en-curso.js';
 import { vigilarPendientes } from './datos/pendientes.js';
 import { h, icono, cerrarCapaSuperior, hayCapas, despuesDeCerrar } from './ui.js';
-import { crearAlmacen, crearAlmacenPrueba, MODO_DEMO, DEMO_DIRECTO, usuarioDemo } from './datos/index.js';
+import { crearAlmacen, crearAlmacenPrueba, cuentaDePrueba, MODO_DEMO, DEMO_DIRECTO, usuarioDemo } from './datos/index.js';
 import { iniciarDatos } from './datos/vivos.js';
 import { pantallaEntrada, pantallaPrimerAdmin } from './vistas/entrar.js';
 import { abrirCalculadora } from './vistas/calculadora.js';
@@ -37,10 +37,20 @@ function recuperar(contexto) {
   return ofrecerRetomar(contexto, () => ctx === contexto && contexto.sesion?.uid === uid);
 }
 
+const CLAVE_PRUEBA_ACTIVA = 'pos-modo-prueba-activo';
+function leerPruebaActiva() {
+  let guardada;
+  try { guardada = sessionStorage.getItem(CLAVE_PRUEBA_ACTIVA); } catch { return null; }
+  if (guardada === null) return null;
+  // Una marca ilegible también impide montar la última ruta de práctica con el almacén operativo.
+  try { return JSON.parse(guardada) || {}; } catch { return {}; }
+}
+
 async function iniciar() {
   const raiz = document.getElementById('app');
   const operativo = ctx;
-  operativo.almacen = await crearAlmacen();
+  let marcaPrueba = leerPruebaActiva();
+  operativo.almacen = await crearAlmacen({ puedeSincronizar: () => !marcaPrueba });
   configurarCobro(operativo);
   if (DEMO_DIRECTO) await operativo.almacen.entrar(usuarioDemo(), '1234');
   let anterior, pararDatos = null, turno = 0;
@@ -52,45 +62,60 @@ async function iniciar() {
   operativo.reiniciarDatos = () => { operativo.carrito = null; escuchar(operativo); };
 
   const cerrarCapas = () => { while (hayCapas()) cerrarCapaSuperior(); };
+  const olvidarPrueba = marca => {
+    marcaPrueba = null;
+    try { sessionStorage.removeItem(CLAVE_PRUEBA_ACTIVA); } catch { /* sin almacenamiento */ }
+    const ruta = ['#/mas', '#/ajustes'].includes(marca?.ruta) ? marca.ruta : '#/mas';
+    // El historial de práctica puede contener vistas que escriben al montarse, como Reportes.
+    history.replaceState(null, '', ruta);
+  };
+  const activarPrueba = (datos, marca, turnoInicial) => {
+    const prueba = crearContexto(datos);
+    configurarCobro(prueba);
+    const dejarPerfil = prueba.almacen.alCambiarSesion(s => {
+      prueba.sesion = s;
+      if (s && ctx === prueba) window.dispatchEvent(new CustomEvent('pos:sesion'));
+    });
+    prueba.cerrarAlmacen = () => {
+      dejarPerfil();
+      prueba.sesion = null;
+      prueba.almacen.salir();
+      olvidarPrueba(marca);
+    };
+    prueba.salirModoPrueba = () => {
+      if (ctx !== prueba) return;
+      cerrarCapas();
+      despuesDeCerrar(() => {
+        if (ctx !== prueba || turno !== turnoInicial) return;
+        prueba.cerrarAlmacen();
+        usarContexto(operativo);
+        escuchar(operativo, { restaurarOperacion: true });
+        operativo.almacen.numerarPendientes?.();
+        refrescarContexto();
+        recuperar(operativo);
+      });
+    };
+    usarContexto(prueba);
+    escuchar(prueba);
+  };
+
   let entrandoPrueba = false;
   operativo.entrarModoPrueba = async () => {
     if (entrandoPrueba || ctx !== operativo || operativo.vistaRol || !operativo.puedeVer('ajustes')) return false;
     const turnoInicial = turno;
-    const rutaOperativa = location.hash;
+    const uid = operativo.sesion.uid;
+    const marca = { cuenta: cuentaDePrueba(uid), ruta: location.hash };
     entrandoPrueba = true;
     try {
-      const datos = await crearAlmacenPrueba(operativo.sesion.uid);
+      const datos = await crearAlmacenPrueba(uid);
       if (!datos || turno !== turnoInicial || ctx !== operativo || operativo.vistaRol || !operativo.puedeVer('ajustes')) return false;
-      const prueba = crearContexto(datos);
-      configurarCobro(prueba);
-      const dejarPerfil = prueba.almacen.alCambiarSesion(s => {
-        prueba.sesion = s;
-        if (s && ctx === prueba) window.dispatchEvent(new CustomEvent('pos:sesion'));
-      });
-      prueba.cerrarAlmacen = () => {
-        dejarPerfil();
-        prueba.sesion = null;
-        prueba.almacen.salir();
-        // Algunas vistas, como Reportes, escriben costos al montarse.
-        history.replaceState(null, '', rutaOperativa);
-      };
-      prueba.salirModoPrueba = () => {
-        if (ctx !== prueba) return;
-        cerrarCapas();
-        despuesDeCerrar(() => {
-          if (ctx !== prueba || turno !== turnoInicial) return;
-          prueba.cerrarAlmacen();
-          usarContexto(operativo);
-          escuchar(operativo, { revisarAlIniciar: false });
-          refrescarContexto();
-          recuperar(operativo);
-        });
-      };
+      // Solo se abre la práctica si una recarga podrá reconocer esta pestaña antes de montar la operación.
+      try { sessionStorage.setItem(CLAVE_PRUEBA_ACTIVA, JSON.stringify(marca)); } catch { return false; }
+      marcaPrueba = marca;
       cerrarCapas();
-      usarContexto(prueba);
-      escuchar(prueba);
+      activarPrueba(datos, marca, turnoInicial);
       refrescarContexto();
-      recuperar(prueba);
+      recuperar(ctx);
       return true;
     } finally {
       entrandoPrueba = false;
@@ -120,8 +145,25 @@ async function iniciar() {
     operativo.sesion = s;
     pararDatos && pararDatos(); pararDatos = null;
     operativo.carrito = null;
-    if (s) { escuchar(operativo); mostrarApp(); setTimeout(() => { if (ctx === operativo && turno === mio) recuperar(operativo); }, 700); setTimeout(revisarPendientes, 4000); }
-    else {
+    if (s) {
+      const marca = marcaPrueba;
+      if (marca?.cuenta === cuentaDePrueba(s.uid) && operativo.puedeVer('ajustes')) {
+        const datos = await crearAlmacenPrueba(s.uid);
+        if (turno !== mio) return;
+        if (datos) {
+          activarPrueba(datos, marca, mio);
+          mostrarApp();
+          recuperar(ctx);
+          return;
+        }
+      }
+      if (marca) olvidarPrueba(marca);
+      escuchar(operativo, { restaurarOperacion: !!marca });
+      if (marca) operativo.almacen.numerarPendientes?.();
+      mostrarApp();
+      setTimeout(() => { if (ctx === operativo && turno === mio) recuperar(operativo); }, 700);
+      setTimeout(revisarPendientes, 4000);
+    } else {
       // La consulta a Firebase puede tardar: si mientras tanto alguien entró, su respuesta atrasada no debe
       // tapar la app con la pantalla de entrada (antes pasaba y ya no se podía entrar sin recargar).
       const iniciado = MODO_DEMO || await ctx.almacen.sistemaIniciado();

@@ -27,6 +27,7 @@ function camposFondo(ctx) {
 }
 
 async function confirmarApertura(ctx, raiz, boton) {
+  if (ctx.validandoCaja) { toast('Espera la validación de tu caja', { malo: true }); return false; }
   const v = (id, m) => parseMonto(raiz.querySelector('#' + id)?.value, m) || 0;
   boton.disabled = true;
   const r = await ctx.almacen.abrirCaja({ COP: v('fondo-cop', 'COP'), USD: v('fondo-usd', 'USD'), BS: v('fondo-bs', 'BS') });
@@ -65,6 +66,7 @@ async function esperadoDe(ctx, caja) {
 // Abrir la caja sin salir de la pantalla en la que se está (Vender, Inicio).
 // Si la caja de ayer se cerró sola a medianoche, el conteo de hoy la arquea y sirve de fondo.
 export function abrirCajaVentana(ctx, alAbrir) {
+  if (ctx.validandoCaja) { toast('Espera la validación de tu caja', { malo: true }); return; }
   const pendiente = (ctx.porArquear || []).find(c => c.usuario === ctx.sesion.usuario);
   if (pendiente) { arquearYAbrir(ctx, pendiente, alAbrir); return; }
   const b = h('button', { class: 'btn primary grande', id: 'abrir-caja' }, icono('cartera'), 'Abrir caja');
@@ -75,6 +77,7 @@ export function abrirCajaVentana(ctx, alAbrir) {
 
 // Para quien vende sin caja: los dueños usan su caja personal (se crea sola); la vendedora debe abrir la suya.
 export async function asegurarCaja(ctx) {
+  if (ctx.validandoCaja) return false;
   if (ctx.miCaja) return true;
   if (ctx.puedeVer('cajaPersonal')) {
     const r = await ctx.almacen.abrirCaja({}, { tipo: 'personal' });
@@ -86,6 +89,7 @@ export async function asegurarCaja(ctx) {
 
 // Ejecuta una operación que necesita caja; si falta y es de un dueño, crea su caja personal y reintenta.
 export async function conCaja(ctx, operacion) {
+  if (ctx.validandoCaja) return { ok: false, error: 'validando-caja' };
   let r = await operacion();
   if (!r.ok && r.error === 'sin-caja' && await asegurarCaja(ctx)) r = await operacion();
   return r;

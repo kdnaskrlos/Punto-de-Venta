@@ -238,8 +238,7 @@ export function mostrarApp() {
   avisoPrueba = h('div', { class: 'aviso-demo', id: 'aviso-prueba', role: 'status', hidden: true });
   raiz.replaceChildren(barra, h('div', { class: 'main' }, cabecera, avisoDemo, avisoPrueba, contenedor));
   if (!location.hash || location.hash === '#') history.replaceState(null, '', '#/inicio');
-  pintarCabecera();
-  montar();
+  refrescarContexto();
   if (!escuchando) {
     escuchando = true;
     window.addEventListener('hashchange', () => { if (ctx.sesion) montar(); });

@@ -13,6 +13,7 @@
 // Ventas:      nuevoId() · guardarVenta(venta) → {ok, offline} | {ok:false, faltantes:[sku]} · anularVenta(id, motivo)
 // Apartados:   guardarApartado(ap) · abonarApartado(id, pago) · completarApartado(id, venta) · cancelarApartado(id, motivo)
 // Caja:        abrirCaja(fondo) · movimientoCaja(cajaId, mov) · cerrarCaja(cajaId, cierre) · reabrirCaja(cajaId)
+//              cerrarCajasVencidas(hoy, {confirmar}) · al confirmar, devuelve la caja abierta vigente o null.
 // Inventario:  ajustarExistencia(sku, cantidad, motivo, nota) · aplicarImportacion(plan) · guardarOferta(grupo, oferta) · guardarImagen(codigo, blob)
 // Otros:       guardarAjustes(doc, datos) · guardarCliente({telefono, nombre}) · solicitarAutorizacion(a) · responderAutorizacion(id, aprobada)
 //              pagarComisiones(reg) · congelarCostoVenta(ventaId, costo) · estadoSync(cb({enLinea, pendientes, error})) → desuscribir
