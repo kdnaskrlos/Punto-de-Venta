@@ -55,8 +55,9 @@ async function main() {
       que:'venta', refId:ventaId, fecha, dispositivo:'qa-remoto', orden:n,
       apartadoId:null, estadoSync:'confirmada_servidor',
     });
+    const movimientos = skus.map((_, i) => base + '-mov-' + n + '-' + i);
     skus.forEach((sku,i) => {
-      const movId = base + '-mov-' + n + '-' + i;
+      const movId = movimientos[i];
       lote.update(doc(db, 'productos', sku), { existencia:increment(-1), ultimoMov:movId });
       lote.set(doc(db, 'movimientos', movId), {
         id:movId, sku, cantidad:-1, motivo:'venta', ref:ventaId, nota:'', usuario, fecha,
@@ -64,13 +65,21 @@ async function main() {
     });
     let aceptado=true, error=null;
     try { await lote.commit(); } catch (e) { aceptado=false; error=e.code || e.message; }
-    const [productoSnap, ventaSnap, marcaSnap] = await Promise.all([
+    const [productoSnap, ventaSnap, marcaSnap, movSnaps] = await Promise.all([
       Promise.all(skus.map(sku => getDocFromServer(doc(db, 'productos', sku)))),
       getDocFromServer(doc(db, 'ventas', ventaId)),
       getDocFromServer(doc(db, 'usuarios', cred.user.uid, 'operacionesCobro', 'venta:' + ventaId)),
+      Promise.all(movimientos.map(id => getDocFromServer(doc(db, 'movimientos', id)))),
     ]);
-    const correcto=productoSnap.every(x => x.exists() && x.data().existencia === (aceptado ? 0 : 1))
-      && ventaSnap.exists()===aceptado && marcaSnap.exists()===aceptado;
+    const stockCorrecto = productoSnap.every(x => x.exists() && x.data().existencia === (aceptado ? 0 : 1));
+    const movimientosCorrectos = movSnaps.every((snap, i) => {
+      if (!aceptado) return !snap.exists();
+      const mov = snap.data();
+      return mov?.ref === ventaId && mov.sku === skus[i] && mov.cantidad === -1
+        && productoSnap[i].data()?.ultimoMov === snap.id;
+    });
+    const correcto = stockCorrecto && movimientosCorrectos
+      && ventaSnap.exists() === aceptado && marcaSnap.exists() === aceptado;
     assert.ok(correcto, 'INTEGRIDAD ROTA: cesta ' + n + ' escrituras parciales');
     resultados.push({ sku:n, estado:aceptado?'ACEPTADA':'RECHAZADA ATÓMICAMENTE', error });
     console.log('SKU', n, '=>', aceptado ? 'ACEPTADA' : 'RECHAZADA ATÓMICAMENTE', error || '');

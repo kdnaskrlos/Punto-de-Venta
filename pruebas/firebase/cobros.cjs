@@ -209,7 +209,7 @@ test('cestas grandes de 32, 48 y 64 SKU: se confirman totalmente o se rechazan s
   }
 });
 
-async function adaptadorReal(dbPorUsuario) {
+async function adaptadorReal(dbPorUsuario, escuchas) {
   const { registerHooks } = require('node:module');
   const { pathToFileURL } = require('node:url');
   const archivo = path.resolve(__dirname, '../../js/datos/firebase.js');
@@ -231,14 +231,17 @@ async function adaptadorReal(dbPorUsuario) {
     initializeFirestore: config => dbPorUsuario[config.uid],
     getAuth: config => config,
     onAuthStateChanged: (auth, cb) => queueMicrotask(() => cb({ uid: auth.uid })),
+    onSnapshot(...args) {
+      const quitar = onSnapshot(...args);
+      escuchas.add(quitar);
+      return () => { escuchas.delete(quitar); quitar(); };
+    },
   };
   try { return await import(pathToFileURL(archivo).href); }
   finally { hooks.deregister(); }
 }
 
-test('el adaptador del POS conserva caja, pagos y fecha del segundo cobro y registra su conflicto', { timeout: 45000 }, async t => {
-  await preparar();
-  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+async function prepararAdaptadores(t, a, b) {
   const datos = new Map();
   const globals = {
     addEventListener() {},
@@ -253,18 +256,29 @@ test('el adaptador del POS conserva caja, pagos y fecha del segundo cobro y regi
     Object.defineProperty(globalThis, clave, { configurable: true, value });
     t.after(() => previo ? Object.defineProperty(globalThis, clave, previo) : delete globalThis[clave]);
   }
-  t.after(() => { delete globalThis.posSdkEmulado; });
-  const { crearFirebase } = await adaptadorReal({ a, b });
+  const escuchas = new Set();
+  t.after(() => {
+    for (const quitar of escuchas) quitar();
+    delete globalThis.posSdkEmulado;
+  });
+  const { crearFirebase } = await adaptadorReal({ a, b }, escuchas);
   const { leerPendientes, revisarPendientes } = await import('../../js/datos/pendientes.js');
-  const posA = crearFirebase({ uid: 'a' }), posB = crearFirebase({ uid: 'b' });
-  const [, sesionB] = await Promise.all([posA, posB].map(pos => new Promise(r => pos.alCambiarSesion(s => { if (s) r(s); }))));
+  const posA = crearFirebase({ uid: 'a' }), posB = b && crearFirebase({ uid: 'b' });
+  const [sesionA, sesionB] = await Promise.all([posA, posB].filter(Boolean).map(pos => new Promise(r => pos.alCambiarSesion(s => { if (s) r(s); }))));
+  return { posA, posB, sesionA, sesionB, leerPendientes, revisarPendientes };
+}
+
+test('el adaptador del POS conserva caja, pagos y fecha del segundo cobro y registra su conflicto', { timeout: 45000 }, async t => {
+  await preparar();
+  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+  const { posA, posB, sesionB, leerPendientes, revisarPendientes } = await prepararAdaptadores(t, a, b);
   const producto = doc(a, 'productos', 'ultimo');
   await Promise.all([getDocFromServer(producto), getDocFromServer(doc(b, 'productos', 'ultimo'))]);
   await Promise.all([disableNetwork(a), disableNetwork(b)]);
 
   const venta = { fecha, lineas: [{ sku: 'ultimo', cantidad: 1 }], total: 22000, pagos: [{ forma: 'efectivo-cop', moneda: 'COP', monto: 22000 }] };
   const [primera, segunda] = await Promise.all([posA.guardarVenta({ ...venta, id: 'pos-a' }), posB.guardarVenta({ ...venta, id: 'pos-b' })]);
-  assert.deepEqual([primera.estadoSync, segunda.estadoSync], ['local_pendiente', 'local_pendiente']);
+  assert.deepEqual([primera.estadoSync, segunda.estadoSync], ['local_pendiente', 'local_pendiente'], JSON.stringify([primera, segunda]));
   assert.equal(leerPendientes('b')[0].datos.cajaId, 'b');
 
   await enableNetwork(a);
@@ -279,4 +293,101 @@ test('el adaptador del POS conserva caja, pagos y fecha del segundo cobro y regi
   assert.equal(conflicto.fecha, fecha);
   assert.equal((await getDocFromServer(producto)).data().existencia, 0);
   assert.equal(await posB.verificarServidor('ventas', 'pos-b'), null);
+});
+
+
+test('reserva, abono y liquidación offline se sincronizan en orden sin descontar stock dos veces', { timeout: 45000 }, async t => {
+  await preparar();
+  const a = entorno.authenticatedContext('a').firestore();
+  const { posA, leerPendientes } = await prepararAdaptadores(t, a);
+  const producto = doc(a, 'productos', 'ultimo');
+  await getDocFromServer(producto);
+  await disableNetwork(a);
+
+  const base = { fecha, cliente: { nombre: 'Cliente QA' }, lineas: [{ sku: 'ultimo', cantidad: 1 }], total: 22000 };
+  const efectivo = monto => ({ forma: 'efectivo-cop', moneda: 'COP', monto, equivalenteCop: monto });
+  const reserva = { ...base, id: 'reserva-offline', abonos: [] };
+  const pago = { ...efectivo(5000), id: 'abono-offline', fecha };
+  const venta = { ...base, id: 'liquidacion-offline', abonosPrevios: 5000, pagos: [efectivo(17000)] };
+  for (const operar of [
+    () => posA.guardarApartado(reserva),
+    () => posA.abonarApartado(reserva.id, pago),
+    () => posA.abonarApartado(reserva.id, pago),
+    () => posA.completarApartado(reserva.id, venta),
+  ]) assert.equal((await operar()).estadoSync, 'local_pendiente');
+  assert.deepEqual(leerPendientes('a').map(p => p.id), [reserva.id, pago.id, venta.id]);
+
+  await enableNetwork(a);
+  assert.equal(await posA.esperarSubidas(), true);
+  for (const [que, id] of [['apartado', reserva.id], ['abono', pago.id], ['completar', venta.id]]) {
+    assert.equal(await posA.verificarCobro({ que, id }), 'confirmada_servidor');
+  }
+  const ap = (await getDocFromServer(doc(a, 'apartados', reserva.id))).data();
+  const final = (await getDocFromServer(doc(a, 'ventas', venta.id))).data();
+  assert.deepEqual(ap.abonos.map(x => [x.id, x.monto, x.cajaId]), [[pago.id, 5000, 'a']]);
+  assert.deepEqual([ap.estado, ap.saldo, ap.ventaId], ['completado', 0, venta.id]);
+  assert.deepEqual([final.cajaId, final.desdeApartado, final.pagos[0].monto, final.fecha], ['a', reserva.id, 17000, fecha]);
+  assert.equal((await getDocFromServer(producto)).data().existencia, 0);
+  assert.deepEqual(leerPendientes('a'), []);
+});
+
+test('dos sesiones que liquidan la misma reserva offline conservan un solo cobro y un conflicto conciliable', { timeout: 45000 }, async t => {
+  await preparar();
+  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+  const { posA, posB, sesionB, revisarPendientes } = await prepararAdaptadores(t, a, b);
+  const reserva = { id: 'misma-reserva', fecha, cliente: { nombre: 'Cliente QA' },
+    lineas: [{ sku: 'ultimo', cantidad: 1 }], total: 22000, abonos: [] };
+  assert.equal((await posA.guardarApartado(reserva)).estadoSync, 'confirmada_servidor');
+  // Las dos pantallas mantienen la reserva en escucha antes de desconectarse.
+  await Promise.all([a, b].map(db => new Promise((resolve, reject) => {
+    const quitar = onSnapshot(doc(db, 'apartados', reserva.id), { includeMetadataChanges: true }, s => {
+      if (s.exists() && !s.metadata.fromCache && !s.metadata.hasPendingWrites) resolve();
+    }, reject);
+    t.after(quitar);
+  })));
+  await Promise.all([disableNetwork(a), disableNetwork(b)]);
+  const base = { ...reserva, abonosPrevios: 0, pagos: [{ forma: 'efectivo-cop', monto: 22000 }] };
+  const [primera, segunda] = await Promise.all([
+    posA.completarApartado(reserva.id, { ...base, id: 'liquidacion-a' }),
+    posB.completarApartado(reserva.id, { ...base, id: 'liquidacion-b' }),
+  ]);
+  assert.deepEqual([primera.estadoSync, segunda.estadoSync], ['local_pendiente', 'local_pendiente'], JSON.stringify([primera, segunda]));
+
+  await enableNetwork(a);
+  assert.equal(await posA.esperarSubidas(), true);
+  await enableNetwork(b);
+  await revisarPendientes({ sesion: sesionB, almacen: posB });
+  const conflicto = await posB.verificarServidor('conflictos', 'rechazada-completar-liquidacion-b');
+  assert.deepEqual([conflicto.apartadoId, conflicto.datos.cajaId, conflicto.datos.pagos[0].monto], [reserva.id, 'b', 22000]);
+  assert.equal(await posB.verificarServidor('ventas', 'liquidacion-b'), null);
+  assert.equal((await posB.verificarServidor('apartados', reserva.id)).ventaId, 'liquidacion-a');
+  assert.equal((await posB.verificarServidor('productos', 'ultimo')).existencia, 0);
+});
+
+test('el POS aplica cestas grandes del adaptador completo y el reintento conserva el mismo cobro', { timeout: 90000 }, async t => {
+  const cantidades = [24, 32, 48, 64];
+  const skus = cantidades.flatMap(n => Array.from({ length: n }, (_, i) => 'pos-' + n + '-' + i));
+  await preparar({ skus });
+  const a = entorno.authenticatedContext('a').firestore();
+  const b = entorno.authenticatedContext('b').firestore();
+  const { posA } = await prepararAdaptadores(t, a);
+  for (const n of cantidades) {
+    const lineas = skus.filter(sku => sku.startsWith('pos-' + n + '-')).map(sku => ({ sku, cantidad: 1 }));
+    const total = 10000 * n;
+    const venta = { id: 'pos-cesta-' + n, fecha, lineas, total, pagos: [{ forma: 'efectivo-cop', monto: total }] };
+    for (let intento = 0; intento < 2; intento++) {
+      const resultado = await posA.guardarVenta(venta);
+      assert.ok(resultado.ok, JSON.stringify(resultado));
+      assert.equal(await posA.esperarSubidas(), true);
+      assert.equal(await posA.verificarCobro({ que: 'venta', id: venta.id }), 'confirmada_servidor');
+    }
+    const guardada = (await getDocFromServer(doc(a, 'ventas', venta.id))).data();
+    assert.deepEqual([guardada.cajaId, guardada.fecha, guardada.pagos[0].monto, guardada.lineas.length], ['a', fecha, total, n]);
+  }
+  const productos = await getDocsFromServer(collection(a, 'productos'));
+  const stock = new Map(productos.docs.map(d => [d.id, d.data().existencia]));
+  assert.ok(skus.every(sku => stock.get(sku) === 0));
+  const movimientos = await getDocsFromServer(collection(b, 'movimientos'));
+  assert.equal(movimientos.size, skus.length);
+  assert.deepEqual(new Set(movimientos.docs.map(d => d.data().sku)), new Set(skus));
 });
