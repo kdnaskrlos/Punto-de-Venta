@@ -1,77 +1,89 @@
-name: Preparar sitio PWA v2.36 (sin despliegue)
+name: Construir sitio POS v2.36 para GitHub Pages
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
+      - config.js
+      - fotos/**
       - .github/workflows/preparar-pos-v236.yml
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: publicar-pos-v236
+  cancel-in-progress: false
+
 jobs:
   preparar:
     runs-on: ubuntu-latest
     steps:
-      - name: Obtener historial completo
+      - name: Obtener código validado del puente e historial
         uses: actions/checkout@v4
         with:
+          ref: transfer/puente-pwa-pr3
           fetch-depth: 0
           persist-credentials: true
-          ref: transfer/puente-pwa-pr3
-      - name: Node.js
+      - name: Preparar Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verificar pruebas de núcleo y datos
+      - name: Probar lógica
         run: npm test
-      - name: Verificar fuente del puente
+      - name: Tomar fotos y configuración vigentes de main
         shell: bash
         run: |
           set -euo pipefail
-          test -f scripts/preparar-publicacion.cjs
-          test -f js/arranque-pwa.js
-          test -f js/nucleo/ejemplos.js
-          node pruebas/pwa/huella.cjs
-      - name: Construir publicación estática
-        id: build
-        shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/preparar-publicacion.cjs "$RUNNER_TEMP/sitio" | tee "$RUNNER_TEMP/publicacion.json"
-          node --input-type=module -e '
-            import fs from "node:fs";
-            import path from "node:path";
-            const dest=process.env.RUNNER_TEMP+"/sitio";
-            const meta=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/publicacion.json","utf8"));
-            const requeridos=["index.html","sw.js","config.js","js/nucleo/ejemplos.js",
-              "manifest.webmanifest","fotos",meta.prefijo+"index.html",
-              meta.prefijo+"js/principal.js",meta.prefijo+"js/version.js",
-              meta.prefijo+"js/arranque-pwa.js"];
-            const faltan=requeridos.filter(p=>!fs.existsSync(path.join(dest,p)));
-            if(faltan.length)throw new Error("Faltan recursos: "+faltan.join(", "));
-            const sw=fs.readFileSync(path.join(dest,"sw.js"),"utf8");
-            if(!sw.includes(meta.huella)||!sw.includes(meta.prefijo))throw new Error("Worker no coincide con artefacto");
-            if(!fs.readFileSync(path.join(dest,"index.html"),"utf8").includes(meta.prefijo))
-              throw new Error("HTML sin rutas versionadas");
-            if(!meta.prefijo.startsWith("versiones/v2.36-"))throw new Error("Version incorrecta");
-            console.log("Artefacto verificado:",meta.prefijo,meta.huella);
-          '
-      - name: Crear rama de publicación independiente
+          git fetch origin main
+          git archive origin/main config.js fotos | tar -x
+      - name: Generar sitio completo y conservar versiones anteriores
         shell: bash
         run: |
           set -euo pipefail
           if git ls-remote --exit-code origin refs/heads/release/pos-v2.36 >/dev/null; then
-            echo "La rama de publicación ya existe. No se sobrescribirá."
-            exit 1
+            git fetch origin release/pos-v2.36:refs/remotes/origin/release/pos-v2.36
+            git worktree add --detach "$RUNNER_TEMP/anterior" origin/release/pos-v2.36
+            node scripts/preparar-publicacion.cjs "$RUNNER_TEMP/sitio" "$RUNNER_TEMP/anterior" > "$RUNNER_TEMP/publicacion.json"
+          else
+            node scripts/preparar-publicacion.cjs "$RUNNER_TEMP/sitio" > "$RUNNER_TEMP/publicacion.json"
           fi
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import path from "node:path";
+            const root=process.env.RUNNER_TEMP+"/sitio";
+            const m=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/publicacion.json","utf8"));
+            for(const p of ["index.html","sw.js","config.js","manifest.webmanifest",
+              "js/nucleo/ejemplos.js","fotos",m.prefijo+"index.html",
+              m.prefijo+"js/principal.js",m.prefijo+"js/version.js",m.prefijo+"js/arranque-pwa.js"])
+              if(!fs.existsSync(path.join(root,p)))throw new Error("Falta "+p);
+            const sw=fs.readFileSync(path.join(root,"sw.js"),"utf8");
+            if(!sw.includes(m.huella)||!sw.includes(m.prefijo))throw new Error("SW o huella incorrectos");
+            if(!m.prefijo.startsWith("versiones/v2.36-"))throw new Error("Versión inesperada");
+            if(!fs.readFileSync(path.join(root,"index.html"),"utf8").includes(m.prefijo))throw new Error("HTML sin rutas versionadas");
+            console.log("Artefacto validado:",m.prefijo);
+          '
+      - name: Guardar artefacto en release/pos-v2.36 sin tocar main
+        shell: bash
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch --orphan publicar-v236
-          git rm -rf --ignore-unmatch . || true
-          cp -a "$RUNNER_TEMP/sitio/." .
+          git reset --hard
+          if git show-ref --verify --quiet refs/remotes/origin/release/pos-v2.36; then
+            git switch --detach origin/release/pos-v2.36
+            git clean -fdx
+            rsync -a --delete --exclude='.git' "$RUNNER_TEMP/sitio/" "$GITHUB_WORKSPACE/"
+          else
+            git switch --orphan publicar-v236
+            git rm -rf --ignore-unmatch . || true
+            cp -a "$RUNNER_TEMP/sitio/." .
+          fi
           git add -A -f
-          git commit -m "build: artefacto PWA v2.36 listo para Pages"
+          if git diff --cached --quiet; then
+            echo "El artefacto no cambió."
+            exit 0
+          fi
+          git commit -m "build: sitio POS v2.36 con fotos y configuración vigentes"
           git push origin HEAD:refs/heads/release/pos-v2.36
-          echo "Rama release/pos-v2.36 creada. No se modificó main ni se desplegó Pages."
+          echo "Artefacto listo en release/pos-v2.36; main no se modificó durante la construcción."
