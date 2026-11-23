@@ -38,6 +38,25 @@ NODE_PATH="$lab_pos/node_modules" FIRESTORE_EMULATOR_HOST=127.0.0.1:9849 node --
 
 La suite usa sesiones sintéticas independientes con credenciales de prueba de las reglas. El adaptador del POS usa el SDK real de Firestore contra el emulador con caché en memoria. La persistencia de IndexedDB al cerrar un navegador y la autenticación real de Firebase quedan como verificaciones separadas. Si el emulador no arranca o no puede cargar las reglas, el resultado de la suite es **BLOQUEADO**.
 
+## Prueba remota de capacidad (solo proyecto QA independiente)
+
+Existe `pruebas/firebase/remoto-cestas.cjs`: prueba la regla **realmente publicada en un proyecto remoto aislado** con cestas de 1, 8, 12, 16, 20, 24, 32, 48 y 64 SKU. Si el lote se rechaza, verifica que ni stock ni venta ni marca queden parcialmente aplicados. Si se acepta, comprueba la coincidencia exacta de los tres. **No divide ventas.** La prueba deja datos sintéticos identificados por un prefijo `qa-` en ese proyecto QA, nunca en el POS operativo.
+
+**Seguridad:** el script se niega a ejecutarse a menos que el `projectId` comience por `pos-qa-`, exige una cuenta Firebase Auth de QA previamente asociada a un perfil admin activo en `usuarios/{uid}` y bloquea el proyecto `punto-de-venta-comic-shop`. No almacena secretos en el repositorio y tampoco conecta al emulador. Debe usarse en un proyecto **creado exclusivamente para pruebas**, con reglas correspondientes a esta PR y una cuenta sintética. No utilizar credenciales del negocio real.
+
+Con `firebase@10.12.2` instalado en una carpeta temporal y `NODE_PATH` apuntando a sus `node_modules`:
+
+```bash
+POS_QA_PROJECT_ID=pos-qa-<proyecto> \
+POS_QA_API_KEY=<clave-publica-del-proyecto-qa> \
+POS_QA_EMAIL=<usuario-de-qa> \
+POS_QA_PASSWORD=<clave-del-usuario-qa> \
+NODE_PATH=<carpeta-temporal>/node_modules \
+node pruebas/firebase/remoto-cestas.cjs
+```
+
+El comando es para ejecutarse desde un entorno confiable, sin imprimir contraseñas ni publicarlas en archivos, logs o conversaciones. Antes de dar por cerrado el Bloque 1, comprobar el resultado contra Firestore remoto y corregir cualquier tamaño de cesta que sea válido para el negocio pero sea rechazado por los límites del backend. **No afirmar que un resultado del emulador sustituye esta comprobación**.
+
 ## Pendientes para revisión
 
 - **Estrés adicional verificado en CI:** GitHub Actions [45273442012](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45273442012) ejecutó 168/168 pruebas unitarias y 8/8 pruebas de Firestore Emulator. Las ventas de 32, 48 y 64 SKU se confirmaron enteras en el emulador; la de 24 SKU se rechazó sin ninguna escritura parcial cuando faltaba la última unidad. **La validación con el emulador no certifica la producción:** Firestore documenta 20 accesos a documentos por lote y 10 por operación, con caché de algunos accesos. Antes de fusionar/publicar, repetir con 24/32/48/64 SKU en un proyecto Firebase remoto aislado, sin datos reales. Si hay límite, definir una solución comprobable que no divida cobros atómicos ni limite silenciosamente el catálogo. [Límites de Firestore](https://firebase.google.com/docs/firestore/security/rules-conditions#access_call_limits) · [Diferencias del emulador](https://firebase.google.com/docs/emulator-suite/connect_firestore#how_the_cloud_firestore_emulator_differs_from_production)
