@@ -24,6 +24,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Verificar sintaxis y bloqueo de producción del test remoto
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check pruebas/firebase/remoto-cestas.cjs
+          if POS_QA_PROJECT_ID=punto-de-venta-comic-shop node pruebas/firebase/remoto-cestas.cjs > /tmp/guard-qa.log 2>&1; then
+            echo "La barrera de producción no funcionó"
+            exit 1
+          fi
+          grep -q "BLOQUEADO" /tmp/guard-qa.log
       - name: Ejecutar pruebas unitarias
         run: npm test
       - name: Ejecutar reglas contra el emulador local
