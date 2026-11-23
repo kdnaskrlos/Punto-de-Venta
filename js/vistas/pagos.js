@@ -2,6 +2,7 @@
 import { h, icono, esTelefono, deslizarParaQuitar, alEnfocarCampo, toast } from '../ui.js';
 import { estadoCobro, montoSugerido, vueltoEn, vueltoMixto } from '../nucleo/cobro.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
+import { aCop } from '../nucleo/tasas.js';
 import { formaEfectivo, NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
 
 // En los botones el grupo ya dice la moneda: "Efectivo pesos" → "Efectivo", "Transferencia / Nequi / …" → "Transferencia".
@@ -142,8 +143,8 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     const monto = vueltoEn(e.vueltoCop, monedaVuelto, ctx.tasas, red);
     if (monto == null) return null;
     const parte = { moneda: monedaVuelto, monto, forma: formaEfectivo(formas, monedaVuelto) };
-    const equivalenteCop = e.vueltoCop;
-    const remanenteCop = monedaVuelto === 'COP' ? e.vueltoCop - monto : 0;
+    const equivalenteCop = aCop(monto, monedaVuelto, ctx.tasas);
+    const remanenteCop = Math.max(0, e.vueltoCop - (equivalenteCop || 0));
     return { partes: monto > 0 ? [parte] : [], equivalenteCop, remanenteCop,
       texto: fmtMonto(monto, monedaVuelto) + ' ' + NOMBRE_MONEDA[monedaVuelto] };
   }
