@@ -18,13 +18,16 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   for (const x of iniciales || []) { const forma = formas.find(f => f.id === x.forma); if (forma && x.monto > 0 && !pagos.some(p => p.forma.id === forma.id)) pagos.push({ forma, monto: x.monto }); }
   const lista = h('div', { class: 'pagos' });
   let botones = null;
-  let monedaVuelto = formaEfectivo(formas, 'USD') && formaEfectivo(formas, 'COP') ? 'MIXTO' : 'COP';
+  let monedaVuelto = formaEfectivo(formas, 'USD') && formaEfectivo(formas, 'COP') && ctx.tasas?.copPorUsd ? 'MIXTO' : 'COP';
   const barra = h('div', { class: 'barra-falta', role: 'status' });
   const red = ctx.ajustes.redondeo || 100, billeteMinimoUsd = ctx.ajustes.billeteMinimoUsd || 1;
   let listo = false; // no avisar cambios mientras se construye el panel
   const avisar = () => { if (listo) alCambiar(); };
 
-  const estado = () => estadoCobro({ total, pagos: pagos.map(p => ({ forma: p.forma.id, moneda: p.forma.moneda, monto: p.monto || 0 })), tasas: ctx.tasas, redondeo: red });
+  const estado = () => {
+    const e = estadoCobro({ total, pagos: pagos.map(p => ({ forma: p.forma.id, moneda: p.forma.moneda, monto: p.monto || 0 })), tasas: ctx.tasas, redondeo: red });
+    return { ...e, vueltoValido: permitirMenos || e.vueltoCop <= 0 || calcularCambio(e) != null };
+  };
 
   function agregar(forma) {
     if (esTelefono()) document.activeElement?.blur(); // sin borde de foco que parezca una selección
