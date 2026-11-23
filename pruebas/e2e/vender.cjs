@@ -214,7 +214,8 @@ casos('vender', [
     await p.waitForTimeout(700);
     a.strictEqual(await p.evaluate(() => location.hash), '#/vender', 'queda en el carrito');
     a.ok(await p.isVisible('.zona-carrito .linea'));
-    await p.evaluate(() => { const c = window.__pos.ctx; c.carrito = { lineas: [], descuento: null }; window.dispatchEvent(new CustomEvent('pos:carrito')); });
+    await p.click('.linea[data-sku="B-S"] [aria-label="Quitar"]');
+    await p.click('.linea[data-sku="B-M"] [aria-label="Quitar"]');
     await p.reload(); await p.waitForTimeout(1200);
     a.strictEqual(await p.$('.capa:has-text("¿Continuar venta?")'), null, 'carrito vacío: no pregunta');
   }],

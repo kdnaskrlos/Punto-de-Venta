@@ -665,6 +665,9 @@ export function crearFirebase(config) {
       const r = await conEvento(b => b.set(ref('comisiones', id), { ...reg, id, por: sesion.usuario, fecha: ahora() }), 'pagarComisiones', [reg], { id });
       return r.ok ? SI({ id }) : r;
     },
+    // Una vista de v2.35 en caché aún puede llamar a estas operaciones retiradas.
+    async cargarEjemplos() { return NO('retirado'); },
+    async quitarEjemplos() { return NO('retirado'); },
     async congelarCostoVenta(ventaId, costo) {
       const e = exigir('verCostos'); if (e) return NO(e);
       if (await api.obtener('costosVenta', ventaId)) return SI();

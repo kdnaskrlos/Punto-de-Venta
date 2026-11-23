@@ -6,11 +6,30 @@ Esta guía se sigue **una sola vez**. Toma unos 20 minutos. Mientras no la compl
 
 ## 1. Publicar la app en GitHub Pages
 
-1. Entra a tu repositorio **Punto-de-Venta** en GitHub.
-2. Ve a **Settings → Pages**.
-3. En **Source** elige **Deploy from a branch**, rama **main** y carpeta **/ (root)**. Toca **Save**.
-4. Espera uno o dos minutos. La app queda en:
-   **https://kdnaskrlos.github.io/Punto-de-Venta/**
+La instalación debe conservar el origen y la ruta `/Punto-de-Venta/`. La fuente de Pages debe servir el árbol estático **preparado para publicar**. La raíz de este repositorio es el árbol de desarrollo y contiene módulos nuevos en las URL que todavía usa v2.35. Si Pages publica automáticamente `main`, verifica la fuente de publicación antes de integrar cambios de la PWA.
+
+Desde la raíz del repositorio, con el historial de Git disponible, prepara un directorio nuevo:
+
+```bash
+node scripts/preparar-publicacion.cjs /ruta/al/artefacto-nuevo
+```
+
+Para una publicación posterior, pasa el último artefacto como segundo argumento. Así se incluyen las rutas versionadas que siguen usando otras instalaciones:
+
+```bash
+node scripts/preparar-publicacion.cjs /ruta/al/artefacto-nuevo /ruta/al/artefacto-anterior
+```
+
+El comando conserva las rutas que necesita v2.35 y emite el prefijo, la caché y la huella de la nueva publicación. El POS sigue abriendo en **https://kdnaskrlos.github.io/Punto-de-Venta/** con el mismo alcance de instalación.
+
+### Transición desde v2.35
+
+1. Sirve primero el directorio `versiones/` y el grafo compatible de las rutas históricas. Mantén los `index.html` y `sw.js` activos durante esta preparación. Verifica por HTTPS el contenido que servirá Pages.
+2. Promueve juntos el `index.html` y el `sw.js` del artefacto verificado. Comprueba la instalación y la recuperación en terminales piloto. Conserva las rutas históricas y las publicaciones anteriores.
+3. En una pestaña que aún ejecuta v2.35, retoma y verifica cualquier borrador en esa misma pestaña antes de cerrarla. Una pestaña vieja vacía de la misma cuenta todavía puede borrar el borrador compartido. Organiza el relevo de esas pestañas antes de promover el cierre, con el carrito resguardado y comprobado. Una vez cargado el puente, la activación espera a que se cierren las pestañas de la versión activa.
+4. Si la descarga se rechaza, conserva el worker activo y repón los recursos completos. Si el problema aparece después de activar, prepara el último código estable con las rutas de ambas publicaciones y un worker de transición. Conserva el origen, el alcance, las cachés y los datos locales. El worker original de v2.35 elimina otras cachés al activarse y queda fuera del procedimiento de reversión.
+
+En cada promoción o reversión, usa la configuración pública y las fotos vigentes. La subida de fotos del POS escribe en la rama predeterminada de GitHub. Si Pages pasa a servir un artefacto generado, su proceso de publicación debe incorporar los cambios de `fotos/` de esa rama.
 
 ## 2. Crear el proyecto de Firebase
 
@@ -48,7 +67,7 @@ export const firebaseConfig = {
 };
 ```
 
-3. Toca **Commit changes**. Estos datos son públicos por diseño: lo que protege la información son las reglas del paso 4.
+3. Guarda la configuración pública en el árbol fuente y vuelve a preparar el artefacto antes de publicarlo. Estos datos son públicos por diseño. Las reglas del paso 4 protegen la información.
 
 ## 6. Primer ingreso: tú como administrador
 

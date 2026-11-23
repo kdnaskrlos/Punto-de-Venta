@@ -46,7 +46,10 @@ export function revisarDescuento(ctx) {
   return false;
 }
 
-export function vaciarCarrito(ctx) { ctx.carrito = { lineas: [], descuento: null, autorizacion: null }; }
+export function vaciarCarrito(ctx) {
+  window.dispatchEvent(new CustomEvent('pos:carrito-vaciado', { detail: ctx.carrito }));
+  ctx.carrito = { lineas: [], descuento: null, autorizacion: null };
+}
 
 function enCarrito(ctx, sku) { return carrito(ctx).lineas.find(l => l.sku === sku)?.cantidad || 0; }
 

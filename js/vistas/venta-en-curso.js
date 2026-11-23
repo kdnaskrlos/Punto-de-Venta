@@ -6,30 +6,66 @@ import { navegar } from '../app.js';
 
 const VIGENCIA = 24 * 60 * 60 * 1000;
 const clave = ctx => 'pos-venta-' + (ctx.sesion?.usuario || '');
+const resguardos = new WeakMap();
 
-export function guardarVentaEnCurso(ctx) { guardar(ctx); }
-
-function guardar(ctx) {
-  if (!ctx.sesion) return;
-  const c = ctx.carrito;
+function vigente(original) {
   try {
-    if (c?.lineas?.length) localStorage.setItem(clave(ctx), JSON.stringify({ c, en: Date.now() }));
-    else localStorage.removeItem(clave(ctx));
+    const d = JSON.parse(original);
+    return d?.c?.lineas?.length && Date.now() - d.en < VIGENCIA ? d : null;
+  } catch { return null; }
+}
+
+function coincide(ctx, guardado) {
+  try {
+    return guardado && ctx.sesion && guardado.clave === clave(ctx) &&
+      localStorage.getItem(guardado.clave) === guardado.original;
+  } catch { return false; }
+}
+
+function descartar(ctx, guardado) {
+  try {
+    if (coincide(ctx, guardado)) localStorage.removeItem(guardado.clave);
+  } catch { /* sin almacenamiento */ }
+}
+
+export function guardarVentaEnCurso(ctx) {
+  const c = ctx.carrito;
+  if (!ctx.sesion || !c) return;
+  const previo = resguardos.get(c);
+  if (!c.lineas?.length) {
+    descartar(ctx, previo);
+    resguardos.delete(c);
+    return;
+  }
+  try {
+    const k = clave(ctx);
+    const original = localStorage.getItem(k);
+    const otro = vigente(original);
+    const propio = previo?.clave === k && previo.original === original;
+    // Un carrito local sin el resguardo actual no reemplaza el de otra pestaña.
+    if (!propio && (otro || previo?.clave === k)) return;
+    const nueva = JSON.stringify({ c, en: Math.max(Date.now(), (otro?.en || 0) + 1) });
+    localStorage.setItem(k, nueva);
+    resguardos.set(c, { clave: k, original: nueva });
   } catch { /* sin almacenamiento */ }
 }
 
 function leer(ctx) {
   try {
-    const d = JSON.parse(localStorage.getItem(clave(ctx)) || 'null');
-    return d?.c?.lineas?.length && Date.now() - d.en < VIGENCIA ? d : null;
+    const k = clave(ctx);
+    const original = localStorage.getItem(k);
+    const d = vigente(original);
+    return d && { clave: k, original, c: d.c };
   } catch { return null; }
 }
 
 export function vigilarVentaEnCurso(ctx) {
-  window.addEventListener('pos:carrito', () => guardar(ctx));
-  // Una recarga puede ocurrir antes de que el usuario retome un borrador.
-  // Al salir se guarda un carrito activo. Vaciarlo sigue siendo un cambio explícito.
-  const guardarAlSalir = () => { if (ctx.carrito?.lineas?.length) guardar(ctx); };
+  window.addEventListener('pos:carrito', () => guardarVentaEnCurso(ctx));
+  window.addEventListener('pos:carrito-vaciado', e => {
+    descartar(ctx, resguardos.get(e.detail));
+    resguardos.delete(e.detail);
+  });
+  const guardarAlSalir = () => { if (ctx.carrito?.lineas?.length) guardarVentaEnCurso(ctx); };
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardarAlSalir(); });
   window.addEventListener('pagehide', guardarAlSalir);
 }
@@ -40,8 +76,9 @@ export async function ofrecerRetomar(ctx) {
   const c = d.c;
   // v2.26 · Si la luz se fue justo al cobrar, la venta (o el apartado) pudo quedar guardada: no se ofrece cobrarla otra vez.
   const ya = (c.ventaId && await ctx.almacen.obtener('ventas', c.ventaId)) ? 'venta' : (c.apartadoId && await ctx.almacen.obtener('apartados', c.apartadoId)) ? 'apartado' : null;
+  if (!coincide(ctx, d) || ctx.carrito?.lineas?.length) return;
   if (ya) {
-    try { localStorage.removeItem(clave(ctx)); } catch { /* */ }
+    descartar(ctx, d);
     const ok = h('button', { class: 'btn primary', id: 'ya-guardada' }, 'Entendido');
     const v = abrirVentana({ titulo: ya === 'venta' ? 'La venta ya se guardó' : 'El apartado ya se guardó', contenido: h('p', { class: 'nota' },
       `${ya === 'venta' ? 'La venta' : 'El apartado'}${c.cliente?.nombre ? ' de ' + c.cliente.nombre : ''} que estaba en curso sí quedó guardado antes del corte. No hay que cobrarlo otra vez.`),
@@ -49,7 +86,6 @@ export async function ofrecerRetomar(ctx) {
     ok.onclick = () => v.cerrar();
     return;
   }
-  if (ctx.carrito?.lineas?.length) return;
   const prendas = c.lineas.reduce((s, l) => s + l.cantidad, 0);
   const nombres = [...new Set(c.lineas.map(l => (ctx.productos?.[l.sku] ? titulo(ctx.productos[l.sku]) : l.sku)))];
   const continuar = h('button', { class: 'btn primary', id: 'retomar-si' }, icono('check'), 'Continuar');
@@ -60,11 +96,14 @@ export async function ofrecerRetomar(ctx) {
       h('div', {}, h('b', {}, c.cliente?.nombre || 'Sin cliente todavía'),
         h('small', {}, `${prendas} ${prendas === 1 ? 'prenda' : 'prendas'} · ${nombres.slice(0, 2).join(', ')}${nombres.length > 2 ? '…' : ''}`)))),
     acciones: h('div', { class: 'acciones' }, cancelar, continuar) });
-  cancelar.onclick = () => { try { localStorage.removeItem(clave(ctx)); } catch { /* */ } v.cerrar(); };
+  cancelar.onclick = () => { descartar(ctx, d); v.cerrar(); };
   continuar.onclick = () => {
+    if (!coincide(ctx, d) || ctx.carrito?.lineas?.length) { v.cerrar(); return; }
     const existe = sku => !ctx.productos || !Object.keys(ctx.productos).length || ctx.productos[sku];
     ctx.carrito = { lineas: c.lineas.filter(l => existe(l.sku)), descuento: c.descuento || null, autorizacion: c.autorizacion || null, ...(c.cliente ? { cliente: c.cliente } : {}),
-      ...(c.ventaId ? { ventaId: c.ventaId, apartadoId: c.apartadoId } : {}), ...(c.pagos?.length ? { pagos: c.pagos } : {}) }; // v2.26: mismos ids y pagos escritos
+      ...(c.ventaId ? { ventaId: c.ventaId } : {}), ...(c.apartadoId ? { apartadoId: c.apartadoId } : {}),
+      ...(c.pagos?.length ? { pagos: c.pagos } : {}) }; // v2.26: mismos ids y pagos escritos
+    resguardos.set(ctx.carrito, d);
     v.cerrar();
     window.dispatchEvent(new CustomEvent('pos:carrito'));
     // v2.13: se va al carrito cuando la ventana termina de cerrarse (antes el «atrás» del cierre deshacía el cambio de pantalla).
