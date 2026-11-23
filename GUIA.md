@@ -6,11 +6,35 @@ Esta guía se sigue **una sola vez**. Toma unos 20 minutos. Mientras no la compl
 
 ## 1. Publicar la app en GitHub Pages
 
-1. Entra a tu repositorio **Punto-de-Venta** en GitHub.
-2. Ve a **Settings → Pages**.
-3. En **Source** elige **Deploy from a branch**, rama **main** y carpeta **/ (root)**. Toca **Save**.
-4. Espera uno o dos minutos. La app queda en:
-   **https://kdnaskrlos.github.io/Punto-de-Venta/**
+Para v2.42, sigue el [procedimiento de preparación, publicación y reversión](docs/PUBLICACION-V2.42.md).
+
+La instalación debe conservar el origen y la ruta `/Punto-de-Venta/`. La fuente de Pages debe servir el árbol estático **preparado para publicar**. La raíz de este repositorio es el árbol de desarrollo y contiene módulos nuevos en las URL que todavía usa v2.35. Si Pages publica automáticamente `main`, verifica la fuente de publicación antes de integrar cambios de la PWA.
+
+Desde la raíz del repositorio, con el historial de Git disponible, prepara un directorio nuevo:
+
+```bash
+node scripts/preparar-publicacion.cjs /ruta/al/artefacto-nuevo
+```
+
+Para una publicación posterior, pasa el último artefacto como segundo argumento. Así se incluyen las rutas versionadas que siguen usando otras instalaciones:
+
+```bash
+node scripts/preparar-publicacion.cjs /ruta/al/artefacto-nuevo /ruta/al/artefacto-anterior
+```
+
+El comando conserva las rutas que necesita v2.35 y emite el prefijo, la caché y la huella de la nueva publicación. El POS sigue abriendo en **https://kdnaskrlos.github.io/Punto-de-Venta/** con el mismo alcance de instalación.
+
+### Transición desde v2.35
+
+1. Sirve primero el directorio `versiones/` y el grafo compatible de las rutas históricas. Mantén los `index.html` y `sw.js` activos durante esta preparación. Verifica por HTTPS el contenido que servirá Pages.
+2. Promueve juntos el `index.html` y el `sw.js` del artefacto verificado. Comprueba la instalación y la recuperación en terminales piloto. Conserva las rutas históricas y las publicaciones anteriores.
+3. Si v2.35 muestra **¿Continuar venta?**, pulsa **Continuar** en esa misma pestaña y comprueba las prendas y los pagos en el carrito. Si hay trabajo distinto en varias pestañas de una misma cuenta, termina esas operaciones antes de actualizar. v2.35 comparte un solo borrador por cuenta.
+4. Si las pestañas todavía ejecutan el módulo original de v2.35, cierra primero las que estén vacías y deja abierta la que muestra el carrito retomado. Al cerrarse, una pestaña antigua vacía puede borrar la copia compartida. La pestaña que aún tiene el carrito abierto en v2.35 vuelve a guardar su contenido cuando se cierra al final. Con la actualización descargada, cierra esa última pestaña, abre el POS y comprueba que el borrador se puede retomar.
+5. Si la descarga se rechaza, conserva el worker activo y repón los recursos completos. Si el problema aparece después de activar, prepara el último código estable con las rutas de ambas publicaciones y un worker de transición. Conserva el origen, el alcance, las cachés y los datos locales. El worker original de v2.35 elimina otras cachés al activarse y queda fuera del procedimiento de reversión.
+
+Un worker en espera no puede leer el almacenamiento local de las pestañas antiguas ni cambiar su código en ejecución. Si no puedes confirmar qué código cargaron las pestañas, termina las operaciones abiertas antes de cerrarlas. Una pestaña vacía que ya cargó el módulo compatible deja intacto el borrador compartido al cerrarse.
+
+En cada promoción o reversión, usa la configuración pública y las fotos vigentes. La subida de fotos del POS escribe en la rama predeterminada de GitHub. Si Pages pasa a servir un artefacto generado, su proceso de publicación debe incorporar los cambios de `fotos/` de esa rama.
 
 ## 2. Crear el proyecto de Firebase
 
@@ -48,7 +72,7 @@ export const firebaseConfig = {
 };
 ```
 
-3. Toca **Commit changes**. Estos datos son públicos por diseño: lo que protege la información son las reglas del paso 4.
+3. Guarda la configuración pública en el árbol fuente y vuelve a preparar el artefacto antes de publicarlo. Estos datos son públicos por diseño. Las reglas del paso 4 protegen la información.
 
 ## 6. Primer ingreso: tú como administrador
 

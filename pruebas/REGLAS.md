@@ -1,6 +1,6 @@
-# Comprobación de las reglas de seguridad (proyecto real)
+# Comprobación de las reglas de seguridad
 
-Las reglas (`firestore.rules`) no se pudieron probar con el emulador de Firebase en el entorno de construcción. Esta lista se ejecuta **una vez**, con el proyecto real ya configurado (GUIA.md, pasos 1–6), antes de usar el punto de venta en la tienda.
+Esta lista queda pendiente de ejecutar con Authentication y Firestore de Firebase Emulator Suite, usando el proyecto ficticio `demo-pos`, las reglas de este repositorio y datos sintéticos. Antes de aplicar los pasos, comprueba que la aplicación está conectada a ambos emuladores locales. [Entorno de pruebas pendiente](../docs/memoria/PENDIENTES.md#verificación-de-firebase)
 
 **Cómo:** abre la app en Chrome en la PC, entra con el usuario indicado, abre la consola (F12 → Consola) y pega el bloque. Cada línea debe mostrar el resultado esperado.
 
@@ -57,7 +57,6 @@ const prueba = async (nombre, fn, esperado) => { try { await fn(); console.log(e
 - [ ] Vendedora: `arquearCaja(id, …)` sobre su caja por arquear → permitido; repetirlo → rechazado (ya no está por arquear).
 - [ ] Vendedora: `arquearCaja` sobre la caja de otra persona → rechazado.
 
-## Modo prueba (v1.32)
-- [ ] Admin: "Modo prueba" crea productos, costos, clientes, ventas y apartados con demo:true.
-- [ ] Admin: "Quitar ejemplos" borra solo lo que tiene demo:true (y costosVenta "demo-…"); una venta real no se puede borrar.
-- [ ] Encargada o vendedora: no pueden crear ni borrar documentos con demo:true.
+## Ventas
+
+- [ ] Admin: las reglas rechazan el borrado de una venta sintética que represente una venta operativa (sin marca `demo:true`).

@@ -14,7 +14,9 @@ export const ETIQUETAS = {
   'usuario.creado': 'Usuario creado', 'usuario.pin': 'PIN cambiado', 'usuario.comision': 'Comisión del usuario', 'usuario.perfil': 'Perfil editado',
   'usuario.eliminado': 'Usuario eliminado', 'usuario.activado': 'Usuario activado', 'usuario.desactivado': 'Usuario desactivado',
   'conflicto.registrado': 'Conflicto', 'conflicto.revisado': 'Conflicto revisado',
-  'sesion.entrada': 'Inició sesión', 'sesion.salida': 'Cerró sesión', 'modo_prueba.cargado': 'Modo prueba', 'modo_prueba.quitado': 'Modo prueba quitado',
+  'sesion.entrada': 'Inició sesión', 'sesion.salida': 'Cerró sesión',
+  // Etiquetas para eventos guardados por versiones anteriores.
+  'modo_prueba.cargado': 'Modo prueba', 'modo_prueba.quitado': 'Modo prueba quitado',
 };
 
 // Nombres legibles de los campos de Ajustes (lo que no esté aquí se muestra tal cual).
@@ -83,8 +85,6 @@ export function describir(metodo, args, x = {}) {
     case 'revisarConflicto': return { tipo: 'conflicto.revisado', ref: { col: 'conflictos', id: a0 }, resumen: '', motivo: a1 || '' };
     case 'entrar': return { tipo: 'sesion.entrada', ref: null, resumen: '' };
     case 'salir': return { tipo: 'sesion.salida', ref: null, resumen: '' };
-    case 'cargarEjemplos': return { tipo: 'modo_prueba.cargado', ref: null, resumen: '' };
-    case 'quitarEjemplos': return { tipo: 'modo_prueba.quitado', ref: null, resumen: '' };
     default: return null;
   }
 }

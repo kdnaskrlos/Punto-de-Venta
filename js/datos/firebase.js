@@ -2,7 +2,7 @@
 // Cumple el contrato de contrato.js. Las reglas de firestore.rules repiten estos permisos en el servidor.
 import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocFromServer, getDocs, waitForPendingWrites, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion, documentId } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocFromServer, getDocs, waitForPendingWrites, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { puede } from '../nucleo/permisos.js';
 import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
@@ -412,7 +412,9 @@ export function crearFirebase(config) {
       if (!caja) return fallo('sin-caja');
       const neto = {};
       for (const p of v.pagos || []) neto[p.forma] = (neto[p.forma] || 0) + p.monto;
-      if (v.vuelto?.monto) neto[v.vuelto.forma] = (neto[v.vuelto.forma] || 0) - v.vuelto.monto;
+      if (v.vuelto?.partes) {
+        for (const p of v.vuelto.partes) neto[p.forma] = (neto[p.forma] || 0) - p.monto;
+      } else if (v.vuelto?.monto) neto[v.vuelto.forma] = (neto[v.vuelto.forma] || 0) - v.vuelto.monto;
       const movs = Object.entries(neto).map(([forma, m]) => [forma, Math.round(m * 100) / 100]).filter(([, m]) => m)
         .map(([forma, m]) => ({ tipo: m > 0 ? 'salida' : 'entrada', forma, monto: Math.abs(m), motivo: `anulación ${v.numero || ''}`.trim(), usuario: sesion.usuario, fecha: ahora() }));
       const b = writeBatch(db);
@@ -647,10 +649,9 @@ export function crearFirebase(config) {
       const r = await sinEsperar(b.commit());
       return r.ok ? SI({ telefono: tel }) : r;
     },
-    async solicitarAutorizacion(a) {
+    async solicitarAutorizacion(a, id = nuevoId()) {
       if (!sesion) return NO('sesion');
       if (!navigator.onLine) return NO('red');
-      const id = nuevoId();
       const r = await conEvento(b => b.set(ref('autorizaciones', id), { ...a, id, uid: sesion.uid, usuario: sesion.usuario, solicita: sesion.usuario, estado: 'pendiente', fecha: ahora() }), 'solicitarAutorizacion', [a], { id });
       return r.ok ? SI({ id }) : r;
     },
@@ -665,32 +666,9 @@ export function crearFirebase(config) {
       const r = await conEvento(b => b.set(ref('comisiones', id), { ...reg, id, por: sesion.usuario, fecha: ahora() }), 'pagarComisiones', [reg], { id });
       return r.ok ? SI({ id }) : r;
     },
-    // Modo prueba: ejemplos con demo:true, en lotes de 400 escrituras.
-    async cargarEjemplos(lote) {
-      const e = exigir('ajustes'); if (e) return NO(e);
-      const CLAVE = { productos: 'sku', costos: 'sku', clientes: 'telefono', ventas: 'id', apartados: 'id', usuarios: 'uid', cajas: 'id', comisiones: 'id' };
-      const ops = Object.entries(CLAVE).flatMap(([n, k]) => (lote[n] || []).map(d => [ref(n, String(d[k])), { ...d, demo: true }]));
-      // v2.33: primero se quitan los ejemplos que hubiera (de una carga anterior o a medias): las reglas no dejan
-      // reescribir ventas, apartados ni pagos de comisión ya creados, y eso hacía fallar toda la carga.
-      const previo = await api.quitarEjemplos();
-      if (!previo.ok) return NO('permiso');
-      try {
-        for (let i = 0; i < ops.length; i += 400) { const b = writeBatch(db); ops.slice(i, i + 400).forEach(([r, d]) => b.set(r, d)); await b.commit(); }
-        conEvento(() => {}, 'cargarEjemplos', []);
-        return SI();
-      } catch (err) { console.warn('ejemplos', err); return NO(err.code === 'permission-denied' ? 'permiso' : 'red'); }
-    },
-    async quitarEjemplos() {
-      const e = exigir('ajustes'); if (e) return NO(e);
-      try {
-        const refs = [];
-        for (const n of ['productos', 'costos', 'clientes', 'ventas', 'apartados', 'usuarios', 'cajas', 'comisiones']) (await getDocs(query(collection(db, n), where('demo', '==', true)))).forEach(d => refs.push(d.ref));
-        (await getDocs(query(collection(db, 'costosVenta'), where(documentId(), '>=', 'demo-'), where(documentId(), '<', 'demo.')))).forEach(d => refs.push(d.ref));
-        for (let i = 0; i < refs.length; i += 400) { const b = writeBatch(db); refs.slice(i, i + 400).forEach(r => b.delete(r)); await b.commit(); }
-        conEvento(() => {}, 'quitarEjemplos', []);
-        return SI({ quitados: refs.length });
-      } catch { return NO('red'); }
-    },
+    // Una vista de v2.35 en caché aún puede llamar a estas operaciones retiradas.
+    async cargarEjemplos() { return NO('retirado'); },
+    async quitarEjemplos() { return NO('retirado'); },
     async congelarCostoVenta(ventaId, costo) {
       const e = exigir('verCostos'); if (e) return NO(e);
       if (await api.obtener('costosVenta', ventaId)) return SI();

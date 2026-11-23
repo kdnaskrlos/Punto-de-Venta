@@ -63,3 +63,12 @@ test('enlace de WhatsApp al teléfono del cliente con el texto', () => {
   const url = enlaceWhatsApp(V2, { nombre: 'Comic Shop' }, { plantilla: 'Hola {cliente}' });
   assert.equal(url, 'https://wa.me/584121234567?text=' + encodeURIComponent('Hola Ana Pérez'));
 });
+
+test('bloque 3 · recibo informa las dos monedas y el ajuste de redondeo', () => {
+  const venta = { ...V2, vuelto: { partes: [
+    { moneda: 'USD', monto: 9, forma: 'efectivo-usd' },
+    { moneda: 'COP', monto: 2900, forma: 'efectivo-cop' },
+  ], remanenteCop: 25 } };
+  const texto = textoRecibo(venta, { nombre: 'Comic Shop' }, { plantilla: '{vuelto}' });
+  assert.equal(texto, 'Vuelto: 9,00 USD + 2.900 COP\nAjuste de redondeo: 25 COP');
+});

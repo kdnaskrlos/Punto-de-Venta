@@ -341,30 +341,32 @@ casos('gestion', [
     await p.evaluate(() => { location.hash = '/mas'; }); await p.evaluate(() => { location.hash = '/ajustes'; });
     a.strictEqual(await p.getAttribute('#aj-bs-modo [data-modo="bcv"]', 'aria-pressed'), 'true');
   }],
-  ['Modo prueba (admin, en Más arriba de la versión): llena la app con ejemplos y se quitan sin tocar lo real', async (env, a) => {
-    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/mas' });
-    const orden = await p.$eval('#modo-prueba', b => b.getBoundingClientRect().top < document.querySelector('.ver-pie').getBoundingClientRect().top);
-    a.ok(orden, 'arriba de la versión');
-    const antes = await p.evaluate(() => window.__pos.ctx.almacen._estado('ventas').size);
-    await p.click('#modo-prueba');
-    await p.waitForSelector('#modo-prueba.on');
-    a.ok(await p.evaluate(() => [...window.__pos.ctx.almacen._estado('ventas').values()].filter(v => v.demo).length >= 30));
-    await p.evaluate(() => { location.hash = '/apartados'; });
-    await p.waitForSelector('.apartado');
-    a.ok(await p.$('.apartado.viejo .ap-hace.viejo'), 'un apartado con más de 15 días');
-    await p.evaluate(() => { location.hash = '/mas'; });
-    await p.click('#modo-prueba'); await p.click('#quitar-ejemplos');
-    await p.waitForSelector('#modo-prueba:not(.on)');
-    a.strictEqual(await p.evaluate(() => window.__pos.ctx.almacen._estado('ventas').size), antes);
+  ['En móvil, Más conserva Modo demo sobre la versión y no ofrece controles de ejemplos', async (env, a) => {
+    const p = await env.pagina({ movil: true, ruta: '/mas' });
+    const orden = await p.$eval('#modo-demo', b => b.getBoundingClientRect().top < document.querySelector('.ver-pie').getBoundingClientRect().top);
+    a.ok(orden, 'Modo demo arriba de la versión');
+    a.strictEqual(await p.$('#modo-prueba, #quitar-ejemplos'), null);
+    await p.evaluate(() => { location.hash = '/ajustes'; });
+    await p.waitForSelector('#aj-guardar', { state: 'attached' });
+    a.strictEqual(await p.$('#modo-prueba, #quitar-ejemplos, #modo-demo'), null);
   }],
-  ['Modo prueba: solo el administrador lo ve', async (env, a) => {
-    const p = await env.pagina({ ancho: 360, alto: 780, usuario: 'encargada', ruta: '/mas' });
-    await p.waitForSelector('.lista-mas');
-    a.strictEqual(await p.$('#modo-prueba'), null);
+  ['En computadora, Ajustes conserva Modo demo y las llamadas antiguas se rechazan', async (env, a) => {
+    const p = await env.pagina({ ruta: '/ajustes' });
+    a.ok(await p.$('#modo-demo'));
+    a.strictEqual(await p.$('#modo-prueba, #quitar-ejemplos'), null);
+    const retiro = await p.evaluate(async () => {
+      const almacen = window.__pos.ctx.almacen;
+      const antes = localStorage.getItem('pos-demo-datos');
+      const resultados = [await almacen.cargarEjemplos({ productos: [{ sku: 'sintetico', demo: true }] }),
+        await almacen.quitarEjemplos()];
+      return { resultados, sinCambios: localStorage.getItem('pos-demo-datos') === antes };
+    });
+    a.deepStrictEqual(retiro, {
+      resultados: [{ ok: false, error: 'retirado' }, { ok: false, error: 'retirado' }], sinCambios: true,
+    });
   }],
-  ['Modo demo (teléfono): junto a Modo prueba; ver como vendedora quita lo de gestión y «Salir» vuelve', async (env, a) => {
-    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/mas' });
-    a.ok(await p.$('.modo-prueba #modo-prueba + #modo-demo'), 'al lado de Modo prueba');
+  ['Modo demo (teléfono): ver como vendedora quita lo de gestión y «Salir» vuelve', async (env, a) => {
+    const p = await env.pagina({ ancho: 360, alto: 780, query: '?demo&entrar', ruta: '/mas' });
     await p.click('#modo-demo');
     await p.click('.demo-roles [data-rol="vendedora"]');
     await p.waitForSelector('#aviso-demo:not([hidden])');
@@ -377,7 +379,7 @@ casos('gestion', [
     await p.waitForFunction(() => location.hash === '#/inicio' && document.querySelector('.vista')?.dataset.ruta === '/inicio');
     await p.evaluate(() => { location.hash = '/mas'; });
     await p.waitForSelector('.lista-mas');
-    a.strictEqual(await p.$('#modo-prueba'), null, 'como vendedora no ve las pastillas');
+    a.strictEqual(await p.$('#modo-demo'), null, 'como vendedora no ve el acceso a Modo demo');
     a.ok(!(await p.textContent('.lista-mas')).includes('Ajustes'), 'ni Ajustes');
     await p.evaluate(() => { location.hash = '/ajustes'; });
     await p.waitForFunction(() => location.hash === '#/inicio');

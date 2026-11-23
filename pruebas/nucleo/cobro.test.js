@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { estadoCobro, montoSugerido, vueltoEn } from '../../js/nucleo/cobro.js';
+import { estadoCobro, montoSugerido, vueltoEn, vueltoMixto, elegirMonedaVuelto } from '../../js/nucleo/cobro.js';
 
 const t = { copPorUsd: 3900, bsPorUsd: 1075 };
 
@@ -31,8 +31,8 @@ test('vuelto en la moneda elegida', () => {
   assert.equal(vueltoEn(39000, 'USD', t, 100), 10);
 });
 
-test('falta menor que la mitad del redondeo cuenta como pagado', () => {
-  assert.equal(estadoCobro({ total: 116000, pagos: [{ forma: 'efectivo-cop', moneda: 'COP', monto: 115960 }], tasas: t, redondeo: 100 }).cuadra, true);
+test('no se puede completar una venta con dinero faltante por el redondeo', () => {
+  assert.equal(estadoCobro({ total: 116000, pagos: [{ forma: 'efectivo-cop', moneda: 'COP', monto: 115960 }], tasas: t, redondeo: 100 }).cuadra, false);
   assert.equal(estadoCobro({ total: 116000, pagos: [{ forma: 'efectivo-cop', moneda: 'COP', monto: 115900 }], tasas: t, redondeo: 100 }).cuadra, false);
 });
 
@@ -53,4 +53,52 @@ test('v2.06 · vuelto en dólares con su propio redondeo', () => {
   assert.equal(vueltoEn(9000, 'USD', t, 100), 2.25);
   assert.equal(vueltoEn(9000, 'USD', t, 100, 1), 2);
   assert.equal(vueltoEn(10800, 'USD', t, 100, 0.5), 2.5);
+});
+
+test('bloque 3 · vuelto mixto USD entero y COP redondeado hacia abajo', () => {
+  assert.deepEqual(vueltoMixto(38025, t), {
+    usd: 9, cop: 2900, remanenteCop: 25, equivalenteCop: 38000,
+  });
+  assert.deepEqual(vueltoMixto(38025, t, { todoEnPesos: true }), {
+    usd: 0, cop: 38000, remanenteCop: 25, equivalenteCop: 38000,
+  });
+  assert.deepEqual(vueltoMixto(38025, t, { billeteMinimoUsd: 5 }), {
+    usd: 5, cop: 18500, remanenteCop: 25, equivalenteCop: 38000,
+  });
+  assert.equal(vueltoMixto(38025, { copPorUsd: null }), null);
+  assert.equal(vueltoMixto(38025, t, { billeteMinimoUsd: 0.01 }), null);
+  assert.equal(vueltoMixto(-1, t), null);
+});
+
+test('bloque 3 · no redondear centavos de pagos electrónicos', () => {
+  const e = estadoCobro({ total: 38025, pagos: [{ forma: 'zelle', moneda: 'USD', monto: 9.75 }], tasas: t });
+  assert.equal(e.cuadra, true);
+  assert.equal(e.vueltoCop, 0);
+  assert.equal(e.pagos[0].equivalenteCop, 38025);
+});
+
+
+const pago = (moneda, efectivo, monto = 1) => ({ forma: { moneda, efectivo }, monto });
+const opcionesVuelto = ['MIXTO', 'COP', 'USD'];
+
+test('la selección automática solo prefiere el mixto si se recibió efectivo USD', () => {
+  const cop = pago('COP', true), usd = pago('USD', true), electronico = pago('USD', false);
+  assert.equal(elegirMonedaVuelto([cop], opcionesVuelto), 'COP');
+  assert.equal(elegirMonedaVuelto([usd], opcionesVuelto), 'MIXTO');
+  assert.equal(elegirMonedaVuelto([cop, usd], opcionesVuelto), 'MIXTO');
+  assert.equal(elegirMonedaVuelto([pago('COP', false), electronico, pago('BS', false)], opcionesVuelto), 'COP');
+  assert.equal(elegirMonedaVuelto([cop, pago('USD', true, 0)], opcionesVuelto), 'COP');
+});
+
+test('la elección manual se respeta mientras siga disponible aunque cambien los pagos', () => {
+  assert.equal(elegirMonedaVuelto([pago('USD', true, 40)], opcionesVuelto, 'COP'), 'COP');
+  assert.equal(elegirMonedaVuelto([pago('COP', true, 50000)], opcionesVuelto, 'USD'), 'USD');
+  assert.equal(elegirMonedaVuelto([], opcionesVuelto, 'USD'), 'USD');
+});
+
+test('si falta el modo preferido, solo se elige una opción calculable', () => {
+  const pagos = [pago('USD', true)];
+  assert.equal(elegirMonedaVuelto(pagos, ['COP'], 'USD'), 'COP');
+  assert.equal(elegirMonedaVuelto(pagos, ['USD']), 'USD');
+  assert.equal(elegirMonedaVuelto(pagos, [], 'COP'), null);
 });

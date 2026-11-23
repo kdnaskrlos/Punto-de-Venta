@@ -333,4 +333,28 @@ casos('cobrar', [
     a.strictEqual(d['B-S'] + d['J-M'], 10000);
     a.deepStrictEqual(v.lineas.filter(l => l.sku.startsWith('Y')).map(l => l.reducida), [false, false]);
   }],
+  ['bloque 3 · vuelto mixto se ve, registra y descuenta ambas monedas', async (env, a) => {
+    const p = await preparar(env);
+    await p.click('[data-cobro] .cobrar');
+    await p.click('.forma[data-forma="efectivo-usd"]');
+    await p.fill('.pago[data-forma="efectivo-usd"] input', '40');
+    await p.waitForSelector('.barra-falta.vuelto');
+    a.ok(await p.$('.vuelto-moneda [data-moneda="MIXTO"]'), 'opción mixta visible');
+    a.match(await texto(p, '.barra-falta'), /10,00 USD \+ 1.000 COP/, '40 USD para una compra de 116.000 COP devuelve 10 USD + 1.000 COP');
+    await p.click('#cobrar-final');
+    await p.waitForSelector('text=Venta exitosa');
+    const [v] = await ventas(p);
+    a.deepStrictEqual(v.vuelto.partes.map(x => [x.moneda, x.monto]), [['USD', 10], ['COP', 1000]]);
+    const caja = await p.evaluate(() => [...window.__pos.ctx.almacen._estado('cajas').values()][0]);
+    a.ok(caja, 'la caja sigue registrada');
+  }],
+  ['bloque 3 · no se completa un pago inferior al total por solo 40 COP', async (env, a) => {
+    const p = await preparar(env);
+    await p.click('[data-cobro] .cobrar');
+    await p.click('.forma[data-forma="efectivo-cop"]');
+    await p.fill('.pago[data-forma="efectivo-cop"] input', '115960');
+    a.strictEqual(await p.$eval('#cobrar-final', b => b.disabled), true);
+    a.match(await texto(p, '.barra-falta'), /Faltan 40/);
+  }],
+
 ]);
