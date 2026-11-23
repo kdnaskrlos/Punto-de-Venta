@@ -3,6 +3,7 @@ import { titulo } from '../nucleo/producto.js';
 // Si la app se cierra o se sale sin querer, al volver pregunta "¿Continuar venta?" (igual que Pedidos).
 import { h, icono, abrirVentana, despuesDeCerrar } from '../ui.js';
 import { navegar } from '../app.js';
+import { LOCAL_PENDIENTE, RECHAZADA_CONFLICTO } from '../datos/pendientes.js';
 
 const VIGENCIA = 24 * 60 * 60 * 1000;
 const clave = ctx => 'pos-venta-' + (ctx.sesion?.usuario || '');
@@ -90,6 +91,16 @@ export async function ofrecerRetomar(ctx) {
   const d = leer(ctx);
   if (!d || ctx.carrito?.lineas?.length) return;
   const c = d.c;
+  const estado = await ctx.almacen.estadoCobro?.('venta', c.ventaId) || await ctx.almacen.estadoCobro?.('apartado', c.apartadoId);
+  if (!coincide(ctx, d) || ctx.carrito?.lineas?.length) return;
+  if (estado === LOCAL_PENDIENTE || estado === RECHAZADA_CONFLICTO) {
+    const ok = h('button', { class: 'btn primary', id: 'ya-guardada' }, 'Entendido');
+    const v = abrirVentana({ titulo: estado === LOCAL_PENDIENTE ? 'Cobro pendiente de sincronización' : 'Cobro en conflicto',
+      contenido: h('p', { class: 'nota' }, 'Conserva el comprobante y comprueba el estado del cobro antes de repetirlo.'),
+      acciones: h('div', { class: 'acciones' }, ok) });
+    ok.onclick = () => { descartar(ctx, d); v.cerrar(); };
+    return;
+  }
   // v2.26 · Si la luz se fue justo al cobrar, la venta (o el apartado) pudo quedar guardada: no se ofrece cobrarla otra vez.
   const ya = (c.ventaId && await ctx.almacen.obtener('ventas', c.ventaId)) ? 'venta' : (c.apartadoId && await ctx.almacen.obtener('apartados', c.apartadoId)) ? 'apartado' : null;
   if (!coincide(ctx, d) || ctx.carrito?.lineas?.length) return;

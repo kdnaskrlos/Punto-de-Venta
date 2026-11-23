@@ -1,5 +1,5 @@
 // Apartados (§10): apartar desde el carrito, abonar, completar y cancelar.
-import { anotarPendiente } from '../datos/pendientes.js';
+import { anotarPendiente, LOCAL_PENDIENTE, RECHAZADA_CONFLICTO } from '../datos/pendientes.js';
 import { abrirHojaStock } from './inventario.js';
 import { h, icono, abrirVentana, toast, pedirMotivo, despuesDeCerrar, largo, campoBusqueda } from '../ui.js';
 import { coincide } from '../nucleo/busqueda.js';
@@ -61,11 +61,11 @@ export async function crearApartado(ctx, { id, r0, pagos, cerrar }) {
     total: r.total, abonos: pagos, tasas: tasasDe(ctx),
   };
   const res = await conCaja(ctx, () => ctx.almacen.guardarApartado(ap));
-  if (!res.ok) { toast(res.faltantes ? 'Ya no hay existencia de alguna prenda' : res.error === 'sin-caja' ? 'Abre tu caja para apartar' : 'No se pudo apartar', { malo: true }); return false; }
-  if (res.offline) anotarPendiente(ctx, { que: 'apartado', id, offline: true, datos: ap }); // v2.26
+  if (!res.ok) { toast(res.estadoSync === RECHAZADA_CONFLICTO ? 'Apartado en conflicto. Avisa a gestión.' : res.faltantes ? 'Ya no hay existencia de alguna prenda' : res.error === 'sin-caja' ? 'Abre tu caja para apartar' : 'No se pudo apartar', { malo: true }); return false; }
+  if (res.offline && !res.estadoSync) anotarPendiente(ctx, { que: 'apartado', id, offline: true, datos: ap }); // v2.26
   ctx.almacen.guardarCliente(ap.cliente);
   vaciarCarrito(ctx); window.dispatchEvent(new CustomEvent('pos:carrito'));
-  cerrar(); toast('Apartado creado');
+  cerrar(); toast(res.estadoSync === LOCAL_PENDIENTE ? 'Apartado pendiente de sincronización' : 'Apartado creado');
   return true;
 }
 
@@ -84,6 +84,7 @@ function abrirPago(ctx, ap, modo) {
   v.alCerrar = panel.quitar;
   actualizar();
   const idVenta = ctx.almacen.nuevoId();
+  let pendiente = false, pagosEnCurso;
   final.addEventListener('click', async () => {
     if (guardando) return;
     guardando = true; actualizar();
@@ -95,25 +96,37 @@ function abrirPago(ctx, ap, modo) {
         total: ap.total, abonosPrevios: ap.total - ap.saldo, pagos, vuelto, tasas: tasasDe(ctx),
       };
       res = await conCaja(ctx, () => ctx.almacen.completarApartado(ap.id, venta));
-      if (res.ok && res.offline) anotarPendiente(ctx, { que: 'completar', id: idVenta, apartadoId: ap.id, offline: true, datos: venta }); // v2.26
+      if (res.ok && res.offline && !res.estadoSync) anotarPendiente(ctx, { que: 'completar', id: idVenta, apartadoId: ap.id, offline: true, datos: venta }); // v2.26
     } else {
       // Cada abono lleva un id fijo: si algo falla y se reintenta, los ya guardados no se repiten.
       const actual = await ctx.almacen.obtener('apartados', ap.id) || ap;
-      const suma = pagos.reduce((s, p) => s + (p.equivalenteCop || 0), 0);
+      const fecha = new Date().toISOString();
+      const intento = pagosEnCurso || pagos.map((p, i) => ({ ...p, id: `${idVenta}-${i}`, fecha }));
+      const nuevos = intento.filter(p => !(actual.abonos || []).some(a => a.id === p.id));
+      const suma = nuevos.reduce((s, p) => s + (p.equivalenteCop || 0), 0);
       if (suma > actual.saldo + 50) res = { ok: false, error: 'excede' };
       else {
         res = { ok: true };
-        for (const [i, p] of pagos.entries()) {
-          const abono = { ...p, id: `${idVenta}-${i}` };
+        for (const abono of nuevos) {
           const r = await conCaja(ctx, () => ctx.almacen.abonarApartado(ap.id, abono));
           if (!r.ok) { res = r; break; }
-          if (r.offline) anotarPendiente(ctx, { que: 'abono', id: abono.id, apartadoId: ap.id, offline: true, datos: { ...abono, fecha: new Date().toISOString(), cliente: ap.cliente } }); // v2.26
+          pagosEnCurso ||= intento;
+          pendiente ||= r.estadoSync === LOCAL_PENDIENTE;
+          if (r.offline && !r.estadoSync) anotarPendiente(ctx, { que: 'abono', id: abono.id, apartadoId: ap.id, offline: true, datos: { ...abono, fecha: new Date().toISOString(), cliente: ap.cliente } }); // v2.26
         }
       }
     }
     guardando = false;
-    if (!res.ok) { toast(res.error === 'sin-caja' ? 'Abre tu caja primero' : res.error === 'excede' ? 'El abono es mayor que el saldo actual' : 'No se pudo guardar', { malo: true }); actualizar(); return; }
-    v.cerrar(); toast(completar ? 'Venta guardada' : 'Abono guardado');
+    if (!res.ok) {
+      toast(res.estadoSync === RECHAZADA_CONFLICTO ? 'Cobro en conflicto. Avisa a gestión antes de volver a cobrar.'
+        : res.error === 'sin-caja' ? 'Abre tu caja primero'
+        : res.error === 'excede' || res.error === 'saldo-cambio' ? 'El saldo cambió. Abre el apartado de nuevo.'
+        : 'No se pudo guardar', { malo: true });
+      actualizar();
+      return;
+    }
+    pendiente ||= res.estadoSync === LOCAL_PENDIENTE;
+    v.cerrar(); toast(pendiente ? 'Cobro pendiente de sincronización' : completar ? 'Venta guardada' : 'Abono guardado');
   });
 }
 

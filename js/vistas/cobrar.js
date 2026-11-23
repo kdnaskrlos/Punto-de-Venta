@@ -8,7 +8,7 @@ import { crearApartado } from './apartados.js';
 import { crearPanelPagos } from './pagos.js';
 import { verificarResguardoDescuento } from './autorizacion-descuento.js';
 import { guardarVentaEnCurso } from './venta-en-curso.js';
-import { anotarPendiente } from '../datos/pendientes.js';
+import { anotarPendiente, LOCAL_PENDIENTE, RECHAZADA_CONFLICTO } from '../datos/pendientes.js';
 import { comisionesVenta } from '../nucleo/comisiones.js';
 import { repartirDescuento } from '../nucleo/descuento.js';
 import { enlaceWhatsApp } from '../nucleo/recibo.js';
@@ -155,18 +155,21 @@ export function abrirCobrar(ctx) {
       const res = await conCaja(ctx, () => ctx.almacen.guardarVenta(venta));
       if (!res.ok) {
         if (res.faltantes) toast(`Ya no hay existencia de ${res.faltantes.map(s => nombreLinea(ctx, s)).join(', ')}`, { malo: true });
+        else if (res.estadoSync === RECHAZADA_CONFLICTO) toast('Cobro en conflicto. Conserva el comprobante y avisa a gestión.', { malo: true });
+        else if (res.error === 'sin-almacenamiento') toast('No se pudo conservar el comprobante en este aparato', { malo: true });
         else if (res.error === 'sin-caja') toast('Abre tu caja para vender', { malo: true });
         else toast('No se pudo guardar la venta', { malo: true });
         return;
       }
       hecha = true;
-      if (res.offline) anotarPendiente(ctx, { que: 'venta', id: idVenta, offline: true, datos: venta }); // v2.26: se revisa al reconectar
+      if (res.offline && !res.estadoSync) anotarPendiente(ctx, { que: 'venta', id: idVenta, offline: true, datos: venta }); // v2.26: se revisa al reconectar
       ctx.almacen.guardarCliente(venta.cliente);
-      const guardada = await ctx.almacen.obtener('ventas', idVenta) || venta;
+      const pendiente = res.estadoSync === LOCAL_PENDIENTE;
+      const guardada = pendiente ? venta : await ctx.almacen.obtener('ventas', idVenta) || venta;
       const enlace = enlaceWhatsApp(guardada, ctx.ajustes.tienda || { nombre: 'Comic Shop' }, ctx.ajustes.recibo);
       vaciarCarrito(ctx);
       window.dispatchEvent(new CustomEvent('pos:carrito'));
-      v.el.querySelector('.cuerpo').replaceChildren(pantallaExito(ctx, venta, { enlace, offline: res.offline, cerrar: () => v.cerrar() }));
+      v.el.querySelector('.cuerpo').replaceChildren(pantallaExito(ctx, venta, { enlace, offline: res.offline, pendiente, cerrar: () => v.cerrar() }));
       v.el.querySelector('.pie')?.remove();
     } finally {
       guardando = false;
@@ -178,7 +181,7 @@ export function abrirCobrar(ctx) {
 // Pantalla final: «Venta exitosa» con un check animado, el total en verde crema, cómo se pagó y el vuelto.
 // Se cierra sola a los 10 s (barra que se vacía); tocar la pantalla detiene la cuenta.
 const SEGUNDOS = 10;
-function pantallaExito(ctx, venta, { enlace, offline, cerrar }) {
+function pantallaExito(ctx, venta, { enlace, offline, pendiente, cerrar }) {
   const cliente = venta.cliente?.nombre;
   const hora = new Date(venta.fecha).toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' }).replace(/\s?([ap])\.?\s?m\.?/i, ' $1m');
   const barra = h('i', {});
@@ -188,7 +191,7 @@ function pantallaExito(ctx, venta, { enlace, offline, cerrar }) {
   const parar = () => { if (!reloj) return; clearInterval(reloj); reloj = null; cuenta.classList.add('parada'); texto.textContent = 'Cierre automático detenido'; barra.getAnimations?.().forEach(a => a.pause()); };
   const el = h('div', { class: 'listo exito', onpointerdown: e => { if (!e.target.closest('.btn')) parar(); } },
     h('div', { class: 'exito-ic' }, h('span', { class: 'exito-onda' }), icono('check')),
-    h('h2', {}, 'Venta exitosa'),
+    h('h2', {}, pendiente ? 'Venta pendiente de sincronización' : 'Venta exitosa'),
     h('p', { class: 'nota exito-sub' }, [cliente, hora].filter(Boolean).join(' · ')),
     h('div', { class: 'exito-total' },
       h('span', { class: 'et' }, 'Total cobrado'),
@@ -201,7 +204,9 @@ function pantallaExito(ctx, venta, { enlace, offline, cerrar }) {
           ? (venta.vuelto.partes.map(p => `${fmtMonto(p.monto, p.moneda)} ${NOMBRE_MONEDA[p.moneda]}`).join(' + ') || '0 COP')
           : `${fmtMonto(venta.vuelto.monto, venta.vuelto.moneda)} ${NOMBRE_MONEDA[venta.vuelto.moneda]}`),
         venta.vuelto.remanenteCop ? h('small', { class: 'nota' }, `Ajuste por redondeo: ${fmtCop(venta.vuelto.remanenteCop)} COP`) : null) : null) : null,
-    offline ? h('p', { class: 'nota' }, 'Guardada en el teléfono. Se subirá al volver la conexión.') : null,
+    offline ? h('p', { class: 'nota' }, pendiente
+      ? 'Cobro registrado en este aparato. Conserva el comprobante hasta que el servidor confirme.'
+      : 'Guardada en el teléfono. Se subirá al volver la conexión.') : null,
     h('div', { class: 'exito-acc' },
       enlace ? h('a', { class: 'btn grande recibo', href: enlace, target: '_blank', rel: 'noopener', onclick: parar }, icono('mensaje'), 'Enviar recibo por WhatsApp') : null,
       h('button', { class: 'btn primary grande', onclick: cerrar }, 'Nueva venta')),
