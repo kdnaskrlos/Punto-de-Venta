@@ -2,6 +2,7 @@ import { nombreVenta, titulo } from '../nucleo/producto.js';
 // Reportes (§15) y comisiones (§14).
 import { h, icono, toast, sin, unaVez, abrirVentana, largo } from '../ui.js';
 import { registrarVista } from '../app.js';
+import { MODO_DEMO } from '../datos/index.js';
 import { resumenDia, masVendidos, inventarioBajo, valorInventario, ventasPorPeriodo, cobrosEnPesos } from '../nucleo/reportes.js';
 import { resumenComisiones, ganaComision } from '../nucleo/comisiones.js';
 import { fmtCop, fmtMonto } from '../nucleo/dinero.js';
@@ -194,6 +195,9 @@ registrarVista('/reportes', {
   },
 });
 
+// Algunas copias locales conservan ventas registradas por el usuario simulado.
+const esVentaDemoHistorica = v => v.usuario === 'demo' && v.uid === 'u-demo';
+
 registrarVista('/comisiones', {
   accion: 'pagarComisiones',
   montar(cont, ctx) {
@@ -204,6 +208,8 @@ registrarVista('/comisiones', {
     const pintar = () => {
       // Solo quienes ganan comisión (lo marca el administrador en Usuarios; por defecto, la vendedora).
       const opciones = usuarios.filter(u => u.activo !== false && ganaComision(u));
+      const demoHistorico = MODO_DEMO && !usuarios.some(u => u.usuario === 'demo') && ventas.some(esVentaDemoHistorica);
+      if (demoHistorico) opciones.push({ usuario: 'demo', nombre: 'Demostración (@demo)' });
       if (!opciones.some(u => u.usuario === vendedor)) vendedor = opciones[0]?.usuario || '';
       sel.replaceChildren(...opciones.map(u => h('button', { type: 'button', 'data-usuario': u.usuario, 'aria-pressed': String(u.usuario === vendedor), onclick: () => { vendedor = u.usuario; pintar(); } }, u.nombre)));
       sel.hidden = opciones.length < 2;
@@ -212,10 +218,11 @@ registrarVista('/comisiones', {
           ctx.puedeVer('ajustes') ? h('p', { class: 'nota' }, 'Márcalo en Más → Usuarios con «Gana comisión».') : null));
         return;
       }
-      const r = resumenComisiones(ventas, { vendedor, desde, hasta }, pagos);
+      const elegibles = demoHistorico && vendedor === 'demo' ? ventas.filter(esVentaDemoHistorica) : ventas;
+      const r = resumenComisiones(elegibles, { vendedor, desde, hasta }, pagos);
       const quien = opciones.find(u => u.usuario === vendedor);
       const pagadoPct = r.total ? Math.round((r.pagado / r.total) * 100) : 0;
-      const propias = ventas.filter(v => v.usuario === vendedor && v.estado !== 'anulada').sort((a, b) => b.fecha.localeCompare(a.fecha));
+      const propias = elegibles.filter(v => v.usuario === vendedor && v.estado !== 'anulada').sort((a, b) => b.fecha.localeCompare(a.fecha));
       res.replaceChildren(
         h('div', { class: 'tarjeta com-hero' },
           h('span', { class: 'et' }, r.pendiente > 0 ? `Por pagar a ${quien?.nombre || vendedor}` : `${quien?.nombre || vendedor} · comisiones`),
