@@ -19,7 +19,8 @@ export function montoSugerido(faltaCop, moneda, tasas) {
 export function vueltoEn(vueltoCop, moneda, tasas, redondeo = 100, redondeoUsd = 0.01) {
   if (moneda === 'COP') return Math.floor(vueltoCop / redondeo) * redondeo;
   const v = desdeCop(vueltoCop, moneda, tasas);
-  return moneda === 'USD' && v != null && redondeoUsd > 0.01 ? redondear(v, redondeoUsd) : v;
+  return moneda === 'USD' && v != null && redondeoUsd > 0.01 ? redondear(v, redondeoUsd)
+    : v == null ? null : Math.floor(v * 100 + 1e-9) / 100;
 }
 
 /**
