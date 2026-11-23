@@ -2,7 +2,7 @@
 // sigue atendiendo la app hasta que la instalación de la nueva esté completa.
 // scripts/preparar-publicacion.cjs fija una ruta y una huella para el árbol servido.
 const PUBLICACION = null;
-const CACHE = PUBLICACION?.cache || 'pos-v2.36';
+const CACHE = PUBLICACION?.cache || 'pos-v2.37';
 // Generada con node pruebas/pwa/huella.cjs al preparar la publicación.
 const HUELLA_APP = '4ce168bbe7ea0c70fbe66ac3a43cd9c42532f314c146b4b8e536f6ee07cc9b30';
 const ANTERIOR = 'pos-v2.35';
