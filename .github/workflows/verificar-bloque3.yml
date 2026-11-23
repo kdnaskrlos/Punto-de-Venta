@@ -1,0 +1,37 @@
+name: Verificar bloque 3 POS
+on:
+  push:
+    branches:
+      - feat/bloque3-cobros-comisiones
+  pull_request:
+    branches:
+      - transfer/puente-pwa-pr3
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar sintaxis de archivos modificados
+        run: |
+          for p in js/nucleo/cobro.js js/nucleo/comisiones.js js/nucleo/caja.js js/nucleo/recibo.js js/vistas/pagos.js js/vistas/cobrar.js js/vistas/ajustes.js js/datos/memoria.js js/datos/firebase.js; do node --check "$p" || exit 1; done
+      - name: Suite de núcleo y datos
+        run: npm test
+      - name: Instalar navegador de pruebas
+        run: |
+          npm install --no-save playwright@1.56.1
+      - name: Pruebas de cobro, caja y apartados en navegador
+        run: |
+          node pruebas/e2e/cobrar.cjs
+          node pruebas/e2e/caja.cjs
+          node pruebas/e2e/apartados.cjs

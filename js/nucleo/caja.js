@@ -9,7 +9,9 @@ export function esperadoCaja(caja, ventas, abonos, formasPago) {
   // Las anuladas cuentan su cobro: la devolución es una salida que registra quien anula.
   for (const v of ventas) {
     for (const p of v.pagos || []) sumar(p.forma, p.monto);
-    if (v.vuelto && v.vuelto.monto) sumar(v.vuelto.forma || formaEfectivo(formasPago, v.vuelto.moneda), -v.vuelto.monto);
+    if (v.vuelto?.partes) {
+      for (const p of v.vuelto.partes) sumar(p.forma || formaEfectivo(formasPago, p.moneda), -p.monto);
+    } else if (v.vuelto && v.vuelto.monto) sumar(v.vuelto.forma || formaEfectivo(formasPago, v.vuelto.moneda), -v.vuelto.monto);
   }
   for (const a of abonos || []) sumar(a.forma, a.monto);
   for (const m of caja.movimientos || []) sumar(m.forma, m.tipo === 'salida' ? -m.monto : m.monto);

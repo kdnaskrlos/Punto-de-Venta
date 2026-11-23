@@ -23,7 +23,7 @@ function nombreLinea(ctx, sku) {
 export function lineasParaGuardar(ctx, r) {
   const aj = ctx.ajustes;
   // v2.09: el descuento se reparte solo entre las prendas normales; las «separado» no lo llevan (ni la comisión reducida por él).
-  const coms = comisionesVenta(r.lineas, ctx.productos, aj.comisiones, r.descuento > 0);
+  const coms = comisionesVenta(r.lineas, ctx.productos, aj.comisiones, r.descuento > 0, aj.tramos);
   const descLinea = repartirDescuento(r.lineas.map(l => (l.separado ? { ...l, subtotal: 0 } : l)), r.descuento);
   return r.lineas.map((l, i) => {
     const p = ctx.productos[l.sku];
@@ -77,7 +77,7 @@ export function abrirCobrar(ctx) {
   const apartar = h('button', { class: 'btn grande cb-apartar', id: 'cobro-apartar', type: 'button' }, h('span', { class: 'cb-ap-t' }, icono('apartado'), 'Apartar'), abonoTxt);
   const actualizar = () => {
     const e = panel.estado();
-    final.disabled = guardando || !e.cuadra;
+    final.disabled = guardando || !e.cuadra || !e.vueltoValido;
     final.classList.toggle('cargando', guardando);
     final.textContent = guardando ? 'Cobrando…' : `Cobrar ${fmtCop(r0.total)}`;
     // Apartar: lo pagado queda como abono (puede ser 0); no se aparta si sobra (eso es una venta).
@@ -191,7 +191,11 @@ function pantallaExito(ctx, venta, { enlace, offline, cerrar }) {
       equivalentes(ctx, venta.total)),
     venta.pagos?.length ? h('div', { class: 'exito-pagos' },
       ...venta.pagos.map(p => h('div', { class: 'exito-fila' }, h('span', {}, p.nombre), h('b', { class: 'num' }, `${fmtMonto(p.monto, p.moneda)} `, h('span', { class: 'moneda' }, NOMBRE_MONEDA[p.moneda])))),
-      venta.vuelto ? h('div', { class: 'exito-fila vuelto' }, h('span', {}, 'Vuelto a entregar'), h('b', { class: 'num' }, `${fmtMonto(venta.vuelto.monto, venta.vuelto.moneda)} `, h('span', { class: 'moneda' }, NOMBRE_MONEDA[venta.vuelto.moneda]))) : null) : null,
+      venta.vuelto ? h('div', { class: 'exito-fila vuelto' }, h('span', {}, 'Vuelto a entregar'),
+        h('b', { class: 'num' }, venta.vuelto.partes
+          ? (venta.vuelto.partes.map(p => `${fmtMonto(p.monto, p.moneda)} ${NOMBRE_MONEDA[p.moneda]}`).join(' + ') || '0 COP')
+          : `${fmtMonto(venta.vuelto.monto, venta.vuelto.moneda)} ${NOMBRE_MONEDA[venta.vuelto.moneda]}`),
+        venta.vuelto.remanenteCop ? h('small', { class: 'nota' }, `Ajuste por redondeo: ${fmtCop(venta.vuelto.remanenteCop)} COP`) : null) : null) : null,
     offline ? h('p', { class: 'nota' }, 'Guardada en el teléfono. Se subirá al volver la conexión.') : null,
     h('div', { class: 'exito-acc' },
       enlace ? h('a', { class: 'btn grande recibo', href: enlace, target: '_blank', rel: 'noopener', onclick: parar }, icono('mensaje'), 'Enviar recibo por WhatsApp') : null,

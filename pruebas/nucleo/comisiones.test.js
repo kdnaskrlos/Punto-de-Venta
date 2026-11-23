@@ -78,3 +78,40 @@ test('v2.09 · con descuento, una prenda «separado» conserva su comisión norm
   const c = comisionesVenta([{ sku: 'F', tramo: 0, cantidad: 1, subtotal: 25000, separado: true }, { sku: 'F', tramo: 0, cantidad: 1, subtotal: 25000 }], P, COMISIONES_DEFECTO, true);
   assert.deepEqual(c.map(x => x.reducida), [false, true]);
 });
+
+test('bloque 3 · reducir comisión por descuento/oferta únicamente en detal', () => {
+  const l = [
+    { sku: 'F', tramo: 0, cantidad: 1, subtotal: 25000, oferta: true },
+    { sku: 'F', tramo: 1, cantidad: 1, subtotal: 24000, oferta: true },
+    { sku: 'F', tramo: 2, cantidad: 1, subtotal: 23000, oferta: false },
+  ];
+  // Se analizan como tres grupos «separado» para que el piso no altere esta regla.
+  const cv = comisionesVenta(l.map(x => ({ ...x, separado: true })), P, COMISIONES_DEFECTO, true);
+  assert.deepEqual(cv.map(x => x.reducida), [true, false, false]);
+});
+
+test('bloque 3 · el mix no pierde comisión al pasar de 5 a 6 unidades', () => {
+  const p = { F: { precios: [30000, 28000, 26000, 24000, 22000],
+    comisiones: [cm(4000, 2000), cm(2000, 1000), cm(1000, 500), cm(1000, 500), null] } };
+  const generar = (cantidad, tramo) => [{ sku: 'F', cantidad, tramo,
+    precioUnit: p.F.precios[tramo], subtotal: cantidad * p.F.precios[tramo], separado: false }];
+  assert.equal(comisionesVenta(generar(5, 0), p, COMISIONES_DEFECTO, false)[0].comision, 20000);
+  assert.equal(comisionesVenta(generar(6, 1), p, COMISIONES_DEFECTO, false)[0].comision, 20000);
+  assert.equal(comisionesVenta(generar(11, 1), p, COMISIONES_DEFECTO, false)[0].comision, 22000);
+  assert.equal(comisionesVenta(generar(12, 2), p, COMISIONES_DEFECTO, false)[0].comision, 22000);
+  assert.equal(comisionesVenta(generar(24, 3), p, COMISIONES_DEFECTO, false)[0].comision, 24000);
+});
+
+test('bloque 3 · repartir el piso exacto entre tallas sin crear ni perder pesos', () => {
+  const p = {
+    F: { precios: [30000, 28000], comisiones: [cm(4000, 2000), cm(2000, 1000)] },
+    B: { precios: [30000, 28000], comisiones: [cm(4000, 2000), cm(2000, 1000)] },
+  };
+  const lineas = [
+    { sku: 'F', cantidad: 2, tramo: 1, precioUnit: 28000, subtotal: 56000 },
+    { sku: 'B', cantidad: 4, tramo: 1, precioUnit: 28000, subtotal: 112000 },
+  ];
+  const cv = comisionesVenta(lineas, p, COMISIONES_DEFECTO, false);
+  assert.equal(cv.reduce((s, l) => s + l.comision, 0), 20000);
+  assert.deepEqual(cv.map(l => l.comision), [6666, 13334]);
+});

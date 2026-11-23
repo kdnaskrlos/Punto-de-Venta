@@ -87,24 +87,26 @@ function tasas(ctx) {
   return { el, guardar, pendiente };
 }
 
-// v2.06: redondeo del vuelto escrito a mano, en pesos y en dólares (0,01 USD = sin redondear).
+// Bloque 3: vuelto COP hacia abajo y billete mínimo USD (migración no destructiva del ajuste anterior).
 function selectorRedondeo(aj) {
   const caja = (id, valor, mon, nombre) => {
     const inp = h('input', { class: 'num', id, inputmode: 'decimal', autocomplete: 'off', value: valor, 'aria-label': nombre });
     return { inp, el: h('label', { class: `red-in c-${mon.toLowerCase()}` }, inp, h('span', { class: 'moneda' }, mon)) };
   };
-  const cop = caja('aj-redondeo', fmtCop(aj.redondeo || 100), 'COP', 'Redondeo del vuelto en pesos');
-  const usd = caja('aj-redondeo-usd', fmtDec(aj.redondeoUsd || 0.01), 'USD', 'Redondeo del vuelto en dólares');
+  const cop = caja('aj-redondeo', fmtCop(aj.redondeo || 100), 'COP', 'Redondeo del vuelto en pesos (hacia abajo)');
+  const billeteGuardado = Number(aj.billeteMinimoUsd ?? aj.redondeoUsd);
+  const billete = Number.isInteger(billeteGuardado) && billeteGuardado >= 1 ? billeteGuardado : 1;
+  const usd = caja('aj-billete-minimo-usd', fmtDec(billete), 'USD', 'Billete mínimo de vuelto en dólares');
   cop.inp.addEventListener('blur', () => { const n = parseMonto(cop.inp.value, 'COP'); cop.inp.value = fmtCop(n > 0 ? n : 100); });
-  usd.inp.addEventListener('blur', () => { const n = parseMonto(usd.inp.value, 'USD'); usd.inp.value = fmtDec(n > 0 ? n : 0.01); });
+  usd.inp.addEventListener('blur', () => { const n = parseMonto(usd.inp.value, 'USD'); usd.inp.value = fmtDec(Number.isInteger(n) && n >= 1 ? n : 1); });
   // v2.16: cada moneda con su propio título (en la PC quedan alineados con Tramos y Comisión).
   // v2.17 · Teléfono: un solo título en negrita para los dos campos.
   const el = esTelefono()
-    ? h('div', { class: 'red-aj red-uno' }, h('h3', { class: 'red-tit' }, 'Redondeo del vuelto'), h('div', { class: 'red-fila' }, cop.el, usd.el))
+    ? h('div', { class: 'red-aj red-uno' }, h('h3', { class: 'red-tit' }, 'Vuelto físico'), h('div', { class: 'red-fila' }, cop.el, usd.el))
     : h('div', { class: 'red-aj red-dos' },
       h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-redondeo' }, 'Redondeo del vuelto en pesos'), cop.el),
-      h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-redondeo-usd' }, 'Redondeo del vuelto en dólares'), usd.el));
-  return { el, get cop() { return parseMonto(cop.inp.value, 'COP') || 100; }, get usd() { return parseMonto(usd.inp.value, 'USD') || 0.01; } };
+      h('div', { class: 'campo' }, h('label', { class: 'et-moneda', for: 'aj-billete-minimo-usd' }, 'Billete mínimo del vuelto en dólares'), usd.el));
+  return { el, get cop() { return parseMonto(cop.inp.value, 'COP') || 100; }, get usd() { const n = parseMonto(usd.inp.value, 'USD'); return Number.isInteger(n) && n >= 1 ? n : 1; } };
 }
 
 function venta(ctx) {
@@ -139,7 +141,7 @@ function venta(ctx) {
   const guardar = async () => {
     for (let i = 1; i < tramos.length; i++) if (tramos[i] <= tramos[i - 1]) { toast('Cada tramo debe empezar después del anterior', { malo: true }); return false; }
     return {
-      redondeo: redondeo.cop, redondeoUsd: redondeo.usd,
+      redondeo: redondeo.cop, billeteMinimoUsd: redondeo.usd,
       tramos, comisiones: coms,
     };
   };

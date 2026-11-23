@@ -1,7 +1,8 @@
 // Panel de pagos reutilizable (cobrar, apartar, abonar, completar): formas por moneda, montos, falta y vuelto (§9.2).
 import { h, icono, esTelefono, deslizarParaQuitar, alEnfocarCampo, toast } from '../ui.js';
-import { estadoCobro, montoSugerido, vueltoEn } from '../nucleo/cobro.js';
+import { estadoCobro, montoSugerido, vueltoEn, vueltoMixto } from '../nucleo/cobro.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
+import { aCop } from '../nucleo/tasas.js';
 import { formaEfectivo, NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
 
 // En los botones el grupo ya dice la moneda: "Efectivo pesos" → "Efectivo", "Transferencia / Nequi / …" → "Transferencia".
@@ -17,20 +18,27 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   for (const x of iniciales || []) { const forma = formas.find(f => f.id === x.forma); if (forma && x.monto > 0 && !pagos.some(p => p.forma.id === forma.id)) pagos.push({ forma, monto: x.monto }); }
   const lista = h('div', { class: 'pagos' });
   let botones = null;
-  let monedaVuelto = 'COP';
+  let monedaVuelto = formaEfectivo(formas, 'USD') && formaEfectivo(formas, 'COP') && ctx.tasas?.copPorUsd ? 'MIXTO' : 'COP';
   const barra = h('div', { class: 'barra-falta', role: 'status' });
-  const red = ctx.ajustes.redondeo || 100, redUsd = ctx.ajustes.redondeoUsd || 0.01;
+  const red = ctx.ajustes.redondeo || 100, billeteMinimoUsd = ctx.ajustes.billeteMinimoUsd || 1;
   let listo = false; // no avisar cambios mientras se construye el panel
   const avisar = () => { if (listo) alCambiar(); };
 
-  const estado = () => estadoCobro({ total, pagos: pagos.map(p => ({ forma: p.forma.id, moneda: p.forma.moneda, monto: p.monto || 0 })), tasas: ctx.tasas, redondeo: red });
+  const estado = () => {
+    const e = estadoCobro({ total, pagos: pagos.map(p => ({ forma: p.forma.id, moneda: p.forma.moneda, monto: p.monto || 0 })), tasas: ctx.tasas, redondeo: red });
+    return { ...e, vueltoValido: permitirMenos || e.vueltoCop <= 0 || calcularCambio(e) != null };
+  };
 
   function agregar(forma) {
     if (esTelefono()) document.activeElement?.blur(); // sin borde de foco que parezca una selección
     const e = estado();
     let p = pagos.find(x => x.forma.id === forma.id);
     if (!p) { p = { forma, monto: 0 }; pagos.push(p); }
-    if (e.faltaCop > 0) p.monto = (p.monto || 0) + (montoSugerido(e.faltaCop, forma.moneda, ctx.tasas) || 0);
+    if (e.faltaCop > 0) {
+      const sugerido = montoSugerido(e.faltaCop, forma.moneda, ctx.tasas) || 0;
+      p.monto = (p.monto || 0) + (forma.efectivo && forma.moneda === 'USD'
+        ? Math.ceil(sugerido / billeteMinimoUsd) * billeteMinimoUsd : sugerido);
+    }
     pintar(forma.id);
   }
 
@@ -123,14 +131,44 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     tipoBarra = barra.className;
     animarBarra(antes, alto0);
   }
+  // Lo que se devuelve físicamente puede repartirse entre dos monedas.
+  // El remanente COP no entregable con el paso elegido se muestra sin ocultarlo.
+  function calcularCambio(e) {
+    if (monedaVuelto === 'MIXTO') {
+      const d = vueltoMixto(e.vueltoCop, ctx.tasas, { billeteMinimoUsd, redondeoCop: red });
+      if (!d) return null;
+      const partes = [];
+      if (d.usd > 0) partes.push({ moneda: 'USD', monto: d.usd, forma: formaEfectivo(formas, 'USD') });
+      if (d.cop > 0) partes.push({ moneda: 'COP', monto: d.cop, forma: formaEfectivo(formas, 'COP') });
+      return { partes, equivalenteCop: d.equivalenteCop, remanenteCop: d.remanenteCop,
+        texto: partes.map(p => fmtMonto(p.monto, p.moneda) + ' ' + NOMBRE_MONEDA[p.moneda]).join(' + ') || '0 COP' };
+    }
+    const monto = vueltoEn(e.vueltoCop, monedaVuelto, ctx.tasas, red);
+    if (monto == null) return null;
+    const parte = { moneda: monedaVuelto, monto, forma: formaEfectivo(formas, monedaVuelto) };
+    const equivalenteCop = aCop(monto, monedaVuelto, ctx.tasas);
+    const remanenteCop = Math.max(0, e.vueltoCop - (equivalenteCop || 0));
+    return { partes: monto > 0 ? [parte] : [], equivalenteCop, remanenteCop,
+      texto: fmtMonto(monto, monedaVuelto) + ' ' + NOMBRE_MONEDA[monedaVuelto] };
+  }
+
   function pintarBarraYa() {
     const e = estado();
     pagos.forEach(p => p.pintarEq && p.pintarEq());
-    if (e.vueltoCop >= red / 2 && !permitirMenos) {
-      const v = vueltoEn(e.vueltoCop, monedaVuelto, ctx.tasas, red, redUsd);
+    if (e.vueltoCop > 0 && !permitirMenos) {
+      const cambio = calcularCambio(e);
+      const modos = [
+        ...(formaEfectivo(formas, 'USD') && formaEfectivo(formas, 'COP') ? [['MIXTO', 'USD + COP']] : []),
+        ...GRUPOS.filter(([m]) => formaEfectivo(formas, m)).map(([m]) => [m, m === 'COP' ? 'Todo en pesos' : NOMBRE_MONEDA[m]]),
+      ];
       barra.className = 'barra-falta vuelto';
-      barra.replaceChildren(h('span', {}, 'Vuelto'), ' ', h('span', { class: 'monto num' }, v == null ? 'Sin tasa' : `${fmtMonto(v, monedaVuelto)} ${NOMBRE_MONEDA[monedaVuelto]}`),
-        h('div', { class: 'vuelto-moneda segmentado' }, ...GRUPOS.filter(([m]) => formaEfectivo(formas, m)).map(([m]) => h('button', { type: 'button', 'data-moneda': m, 'aria-pressed': String(m === monedaVuelto), disabled: vueltoEn(e.vueltoCop, m, ctx.tasas, red, redUsd) == null, onclick: () => { monedaVuelto = m; pintarBarra(); avisar(); } }, NOMBRE_MONEDA[m]))));
+      barra.replaceChildren(h('span', {}, 'Vuelto'), ' ', h('span', { class: 'monto num' }, cambio?.texto || 'Sin tasa'),
+        ...(cambio?.remanenteCop ? [h('span', { class: 'nota' }, `Ajuste por redondeo: ${fmtCop(cambio.remanenteCop)} COP`)] : []),
+        h('div', { class: 'vuelto-moneda segmentado' }, ...modos.map(([m, etiqueta]) => h('button', { type: 'button', 'data-moneda': m,
+          'aria-pressed': String(m === monedaVuelto), disabled: m === 'MIXTO'
+            ? vueltoMixto(e.vueltoCop, ctx.tasas, { billeteMinimoUsd, redondeoCop: red }) == null
+            : vueltoEn(e.vueltoCop, m, ctx.tasas, red) == null,
+          onclick: () => { monedaVuelto = m; pintarBarra(); avisar(); } }, etiqueta))));
     } else if (e.cuadra || (permitirMenos && e.faltaCop < total)) {
       barra.className = 'barra-falta ok';
       barra.replaceChildren(h('span', {}, permitirMenos && !e.cuadra ? 'Saldo' : 'Faltan'), ' ', h('span', { class: 'monto num' }, fmtCop(e.cuadra ? 0 : e.faltaCop)));
@@ -172,9 +210,12 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       const e = estado();
       const pagosOk = e.pagos.filter(p => p.monto > 0).map(p => ({ forma: p.forma, nombre: formas.find(f => f.id === p.forma).nombre, moneda: p.moneda, monto: p.monto, equivalenteCop: p.equivalenteCop }));
       let vuelto = null;
-      if (!permitirMenos && e.vueltoCop >= red / 2) {
-        const monto = vueltoEn(e.vueltoCop, monedaVuelto, ctx.tasas, red, redUsd);
-        vuelto = { moneda: monedaVuelto, monto, forma: formaEfectivo(formas, monedaVuelto), equivalenteCop: e.vueltoCop };
+      if (!permitirMenos && e.vueltoCop > 0) {
+        const cambio = calcularCambio(e);
+        if (cambio) vuelto = { partes: cambio.partes, equivalenteCop: cambio.equivalenteCop,
+          remanenteCop: cambio.remanenteCop, // compatibilidad con recibos históricos
+          moneda: cambio.partes[0]?.moneda || 'COP', monto: cambio.partes[0]?.monto || 0,
+          forma: cambio.partes[0]?.forma || formaEfectivo(formas, 'COP') };
       }
       return { pagos: pagosOk, vuelto, estado: e };
     },

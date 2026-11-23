@@ -41,7 +41,10 @@ function valoresRecibo(venta, tienda) {
     prendas: venta.lineas.map(l => `${l.cantidad} × ${l.nombre}${l.talla ? ` · Talla ${l.talla}` : ''} — ${fmtCop(l.subtotal ?? l.precioUnit * l.cantidad)}`).join('\n'),
     totalCOP: fmtCop(venta.total), totalUSD: usd == null ? '' : fmtMonto(usd, 'USD'), totalBs: bs == null ? '' : fmtMonto(bs, 'BS'),
     pagos: (venta.pagos || []).map(p => `${p.nombre || p.forma}: ${fmtMonto(p.monto, p.moneda)} ${NOMBRE_MONEDA[p.moneda]}`).join('\n'),
-    vuelto: venta.vuelto?.monto > 0 ? `Vuelto: ${fmtMonto(venta.vuelto.monto, venta.vuelto.moneda)} ${NOMBRE_MONEDA[venta.vuelto.moneda]}` : '',
+    vuelto: venta.vuelto?.partes ? [
+      'Vuelto: ' + (venta.vuelto.partes.map(p => `${fmtMonto(p.monto, p.moneda)} ${NOMBRE_MONEDA[p.moneda]}`).join(' + ') || '0 COP'),
+      ...(venta.vuelto.remanenteCop ? [`Ajuste de redondeo: ${fmtCop(venta.vuelto.remanenteCop)} COP`] : []),
+    ].join('\n') : venta.vuelto?.monto > 0 ? `Vuelto: ${fmtMonto(venta.vuelto.monto, venta.vuelto.moneda)} ${NOMBRE_MONEDA[venta.vuelto.moneda]}` : '',
   };
 }
 

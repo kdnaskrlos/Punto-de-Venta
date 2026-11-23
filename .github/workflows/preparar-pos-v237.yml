@@ -1,0 +1,88 @@
+name: Preparar publicacion POS v2.37 (sin activar Pages)
+on:
+  push:
+    branches: [feat/bloque3-cobros-comisiones]
+    paths:
+      - .github/workflows/preparar-pos-v237.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-release-pos-v237
+  cancel-in-progress: false
+
+jobs:
+  publicar-candidato:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout rama de desarrollo con historial
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar lógica
+        run: npm test
+      - name: Preparar fotos y configuración desde main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git archive origin/main config.js fotos | tar -x
+      - name: Recuperar artefacto publicado anterior
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin release/pos-v2.36
+          git worktree add --detach "$RUNNER_TEMP/anterior" origin/release/pos-v2.36
+      - name: Construir artefacto completo v2.37
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/preparar-publicacion.cjs "$RUNNER_TEMP/sitio" "$RUNNER_TEMP/anterior" | tee "$RUNNER_TEMP/manifest-release.json"
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import path from "node:path";
+            const root=process.env.RUNNER_TEMP+"/sitio";
+            const m=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/manifest-release.json","utf8"));
+            if(!m.prefijo.startsWith("versiones/v2.37-")) throw Error("No se construyó v2.37");
+            for(const p of ["index.html","sw.js","config.js","manifest.webmanifest",".nojekyll",
+              "fotos","js/nucleo/ejemplos.js",m.prefijo+"index.html",m.prefijo+"js/principal.js",
+              m.prefijo+"js/version.js",m.prefijo+"js/arranque-pwa.js"]) {
+              if(!fs.existsSync(path.join(root,p))) throw Error("Falta "+p);
+            }
+            const sw=fs.readFileSync(path.join(root,"sw.js"),"utf8");
+            if(!sw.includes(m.huella)||!sw.includes(m.prefijo))throw Error("Worker sin huella válida");
+            if(!fs.readFileSync(path.join(root,"index.html"),"utf8").includes(m.prefijo))throw Error("index sin versión");
+            console.log("Artefacto validado",m.prefijo,m.huella);
+          '
+          test -d "$RUNNER_TEMP/sitio/versiones/v2.36-721eb452c9a9e303"
+      - name: Archivar candidato para descarga
+        uses: actions/upload-artifact@v4
+        with:
+          name: Punto-de-Venta-v2.37-publicacion
+          path: ${{ runner.temp }}/sitio/
+          include-hidden-files: true
+          retention-days: 30
+      - name: Crear rama de publicación sin tocar Pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code origin refs/heads/release/pos-v2.37 >/dev/null; then
+            echo "La rama release/pos-v2.37 ya existe: no se sobreescribe."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --orphan publicar-pos-v237
+          git rm -rf --ignore-unmatch . || true
+          cp -a "$RUNNER_TEMP/sitio/." .
+          git add -A -f
+          git commit -m "build: publicar artefacto de candidato POS v2.37"
+          git push origin HEAD:refs/heads/release/pos-v2.37
+          echo "Candidato generado; GitHub Pages permanece en release/pos-v2.36."

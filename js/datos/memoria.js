@@ -204,7 +204,9 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       if (!caja) return NO('sin-caja');
       const neto = {};
       for (const p of v.pagos || []) neto[p.forma] = (neto[p.forma] || 0) + p.monto;
-      if (v.vuelto?.monto) neto[v.vuelto.forma] = (neto[v.vuelto.forma] || 0) - v.vuelto.monto;
+      if (v.vuelto?.partes) {
+        for (const p of v.vuelto.partes) neto[p.forma] = (neto[p.forma] || 0) - p.monto;
+      } else if (v.vuelto?.monto) neto[v.vuelto.forma] = (neto[v.vuelto.forma] || 0) - v.vuelto.monto;
       for (const [forma, monto] of Object.entries(neto)) {
         const m = Math.round(monto * 100) / 100;
         if (m) caja.movimientos.push({ tipo: m > 0 ? 'salida' : 'entrada', forma, monto: Math.abs(m), motivo: `anulación ${v.numero || ''}`.trim(), usuario: sesion.usuario, fecha: ahora() });
