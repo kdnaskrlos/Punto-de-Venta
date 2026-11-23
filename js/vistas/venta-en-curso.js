@@ -26,10 +26,12 @@ function leer(ctx) {
 }
 
 export function vigilarVentaEnCurso(ctx) {
-  const g = () => guardar(ctx);
-  window.addEventListener('pos:carrito', g);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') g(); });
-  window.addEventListener('pagehide', g);
+  window.addEventListener('pos:carrito', () => guardar(ctx));
+  // Una recarga puede ocurrir antes de que el usuario retome un borrador.
+  // Al salir se guarda un carrito activo. Vaciarlo sigue siendo un cambio explícito.
+  const guardarAlSalir = () => { if (ctx.carrito?.lineas?.length) guardar(ctx); };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardarAlSalir(); });
+  window.addEventListener('pagehide', guardarAlSalir);
 }
 
 export async function ofrecerRetomar(ctx) {

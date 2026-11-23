@@ -2,6 +2,12 @@
 import { h, icono } from '../ui.js';
 import { registrarVista, navegar, pastillaModoDemo } from '../app.js';
 
+// Ajustes de v2.35 puede seguir en caché mientras su worker renueva este módulo.
+// Conserva el acceso a Modo demo durante esa transición.
+export function bloquePrueba() {
+  return { el: h('div', { class: 'acceso-demo' }, pastillaModoDemo()) };
+}
+
 // Más: filas agrupadas con ícono de color, nombre, para qué sirve y flecha.
 registrarVista('/mas', {
   montar(cont, ctx) {
