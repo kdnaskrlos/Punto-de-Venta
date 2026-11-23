@@ -184,6 +184,31 @@ test('una cesta de 24 SKU es atómica en el emulador incluso si falla el último
   assert.equal((await getDocFromServer(docCobro(db, 'a', 'venta', 'cesta-confirmada'))).data().estadoSync, 'confirmada_servidor');
 });
 
+
+test('cestas grandes de 32, 48 y 64 SKU: se confirman totalmente o se rechazan sin escrituras parciales', { timeout: 120000 }, async () => {
+  for (const cantidad of [32, 48, 64]) {
+    const skus = Array.from({ length: cantidad }, (_, i) => 'prueba-grande-' + i);
+    await preparar({ skus });
+    const db = entorno.authenticatedContext('a').firestore();
+    const id = 'cesta-grande-' + cantidad;
+    let aceptada = false;
+    try {
+      await vender(db, 'a', id, true, skus);
+      aceptada = true;
+    } catch (error) {
+      assert.ok(error?.code === 'permission-denied' || error?.code === 'resource-exhausted',
+        'Rechazo inesperado: ' + String(error?.code || error));
+    }
+    const snap = await getDocsFromServer(collection(db, 'productos'));
+    const stock = new Map(snap.docs.map(p => [p.id, p.data().existencia]));
+    assert.ok(skus.every(sku => stock.get(sku) === (aceptada ? 0 : 1)),
+      'No se permiten descuentos parciales para cesta de ' + cantidad + ' SKU');
+    assert.equal((await getDocFromServer(doc(db, 'ventas', id))).exists(), aceptada);
+    assert.equal((await getDocFromServer(docCobro(db, 'a', 'venta', id))).exists(), aceptada);
+    console.log('Cesta de ' + cantidad + ' SKU en emulador: ' + (aceptada ? 'confirmada' : 'rechazada atómicamente'));
+  }
+});
+
 async function adaptadorReal(dbPorUsuario) {
   const { registerHooks } = require('node:module');
   const { pathToFileURL } = require('node:url');
