@@ -5,12 +5,12 @@ import { h, icono, abrirVentana, despuesDeCerrar } from '../ui.js';
 import { navegar } from '../app.js';
 
 const VIGENCIA = 24 * 60 * 60 * 1000;
-const clave = ctx => 'pos-venta-' + (ctx.sesion?.usuario || '');
+const clave = ctx => ctx.ambitoPrueba ? ctx.ambitoPrueba + ':carrito' : 'pos-venta-' + (ctx.sesion?.usuario || '');
 
 export function guardarVentaEnCurso(ctx) { guardar(ctx); }
 
 function guardar(ctx) {
-  if (!ctx.sesion) return;
+  if (!ctx.sesion || !ctx.carrito) return;
   const c = ctx.carrito;
   try {
     if (c?.lineas?.length) localStorage.setItem(clave(ctx), JSON.stringify({ c, en: Date.now() }));
@@ -25,19 +25,23 @@ function leer(ctx) {
   } catch { return null; }
 }
 
-export function vigilarVentaEnCurso(ctx) {
-  const g = () => guardar(ctx);
+export function vigilarVentaEnCurso(contexto) {
+  const g = () => guardar(contexto());
   window.addEventListener('pos:carrito', g);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') g(); });
   window.addEventListener('pagehide', g);
 }
 
-export async function ofrecerRetomar(ctx) {
+export async function ofrecerRetomar(ctx, activo = () => true) {
   const d = leer(ctx);
   if (!d || ctx.carrito?.lineas?.length) return;
   const c = d.c;
   // v2.26 · Si la luz se fue justo al cobrar, la venta (o el apartado) pudo quedar guardada: no se ofrece cobrarla otra vez.
-  const ya = (c.ventaId && await ctx.almacen.obtener('ventas', c.ventaId)) ? 'venta' : (c.apartadoId && await ctx.almacen.obtener('apartados', c.apartadoId)) ? 'apartado' : null;
+  const almacen = ctx.almacen;
+  let ya = c.ventaId && await almacen.obtener('ventas', c.ventaId) ? 'venta' : null;
+  if (!activo()) return;
+  if (!ya && c.apartadoId && await almacen.obtener('apartados', c.apartadoId)) ya = 'apartado';
+  if (!activo()) return;
   if (ya) {
     try { localStorage.removeItem(clave(ctx)); } catch { /* */ }
     const ok = h('button', { class: 'btn primary', id: 'ya-guardada' }, 'Entendido');
@@ -58,14 +62,19 @@ export async function ofrecerRetomar(ctx) {
       h('div', {}, h('b', {}, c.cliente?.nombre || 'Sin cliente todavía'),
         h('small', {}, `${prendas} ${prendas === 1 ? 'prenda' : 'prendas'} · ${nombres.slice(0, 2).join(', ')}${nombres.length > 2 ? '…' : ''}`)))),
     acciones: h('div', { class: 'acciones' }, cancelar, continuar) });
-  cancelar.onclick = () => { try { localStorage.removeItem(clave(ctx)); } catch { /* */ } v.cerrar(); };
+  cancelar.onclick = () => {
+    if (!activo()) return;
+    try { localStorage.removeItem(clave(ctx)); } catch { /* */ }
+    v.cerrar();
+  };
   continuar.onclick = () => {
+    if (!activo()) return;
     const existe = sku => !ctx.productos || !Object.keys(ctx.productos).length || ctx.productos[sku];
     ctx.carrito = { lineas: c.lineas.filter(l => existe(l.sku)), descuento: c.descuento || null, autorizacion: c.autorizacion || null, ...(c.cliente ? { cliente: c.cliente } : {}),
       ...(c.ventaId ? { ventaId: c.ventaId, apartadoId: c.apartadoId } : {}), ...(c.pagos?.length ? { pagos: c.pagos } : {}) }; // v2.26: mismos ids y pagos escritos
     v.cerrar();
     window.dispatchEvent(new CustomEvent('pos:carrito'));
     // v2.13: se va al carrito cuando la ventana termina de cerrarse (antes el «atrás» del cierre deshacía el cambio de pantalla).
-    despuesDeCerrar(() => { if (location.hash !== '#/vender') navegar('/vender'); });
+    despuesDeCerrar(() => { if (activo() && location.hash !== '#/vender') navegar('/vender'); });
   };
 }

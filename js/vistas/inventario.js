@@ -108,7 +108,8 @@ async function abrirSincronizar(ctx, costos, alTerminar) {
 
   const { productos, errores, avisos, filas } = leerInventario(json);
   if (!productos.length && errores.length && errores[0].fila === 0) { fallo(errores[0].motivo + '. Publícalo de nuevo desde la Carga Masiva.'); return; }
-  const plan = planImportacion(productos, ctx.productos, costos);
+  const catalogo = ctx.ambitoPrueba ? productos.map(p => ({ ...p, sku: 'prueba-catalogo-' + p.sku })) : productos;
+  const plan = planImportacion(catalogo, ctx.productos, costos);
   const fila = (n, txt, cls) => h('div', { class: `resumen-imp ${cls}` }, h('b', { class: 'num' }, String(n)), txt);
   const conExist = h('input', { type: 'checkbox', id: 'sinc-existencia' });
   const pintarBoton = () => { aplicar.disabled = !plan.nuevos.length && !plan.cambios.length && !(conExist.checked && plan.existencias.length); };

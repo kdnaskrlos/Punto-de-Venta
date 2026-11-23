@@ -5,8 +5,9 @@ import { FORMAS_PAGO_DEFECTO, normalizarFormas } from '../nucleo/formas.js';
 import { LIMITES_DEFECTO, normalizarTramos } from '../nucleo/tramos.js';
 import { COMISIONES_DEFECTO } from '../nucleo/comisiones.js';
 import { leerTasaRemota } from './tasa-remota.js';
+import { capturarContexto } from './contexto.js';
 import { puede } from '../nucleo/permisos.js';
-import { hoy } from '../nucleo/fechas.js';
+import { diaLocal, hoy } from '../nucleo/fechas.js';
 
 export const AJUSTES_DEFECTO = {
   tienda: { nombre: 'Comic Shop', telefono: '' },
@@ -23,23 +24,32 @@ const CLAVE_TASA = 'pos.tasaBs';
 function leerCache() { try { return JSON.parse(localStorage.getItem(CLAVE_TASA)); } catch { return null; } }
 function guardarCache(t) { try { if (t.bsPorUsd && !t.ultimaConocida && t.fuenteBs !== 'manual') localStorage.setItem(CLAVE_TASA, JSON.stringify({ bsPorUsd: t.bsPorUsd, fuenteBs: t.fuenteBs, bsActualizada: t.bsActualizada })); } catch { /* sin almacenamiento */ } }
 
-export function iniciarDatos(ctx) {
+export function iniciarDatos(ctx, { restaurarOperacion = false, cambioCuenta = false } = {}) {
+  let activo = true, revisando = false;
+  const vigente = capturarContexto(ctx);
+  const siActivo = fn => datos => { if (activo && vigente()) fn(datos); };
   const emitir = que => window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que } }));
   ctx.productos = {};
-  ctx.ajustes = { ...AJUSTES_DEFECTO };
-  ctx.ajustesTasas = {};
-  ctx.imagenes = {};
+  if (!restaurarOperacion || cambioCuenta) {
+    ctx.ajustes = { ...AJUSTES_DEFECTO };
+    ctx.ajustesTasas = {};
+    ctx.imagenes = {};
+  }
+  ctx.ajustesTasas ??= {};
+  ctx.imagenes ??= {};
+  ctx.ajustesListos = !restaurarOperacion;
+  ctx.validandoCaja = restaurarOperacion;
   ctx.miCaja = null;
   ctx.porArquear = []; // cajas que se cerraron solas a medianoche y falta contar
   ctx.tasaRemota = ctx.tasaRemota || null;
   ctx.recalcularTasas = () => {
-    ctx.tasas = tasasVigentes(ctx.ajustesTasas, ctx.tasaRemota, leerCache());
-    guardarCache(ctx.tasas);
+    ctx.tasas = tasasVigentes(ctx.ajustesTasas, ctx.tasaRemota, ctx.ambitoPrueba ? null : leerCache());
+    if (!ctx.ambitoPrueba) guardarCache(ctx.tasas);
     emitir('tasas');
   };
   const quitar = [
-    ctx.almacen.escuchar('productos', lista => { ctx.productos = Object.fromEntries(lista.map(p => [p.sku, p])); emitir('productos'); }),
-    ctx.almacen.escuchar('ajustes', lista => {
+    ctx.almacen.escuchar('productos', siActivo(lista => { ctx.productos = Object.fromEntries(lista.map(p => [p.sku, p])); emitir('productos'); })),
+    ctx.almacen.escuchar('ajustes', siActivo(lista => {
       const por = Object.fromEntries(lista.map(d => [d.id, d]));
       ctx.ajustes = { ...AJUSTES_DEFECTO, ...(por.general || {}) };
       ctx.ajustes.formasPago = normalizarFormas(ctx.ajustes.formasPago);
@@ -47,23 +57,52 @@ export function iniciarDatos(ctx) {
       ctx.ajustesTasas = por.tasas || {};
       // Fotos por código de imagen: { 'img-0001': 'fotos/img-0001.webp?v=…' } (ajustes/imagenes).
       ctx.imagenes = por.imagenes?.fotos || {};
+      ctx.ajustesListos = true;
       ctx.recalcularTasas();
       emitir('ajustes');
-    }),
-    ctx.almacen.escuchar('cajas', lista => { ctx.miCaja = lista[0] || null; emitir('caja'); }, { usuario: ctx.sesion.usuario, estado: 'abierta' }),
-    ctx.almacen.estadoSync(e => { ctx.conexion = e; emitir('conexion'); }),
+    }), undefined, { confirmar: restaurarOperacion }),
+    ctx.almacen.escuchar('cajas', siActivo(lista => {
+      if (ctx.validandoCaja) return;
+      ctx.miCaja = (restaurarOperacion ? lista.find(c => diaLocal(c.abierta) === hoy()) : lista[0]) || null;
+      emitir('caja');
+    }), { usuario: ctx.sesion.usuario, estado: 'abierta' }),
+    ctx.almacen.estadoSync(siActivo(e => { ctx.conexion = e; emitir('conexion'); })),
     // Gestión ve las de toda la tienda; la vendedora, solo las suyas.
-    ctx.almacen.escuchar('cajas', lista => { ctx.porArquear = lista.filter(c => c.cierre?.porArquear); emitir('caja'); },
+    ctx.almacen.escuchar('cajas', siActivo(lista => { ctx.porArquear = lista.filter(c => c.cierre?.porArquear); emitir('caja'); }),
       puede(ctx.sesion.rol, 'verReportesTodos') ? { estado: 'cerrada' } : { usuario: ctx.sesion.usuario, estado: 'cerrada' }),
   ];
   // Cierre automático de medianoche: al entrar y cada minuto se cierran las cajas abiertas en un día anterior.
-  ctx.revisarCajas = () => ctx.almacen.cerrarCajasVencidas(hoy());
+  const revisar = async () => {
+    if (!activo || !vigente()) return;
+    const confirmar = ctx.validandoCaja;
+    if (!confirmar) return ctx.almacen.cerrarCajasVencidas(hoy());
+    if (revisando) return;
+    revisando = true;
+    try {
+      const resultado = await ctx.almacen.cerrarCajasVencidas(hoy(), { confirmar });
+      if (!activo || !vigente() || !resultado.ok) return;
+      ctx.miCaja = resultado.caja || null;
+      if (resultado.porArquear) {
+        ctx.porArquear = ctx.porArquear.filter(c => c.usuario !== ctx.sesion.usuario).concat(resultado.porArquear);
+      }
+      ctx.validandoCaja = false;
+      emitir('caja');
+    } finally { revisando = false; }
+  };
+  ctx.revisarCajas = () => revisar().catch(() => {});
+  const alReconectar = () => { if (ctx.validandoCaja) ctx.revisarCajas(); };
+  window.addEventListener('online', alReconectar);
   ctx.revisarCajas();
   const relojCajas = setInterval(ctx.revisarCajas, 60 * 1000);
   ctx.recalcularTasas();
   // tasa.json de la Calculadora de Tasas: al entrar y cada 10 minutos.
-  const leer = async () => { const t = await leerTasaRemota(fetch.bind(window)); if (t) { ctx.tasaRemota = t; ctx.recalcularTasas(); } };
+  const aplicarTasa = siActivo(t => { if (t) { ctx.tasaRemota = t; ctx.recalcularTasas(); } });
+  const leer = async () => aplicarTasa(await leerTasaRemota(fetch.bind(window)));
   leer();
   const reloj = setInterval(leer, 10 * 60 * 1000);
-  return () => { clearInterval(reloj); clearInterval(relojCajas); quitar.forEach(q => q && q()); };
+  return () => {
+    activo = false;
+    window.removeEventListener('online', alReconectar);
+    clearInterval(reloj); clearInterval(relojCajas); quitar.forEach(q => q && q());
+  };
 }

@@ -1,5 +1,6 @@
 // Apartados (§10): apartar desde el carrito, abonar, completar y cancelar.
-import { anotarPendiente } from '../datos/pendientes.js';
+import { seguirEnvio } from '../datos/pendientes.js';
+import { capturarContexto } from '../datos/contexto.js';
 import { abrirHojaStock } from './inventario.js';
 import { h, icono, abrirVentana, toast, pedirMotivo, despuesDeCerrar, largo, campoBusqueda } from '../ui.js';
 import { coincide } from '../nucleo/busqueda.js';
@@ -8,7 +9,8 @@ import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { registrarVista } from '../app.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
-import { crearPanelPagos } from './pagos.js';
+import { avisarErrorPago, crearPanelPagos, esperarAjustesDePago } from './pagos.js';
+import { guardarVentaEnCurso } from './venta-en-curso.js';
 import { resumenCliente, lineasParaGuardar, firmaCarrito } from './cobrar.js';
 import { fmtCop, fmtMonto } from '../nucleo/dinero.js';
 import { fechaHora } from '../nucleo/fechas.js';
@@ -17,12 +19,18 @@ const ESTADO = { pendiente: ['y', 'Pendiente'], completado: ['g', 'Completado'],
 const tasasDe = ctx => ({ copPorUsd: ctx.tasas.copPorUsd, bsPorUsd: ctx.tasas.bsPorUsd, fuenteBs: ctx.tasas.fuenteBs });
 
 export function abrirApartar(ctx) {
-  if (cobroAbierto()) return;
+  if (cobroAbierto() || !esperarAjustesDePago(ctx)) return;
+  const vigente = capturarContexto(ctx);
+  if (!vigente()) return;
   revisarDescuento(ctx);
   const r0 = resumenCarrito(ctx);
   if (!r0.lineas.length) return;
   if (r0.total <= 0) { toast('El total debe ser mayor que 0', { malo: true }); return; }
-  const id = ctx.almacen.nuevoId();
+  const c0 = carrito(ctx);
+  c0.ventaId ||= ctx.almacen.nuevoId();
+  c0.apartadoId ||= ctx.almacen.nuevoId();
+  const id = c0.apartadoId;
+  guardarVentaEnCurso(ctx);
   let guardando = false;
   const final = h('button', { class: 'btn primary grande', id: 'apartar-final' }, 'Apartar');
   const actualizar = () => {
@@ -32,7 +40,12 @@ export function abrirApartar(ctx) {
     final.disabled = guardando || e.vueltoCop > 0 || e.pagos.some(p => p.equivalenteCop == null);
   };
   const cliente = resumenCliente(ctx);
-  const panel = crearPanelPagos(ctx, { total: r0.total, permitirMenos: true, alCambiar: () => actualizar() });
+  const panel = crearPanelPagos(ctx, { total: r0.total, permitirMenos: true, iniciales: c0.pagos, alCambiar: () => {
+    if (!vigente()) return;
+    actualizar();
+    c0.pagos = panel.borrador();
+    guardarVentaEnCurso(ctx);
+  } });
   const v = abrirVentana({ titulo: 'Apartar', pantallaCompleta: true,
     contenido: h('div', { class: 'cobro' }, cliente.el, h('div', { class: 'total-cobro' }, h('span', { class: 'total-cop num' }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')), h('p', { class: 'nota' }, 'El abono es opcional. Las prendas quedan reservadas.'), panel.el),
     acciones: h('div', { class: 'pie-cobro' }, panel.barra, final) });
@@ -40,16 +53,20 @@ export function abrirApartar(ctx) {
   marcarCobro(v);
   actualizar();
   final.addEventListener('click', async () => {
-    if (guardando) return;
+    if (guardando || !vigente() || avisarErrorPago(panel.validar())) return;
+    const { estado, pagos } = panel.resultado();
+    if (estado.vueltoCop > 0 || pagos.some(p => p.equivalenteCop == null)) return;
     guardando = true; actualizar();
-    const ok = await crearApartado(ctx, { id, r0, pagos: panel.resultado().pagos, cerrar: () => v.cerrar() });
+    const ok = await crearApartado(ctx, { id, r0, pagos, validar: panel.validar, cerrar: () => v.cerrar() });
     guardando = false;
     if (!ok) actualizar();
   });
 }
 
 // v2.06: guarda el apartado del carrito con los pagos como abono. Lo usan Apartar y la pantalla de cobro.
-export async function crearApartado(ctx, { id, r0, pagos, cerrar }) {
+export async function crearApartado(ctx, { id, r0, pagos, validar, cerrar }) {
+  const vigente = capturarContexto(ctx);
+  if (!vigente() || avisarErrorPago(validar())) return false;
   const r = resumenCarrito(ctx);
   if (firmaCarrito(r) !== firmaCarrito(r0)) { cerrar(); toast('Los precios cambiaron, revisa el apartado', { malo: true }); return false; }
   const c = carrito(ctx);
@@ -58,23 +75,31 @@ export async function crearApartado(ctx, { id, r0, pagos, cerrar }) {
     subtotal: r.subtotal, descuento: r.descuento ? { tipo: c.descuento.tipo, valor: c.descuento.valor, monto: r.descuento, autorizadoPor: c.autorizacion?.por || null } : null,
     total: r.total, abonos: pagos, tasas: tasasDe(ctx),
   };
-  const res = await conCaja(ctx, () => ctx.almacen.guardarApartado(ap));
-  if (!res.ok) { toast(res.faltantes ? 'Ya no hay existencia de alguna prenda' : res.error === 'sin-caja' ? 'Abre tu caja para apartar' : 'No se pudo apartar', { malo: true }); return false; }
-  if (res.offline) anotarPendiente(ctx, { que: 'apartado', id, offline: true, datos: ap }); // v2.26
-  ctx.almacen.guardarCliente(ap.cliente);
+  const envio = seguirEnvio(ctx, { que: 'apartado', id, offline: true, datos: ap });
+  const res = await conCaja(ctx, comprobar => ctx.almacen.guardarApartado(ap, { validar: comprobar, alEnviar: envio.alEnviar }), validar);
+  envio.alResponder(res);
+  if (!vigente()) return false;
+  if (!res.ok) {
+    if (!avisarErrorPago(res.error)) toast(res.faltantes ? 'Ya no hay existencia de alguna prenda' :
+      res.error === 'sin-caja' ? 'Abre tu caja para apartar' : res.error === 'en-curso' ? 'El envío anterior sigue pendiente de confirmación' : 'No se pudo apartar', { malo: true });
+    return false;
+  }
+  if (!res.existente) ctx.almacen.guardarCliente(ap.cliente);
   vaciarCarrito(ctx); window.dispatchEvent(new CustomEvent('pos:carrito'));
-  cerrar(); toast('Apartado creado');
+  cerrar(); toast(res.existente ? 'El apartado ya se guardó' : 'Apartado creado');
   return true;
 }
 
 function abrirPago(ctx, ap, modo) {
+  const vigente = capturarContexto(ctx);
+  if (!vigente() || !esperarAjustesDePago(ctx)) return;
   const completar = modo === 'completar';
   let guardando = false;
   const final = h('button', { class: 'btn primary grande', id: completar ? 'completar-final' : 'abono-final' }, completar ? `Cobrar saldo ${fmtCop(ap.saldo)}` : 'Registrar abono');
   const panel = crearPanelPagos(ctx, { total: ap.saldo, permitirMenos: !completar, alCambiar: () => actualizar() });
   const actualizar = () => {
     const e = panel.estado();
-    final.disabled = guardando || (completar ? !e.cuadra : (e.pagadoCop <= 0 || e.vueltoCop > 0));
+    final.disabled = guardando || (completar ? !e.cuadra : (e.pagadoCop <= 0 || e.vueltoCop > 0 || e.pagos.some(p => p.equivalenteCop == null)));
   };
   const v = abrirVentana({ titulo: completar ? 'Completar apartado' : 'Abonar', pantallaCompleta: true,
     contenido: h('div', { class: 'cobro' }, h('p', {}, h('b', {}, ap.cliente.nombre), ` · total ${fmtCop(ap.total)} · saldo `, h('b', { class: 'num' }, fmtCop(ap.saldo))), panel.el),
@@ -82,34 +107,44 @@ function abrirPago(ctx, ap, modo) {
   actualizar();
   const idVenta = ctx.almacen.nuevoId();
   final.addEventListener('click', async () => {
-    if (guardando) return;
+    if (guardando || !vigente() || avisarErrorPago(panel.validar())) return;
+    const { pagos, vuelto, estado } = panel.resultado();
+    if (completar ? !estado.cuadra : estado.pagadoCop <= 0 || estado.vueltoCop > 0 || pagos.some(p => p.equivalenteCop == null)) return;
     guardando = true; actualizar();
-    const { pagos, vuelto } = panel.resultado();
     let res;
     if (completar) {
       const venta = {
         id: idVenta, fecha: new Date().toISOString(), cliente: ap.cliente, lineas: ap.lineas, subtotal: ap.subtotal, descuento: ap.descuento,
         total: ap.total, abonosPrevios: ap.total - ap.saldo, pagos, vuelto, tasas: tasasDe(ctx),
       };
-      res = await conCaja(ctx, () => ctx.almacen.completarApartado(ap.id, venta));
-      if (res.ok && res.offline) anotarPendiente(ctx, { que: 'completar', id: idVenta, apartadoId: ap.id, offline: true, datos: venta }); // v2.26
+      const envio = seguirEnvio(ctx, { que: 'completar', id: idVenta, apartadoId: ap.id, offline: true, datos: venta });
+      res = await conCaja(ctx, validar => ctx.almacen.completarApartado(ap.id, venta, { validar, alEnviar: envio.alEnviar }), panel.validar);
+      envio.alResponder(res);
     } else {
       // Cada abono lleva un id fijo: si algo falla y se reintenta, los ya guardados no se repiten.
       const actual = await ctx.almacen.obtener('apartados', ap.id) || ap;
+      if (!vigente()) return;
       const suma = pagos.reduce((s, p) => s + (p.equivalenteCop || 0), 0);
       if (suma > actual.saldo + 50) res = { ok: false, error: 'excede' };
       else {
         res = { ok: true };
         for (const [i, p] of pagos.entries()) {
           const abono = { ...p, id: `${idVenta}-${i}` };
-          const r = await conCaja(ctx, () => ctx.almacen.abonarApartado(ap.id, abono));
+          const envio = seguirEnvio(ctx, { que: 'abono', id: abono.id, apartadoId: ap.id, offline: true, datos: { ...abono, fecha: new Date().toISOString(), cliente: ap.cliente } });
+          const r = await conCaja(ctx, validar => ctx.almacen.abonarApartado(ap.id, abono, { validar, alEnviar: envio.alEnviar }), panel.validar);
+          envio.alResponder(r);
+          if (!vigente()) return;
           if (!r.ok) { res = r; break; }
-          if (r.offline) anotarPendiente(ctx, { que: 'abono', id: abono.id, apartadoId: ap.id, offline: true, datos: { ...abono, fecha: new Date().toISOString(), cliente: ap.cliente } }); // v2.26
         }
       }
     }
+    if (!vigente()) return;
     guardando = false;
-    if (!res.ok) { toast(res.error === 'sin-caja' ? 'Abre tu caja primero' : res.error === 'excede' ? 'El abono es mayor que el saldo actual' : 'No se pudo guardar', { malo: true }); actualizar(); return; }
+    if (!res.ok) {
+      if (!avisarErrorPago(res.error)) toast(res.error === 'sin-caja' ? 'Abre tu caja primero' : res.error === 'excede' ? 'El abono es mayor que el saldo actual' : 'No se pudo guardar', { malo: true });
+      actualizar();
+      return;
+    }
     v.cerrar(); toast(completar ? 'Venta guardada' : 'Abono guardado');
   });
 }
@@ -144,11 +179,12 @@ function tarjeta(ctx, ap, filtro) {
 
 // Detalle del apartado: saldo y abonado arriba, prendas, último abono (con historial) y acciones.
 function abrirDetalle(ctx, ap) {
+  const vigente = capturarContexto(ctx);
   const [color, etiqueta] = ESTADO[ap.estado] || ESTADO.pendiente;
   const pendiente = ap.estado === 'pendiente';
   const abonado = ap.total - ap.saldo;
   const pct = ap.total ? Math.min(100, Math.round((abonado / ap.total) * 100)) : 0;
-  const ir = fn => { v.cerrar(); despuesDeCerrar(fn); };
+  const ir = fn => { v.cerrar(); despuesDeCerrar(() => { if (vigente()) fn(); }); };
   const abonos = ap.abonos || [];
   const ultimo = abonos[abonos.length - 1];
   const textoAbono = x => `${fmtMonto(x.monto, x.moneda)}${x.moneda === 'COP' ? '' : ' ' + (x.moneda === 'BS' ? 'Bs' : x.moneda)}`;

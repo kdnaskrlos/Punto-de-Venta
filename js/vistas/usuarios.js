@@ -139,6 +139,8 @@ function usuarios(ctx) {
 const botonEditar = (ctx, u) => h('button', { class: 'btn u-editar', type: 'button', 'data-perfil': u.usuario, onclick: () => editarPerfil(ctx, u) }, icono('lapiz'), 'Editar');
 
 function accionesPropias(ctx, editar) {
+  if (ctx.ambitoPrueba) return h('div', { class: 'u-acc' }, editar,
+    h('button', { class: 'btn', onclick: ctx.salirModoPrueba }, icono('salir'), 'Salir del Modo prueba'));
   // En la demostración no hay PIN ni sesión que cerrar: se cambia de rol con «Probar como».
   if (DEMO_DIRECTO) return h('div', { class: 'u-propias' }, h('div', { class: 'u-acc' }, editar), opcionesCuenta(ctx).querySelector('.probar'));
   return h('div', { class: 'u-acc' }, editar,

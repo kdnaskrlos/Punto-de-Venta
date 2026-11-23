@@ -23,6 +23,8 @@ export function cambiarMiPin(ctx) {
 
 export function opcionesCuenta(ctx, alSalir) {
   const s = ctx.sesion;
+  if (ctx.ambitoPrueba) return h('div', { class: 'cuenta' }, h('p', {}, s.nombre),
+    h('button', { class: 'fila-btn', onclick: ctx.salirModoPrueba }, icono('salir'), 'Salir del Modo prueba'));
   return h('div', { class: 'cuenta' },
     h('div', { class: 'cuenta-quien' }, avatarDe(s),
       h('div', {}, h('b', {}, s.nombre), h('div', { class: 'nota' }, `@${s.usuario} · ${NOMBRE_ROL[s.rol] || s.rol}`))),

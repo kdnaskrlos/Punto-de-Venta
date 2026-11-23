@@ -5,9 +5,10 @@ import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento, equivalentes, abrirDescuento } from './vender.js';
 import { crearApartado } from './apartados.js';
-import { crearPanelPagos } from './pagos.js';
+import { avisarErrorPago, crearPanelPagos, esperarAjustesDePago } from './pagos.js';
 import { guardarVentaEnCurso } from './venta-en-curso.js';
-import { anotarPendiente } from '../datos/pendientes.js';
+import { seguirEnvio } from '../datos/pendientes.js';
+import { capturarContexto } from '../datos/contexto.js';
 import { comisionesVenta } from '../nucleo/comisiones.js';
 import { repartirDescuento } from '../nucleo/descuento.js';
 import { enlaceWhatsApp } from '../nucleo/recibo.js';
@@ -59,7 +60,9 @@ export function resumenCliente(ctx) {
 }
 
 export function abrirCobrar(ctx) {
-  if (cobroAbierto()) return;
+  if (cobroAbierto() || !esperarAjustesDePago(ctx)) return;
+  const vigente = capturarContexto(ctx);
+  if (!vigente()) return;
   revisarDescuento(ctx);
   let r0 = resumenCarrito(ctx);
   if (!r0.lineas.length) return;
@@ -85,7 +88,12 @@ export function abrirCobrar(ctx) {
     apartar.disabled = guardando || e.vueltoCop > 0 || e.cuadra || e.pagos.some(p => p.equivalenteCop == null);
     abonoTxt.hidden = !(abono > 0 && !e.cuadra); abonoTxt.textContent = `abono ${fmtCop(abono)}`;
   };
-  const panel = crearPanelPagos(ctx, { total: r0.total, iniciales: c0.pagos, alCambiar: () => { actualizar(); if (!hecha) { carrito(ctx).pagos = panel.borrador(); guardarVentaEnCurso(ctx); } } });
+  const panel = crearPanelPagos(ctx, { total: r0.total, iniciales: c0.pagos, alCambiar: () => {
+    if (hecha || !vigente()) return;
+    actualizar();
+    c0.pagos = panel.borrador();
+    guardarVentaEnCurso(ctx);
+  } });
   const cliente = resumenCliente(ctx);
   const totalBox = h('div', { class: 'total-cobro tarjeta cb-total' });
   const descBox = h('div', { class: 'cb-desc' });
@@ -107,7 +115,7 @@ export function abrirCobrar(ctx) {
   const v = abrirVentana({ titulo: 'Cobrar', sinCabecera: true, contenido: cuerpo, acciones: h('div', { class: 'pie-cobro' }, panel.barra, h('div', { class: 'cb-botones' }, apartar, final)), pantallaCompleta: true });
   // Si cambia el descuento estando aquí, el total y lo que falta se recalculan sin perder los pagos.
   const alCarrito = () => {
-    if (hecha || !v.el.isConnected) return;
+    if (hecha || !vigente() || !v.el.isConnected) return;
     const r = resumenCarrito(ctx);
     if (!r.lineas.length) return;
     if (r.total !== r0.total || r.descuento !== r0.descuento) { r0 = r; panel.ponerTotal(r.total); pintarTotal(); actualizar(); }
@@ -118,23 +126,27 @@ export function abrirCobrar(ctx) {
   actualizar();
 
   apartar.addEventListener('click', async () => {
-    if (guardando || hecha) return;
+    if (guardando || hecha || !vigente() || avisarErrorPago(panel.validar())) return;
+    const { estado, pagos } = panel.resultado();
+    if (estado.vueltoCop > 0 || estado.cuadra || pagos.some(p => p.equivalenteCop == null)) return;
     guardando = true; actualizar();
-    const ok = await crearApartado(ctx, { id: idApartado, r0, pagos: panel.resultado().pagos, cerrar: () => v.cerrar() });
+    const ok = await crearApartado(ctx, { id: idApartado, r0, pagos, validar: panel.validar, cerrar: () => v.cerrar() });
     if (ok) hecha = true;
     guardando = false; if (!hecha) actualizar();
   });
 
   final.addEventListener('click', async () => {
-    if (guardando || hecha) return;
+    if (guardando || hecha || !vigente() || avisarErrorPago(panel.validar()) || !panel.estado().cuadra) return;
     guardando = true; actualizar();
     try {
-      const r = resumenCarrito(ctx);
+      let r = resumenCarrito(ctx);
       if (firmaCarrito(r) !== firmaCarrito(r0)) { v.cerrar(); toast('Los precios cambiaron, revisa el cobro', { malo: true }); window.dispatchEvent(new CustomEvent('pos:carrito')); return; }
       const sinConexion = ctx.conexion && ctx.conexion.enLinea === false;
       if (sinConexion && r.lineas.some(l => (ctx.productos[l.sku]?.existencia ?? 0) - l.cantidad <= 2)) {
         const ok = await confirmar('Estás sin conexión y quedan pocas. Confirma con la tienda antes de cobrar.', 'Cobrar igual', 'Volver');
-        if (!ok) return;
+        if (!ok || !vigente() || avisarErrorPago(panel.validar())) return;
+        r = resumenCarrito(ctx);
+        if (firmaCarrito(r) !== firmaCarrito(r0) || !panel.estado().cuadra) return;
       }
       const { pagos, vuelto } = panel.resultado();
       const c = carrito(ctx);
@@ -147,21 +159,26 @@ export function abrirCobrar(ctx) {
         total: r.total, pagos, vuelto,
         tasas: { copPorUsd: ctx.tasas.copPorUsd, bsPorUsd: ctx.tasas.bsPorUsd, fuenteBs: ctx.tasas.fuenteBs },
       };
-      const res = await conCaja(ctx, () => ctx.almacen.guardarVenta(venta));
+      const envio = seguirEnvio(ctx, { que: 'venta', id: idVenta, offline: true, datos: venta });
+      const res = await conCaja(ctx, validar => ctx.almacen.guardarVenta(venta, { validar, alEnviar: envio.alEnviar }), panel.validar);
+      envio.alResponder(res);
+      if (!vigente()) return;
       if (!res.ok) {
-        if (res.faltantes) toast(`Ya no hay existencia de ${res.faltantes.map(s => nombreLinea(ctx, s)).join(', ')}`, { malo: true });
+        if (avisarErrorPago(res.error)) return;
+        if (res.error === 'en-curso') toast('El envío anterior sigue pendiente de confirmación', { malo: true });
+        else if (res.faltantes) toast(`Ya no hay existencia de ${res.faltantes.map(s => nombreLinea(ctx, s)).join(', ')}`, { malo: true });
         else if (res.error === 'sin-caja') toast('Abre tu caja para vender', { malo: true });
         else toast('No se pudo guardar la venta', { malo: true });
         return;
       }
       hecha = true;
-      if (res.offline) anotarPendiente(ctx, { que: 'venta', id: idVenta, offline: true, datos: venta }); // v2.26: se revisa al reconectar
-      ctx.almacen.guardarCliente(venta.cliente);
+      if (!res.existente) ctx.almacen.guardarCliente(venta.cliente);
       const guardada = await ctx.almacen.obtener('ventas', idVenta) || venta;
+      if (!vigente()) return;
       const enlace = enlaceWhatsApp(guardada, ctx.ajustes.tienda || { nombre: 'Comic Shop' }, ctx.ajustes.recibo);
       vaciarCarrito(ctx);
       window.dispatchEvent(new CustomEvent('pos:carrito'));
-      v.el.querySelector('.cuerpo').replaceChildren(pantallaExito(ctx, venta, { enlace, offline: res.offline, cerrar: () => v.cerrar() }));
+      v.el.querySelector('.cuerpo').replaceChildren(pantallaExito(ctx, guardada, { enlace, offline: res.offline, existente: res.existente, cerrar: () => v.cerrar() }));
       v.el.querySelector('.pie')?.remove();
     } finally {
       guardando = false;
@@ -173,7 +190,7 @@ export function abrirCobrar(ctx) {
 // Pantalla final: «Venta exitosa» con un check animado, el total en verde crema, cómo se pagó y el vuelto.
 // Se cierra sola a los 10 s (barra que se vacía); tocar la pantalla detiene la cuenta.
 const SEGUNDOS = 10;
-function pantallaExito(ctx, venta, { enlace, offline, cerrar }) {
+function pantallaExito(ctx, venta, { enlace, offline, existente, cerrar }) {
   const cliente = venta.cliente?.nombre;
   const hora = new Date(venta.fecha).toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' }).replace(/\s?([ap])\.?\s?m\.?/i, ' $1m');
   const barra = h('i', {});
@@ -183,7 +200,7 @@ function pantallaExito(ctx, venta, { enlace, offline, cerrar }) {
   const parar = () => { if (!reloj) return; clearInterval(reloj); reloj = null; cuenta.classList.add('parada'); texto.textContent = 'Cierre automático detenido'; barra.getAnimations?.().forEach(a => a.pause()); };
   const el = h('div', { class: 'listo exito', onpointerdown: e => { if (!e.target.closest('.btn')) parar(); } },
     h('div', { class: 'exito-ic' }, h('span', { class: 'exito-onda' }), icono('check')),
-    h('h2', {}, 'Venta exitosa'),
+    h('h2', {}, existente ? 'La venta ya se guardó' : 'Venta exitosa'),
     h('p', { class: 'nota exito-sub' }, [cliente, hora].filter(Boolean).join(' · ')),
     h('div', { class: 'exito-total' },
       h('span', { class: 'et' }, 'Total cobrado'),

@@ -2,8 +2,9 @@
 // Cumple el contrato de contrato.js. Las reglas de firestore.rules repiten estos permisos en el servidor.
 import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocFromServer, getDocs, waitForPendingWrites, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion, documentId } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocFromServer, getDocs, getDocsFromServer, waitForPendingWrites, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { puede } from '../nucleo/permisos.js';
+import { costoVenta } from '../nucleo/costos.js';
 import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
 import { nuevoId } from './contrato.js';
@@ -31,22 +32,44 @@ function cumpleFiltro(d, f) {
   return true;
 }
 
-export function crearFirebase(config) {
+export function crearFirebase(config, { puedeSincronizar = () => true, generacion = () => 0, ajustesListos = () => true } = {}) {
   const app = initializeApp(config);
   const auth = getAuth(app);
   const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
   let sesion = null, miCaja = null, pendientes = 0, pendientesVentas = 0, errorSync = null;
   const enCurso = new Set();
+  const transacciones = new Set();
+  const costosPorCongelar = new Map();
+  let uidAutenticado, generacionSesion = 0;
+  function capturarSesion(validar = () => null) {
+    const uid = sesion?.uid, actual = generacionSesion, contexto = generacion();
+    return () => !uid || uid !== sesion?.uid || (uidAutenticado !== undefined && uidAutenticado !== uid) ||
+      actual !== generacionSesion || contexto !== generacion() || !puedeSincronizar() ? 'sesion' : validar();
+  }
+  function capturarPago(validar = () => null) {
+    return capturarSesion(() => confirmandoCaja ? 'validando-caja' : !ajustesListos() ? 'ajustes-pendientes' : validar());
+  }
+  let confirmandoCaja = false, revisionCaja = 0;
   // La caja abierta se conoce con el primer dato de su escucha; vender espera ese momento (máx. 4 s).
   let cajaConocida = Promise.resolve(), avisarCajaConocida = () => {};
   const esperarCaja = () => Promise.race([cajaConocida, new Promise(r => setTimeout(r, 4000))]);
+  async function validarCaja(validar) {
+    const error = validar();
+    if (error) return error;
+    await esperarCaja();
+    return validar() || (confirmandoCaja ? 'validando-caja' : !miCaja ? 'sin-caja' : null);
+  }
   let quitarPendientes = null;
   const oyentesSesion = new Set(), oyentesSync = new Set();
   let quitarPerfil = null, quitarCaja = null;
 
   const avisarSync = () => { for (const cb of oyentesSync) cb({ enLinea: navigator.onLine, pendientes: pendientes + pendientesVentas, error: errorSync }); };
   addEventListener('offline', avisarSync);
-  addEventListener('online', () => { avisarSync(); if (sesion && puede(sesion.rol, 'verReportesTodos')) completarNumeros().catch(() => {}); });
+  addEventListener('online', () => {
+    avisarSync();
+    if (sesion && puede(sesion.rol, 'verReportesTodos')) completarNumeros().catch(() => {});
+    api.reanudarCostos();
+  });
 
   // Escritura sin esperar al servidor: queda en el teléfono al instante y sube cuando hay internet.
   function sinEsperar(p) {
@@ -83,15 +106,29 @@ export function crearFirebase(config) {
   };
   const anotar = (b, metodo, args, x) => { const ev = describir(metodo, args, x); if (ev && sesion) b.set(...evento(ev)); };
   // Acción de una sola escritura + su evento, juntos.
-  const conEvento = (escribir, metodo, args, x) => { const b = writeBatch(db); escribir(b); anotar(b, metodo, args, x); return sinEsperar(b.commit()); };
+  function enviarLote(b, alEnviar) {
+    const envio = b.commit();
+    alEnviar?.();
+    return sinEsperar(envio);
+  }
+  const conEvento = (escribir, metodo, args, x, alEnviar) => {
+    const b = writeBatch(db); escribir(b); anotar(b, metodo, args, x);
+    return enviarLote(b, alEnviar);
+  };
 
   // ---- sesión ----
   let errorPerfil = null; // por qué no se pudo cargar el perfil (se muestra en la entrada)
-  function publicarSesion(s) { sesion = s; for (const cb of oyentesSesion) cb(s ? { ...s } : null); }
+  function publicarSesion(s) {
+    if (sesion?.uid !== s?.uid || sesion?.usuario !== s?.usuario || sesion?.rol !== s?.rol) generacionSesion++;
+    sesion = s;
+    for (const cb of oyentesSesion) cb(s ? { ...s } : null);
+  }
   onAuthStateChanged(auth, user => {
+    const uid = user?.uid ?? null;
+    if (uidAutenticado !== uid) { uidAutenticado = uid; generacionSesion++; }
     quitarPerfil && quitarPerfil();
     // Si «entrar» ya abrió la sesión de este mismo usuario, no se desarma lo que dejó listo (caja, pendientes).
-    if (!user || sesion?.uid !== user.uid) { quitarCaja && quitarCaja(); quitarPendientes && quitarPendientes(); quitarCaja = quitarPendientes = null; miCaja = null; pendientesVentas = 0; }
+    if (!user || sesion?.uid !== user.uid) { quitarCaja && quitarCaja(); quitarPendientes && quitarPendientes(); quitarCaja = quitarPendientes = null; miCaja = null; confirmandoCaja = false; pendientesVentas = 0; }
     if (!user) { publicarSesion(null); return; }
     quitarPerfil = onSnapshot(ref('usuarios', user.uid), { includeMetadataChanges: true }, snap => {
       // La copia del teléfono puede venir vacía justo después de cerrar sesión: solo se decide con la respuesta
@@ -112,6 +149,8 @@ export function crearFirebase(config) {
         quitarCaja && quitarCaja();
         cajaConocida = new Promise(r => { avisarCajaConocida = r; });
         quitarCaja = onSnapshot(query(collection(db, 'cajas'), where('usuario', '==', u.usuario), where('estado', '==', 'abierta')), s => {
+          if (confirmandoCaja && (s.metadata?.fromCache || s.metadata?.hasPendingWrites)) return;
+          revisionCaja++;
           miCaja = s.docs[0] ? s.docs[0].data() : null;
           avisarCajaConocida();
         });
@@ -121,19 +160,24 @@ export function crearFirebase(config) {
           pendientesVentas = s.docs.filter(d => d.metadata.hasPendingWrites).length;
           avisarSync();
         }, () => {});
-        if (puede(u.rol, 'verReportesTodos') && navigator.onLine) completarNumeros().catch(() => {});
       }
       publicarSesion(nueva);
+      if (cambio && puede(u.rol, 'verReportesTodos') && navigator.onLine) completarNumeros().catch(() => {});
   }
 
   async function completarNumeros() {
+    const validar = capturarSesion();
+    if (validar()) return;
     const q = await getDocs(query(collection(db, 'ventas'), where('numero', '==', null)));
     const lista = q.docs.map(d => d.data()).sort((a, b) => a.creada.localeCompare(b.creada));
     for (const v of lista) {
+      if (validar()) return;
       await runTransaction(db, async tx => {
+        if (validar()) return;
         const actual = await tx.get(ref('ventas', v.id));
-        if (!actual.exists() || actual.data().numero) return;
+        if (validar() || !actual.exists() || actual.data().numero) return;
         const c = await tx.get(ref('contadores', 'ventas'));
+        if (validar()) return;
         const n = (c.data()?.n || 0) + 1;
         tx.set(ref('contadores', 'ventas'), { n });
         tx.update(ref('ventas', v.id), { numero: 'V-' + String(n).padStart(4, '0') });
@@ -152,23 +196,35 @@ export function crearFirebase(config) {
   }
 
   // ---- venta/apartado con existencia ----
-  async function guardarConExistencia({ col, docu, lineas, motivo, numerar, ev }) {
-    if (enCurso.has(docu.id)) return SI({ offline: false });
-    enCurso.add(docu.id);
+  async function guardarConExistencia({ col, docu, lineas, motivo, numerar, ev, validar, alEnviar }) {
+    const clave = `${docu.uid}/${col}/${docu.id}`;
+    if (enCurso.has(clave) || transacciones.has(clave)) return NO('en-curso');
+    enCurso.add(clave);
     try {
       const cant = porSku(lineas);
       if (navigator.onLine) {
+        let vencida = false, enviada = false, reloj;
         try {
-          const tope = new Promise((_, mal) => setTimeout(() => mal({ code: 'unavailable', tope: true }), 4000));
-          const r = await Promise.race([tope, runTransaction(db, async tx => {
+          const tope = new Promise((_, mal) => { reloj = setTimeout(() => mal({ code: 'unavailable' }), 4000); });
+          transacciones.add(clave);
+          const transaccion = Promise.resolve().then(() => runTransaction(db, async tx => {
+            const error = () => vencida ? 'en-curso' : validar();
+            let invalido = error();
+            if (invalido) return NO(invalido);
             const previa = await tx.get(ref(col, docu.id));
-            if (previa.exists()) return SI({ offline: false });
+            invalido = error();
+            if (invalido) return NO(invalido);
+            if (previa.exists()) return SI({ offline: false, existente: true });
             const prods = await Promise.all(Object.keys(cant).map(sku => tx.get(ref('productos', sku))));
+            invalido = error();
+            if (invalido) return NO(invalido);
             const faltan = prods.filter(p => (p.data()?.existencia ?? 0) < cant[p.id]).map(p => p.id);
             if (faltan.length) return { ok: false, faltantes: faltan };
             let numero = null;
             if (numerar) {
               const c = await tx.get(ref('contadores', 'ventas'));
+              invalido = error();
+              if (invalido) return NO(invalido);
               const n = (c.data()?.n || 0) + 1;
               numero = 'V-' + String(n).padStart(4, '0');
               tx.set(ref('contadores', 'ventas'), { n });
@@ -180,28 +236,39 @@ export function crearFirebase(config) {
             }
             tx.set(ref(col, docu.id), { ...docu, ...(numerar ? { numero } : {}), offline: false });
             if (ev) tx.set(...evento(ev));
+            enviada = true;
             return SI({ offline: false });
-          })]);
-          return r;
+          })).finally(() => transacciones.delete(clave));
+          return await Promise.race([tope, transaccion]);
         } catch (e) {
-          if (e.code !== 'unavailable') { enCurso.delete(docu.id); return NO(e.code === 'permission-denied' ? 'permiso' : 'error'); }
-        }
+          vencida = true;
+          if (e.code !== 'unavailable') return NO(e.code === 'permission-denied' ? 'permiso' : 'error');
+          // Si la transacción ya preparó escrituras, su resultado puede llegar tarde.
+          // Un lote adicional podría descontar la existencia dos veces.
+          if (enviada) return NO('en-curso');
+        } finally { clearTimeout(reloj); }
       }
+      let error = validar();
+      if (error) return NO(error);
       // Si ya quedó guardada (otro intento, o la transacción terminó tarde), no se repite.
-      try { if ((await getDocFromCache(ref(col, docu.id))).exists()) return SI({ offline: true }); } catch { /* no está en caché */ }
+      let previa;
+      try { previa = await getDocFromCache(ref(col, docu.id)); } catch { /* no está en caché */ }
+      error = validar();
+      if (error) return NO(error);
+      if (previa?.exists()) return SI({ offline: true, existente: true });
       // Sin conexión: se guarda en el teléfono y sube después; la existencia puede quedar negativa.
       const b = writeBatch(db);
       for (const [sku, n] of Object.entries(cant)) mover(b, sku, -n, motivo, docu.id);
       b.set(ref(col, docu.id), { ...docu, ...(numerar ? { numero: null } : {}), offline: true });
       if (ev) b.set(...evento({ ...ev, resumen: ev.resumen + ' · sin conexión' }));
-      const r = await sinEsperar(b.commit());
-      if (!r.ok) enCurso.delete(docu.id);
+      const r = await enviarLote(b, alEnviar);
       return r.ok ? SI({ offline: true }) : r;
-    } catch (e) { enCurso.delete(docu.id); throw e; }
+    } finally { enCurso.delete(clave); }
   }
 
   const api = {
     nuevoId,
+    vigenciaSesion() { const validar = capturarSesion(); return () => !validar(); },
 
     // ---- sesión y usuarios ----
     async sistemaIniciado() {
@@ -341,9 +408,13 @@ export function crearFirebase(config) {
       return conEvento(b => b.update(ref('usuarios', uid), { activo: !!activo }), 'activarUsuario', [uid, activo], { u });
     },
 
+    numerarPendientes() {
+      if (sesion && navigator.onLine && puede(sesion.rol, 'verReportesTodos')) completarNumeros().catch(() => {});
+    },
+
     // ---- lectura ----
-    escuchar(nombre, cb, filtro) {
-      if (!sesion) { cb([]); return () => {}; }
+    escuchar(nombre, cb, filtro, { confirmar = false } = {}) {
+      if (!sesion) { if (!confirmar) cb([]); return () => {}; }
       if (RESTRINGIDAS.includes(nombre) && !puede(sesion.rol, 'verCostos')) { cb([]); return () => {}; }
       if (SOLO_GESTION.includes(nombre) && !puede(sesion.rol, 'verReportesTodos')) { cb([]); return () => {}; }
       let q = collection(db, nombre);
@@ -356,8 +427,10 @@ export function crearFirebase(config) {
       else if (!conds.length && ['ventas', 'movimientos', 'autorizaciones', 'eventos'].includes(nombre) && obj?.desde) conds.push(where('fecha', '>=', obj.desde));
       if (conds.length) q = query(q, ...conds);
       if (nombre === 'usuarios' && sesion.rol !== 'admin') q = query(q, where('activo', '==', true));
-      return onSnapshot(q, s => cb(s.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => cumpleFiltro(d, filtro))),
-        e => { console.warn('escuchar', nombre, e); cb([]); });
+      return onSnapshot(q, { includeMetadataChanges: confirmar }, s => {
+        if (confirmar && (s.metadata.fromCache || s.metadata.hasPendingWrites)) return;
+        cb(s.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => cumpleFiltro(d, filtro)));
+      }, e => { console.warn('escuchar', nombre, e); if (!confirmar) cb([]); });
     },
     async obtener(nombre, id) {
       try { const s = await getDoc(ref(nombre, id)); return s.exists() ? { id: s.id, ...s.data() } : null; } catch { return null; }
@@ -371,17 +444,23 @@ export function crearFirebase(config) {
     async esperarSubidas(topeMs = 15000) {
       return Promise.race([waitForPendingWrites(db).then(() => true), new Promise(r => setTimeout(() => r(false), topeMs))]);
     },
-    async registrarConflicto(c) {
-      if (!sesion) return NO('sesion');
+    async registrarConflicto(c, { validar: validarContexto } = {}) {
+      const validar = capturarSesion(validarContexto);
+      if (validar()) return NO('sesion');
       try {
         const b = writeBatch(db);
         b.set(ref('conflictos', c.id), limpiarIndefinidos({ ...c, usuario: sesion.usuario, uid: sesion.uid, estado: 'pendiente', detectado: ahora() }));
         anotar(b, 'registrarConflicto', [c]);
         await b.commit();
-        return SI();
+        return validar() ? NO('sesion') : SI();
       } catch (e) {
+        if (validar()) return NO('sesion');
         // Ya registrado (la regla no deja reescribirlo): cuenta como hecho.
-        try { if ((await getDocFromServer(ref('conflictos', c.id))).exists()) return SI(); } catch { /* sin conexión */ }
+        try {
+          const previo = await getDocFromServer(ref('conflictos', c.id));
+          if (validar()) return NO('sesion');
+          if (previo.exists() && previo.data().uid === sesion.uid) return SI();
+        } catch { /* sin conexión */ }
         return NO(e.code === 'permission-denied' ? 'permiso' : 'error');
       }
     },
@@ -391,12 +470,13 @@ export function crearFirebase(config) {
     },
 
     // ---- ventas ----
-    async guardarVenta(venta) {
+    async guardarVenta(venta, { validar: validarPago, alEnviar } = {}) {
       const e = exigir('vender'); if (e) return NO(e);
-      await esperarCaja();
-      if (!miCaja) return NO('sin-caja');
+      const validar = capturarPago(validarPago);
+      const error = await validarCaja(validar) || validar();
+      if (error) return NO(error);
       const docu = { ...venta, uid: sesion.uid, usuario: sesion.usuario, cajaId: miCaja.id, estado: 'ok', creada: ahora() };
-      return guardarConExistencia({ col: 'ventas', docu, lineas: venta.lineas, motivo: 'venta', numerar: true, ev: describir('guardarVenta', [venta]) });
+      return guardarConExistencia({ col: 'ventas', docu, lineas: venta.lineas, motivo: 'venta', numerar: true, ev: describir('guardarVenta', [venta]), validar, alEnviar });
     },
     async anularVenta(id, motivo) {
       const e = exigir('anularVenta'); if (e) return NO(e);
@@ -426,40 +506,49 @@ export function crearFirebase(config) {
     },
 
     // ---- apartados ----
-    async guardarApartado(ap) {
+    async guardarApartado(ap, { validar: validarPago, alEnviar } = {}) {
       const e = exigir('vender'); if (e) return NO(e);
-      await esperarCaja();
-      if (!miCaja) return NO('sin-caja');
+      const validar = capturarPago(validarPago);
+      const error = await validarCaja(validar) || validar();
+      if (error) return NO(error);
       const abonos = (ap.abonos || []).map(a => ({ ...a, cajaId: miCaja.id, usuario: sesion.usuario, fecha: ahora() }));
       const abonado = abonos.reduce((s, a) => s + (a.equivalenteCop || 0), 0);
       const docu = { ...ap, abonos, saldo: Math.max(0, ap.total - abonado), uid: sesion.uid, usuario: sesion.usuario, estado: 'pendiente', creada: ahora() };
-      return guardarConExistencia({ col: 'apartados', docu, lineas: ap.lineas, motivo: 'apartado', numerar: false, ev: describir('guardarApartado', [ap]) });
+      return guardarConExistencia({ col: 'apartados', docu, lineas: ap.lineas, motivo: 'apartado', numerar: false, ev: describir('guardarApartado', [ap]), validar, alEnviar });
     },
-    async abonarApartado(id, pago) {
+    async abonarApartado(id, pago, { validar: validarPago, alEnviar } = {}) {
       const e = exigir('vender'); if (e) return NO(e);
-      await esperarCaja();
-      if (!miCaja) return NO('sin-caja');
-      const ap = await api.obtener('apartados', id); if (!ap) return NO('no-existe');
+      const validar = capturarPago(validarPago);
+      let error = await validarCaja(validar) || validar();
+      if (error) return NO(error);
+      const ap = await api.obtener('apartados', id);
+      error = validar();
+      if (error) return NO(error);
+      if (!ap) return NO('no-existe');
       if (ap.estado !== 'pendiente') return NO('estado');
       if (pago.id && (ap.abonos || []).some(x => x.id === pago.id)) return SI();
       if ((pago.equivalenteCop || 0) > ap.saldo + 50) return NO('excede');
       const abono = { ...pago, cajaId: miCaja.id, usuario: sesion.usuario, fecha: ahora() };
       // increment: dos abonos a la vez (dos teléfonos, o uno sin conexión) restan los dos.
-      return conEvento(b => b.update(ref('apartados', id), { abonos: arrayUnion(abono), saldo: increment(-(pago.equivalenteCop || 0)) }), 'abonarApartado', [id, pago], { ap });
+      return conEvento(b => b.update(ref('apartados', id), { abonos: arrayUnion(abono), saldo: increment(-(pago.equivalenteCop || 0)) }), 'abonarApartado', [id, pago], { ap }, alEnviar);
     },
-    async completarApartado(id, venta) {
+    async completarApartado(id, venta, { validar: validarPago, alEnviar } = {}) {
       const e = exigir('vender'); if (e) return NO(e);
-      await esperarCaja();
-      if (!miCaja) return NO('sin-caja');
-      const ap = await api.obtener('apartados', id); if (!ap) return NO('no-existe');
+      const validar = capturarPago(validarPago);
+      let error = await validarCaja(validar) || validar();
+      if (error) return NO(error);
+      const ap = await api.obtener('apartados', id);
+      error = validar();
+      if (error) return NO(error);
+      if (!ap) return NO('no-existe');
       if (ap.estado === 'completado' && ap.ventaId === venta.id) return SI({ offline: false });
       if (ap.estado !== 'pendiente') return NO('estado');
       const b = writeBatch(db);
       b.set(ref('ventas', venta.id), { ...venta, desdeApartado: id, uid: sesion.uid, usuario: sesion.usuario, cajaId: miCaja.id, numero: null, offline: !navigator.onLine, estado: 'ok', creada: ahora() });
       b.update(ref('apartados', id), { estado: 'completado', ventaId: venta.id, saldo: 0 });
       anotar(b, 'completarApartado', [id, venta]);
-      const r = await sinEsperar(b.commit());
-      if (r.ok && navigator.onLine && puede(sesion.rol, 'verReportesTodos')) completarNumeros().catch(() => {});
+      const r = await enviarLote(b, alEnviar);
+      if (!validar() && r.ok && navigator.onLine && puede(sesion.rol, 'verReportesTodos')) completarNumeros().catch(() => {});
       return r;
     },
     async cancelarApartado(id, motivo) {
@@ -474,9 +563,13 @@ export function crearFirebase(config) {
     },
 
     // ---- caja ----
-    async abrirCaja(fondo, { tipo = 'tienda' } = {}) {
+    async abrirCaja(fondo, { tipo = 'tienda', validar: validarPago } = {}) {
       const e = exigir(tipo === 'personal' ? 'cajaPersonal' : 'abrirCaja'); if (e) return NO(e);
+      const validar = capturarSesion(validarPago);
       await esperarCaja();
+      const error = validar();
+      if (error) return NO(error);
+      if (confirmandoCaja) return NO('validando-caja');
       if (miCaja) return NO('ya-abierta');
       const id = nuevoId();
       miCaja = { id, uid: sesion.uid, usuario: sesion.usuario, tipo, abierta: ahora(), fondo: { COP: 0, USD: 0, BS: 0, ...(tipo === 'personal' ? {} : fondo) }, movimientos: [], estado: 'abierta' };
@@ -486,7 +579,7 @@ export function crearFirebase(config) {
       b.set(ref('cajaAbierta', sesion.usuario), { cajaId: id, desde: miCaja.abierta });
       anotar(b, 'abrirCaja', [fondo, { tipo }], { id });
       const r = await sinEsperar(b.commit());
-      if (!r.ok) miCaja = null;
+      if (!validar() && !r.ok && miCaja?.id === id) miCaja = null;
       return r.ok ? SI({ id, offline: r.offline }) : r;
     },
     async movimientoCaja(cajaId, mov) {
@@ -507,25 +600,52 @@ export function crearFirebase(config) {
       return r;
     },
     // Cierra las cajas abiertas en un día anterior, a las 11:59 pm de su día (la primera app que se abra lo hace).
-    async cerrarCajasVencidas(hoy) {
-      if (!sesion) return NO('sesion');
-      const todas = puede(sesion.rol, 'verReportesTodos');
+    async cerrarCajasVencidas(hoy, { confirmar = false } = {}) {
+      const validar = capturarSesion();
+      if (validar()) return NO('sesion');
+      if (confirmar) confirmandoCaja = true;
+      const { usuario, rol } = sesion;
+      const cajas = collection(db, 'cajas');
+      const propias = where('usuario', '==', usuario);
       const conds = [where('estado', '==', 'abierta')];
-      if (!todas) conds.push(where('usuario', '==', sesion.usuario));
+      if (confirmar || !puede(rol, 'verReportesTodos')) conds.push(propias);
+      const leer = confirmar ? getDocsFromServer : getDocs;
+      const documentos = s => s.docs.map(d => ({ id: d.id, ...d.data() }));
       let docs;
-      try { docs = (await getDocs(query(collection(db, 'cajas'), ...conds))).docs.map(d => ({ id: d.id, ...d.data() })); }
-      catch { return NO('red'); }
+      try {
+        const consulta = await leer(query(cajas, ...conds));
+        if (confirmar && consulta.metadata?.hasPendingWrites) return NO('red');
+        docs = documentos(consulta);
+      } catch { return NO('red'); }
+      if (validar()) return NO('sesion');
+      const revision = revisionCaja;
       const vencidas = docs.filter(c => diaLocal(c.abierta) < hoy);
-      if (!vencidas.length) return SI({ cerradas: 0 });
-      const b = writeBatch(db);
-      for (const c of vencidas) {
-        b.update(ref('cajas', c.id), { estado: 'cerrada', cierre: { automatico: true, fecha: finDia(diaLocal(c.abierta)), porArquear: c.tipo !== 'personal', por: sesion.usuario } });
-        b.delete(ref('cajaAbierta', c.usuario));
-        anotar(b, 'cierreAutomatico', [c]);
+      if (vencidas.length) {
+        const b = writeBatch(db);
+        for (const c of vencidas) {
+          b.update(ref('cajas', c.id), { estado: 'cerrada', cierre: { automatico: true, fecha: finDia(diaLocal(c.abierta)), porArquear: c.tipo !== 'personal', por: usuario } });
+          b.delete(ref('cajaAbierta', c.usuario));
+          anotar(b, 'cierreAutomatico', [c]);
+        }
+        if (confirmar) {
+          try { await b.commit(); } catch { return NO('red'); }
+        } else {
+          const r = await sinEsperar(b.commit());
+          if (validar()) return NO('sesion');
+          if (!r.ok) return r;
+          if (vencidas.some(c => c.id === miCaja?.id)) miCaja = null;
+        }
       }
-      const r = await sinEsperar(b.commit());
-      if (r.ok && vencidas.some(c => c.id === miCaja?.id)) miCaja = null;
-      return r.ok ? SI({ cerradas: vencidas.length }) : r;
+      if (validar()) return NO('sesion');
+      if (!confirmar) return SI({ cerradas: vencidas.length });
+      let porArquear;
+      try { porArquear = documentos(await getDocsFromServer(query(cajas, propias, where('cierre.porArquear', '==', true)))); }
+      catch { return NO('red'); }
+      if (validar()) return NO('sesion');
+      if (revisionCaja === revision) miCaja = docs[0] || null;
+      if (miCaja?.estado !== 'abierta' || diaLocal(miCaja.abierta) !== hoy) miCaja = null;
+      confirmandoCaja = false;
+      return SI({ caja: miCaja, porArquear });
     },
     async arquearCaja(cajaId, arqueo) {
       if (!sesion) return NO('sesion');
@@ -614,10 +734,15 @@ export function crearFirebase(config) {
     // ---- otros ----
     async guardarAjustes(nombreDoc, datos) {
       const e = exigir(nombreDoc === 'tasas' ? 'cambiarTasas' : 'ajustes'); if (e) return NO(e);
+      const validar = capturarSesion(() => ajustesListos() ? null : 'ajustes-pendientes');
+      let error = validar();
+      if (error) return NO(error);
       // Los ajustes se cambian poco y casi siempre con conexión: se espera la respuesta del servidor (hasta 8 s)
       // para avisar si las reglas lo rechazan, en vez de dar por guardado algo que luego se deshace.
       let antes = {};
       try { antes = (await getDocFromCache(ref('ajustes', nombreDoc))).data() || {}; } catch { /* sin caché */ }
+      error = validar();
+      if (error) return NO(error);
       const limpio = limpiarIndefinidos(datos);
       const cambios = diferencias(antes, limpio);
       const b = writeBatch(db);
@@ -627,16 +752,18 @@ export function crearFirebase(config) {
       sinEsperar(p);
       try {
         const r = await Promise.race([p.then(() => 'servidor'), new Promise(ok => setTimeout(() => ok('local'), 8000))]);
-        return SI({ offline: r === 'local' });
+        return validar() ? NO('sesion') : SI({ offline: r === 'local' });
       } catch (e) { console.warn('ajustes', e); return NO(e.code === 'permission-denied' ? 'permiso' : 'error'); }
     },
     async guardarCliente({ telefono, nombre }) {
-      if (!sesion) return NO('sesion');
+      const validar = capturarSesion();
+      if (validar()) return NO('sesion');
       const tel = telefonoInternacional(telefono);
       if (!tel || !String(nombre || '').trim()) return NO('datos');
       const n = String(nombre).trim();
       let previo = null;
       try { previo = (await getDocFromCache(ref('clientes', tel))).data() || null; } catch { /* no está en caché */ }
+      if (validar()) return NO('sesion');
       if (previo?.nombre === n) return SI({ telefono: tel }); // sin cambios: no se escribe ni se anota
       // v2.27: cada alta o cambio de cliente va con su evento (las reglas exigen ultimoEvento).
       const b = writeBatch(db);
@@ -665,36 +792,47 @@ export function crearFirebase(config) {
       const r = await conEvento(b => b.set(ref('comisiones', id), { ...reg, id, por: sesion.usuario, fecha: ahora() }), 'pagarComisiones', [reg], { id });
       return r.ok ? SI({ id }) : r;
     },
-    // Modo prueba: ejemplos con demo:true, en lotes de 400 escrituras.
-    async cargarEjemplos(lote) {
-      const e = exigir('ajustes'); if (e) return NO(e);
-      const CLAVE = { productos: 'sku', costos: 'sku', clientes: 'telefono', ventas: 'id', apartados: 'id', usuarios: 'uid', cajas: 'id', comisiones: 'id' };
-      const ops = Object.entries(CLAVE).flatMap(([n, k]) => (lote[n] || []).map(d => [ref(n, String(d[k])), { ...d, demo: true }]));
-      // v2.33: primero se quitan los ejemplos que hubiera (de una carga anterior o a medias): las reglas no dejan
-      // reescribir ventas, apartados ni pagos de comisión ya creados, y eso hacía fallar toda la carga.
-      const previo = await api.quitarEjemplos();
-      if (!previo.ok) return NO('permiso');
-      try {
-        for (let i = 0; i < ops.length; i += 400) { const b = writeBatch(db); ops.slice(i, i + 400).forEach(([r, d]) => b.set(r, d)); await b.commit(); }
-        conEvento(() => {}, 'cargarEjemplos', []);
-        return SI();
-      } catch (err) { console.warn('ejemplos', err); return NO(err.code === 'permission-denied' ? 'permiso' : 'red'); }
-    },
-    async quitarEjemplos() {
-      const e = exigir('ajustes'); if (e) return NO(e);
-      try {
-        const refs = [];
-        for (const n of ['productos', 'costos', 'clientes', 'ventas', 'apartados', 'usuarios', 'cajas', 'comisiones']) (await getDocs(query(collection(db, n), where('demo', '==', true)))).forEach(d => refs.push(d.ref));
-        (await getDocs(query(collection(db, 'costosVenta'), where(documentId(), '>=', 'demo-'), where(documentId(), '<', 'demo.')))).forEach(d => refs.push(d.ref));
-        for (let i = 0; i < refs.length; i += 400) { const b = writeBatch(db); refs.slice(i, i + 400).forEach(r => b.delete(r)); await b.commit(); }
-        conEvento(() => {}, 'quitarEjemplos', []);
-        return SI({ quitados: refs.length });
-      } catch { return NO('red'); }
-    },
+    // Los ejemplos se administran exclusivamente en el almacén local del Modo prueba.
+    async cargarEjemplos() { return NO('modo-prueba'); },
+    async quitarEjemplos() { return NO('modo-prueba'); },
     async congelarCostoVenta(ventaId, costo) {
       const e = exigir('verCostos'); if (e) return NO(e);
-      if (await api.obtener('costosVenta', ventaId)) return SI();
-      return sinEsperar(setDoc(ref('costosVenta', ventaId), { id: ventaId, ...costo }));
+      const validar = capturarSesion();
+      if (validar()) return NO('sesion');
+      const uid = sesion.uid;
+      const pendientes = costosPorCongelar.get(uid) || new Map();
+      if (pendientes.get(ventaId)?.activo?.()) return NO('en-curso');
+      const intento = { activo: () => !validar() };
+      pendientes.set(ventaId, intento);
+      costosPorCongelar.set(uid, pendientes);
+      try {
+        const previo = await getDoc(ref('costosVenta', ventaId));
+        if (validar()) return NO('sesion');
+        const r = previo.exists() ? SI() : await sinEsperar(setDoc(ref('costosVenta', ventaId), { id: ventaId, ...costo }));
+        if (validar()) return NO('sesion');
+        if (r.ok && pendientes.get(ventaId) === intento) pendientes.delete(ventaId);
+        return r;
+      } catch { return NO('red'); }
+      finally { intento.activo = null; }
+    },
+    async reanudarCostos() {
+      const validar = capturarSesion();
+      if (validar() || exigir('verCostos')) return;
+      const pendientes = costosPorCongelar.get(sesion.uid);
+      if (!pendientes?.size) return;
+      try {
+        const docs = await getDocs(collection(db, 'costos'));
+        if (validar()) return;
+        const costos = Object.fromEntries(docs.docs.map(d => [d.data().sku, d.data()]));
+        for (const [id, intento] of [...pendientes]) {
+          if (intento.activo?.()) continue;
+          const venta = await getDoc(ref('ventas', id));
+          if (validar()) return;
+          if (venta.exists()) await api.congelarCostoVenta(id, costoVenta(venta.data(), costos));
+          else if (pendientes.get(id) === intento) pendientes.delete(id);
+          if (validar()) return;
+        }
+      } catch { /* se puede reintentar al reconectar o abrir Reportes */ }
     },
     estadoSync(cb) { oyentesSync.add(cb); cb({ enLinea: navigator.onLine, pendientes, error: errorSync }); return () => oyentesSync.delete(cb); },
   };
