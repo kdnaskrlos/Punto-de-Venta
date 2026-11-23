@@ -159,7 +159,7 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       ];
       barra.className = 'barra-falta vuelto';
       barra.replaceChildren(h('span', {}, 'Vuelto'), ' ', h('span', { class: 'monto num' }, cambio?.texto || 'Sin tasa'),
-        cambio?.remanenteCop ? h('span', { class: 'nota' }, `Ajuste por redondeo: ${fmtCop(cambio.remanenteCop)} COP`) : null,
+        ...(cambio?.remanenteCop ? [h('span', { class: 'nota' }, `Ajuste por redondeo: ${fmtCop(cambio.remanenteCop)} COP`)] : []),
         h('div', { class: 'vuelto-moneda segmentado' }, ...modos.map(([m, etiqueta]) => h('button', { type: 'button', 'data-moneda': m,
           'aria-pressed': String(m === monedaVuelto), disabled: m === 'MIXTO'
             ? vueltoMixto(e.vueltoCop, ctx.tasas, { billeteMinimoUsd, redondeoCop: red }) == null
