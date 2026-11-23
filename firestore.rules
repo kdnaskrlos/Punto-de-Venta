@@ -31,11 +31,36 @@ service cloud.firestore {
       return activo() && resource.data.uid == request.auth.uid && resource.data.usuario == yo()
         && contador.ventaId == id && contador.numero == request.resource.data.numero && contador.n == previo + 1;
     }
+    function operacionNueva(ruta, estado) {
+      let operacion = getAfter(ruta).data;
+      return !exists(ruta) && operacion.uid == request.auth.uid
+        && operacion.usuario == yo() && operacion.estado == estado;
+    }
+    function operacionRevertida(ruta, anterior, nuevo) {
+      return get(ruta).data.estado == anterior && getAfter(ruta).data.estado == nuevo;
+    }
+    function motivoValido(mov) {
+      return (esAdmin() && mov.motivo in ['ajuste', 'importación', 'sincronización'] && mov.ref == null)
+        || (mov.ref is string && mov.ref.size() > 0 && (
+          (mov.cantidad < 0 && (
+            (mov.motivo == 'venta' && operacionNueva(ventaPath(mov.ref), 'ok'))
+            || (mov.motivo == 'apartado' && operacionNueva(apartadoPath(mov.ref), 'pendiente'))))
+          || (mov.cantidad > 0 && esGestion() && (
+            (mov.motivo == 'anulación' && operacionRevertida(ventaPath(mov.ref), 'ok', 'anulada'))
+            || (mov.motivo == 'cancelación' && operacionRevertida(apartadoPath(mov.ref), 'pendiente', 'cancelado'))))));
+    }
+    function movimientoValido(mov) {
+      return mov.usuario == yo() && mov.sku is string && mov.sku.size() > 0
+        && mov.cantidad is int && mov.cantidad != 0 && motivoValido(mov);
+    }
     function cambioConMovimiento(sku) {
-      let mov = getAfter(/databases/$(database)/documents/movimientos/$(request.resource.data.ultimoMov)).data;
-      let delta = request.resource.data.existencia - resource.data.existencia;
-      return mov.sku == sku && mov.cantidad == delta
-        && (!(mov.motivo in ['venta', 'apartado']) || (delta < 0 && request.resource.data.existencia >= 0));
+      let ruta = /databases/$(database)/documents/movimientos/$(request.resource.data.ultimoMov);
+      let mov = getAfter(ruta).data;
+      let existencia = request.resource.data.existencia;
+      return existencia is int && mov.sku == sku && mov.cantidad == existencia - resource.data.existencia
+        && movimientoValido(mov)
+        && (mov.motivo in ['venta', 'apartado'] ? existencia >= 0
+          : (mov.motivo in ['anulación', 'cancelación'] || (mov.motivo == 'ajuste' && !exists(ruta))));
     }
     function cajaAbiertaPath(u) { return /databases/$(database)/documents/cajaAbierta/$(u); }
 
@@ -68,6 +93,7 @@ service cloud.firestore {
       // deja saldo negativo, se rechaza el lote completo. Se preservan los ajustes e importaciones de gestión.
       allow update: if (esAdmin() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ultimoMov']))
         || (activo() && soloCambian(['existencia', 'ultimoMov'])
+          && request.resource.data.ultimoMov is string && request.resource.data.ultimoMov.size() > 0
           && request.resource.data.ultimoMov != resource.data.get('ultimoMov', null)
           && cambioConMovimiento(sku));
     }
@@ -192,7 +218,7 @@ service cloud.firestore {
     // Historial de cambios de existencia: se crea con cada venta o ajuste; nadie lo edita.
     match /movimientos/{id} {
       allow read: if esGestion();
-      allow create: if activo() && request.resource.data.usuario == yo();
+      allow create: if activo() && movimientoValido(request.resource.data);
       allow update, delete: if false;
     }
 

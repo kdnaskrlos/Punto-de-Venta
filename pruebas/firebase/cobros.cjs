@@ -8,7 +8,7 @@ const { before, after, test } = require('node:test');
 const host = process.env.FIRESTORE_EMULATOR_HOST;
 if (!/^127\.0\.0\.1:[1-9]\d{0,4}$/.test(host || '')) throw new Error('BLOQUEADO: requiere Firestore Emulator en 127.0.0.1');
 const { assertFails, initializeTestEnvironment } = require('@firebase/rules-unit-testing');
-const { doc, getDocFromServer, increment, writeBatch, setDoc, disableNetwork, enableNetwork, onSnapshot } = require('firebase/firestore');
+const { collection, doc, getDocsFromServer, getDocFromServer, increment, writeBatch, setDoc, disableNetwork, enableNetwork, onSnapshot } = require('firebase/firestore');
 
 const proyecto = 'demo-pos-bloque1';
 const reglas = readFileSync(path.resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -21,16 +21,16 @@ before(async () => {
 });
 after(async () => { await entorno?.cleanup(); });
 
-async function preparar() {
+async function preparar({ skus = [] } = {}) {
   await entorno.clearFirestore();
-  await entorno.withSecurityRulesDisabled(async ({ firestore }) => {
-    const db = firestore();
+  await entorno.withSecurityRulesDisabled(async contexto => {
+    const db = contexto.firestore();
     const lote = writeBatch(db);
-    for (const [usuario, rol] of [['a', 'vendedora'], ['b', 'admin']]) {
+    for (const [usuario, rol] of [['a', 'vendedora'], ['b', 'admin'], ['g', 'encargada']]) {
       lote.set(doc(db, 'usuarios', usuario), { uid: usuario, usuario, activo: true, rol });
       lote.set(doc(db, 'cajas', usuario), { id: usuario, uid: usuario, usuario, estado: 'abierta' });
     }
-    lote.set(doc(db, 'productos', 'ultimo'), { existencia: 1 });
+    for (const sku of ['ultimo', ...skus]) lote.set(doc(db, 'productos', sku), { existencia: 1 });
     lote.set(doc(db, 'apartados', 'ap'), { usuario: 'a', estado: 'pendiente', total: 22000, saldo: 22000, abonos: [] });
     await lote.commit();
   });
@@ -42,11 +42,14 @@ function docCobro(db, usuario, que, id) {
 function marca(que, id) {
   return { que, refId: id, fecha, orden: 1, dispositivo: 'sintetico', estadoSync: 'confirmada_servidor' };
 }
-function vender(db, usuario, id, conMarca = true) {
-  const b = writeBatch(db), mov = 'mov-' + usuario;
+function mover(lote, db, usuario, { id, sku, cantidad, motivo, ref = null }) {
+  lote.update(doc(db, 'productos', sku), { existencia: increment(cantidad), ultimoMov: id });
+  lote.set(doc(db, 'movimientos', id), { id, usuario, sku, cantidad, motivo, ref, fecha });
+}
+function vender(db, usuario, id, conMarca = true, skus = ['ultimo']) {
+  const b = writeBatch(db);
   if (conMarca) b.set(docCobro(db, usuario, 'venta', id), marca('venta', id));
-  b.update(doc(db, 'productos', 'ultimo'), { existencia: increment(-1), ultimoMov: mov });
-  b.set(doc(db, 'movimientos', mov), { usuario, sku: 'ultimo', cantidad: -1, motivo: 'venta', ref: id });
+  for (const sku of skus) mover(b, db, usuario, { id: id + '-' + sku, sku, cantidad: -1, motivo: 'venta', ref: id });
   b.set(doc(db, 'ventas', id), { id, usuario, uid: usuario, cajaId: usuario, estado: 'ok', numero: null, fecha, pagos: [{ monto: 22000, forma: 'efectivo-cop' }] });
   return b.commit();
 }
@@ -94,6 +97,91 @@ test('las reglas protegen también el lote anterior sin marca y rechazan duplica
   await assertFails(abonar());
   assert.equal((await getDocFromServer(doc(a, 'apartados', 'ap'))).data().saldo, 17000);
   await assertFails(setDoc(docCobro(a, 'b', 'abono', 'otro'), marca('abono', 'otro')));
+});
+
+test('vendedora y encargada no pueden ajustar existencias y el lote se revierte completo', { timeout: 30000 }, async () => {
+  await preparar();
+  const vendedora = entorno.authenticatedContext('a').firestore();
+  const encargada = entorno.authenticatedContext('g').firestore();
+  const admin = entorno.authenticatedContext('b').firestore();
+  for (const [usuario, db] of [['a', vendedora], ['g', encargada]]) {
+    const lote = writeBatch(db), id = 'ajuste-' + usuario;
+    mover(lote, db, usuario, { id, sku: 'ultimo', cantidad: -2, motivo: 'ajuste' });
+    await assertFails(lote.commit());
+    assert.equal((await getDocFromServer(doc(db, 'productos', 'ultimo'))).data().existencia, 1);
+    assert.equal((await getDocFromServer(doc(admin, 'movimientos', id))).exists(), false);
+  }
+});
+
+test('rechaza tipos y motivos inválidos y comprueba permisos en el movimiento y en el producto', { timeout: 30000 }, async () => {
+  await preparar();
+  const vendedora = entorno.authenticatedContext('a').firestore();
+  const admin = entorno.authenticatedContext('b').firestore();
+  const movimiento = { usuario: 'a', sku: 'ultimo', cantidad: -1, motivo: 'venta', ref: 'sin-venta', fecha };
+  for (const datos of [{ cantidad: -0.5 }, { motivo: 'desconocido' }, { motivo: 'venta', cantidad: 1 },
+    { motivo: 'cancelación', cantidad: 1 }, { motivo: 'importación', ref: null }, { motivo: 'sincronización', ref: null },
+    { motivo: 'ajuste', ref: null }, { ref: '' }]) {
+    await assertFails(setDoc(doc(vendedora, 'movimientos', 'invalido'), { ...movimiento, ...datos }));
+  }
+  await entorno.withSecurityRulesDisabled(contexto => setDoc(doc(contexto.firestore(), 'movimientos', 'historico'), { ...movimiento, motivo: 'ajuste', cantidad: -2, ref: null }));
+  await assertFails(setDoc(doc(vendedora, 'productos', 'ultimo'), { existencia: -1, ultimoMov: 'historico' }, { merge: true }));
+  await assertFails(setDoc(doc(admin, 'movimientos', 'sin-venta'), { ...movimiento, usuario: 'b' }));
+  assert.equal((await getDocFromServer(doc(vendedora, 'productos', 'ultimo'))).data().existencia, 1);
+});
+
+test('venta, reserva, anulación, cancelación y ajuste de administración autorizados', { timeout: 30000 }, async () => {
+  await preparar({ skus: ['aparte'] });
+  const vendedora = entorno.authenticatedContext('a').firestore();
+  const encargada = entorno.authenticatedContext('g').firestore();
+  const admin = entorno.authenticatedContext('b').firestore();
+  await vender(vendedora, 'a', 'venta-legal');
+  const reserva = writeBatch(vendedora);
+  mover(reserva, vendedora, 'a', { id: 'reservar', sku: 'aparte', cantidad: -1, motivo: 'apartado', ref: 'ap-legal' });
+  reserva.set(doc(vendedora, 'apartados', 'ap-legal'), { id: 'ap-legal', usuario: 'a', uid: 'a', estado: 'pendiente', total: 20000, saldo: 20000, abonos: [] });
+  await reserva.commit();
+  const anular = (db, usuario, id) => {
+    const b = writeBatch(db);
+    mover(b, db, usuario, { id, sku: 'ultimo', cantidad: 1, motivo: 'anulación', ref: 'venta-legal' });
+    b.update(doc(db, 'ventas', 'venta-legal'), { estado: 'anulada', anulacion: { por: usuario, motivo: 'devolución', fecha } });
+    return b.commit();
+  };
+  await assertFails(anular(vendedora, 'a', 'anular-vendedora'));
+  await anular(encargada, 'g', 'anular-gestion');
+  await assertFails(anular(encargada, 'g', 'anular-otra-vez'));
+  const cancelar = writeBatch(encargada);
+  mover(cancelar, encargada, 'g', { id: 'cancelar', sku: 'aparte', cantidad: 1, motivo: 'cancelación', ref: 'ap-legal' });
+  cancelar.update(doc(encargada, 'apartados', 'ap-legal'), { estado: 'cancelado', cancelacion: { por: 'g', motivo: 'solicitud', fecha } });
+  await cancelar.commit();
+  assert.equal((await getDocFromServer(doc(admin, 'productos', 'ultimo'))).data().existencia, 1);
+  assert.equal((await getDocFromServer(doc(admin, 'productos', 'aparte'))).data().existencia, 1);
+  const ajuste = writeBatch(admin);
+  mover(ajuste, admin, 'b', { id: 'ajuste-admin', sku: 'ultimo', cantidad: -2, motivo: 'ajuste' });
+  await ajuste.commit();
+  assert.equal((await getDocFromServer(doc(admin, 'productos', 'ultimo'))).data().existencia, -1);
+});
+
+test('una cesta de 24 SKU es atómica en el emulador incluso si falla el último SKU', { timeout: 30000 }, async () => {
+  const skus = Array.from({ length: 24 }, (_, i) => 'cesta-' + i);
+  await preparar({ skus });
+  const db = entorno.authenticatedContext('a').firestore();
+  const existencias = async () => {
+    const respuesta = await getDocsFromServer(collection(db, 'productos'));
+    return new Map(respuesta.docs.map(p => [p.id, p.data().existencia]));
+  };
+  const ultimo = skus.at(-1);
+  await entorno.withSecurityRulesDisabled(contexto => setDoc(doc(contexto.firestore(), 'productos', ultimo), { existencia: 0 }));
+  await assertFails(vender(db, 'a', 'cesta-rechazada', true, skus));
+  const trasRechazo = await existencias();
+  assert.deepEqual(skus.map(sku => trasRechazo.get(sku)), [...skus.slice(0, -1).map(() => 1), 0]);
+  assert.equal((await getDocFromServer(doc(db, 'ventas', 'cesta-rechazada'))).exists(), false);
+  assert.equal((await getDocFromServer(docCobro(db, 'a', 'venta', 'cesta-rechazada'))).exists(), false);
+
+  await entorno.withSecurityRulesDisabled(contexto => setDoc(doc(contexto.firestore(), 'productos', ultimo), { existencia: 1 }));
+  await vender(db, 'a', 'cesta-confirmada', true, skus);
+  const trasConfirmar = await existencias();
+  assert.ok(skus.every(sku => trasConfirmar.get(sku) === 0));
+  assert.equal((await getDocFromServer(doc(db, 'ventas', 'cesta-confirmada'))).exists(), true);
+  assert.equal((await getDocFromServer(docCobro(db, 'a', 'venta', 'cesta-confirmada'))).data().estadoSync, 'confirmada_servidor');
 });
 
 async function adaptadorReal(dbPorUsuario) {
