@@ -1,7 +1,7 @@
 // Incidencia #10: la autorización debe seguir al borrador de la vendedora.
 const { casos, cambiarA } = require('./_servidor.cjs');
 
-async function preparar(env) {
+async function preparar(env, { conCarrito = true } = {}) {
   const p = await env.pagina({ ruta: '/ajustes' });
   const datos = await p.evaluate(() => {
     const { almacen, productos } = window.__pos.ctx;
@@ -13,7 +13,7 @@ async function preparar(env) {
   await p.click('#modo-demo');
   await p.click('.demo-roles [data-rol="vendedora"]');
   await p.waitForFunction(() => window.__pos.ctx.sesion?.usuario === 'vendedora');
-  await crearCarrito(p);
+  if (conCarrito) await crearCarrito(p);
   return p;
 }
 
@@ -127,13 +127,14 @@ casos('descuentos', [
     a.notStrictEqual(lista[1].id, primera.id);
   }],
   ['La aprobación llega con Vendedora y Administrador en pestañas simultáneas y persiste al recargar', async (env, a) => {
-    const p = await preparar(env);
+    const p = await preparar(env, { conCarrito: false });
     const admin = await p.context().newPage();
     await admin.goto(p.url().replace(/#.*$/, '#/inicio'));
     await admin.waitForSelector('#app[data-listo="1"]');
     await cambiarA(admin, 'admin');
     a.ok(!(await carrito(admin))?.lineas?.length);
     a.strictEqual(await admin.locator('#retomar-si').count(), 0);
+    await crearCarrito(p);
     await pedir(p);
     const [solicitud] = await solicitudes(p);
     const original = await carrito(p);
