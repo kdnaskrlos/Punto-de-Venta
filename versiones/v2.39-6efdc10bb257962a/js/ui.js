@@ -1,0 +1,514 @@
+// Ayudas de interfaz: crear elementos, íconos, ventanas, hojas y avisos breves.
+const ICONOS = {
+  home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  carrito: '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+  guardar: '<path d="M5 3h11l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 1-2z"/><path d="M8 3v5h7V3"/><rect x="7" y="13" width="10" height="7" rx="1"/>',
+  cuadricula: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  apartado: '<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
+  caja: '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  cartera: '<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>',
+  grafica: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  ajustes: '<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/>',
+  mas: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  calculadora: '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M8 6h8M16 14v4M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/>',
+  actualizar: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  buscar: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  escanear: '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M8 7v10M12 7v10M17 7v10"/>',
+  buzo: '<path d="M8.5 3 5 4.6a2 2 0 0 0-1.2 1.6L3 19h3l1-8v10h10V11l1 8h3l-.8-12.8A2 2 0 0 0 19 4.6L15.5 3"/><path d="M8.5 3a3.5 3.5 0 0 0 7 0"/><path d="M9.5 16h5"/>',
+  chaqueta: '<path d="M8 3 4.6 4.7a2 2 0 0 0-1.1 1.6L3 19h3l1-8v10h10V11l1 8h3l-.5-12.7a2 2 0 0 0-1.1-1.6L16 3"/><path d="m8 3 4 3 4-3"/><path d="M12 6v15"/>',
+  pantalon: '<path d="M6 2h12l1 19h-5l-2-12-2 12H5z"/><path d="M6 6h12"/>',
+  short: '<path d="M5 4h14l1.5 12-6.5 1-2-6-2 6-6.5-1z"/><path d="M5 8h14"/>',
+  body: '<path d="M9 3a3 3 0 0 0 6 0l4 2 2 4-3 1.5V15c0 2-1.5 3-3 3.5L14 21h-4l-1-2.5C7.5 18 6 17 6 15v-4.5L3 9l2-4z"/>',
+  vestido: '<path d="M9 2v3L7 9l2.5 1L5 22h14l-4.5-12L17 9l-2-4V2"/><path d="M9 5h6"/>',
+  gorra: '<path d="M3.5 15a8.5 7 0 0 1 17 0z"/><path d="M12 8V6.5"/><path d="M3.5 15c4 1.6 10 1.8 15 .2l2.5 1.3"/>',
+  camisa: '<path d="M20.4 6.6 16 3h-2l-2 3-2-3H8L3.6 6.6a1 1 0 0 0-.2 1.2L5 11h2v10h10V11h2l1.6-3.2a1 1 0 0 0-.2-1.2z"/><path d="M12 6v6"/>',
+  puntos: '<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',
+  cambio: '<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>',
+  telefono: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
+  franela: '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>',
+  mas1: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  menos: '<path d="M5 12h14"/>',
+  borrar: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  alerta: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  salir: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+  copiar: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  calendario: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  mensaje: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  etiqueta: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5"/>',
+  subir: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+  imagen: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  usuarios: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  porcentaje: '<path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  monedas: '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18M7 6h1v4M16.71 13.88l.7.71-2.82 2.82"/>',
+  luna: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  borrador: '<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>',
+  tuerca: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  reloj: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  billete: '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  banco: '<path d="M3 22h18M6 18v-7M10 18v-7M14 18v-7M18 18v-7M12 2l8 5H4z"/>',
+  tarjeta: '<rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/>',
+  movil: '<rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/>',
+  cripto: '<path d="M11.77 19.09c4.92.87 6.14-6.03 1.21-6.9m-1.21 6.9-5.91-1.04m5.91 1.04-.35 1.97m1.56-8.86c4.93.87 6.14-6.03 1.22-6.9m-1.22 6.9-3.94-.7m5.16-6.2L8.29 4.26m5.91 1.04.35-1.97M7.48 20.36l3.13-17.72"/>',
+  envio: '<path d="m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/>',
+  lapiz: '<path d="M21.17 6.81a1 1 0 0 0-3.98-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/>',
+  recibo: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  usuario: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
+  izq: '<path d="m15 18-6-6 6-6"/>', der: '<path d="m9 18 6-6-6-6"/>', abajo: '<path d="m6 9 6 6 6-6"/>', arriba: '<path d="m18 15-6-6-6 6"/>',
+  llave: '<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4M21 2l-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>',
+  prohibido: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+  historial: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/>',
+};
+
+// v2.00: cada ícono se arma una sola vez y luego se copia (más rápido al pintar listas largas).
+const _iconos = new Map();
+export function icono(nombre) {
+  let base = _iconos.get(nombre);
+  if (!base) {
+    const t = document.createElement('template');
+    t.innerHTML = `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONOS[nombre] || ''}</svg>`;
+    base = t.content.firstChild; _iconos.set(nombre, base);
+  }
+  return base.cloneNode(true);
+}
+
+// Logo de la app: el carrito blanco de logo-carrito.png (misma forma que el ícono instalado).
+export function logo() {
+  const img = document.createElement('img');
+  img.src = 'logo-carrito.png'; img.alt = ''; img.className = 'logo-img';
+  img.setAttribute('aria-hidden', 'true');
+  return img;
+}
+
+// h('button', {class:'btn', onclick}, 'texto', icono('x'))
+export function h(tag, attrs = {}, ...hijos) {
+  const el = document.createElement(tag);
+  // Sin autocompletado del navegador (en Android saca una barra de llaves, tarjetas y direcciones encima del teclado)
+  if (tag === 'input' && !['checkbox', 'radio', 'file'].includes(attrs?.type) && !(attrs && 'autocomplete' in attrs)) el.setAttribute('autocomplete', 'off');
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
+    else if (k === 'class') el.className = v;
+    else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+    else if (k in el && typeof v !== 'string') el[k] = v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of hijos.flat(Infinity)) if (c != null && c !== false) el.append(c instanceof Node ? c : String(c));
+  return el;
+}
+
+// Campo de búsqueda (v1.92): lupa antes del texto y × para borrar (también con Esc). Devuelve la caja con el campo.
+export function campoBusqueda(input) {
+  const avisar = () => input.dispatchEvent(new Event('input', { bubbles: true }));
+  const borrar = h('button', { type: 'button', class: 'buscar-borrar', 'aria-label': 'Borrar búsqueda', hidden: true,
+    onclick: () => { input.value = ''; avisar(); input.focus(); } }, icono('x'));
+  const mostrar = () => { borrar.hidden = !input.value; };
+  input.addEventListener('input', mostrar);
+  input.addEventListener('keydown', e => { if (e.key === 'Escape' && input.value) { e.preventDefault(); e.stopPropagation(); input.value = ''; avisar(); } });
+  input.classList.add('buscar-inp');
+  return h('div', { class: 'buscar-caja' }, icono('buscar'), input, borrar);
+}
+
+// ---- Capas (ventanas y hojas): Esc y el botón atrás cierran la de arriba primero ----
+const pila = [];
+let ignorarPop = 0;
+// Si se abre una capa mientras el "atrás" de la que se cerró aún no termina, su entrada de historial
+// se agrega al terminar ese "atrás" (si no, el atrás se comería la nueva y luego se saldría de la app).
+let entradasPendientes = 0;
+// En cualquier campo de una sola línea, Enter = "Listo": oculta el teclado.
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (e.key === 'Enter' && !e.defaultPrevented && t instanceof HTMLInputElement && !['checkbox', 'radio', 'button', 'submit'].includes(t.type)) t.blur();
+});
+let trasAtras = [];
+// Ejecuta fn cuando termina el "atrás" de la capa que se acaba de cerrar (para navegar sin que ese atrás se lo coma).
+export function despuesDeCerrar(fn) {
+  if (ignorarPop > 0) trasAtras.push(fn); else fn();
+}
+function entrarHistorial() {
+  if (ignorarPop > 0) entradasPendientes++;
+  else history.pushState({ capa: pila.length }, '');
+}
+function salirHistorial() {
+  if (entradasPendientes > 0) { entradasPendientes--; return; }
+  ignorarPop++;
+  history.back();
+}
+
+// Con una ventana, hoja o menú abierto (v1.91): la pantalla de abajo no se desplaza ni recibe el gesto de
+// desplazamiento, y en el teléfono se desactiva «deslizar hacia abajo para actualizar» del navegador.
+// Las hojas no modales (no-modal) dejan usar la pantalla, así que no bloquean.
+function actualizarBloqueo() {
+  const raiz = document.documentElement;
+  const on = pila.some(c => !c.el.classList.contains('no-modal'));
+  if (on === raiz.classList.contains('con-capa')) return;
+  if (on) {
+    const barra = innerWidth - raiz.clientWidth; // sin salto del contenido al ocultar la barra de desplazamiento
+    if (barra > 0) document.body.style.paddingRight = `${barra}px`;
+    raiz.classList.add('con-capa');
+  } else { raiz.classList.remove('con-capa'); document.body.style.paddingRight = ''; }
+}
+// En el teléfono el dedo sobre el fondo oscuro o sobre algo que no se desplaza no debe mover la pantalla de abajo.
+document.addEventListener('touchmove', e => {
+  if (!document.documentElement.classList.contains('con-capa') || e.touches.length !== 1) return;
+  for (let n = e.target; n && n !== document.body; n = n.parentElement) {
+    if (n.nodeType !== 1) continue;
+    const s = getComputedStyle(n);
+    if (/(auto|scroll)/.test(s.overflowY + s.overflowX) && (n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1)) return;
+  }
+  if (e.cancelable) e.preventDefault();
+}, { passive: false });
+
+function abrirCapa(el, salir = null) {
+  document.body.append(el);
+  const capa = { el, cerrada: false, alCerrar: null, salir };
+  pila.push(capa);
+  actualizarBloqueo();
+  entrarHistorial();
+  // Foco al abrir: el campo con [autofocus] o, en la computadora, el primer campo. Si no hay campo, el foco va a
+  // la propia ventana (sin marco) y no a un botón: así la X no aparece marcada con el círculo de foco.
+  // En el teléfono no se enfoca ningún campo (abriría el teclado y taparía la ventana).
+  const foco = el.querySelector('[autofocus]') || (esTelefono() ? null : el.querySelector('input:not([type=hidden]):not([type=file]), select, textarea'))
+    || el.querySelector(':scope > .caja, [role="dialog"]:not(.capa), .sheet, .scan') || el;
+  if (!foco.matches('input, select, textarea, button, a[href], [tabindex]')) { foco.setAttribute('tabindex', '-1'); foco.classList.add('sin-marco'); }
+  // Si en esos 30 ms ya se tocó un campo de la ventana, no se le quita el foco.
+  setTimeout(() => { if (foco.isConnected && !el.contains(document.activeElement) && !el.dataset.tocada) foco.focus({ preventScroll: true }); }, 30);
+  el.addEventListener('pointerdown', () => { el.dataset.tocada = '1'; }, { once: true, capture: true });
+  el.addEventListener('focusin', e => { if (e.target !== foco) el.dataset.tocada = '1'; }, { once: true });
+  const cerrar = () => {
+    if (capa.cerrada) return;
+    quitar(capa);
+    salirHistorial();
+  };
+  el.querySelector('.fondo')?.addEventListener('click', cerrar);
+  el.querySelectorAll('.cerrar').forEach(b => b.addEventListener('click', cerrar));
+  el.addEventListener('keydown', e => atraparFoco(e, el));
+  return { cerrar, el, set alCerrar(fn) { capa.alCerrar = fn; } };
+}
+
+// Al cerrar, cada capa hace el movimiento inverso al de apertura antes de quitarse:
+// la hoja de abajo baja hasta salir, la lateral sale por la derecha, las ventanas se desvanecen.
+function quitar(capa) {
+  capa.cerrada = true;
+  const i = pila.indexOf(capa);
+  if (i >= 0) pila.splice(i, 1);
+  actualizarBloqueo();
+  const el = capa.el, caja = el.querySelector(':scope > .caja'), fondo = el.querySelector(':scope > .fondo');
+  capa.alCerrar && capa.alCerrar();
+  if (capa.salir) { capa.salir(); return; } // la capa anima y se quita sola (hoja del inventario, escáner)
+  if (!caja || !el.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.remove(); return; }
+  el.style.pointerEvents = 'none';
+  const salida = el.classList.contains('abajo') ? [{ transform: caja.style.transform || 'none' }, { transform: 'translateY(100%)' }]
+    : el.classList.contains('derecha') ? [{ transform: 'none' }, { transform: 'translateX(calc(100% + 24px))' }]
+    : el.classList.contains('desplegable') ? [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-14px) scaleY(.92)' }]
+    : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(14px) scale(.985)' }];
+  const dur = el.classList.contains('hoja') ? 180 : 130;
+  caja.animate(salida, { duration: dur, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
+  fondo?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, easing: 'ease-in', fill: 'forwards' });
+  el.querySelector(':scope > .caja') && setTimeout(() => el.remove(), dur);
+}
+
+function atraparFoco(e, el) {
+  if (e.key !== 'Tab') return;
+  const f = [...el.querySelectorAll('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && x.offsetParent !== null);
+  if (!f.length) return;
+  if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+  else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+}
+
+// Capa con su propia animación: entra en la pila (Atrás y Escape la cierran sin salir del POS) y, al
+// cerrarse, llama a `salir` en vez de la animación de las ventanas. Devuelve { cerrar }.
+export function abrirCapaPropia(el, salir) { return abrirCapa(el, salir); }
+
+// Menú propio (en vez del selector nativo): lista de opciones bajo el botón que lo abre, con la elegida
+// marcada. Atrás, Escape o tocar fuera lo cierran. `opciones` = [[valor, texto], …].
+export function abrirMenu(boton, { opciones, actual, titulo, alElegir }) {
+  const lista = h('div', { class: 'menu-op', role: 'listbox', 'aria-label': titulo || '' },
+    ...opciones.map(([v, t]) => h('button', { type: 'button', role: 'option', class: 'menu-it' + (v === actual ? ' on' : ''), 'aria-selected': String(v === actual), 'data-v': v },
+      h('span', {}, t), v === actual ? icono('check') : null)));
+  const capa = h('div', { class: 'capa-menu' }, h('div', { class: 'menu-fondo' }), lista);
+  const salir = () => { capa.classList.remove('abierto'); setTimeout(() => capa.remove(), 140); };
+  const { cerrar } = abrirCapa(capa, salir);
+  // Posición: debajo del botón (o encima si no cabe); en el teléfono, a lo ancho del botón como mínimo.
+  const r = boton.getBoundingClientRect();
+  lista.style.minWidth = `${Math.max(r.width, 180)}px`;
+  const ancho = Math.max(r.width, 180), izq = Math.min(Math.max(8, r.left), innerWidth - ancho - 8);
+  lista.style.left = `${izq}px`;
+  const alto = Math.min(lista.scrollHeight || 320, 320);
+  if (r.bottom + 6 + alto > innerHeight - 8 && r.top - 6 - alto > 8) lista.style.bottom = `${innerHeight - r.top + 6}px`; else lista.style.top = `${r.bottom + 6}px`;
+  requestAnimationFrame(() => capa.classList.add('abierto'));
+  capa.querySelector('.menu-fondo').addEventListener('click', cerrar);
+  lista.addEventListener('click', e => { const b = e.target.closest('.menu-it'); if (!b) return; cerrar(); alElegir(b.dataset.v); });
+  return { cerrar };
+}
+
+export function hayCapas() { return pila.length > 0; }
+
+export function cerrarCapaSuperior() {
+  const c = pila[pila.length - 1];
+  if (!c) return false;
+  quitar(c); salirHistorial();
+  return true;
+}
+
+window.addEventListener('popstate', e => {
+  if (ignorarPop > 0) {
+    ignorarPop--; e.stopImmediatePropagation();
+    if (!ignorarPop) {
+      for (; entradasPendientes > 0; entradasPendientes--) history.pushState({ capa: pila.length }, '');
+      const fns = trasAtras; trasAtras = []; fns.forEach(f => f());
+    }
+    return;
+  }
+  const c = pila[pila.length - 1];
+  if (c) { quitar(c); e.stopImmediatePropagation(); }
+}, true);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && pila.length) { e.preventDefault(); cerrarCapaSuperior(); }
+});
+
+// Las hojas que suben desde abajo se ocultan con una flecha hacia abajo; las ventanas, con la X.
+function cabecera(titulo, extra, ocultar = false, sinTitulo = false) {
+  // sinTitulo: solo la flecha para ocultar, centrada (hoja del carrito).
+  // v1.91: en vez de la flecha, la barrita para arrastrar (como las hojas del Inventario); el botón queda para teclado y lector.
+  if (sinTitulo) return h('div', { class: 'cab solo-agarre' }, h('span', { class: 'agarre', 'aria-hidden': 'true' }), h('button', { class: 'cerrar solo-lector', 'aria-label': 'Ocultar' }));
+  return h('div', { class: 'cab' }, h('h2', {}, titulo), extra || null,
+    h('button', { class: 'ibtn cerrar', 'aria-label': ocultar ? 'Ocultar' : 'Cerrar' }, icono(ocultar ? 'abajo' : 'x')));
+}
+
+// clase: variante visual ('desplegable' baja desde la barra superior). sinCabecera: sin título ni X (se cierra tocando fuera o con Esc).
+export function abrirVentana({ titulo, contenido, acciones, pantallaCompleta = false, extraCab = null, clase = '', sinCabecera = false }) {
+  const el = h('div', { class: 'capa ventana' + (pantallaCompleta ? ' completa' : '') + (clase ? ' ' + clase : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': titulo },
+    h('div', { class: 'fondo' }),
+    h('div', { class: 'caja' }, sinCabecera ? null : cabecera(titulo, extraCab), h('div', { class: 'cuerpo' }, contenido), acciones ? h('div', { class: 'pie' }, acciones) : null));
+  return abrirCapa(el);
+}
+
+// modal:false deja usar el resto de la pantalla mientras la hoja está abierta (sin fondo oscuro).
+// sinTitulo (hoja del carrito en el teléfono): se abre, se arrastra y se cierra exactamente como la hoja del
+// Inventario (v1.92): sube con transición de 340 ms, el fondo se aclara a medida que baja con el dedo y, al soltar,
+// sigue desde donde quedó hasta salir (o vuelve a su sitio).
+export function abrirHoja({ titulo, contenido, lado, modal = true, extraCab = null, sinTitulo = false }) {
+  const l = lado || (matchMedia('(max-width:839px)').matches ? 'abajo' : 'derecha');
+  const arrastre = sinTitulo && l === 'abajo';
+  const el = h('div', { class: `capa hoja ${l}${modal ? '' : ' no-modal'}${arrastre ? ' hoja-arrastre' : ''}`, role: 'dialog', 'aria-modal': String(modal), 'aria-label': titulo },
+    modal ? h('div', { class: 'fondo' }) : null,
+    h('div', { class: 'caja' }, cabecera(titulo, extraCab, l === 'abajo', arrastre), h('div', { class: 'cuerpo' }, contenido)));
+  if (!arrastre) return abrirCapa(el);
+  const caja = el.querySelector('.caja'), fondo = el.querySelector('.fondo'), cuerpo = el.querySelector('.cuerpo');
+  const salir = () => {
+    el.classList.remove('drag', 'in'); caja.style.transform = ''; if (fondo) fondo.style.opacity = '';
+    el.style.pointerEvents = 'none';
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) el.remove(); else setTimeout(() => el.remove(), 250);
+  };
+  const r = abrirCapa(el, salir);
+  void caja.offsetHeight; el.classList.add('in');
+  // Gesto copiado de la hoja del Inventario (abrirHojaStock).
+  let y0 = 0, dy = 0, off = 0, t0 = 0, on = false, can = false, raf = 0;
+  const pintar = () => { raf = 0; const d = Math.max(0, dy - off); caja.style.transform = `translate3d(0,${d}px,0)`; if (fondo) fondo.style.opacity = String(Math.max(0, 1 - d / (caja.offsetHeight || 600))); };
+  const soltar = () => { cancelAnimationFrame(raf); raf = 0; el.classList.remove('drag'); caja.style.transform = ''; if (fondo) fondo.style.opacity = ''; };
+  caja.addEventListener('touchstart', e => { if (e.touches.length !== 1) return; y0 = e.touches[0].clientY; t0 = Date.now(); dy = 0; off = 0; on = false; can = cuerpo.scrollTop <= 0 || !!e.target.closest('.cab'); }, { passive: true });
+  caja.addEventListener('touchmove', e => {
+    if (!can) return; dy = e.touches[0].clientY - y0;
+    if (!on) { if (dy > 8 && cuerpo.scrollTop <= 0) { on = true; off = dy; el.classList.add('drag'); } else if (dy < -4) { can = false; return; } else return; }
+    e.preventDefault(); if (!raf) raf = requestAnimationFrame(pintar);
+  }, { passive: false });
+  const fin = () => { if (!on) return; on = false; const d = dy - off, v = d / Math.max(1, Date.now() - t0); if (d > 110 || (d > 40 && v > 0.5)) { soltar(); r.cerrar(); } else soltar(); };
+  caja.addEventListener('touchend', fin);
+  caja.addEventListener('touchcancel', () => { if (on) { on = false; soltar(); } });
+  return r;
+}
+
+let toastT;
+export function toast(texto, { deshacer, malo } = {}) {
+  document.querySelector('.toast')?.remove();
+  clearTimeout(toastT);
+  const t = h('div', { class: 'toast' + (malo ? ' malo' : ''), role: 'status' }, texto,
+    deshacer ? h('button', { onclick: () => { t.remove(); deshacer(); } }, 'Deshacer') : null);
+  document.body.append(t);
+  toastT = setTimeout(() => t.remove(), deshacer ? 5000 : 2600);
+}
+
+export function esTelefono() { return matchMedia('(max-width:839px)').matches; }
+
+// Pide un texto obligatorio (motivo de anulación, cancelación, ajuste). Devuelve el texto o null.
+export function pedirMotivo({ titulo, etiqueta = 'Motivo', boton = 'Confirmar', peligro = false }) {
+  return new Promise(res => {
+    const inp = h('input', { class: 'inp', id: 'motivo', autocomplete: 'off' });
+    const err = h('span', { class: 'error' });
+    const b = h('button', { class: 'btn ' + (peligro ? 'danger' : 'primary'), id: 'motivo-final' }, boton);
+    let valor = null;
+    const v = abrirVentana({ titulo, contenido: h('div', { class: 'campo' }, h('label', { for: 'motivo' }, etiqueta), inp, err), acciones: h('div', { class: 'acciones' }, b) });
+    const ok = () => { if (!inp.value.trim()) { err.textContent = 'Escribe el motivo'; return; } valor = inp.value.trim(); v.cerrar(); };
+    b.onclick = ok;
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); });
+    v.alCerrar = () => res(valor);
+  });
+}
+
+// Quita los vacíos (null, undefined, false) antes de insertar: append(null) escribiría "null" en pantalla.
+export const sin = (...xs) => xs.flat(Infinity).filter(x => x != null && x !== false);
+export { unaVez } from './nucleo/una-vez.js';
+
+// En el teléfono, mientras el teclado está abierto, la barra inferior se esconde para dejar sitio.
+// v1.92: se mira si el teclado de verdad está a la vista (la parte visible de la pantalla se encoge), no solo
+// si hay un campo con el foco: al cerrar el teclado con «Atrás» el buscador sigue enfocado y la barra se quedaba oculta.
+const ES_CAMPO = el => el && (el.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea'));
+let altoSinTeclado = window.visualViewport ? visualViewport.height : innerHeight;
+const revisarTeclado = () => {
+  const vv = window.visualViewport, alto = vv ? vv.height : innerHeight;
+  if (!ES_CAMPO(document.activeElement)) altoSinTeclado = Math.max(alto, innerHeight);
+  else altoSinTeclado = Math.max(altoSinTeclado, alto);
+  const abierto = ES_CAMPO(document.activeElement) && (!vv || alto < altoSinTeclado - 120);
+  // v2.14: si el teclado se cerró con «Atrás» y el campo sigue enfocado, se suelta el foco (así vuelve el dato anterior si no se escribió nada).
+  if (tecladoAbierto && !abierto && vv && ES_CAMPO(document.activeElement)) document.activeElement.blur();
+  tecladoAbierto = abierto;
+  document.body.classList.toggle('teclado', abierto);
+  suavizarTeclado(alto);
+};
+// v2.30 · Al abrir o cerrar el teclado la pantalla cambia de alto de golpe y el pie (barra Faltan/Vuelto y botones
+// de Cobrar) «brincaba». Ahora el pie y lo enfocado se deslizan desde donde estaban hasta su sitio nuevo (FLIP).
+let altoAntes = window.visualViewport ? visualViewport.height : innerHeight;
+function suavizarTeclado(alto) {
+  const d = altoAntes - alto; altoAntes = alto;
+  if (Math.abs(d) < 60 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const pies = document.querySelectorAll('.capa:last-of-type .pie, .capa:last-of-type .pie-cobro, .barra-cobro');
+  for (const el of pies) el.animate([{ transform: `translateY(${d}px)` }, { transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.22,.9,.3,1)' });
+  const campo = document.activeElement;
+  if (d > 0 && ES_CAMPO(campo)) setTimeout(() => campo.scrollIntoView({ block: 'center', behavior: 'smooth' }), 30);
+}
+let tecladoAbierto = false;
+
+// v2.14 · Al tocar un campo de monto o de texto, se vacía para escribir el dato nuevo (el anterior queda de guía,
+// en gris). Si se sale sin escribir nada (otro toque, Enter o «Atrás»), vuelve el dato anterior. No aplica a
+// buscadores, PIN, fechas, casillas, textos largos ni a la pantalla de entrada.
+const LIMPIABLE = el => el instanceof HTMLInputElement && ['text', 'tel', 'number', 'email', ''].includes(el.getAttribute('type') || '')
+  && !el.readOnly && !el.disabled && !el.closest('.entrar, [data-no-limpiar]') && !el.matches('#buscar, #q, [data-no-limpiar]');
+// v2.29: solo cuando la persona toca el campo; si la app lo enfoca sola (p. ej. al elegir una forma de pago en la PC)
+// el monto se queda a la vista, seleccionado para escribir encima.
+let ultimoToque = null;
+document.addEventListener('pointerdown', e => { ultimoToque = { el: e.target, t: Date.now() }; }, true);
+document.addEventListener('focus', e => {
+  const el = e.target;
+  if (!ultimoToque || ultimoToque.el !== el || Date.now() - ultimoToque.t > 1000) return;
+  if (!LIMPIABLE(el) || !el.value || el.__antes != null) return;
+  el.__antes = el.value; el.__guia = el.getAttribute('placeholder'); el.__escribio = false;
+  el.value = ''; // v2.17: sin el valor anterior en gris dentro del campo
+}, true);
+// Si escribió (aunque luego lo borre todo), el campo queda como lo dejó: borrar a propósito también es un dato.
+document.addEventListener('input', e => { if (e.target.__antes != null) e.target.__escribio = true; }, true);
+document.addEventListener('blur', e => {
+  const el = e.target;
+  if (!(el instanceof HTMLInputElement) || el.__antes == null) return;
+  if (el.value === '' && !el.__escribio) el.value = el.__antes; // no escribió nada: vuelve lo de antes (antes de que el campo formatee su valor)
+  if (el.__guia == null) el.removeAttribute('placeholder'); else el.placeholder = el.__guia;
+  el.__antes = null; el.__guia = null;
+}, true);
+window.visualViewport?.addEventListener('resize', revisarTeclado);
+addEventListener('orientationchange', () => setTimeout(() => { altoSinTeclado = 0; revisarTeclado(); }, 300));
+document.addEventListener('focusin', () => setTimeout(revisarTeclado, 300));
+document.addEventListener('focusout', () => setTimeout(revisarTeclado, 60));
+
+// Montos largos bajan un paso de la escala de letra (sin tamaños intermedios):
+// hasta 9 caracteres normal, 10–11 «l», 12 o más «xl».
+export const largo = t => { const n = String(t).length; return n >= 12 ? 'xl' : n >= 10 ? 'l' : null; };
+
+// Desplegar/plegar como en Pedidos: el cuerpo cambia de alto en 280 ms y sus filas entran
+// con opacidad y un pequeño desplazamiento, escalonadas cada 35 ms. Al plegar, lo inverso.
+const CURVA = 'cubic-bezier(.22,.9,.3,1)';
+export function desplegar(cuerpo, abrir, alTerminar) {
+  const quieto = !cuerpo.animate || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  cuerpo.getAnimations?.().forEach(a => a.cancel());
+  if (quieto) { cuerpo.hidden = !abrir; alTerminar && alTerminar(); return; }
+  if (abrir) {
+    cuerpo.hidden = false;
+    const alto = cuerpo.scrollHeight;
+    cuerpo.style.overflow = 'hidden';
+    cuerpo.animate([{ height: '0px', opacity: 0 }, { height: alto + 'px', opacity: 1 }], { duration: 200, easing: CURVA })
+      .onfinish = () => { cuerpo.style.overflow = ''; alTerminar && alTerminar(); };
+    [...cuerpo.children].forEach((f, i) => f.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 150, delay: 40 + i * 35, easing: 'ease-out', fill: 'backwards' }));
+  } else {
+    const alto = cuerpo.offsetHeight;
+    cuerpo.style.overflow = 'hidden';
+    cuerpo.animate([{ height: alto + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: 150, easing: 'cubic-bezier(.4,0,1,1)' })
+      .onfinish = () => { cuerpo.hidden = true; cuerpo.style.overflow = ''; alTerminar && alTerminar(); };
+  }
+}
+
+// v2.03/v2.06 · Deslizar hacia la izquierda para quitar (como en Pedidos): detrás aparece un fondo rojo crema con la
+// papelera y «Quitar»; si el dedo llega casi al borde izquierdo la papelera se mueve y al soltar la tarjeta sale
+// (y se llama a quitar(fila)); si no, vuelve a su lugar. Se puede empezar sobre botones o campos: un toque sigue
+// siendo toque y, si se desliza, el campo pierde el foco. sel: selector de las tarjetas dentro de cont.
+export function deslizarParaQuitar(cont, sel, quitar, { soloTelefono = false } = {}) {
+  let fila = null, fondo = null, x0 = 0, y0 = 0, modo = '', pid = null, tocoHace = 0;
+  cont.addEventListener('pointerdown', e => {
+    if ((e.pointerType === 'mouse' && e.button !== 0) || (soloTelefono && !esTelefono())) return;
+    const f = e.target.closest(sel);
+    if (!f || !cont.contains(f) || e.target.closest('select, textarea')) return;
+    fila = f; x0 = e.clientX; y0 = e.clientY; modo = ''; pid = e.pointerId;
+  });
+  cont.addEventListener('pointermove', e => {
+    if (!fila || e.pointerId !== pid) return;
+    const mx = e.clientX - x0, my = e.clientY - y0;
+    if (!modo) {
+      if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
+      modo = Math.abs(mx) > Math.abs(my) && mx < 0 ? 'x' : 'y';
+      if (modo === 'y') { fila = null; return; }
+      if (fila.contains(document.activeElement)) document.activeElement.blur();
+      try { fila.setPointerCapture(pid); } catch {}
+      fila.style.transition = 'none'; fila.classList.add('deslizando');
+      fondo = h('div', { class: 'quitar-fondo', 'aria-hidden': 'true', style: `top:${fila.offsetTop}px;height:${fila.offsetHeight}px;border-radius:${getComputedStyle(fila).borderRadius}` }, h('span', {}, icono('borrar'), h('b', {}, 'Quitar')));
+      fila.parentElement.insertBefore(fondo, fila);
+    }
+    if (modo !== 'x') return;
+    e.preventDefault();
+    const dx = Math.min(0, mx);
+    const fin = e.clientX < Math.max(40, innerWidth * .12) && dx < -Math.min(innerWidth, cont.clientWidth + 40) * .4;
+    fila.style.transform = `translateX(${dx}px)`;
+    fondo?.classList.toggle('armado', fin); fila.classList.toggle('borrar', fin);
+  });
+  const soltar = () => {
+    if (!fila) return;
+    const f = fila, fd = fondo; fila = null; fondo = null;
+    if (modo !== 'x') return;
+    tocoHace = Date.now();
+    f.style.transition = 'transform .2s ease';
+    if (f.classList.contains('borrar')) {
+      f.style.transform = 'translateX(-110%)';
+      setTimeout(() => { fd?.remove(); quitar(f); }, 180);
+    } else {
+      f.style.transform = ''; f.classList.remove('borrar', 'deslizando');
+      setTimeout(() => { fd?.remove(); f.style.transition = ''; }, 220);
+    }
+  };
+  cont.addEventListener('pointerup', soltar); cont.addEventListener('pointercancel', soltar);
+  // Que arrastrar el texto seleccionado de un campo no robe el gesto.
+  cont.addEventListener('dragstart', e => { if (fila) e.preventDefault(); });
+  // Un deslizamiento no cuenta como toque.
+  cont.addEventListener('click', e => { if (Date.now() - tocoHace < 350 && e.target.closest(sel)) { e.stopPropagation(); e.preventDefault(); } }, true);
+}
+
+// v2.07 · Al enfocar un campo de número: en la computadora se selecciona todo (para escribir encima); en el
+// teléfono solo se pone el cursor al final, porque seleccionar abre el menú «Cortar / Copiar» del sistema.
+export function alEnfocarCampo(inp) {
+  if (matchMedia('(pointer:coarse)').matches || esTelefono()) {
+    const fin = () => { try { const n = inp.value.length; inp.setSelectionRange(n, n); } catch {} };
+    setTimeout(fin, 0);
+  } else inp.select();
+}
+
+// v2.15 · PC sin botón de escáner: el lector USB «teclea» el código y un Enter. Si se teclea sin ningún campo
+// enfocado (y sin ventanas abiertas), el foco pasa al buscador de la pantalla y el código cae ahí.
+export function teclearEn(input) {
+  const f = e => {
+    if (esTelefono() || e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1 || !input.isConnected) return;
+    const a = document.activeElement;
+    if (a && (a.matches('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) || hayCapas()) return;
+    input.focus();
+  };
+  document.addEventListener('keydown', f, true);
+  return () => document.removeEventListener('keydown', f, true);
+}
