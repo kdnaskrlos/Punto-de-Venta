@@ -114,7 +114,11 @@ export function abrirCobrar(ctx) {
     if (r.total !== r0.total || r.descuento !== r0.descuento) { r0 = r; panel.ponerTotal(r.total); pintarTotal(); actualizar(); }
   };
   window.addEventListener('pos:carrito', alCarrito);
-  v.alCerrar = () => { cliente.quitar(); window.removeEventListener('pos:carrito', alCarrito); };
+  v.alCerrar = () => {
+    cliente.quitar();
+    panel.quitar();
+    window.removeEventListener('pos:carrito', alCarrito);
+  };
   marcarCobro(v);
   actualizar();
 

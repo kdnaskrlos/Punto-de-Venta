@@ -15,6 +15,14 @@ export function montoSugerido(faltaCop, moneda, tasas) {
   return desdeCop(faltaCop, moneda, tasas, { haciaArriba: true });
 }
 
+// Las opciones se reciben ya filtradas por efectivo disponible y tasas válidas.
+export function elegirMonedaVuelto(pagos, opcionesValidas, manual = null) {
+  if (opcionesValidas.includes(manual)) return manual;
+  if (opcionesValidas.includes('MIXTO') && pagos.some(p => p.monto > 0 && p.forma.efectivo && p.forma.moneda === 'USD')) return 'MIXTO';
+  if (opcionesValidas.includes('COP')) return 'COP';
+  return opcionesValidas[0] ?? null;
+}
+
 // redondeoUsd (v2.06): paso del vuelto en dólares (0,01 = sin redondear; 1 = dólares enteros).
 export function vueltoEn(vueltoCop, moneda, tasas, redondeo = 100, redondeoUsd = 0.01) {
   if (moneda === 'COP') return Math.floor(vueltoCop / redondeo) * redondeo;
