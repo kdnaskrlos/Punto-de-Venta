@@ -1,8 +1,10 @@
 // Cada versión toma todos sus recursos de la misma caché. El worker anterior
 // sigue atendiendo la app hasta que la instalación de la nueva esté completa.
-const CACHE = 'pos-v2.36';
+// scripts/preparar-publicacion.cjs fija una ruta y una huella para el árbol servido.
+const PUBLICACION = null;
+const CACHE = PUBLICACION?.cache || 'pos-v2.36';
 // Generada con node pruebas/pwa/huella.cjs al preparar la publicación.
-const HUELLA_APP = 'dc64a46e5e01654c9033329519a07e45ef7d5dc1102b465aac1ab6dabf803b38';
+const HUELLA_APP = '4ce168bbe7ea0c70fbe66ac3a43cd9c42532f314c146b4b8e536f6ee07cc9b30';
 const ANTERIOR = 'pos-v2.35';
 const LIBS = 'libs-v1';
 const FOTOS = 'fotos-v1';
@@ -11,12 +13,12 @@ const SHELL = [
   'index.html', 'config.js', 'manifest.webmanifest',
   'icono-192.png', 'icono-512.png', 'icono-maskable-512.png', 'apple-touch-icon.png', 'logo-carrito.png',
   'css/base.css', 'css/componentes.css', 'css/material.css', 'css/stock.css', 'css/tokens.css',
-  'js/app.js', 'js/principal.js', 'js/ui.js', 'js/version.js',
+  'js/app.js', 'js/arranque-pwa.js', 'js/principal.js', 'js/ui.js', 'js/version.js',
   'js/datos/contrato.js', 'js/datos/dispositivo.js', 'js/datos/eventos.js', 'js/datos/firebase.js',
   'js/datos/github-fotos.js', 'js/datos/index.js', 'js/datos/memoria.js', 'js/datos/pendientes.js',
   'js/datos/semilla.js', 'js/datos/tasa-remota.js', 'js/datos/vivos.js',
   'js/nucleo/busqueda.js', 'js/nucleo/caja.js', 'js/nucleo/cobro.js', 'js/nucleo/colores.js',
-  'js/nucleo/comisiones.js', 'js/nucleo/costos.js', 'js/nucleo/descuento.js', 'js/nucleo/dinero.js',
+  'js/nucleo/comisiones.js', 'js/nucleo/costos.js', 'js/nucleo/descuento.js', 'js/nucleo/dinero.js', 'js/nucleo/ejemplos.js',
   'js/nucleo/fechas.js', 'js/nucleo/formas.js', 'js/nucleo/fotos.js', 'js/nucleo/importar.js',
   'js/nucleo/permisos.js', 'js/nucleo/producto.js', 'js/nucleo/recibo.js', 'js/nucleo/reportes.js',
   'js/nucleo/tasas.js', 'js/nucleo/tipo-prenda.js', 'js/nucleo/tramos.js', 'js/nucleo/una-vez.js',
@@ -27,8 +29,12 @@ const SHELL = [
   'js/vistas/pagos.js', 'js/vistas/recorte.js', 'js/vistas/reporte-cierre.js', 'js/vistas/reportes.js',
   'js/vistas/usuarios.js', 'js/vistas/vender.js', 'js/vistas/venta-en-curso.js', 'js/vistas/ventas-rango.js',
 ];
-const URL_INICIO = new URL('index.html', self.registration.scope);
-const URLS_APP = new Set(SHELL.map(ruta => new URL(ruta, self.registration.scope).href));
+// Los iconos y el manifiesto conservan sus URL porque identifican la misma PWA.
+const rutaPublicada = ruta => PUBLICACION && /^(?:index\.html$|config\.js$|(?:js|css)\/)/.test(ruta)
+  ? PUBLICACION.prefijo + ruta : ruta;
+const URL_INICIO = new URL(rutaPublicada('index.html'), self.registration.scope);
+const RECURSOS = SHELL.map(ruta => ({ ruta, url: new URL(rutaPublicada(ruta), self.registration.scope).href }));
+const URLS_APP = new Set(RECURSOS.map(r => r.url));
 const RESPUESTA_SIN_APP = () => new Response('Recursos de la aplicación no disponibles.', { status: 503 });
 
 async function sha256(datos) {
@@ -36,65 +42,50 @@ async function sha256(datos) {
   return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function huellaApp(cache) {
-  // config.js se configura por separado. La huella cubre HTML, estilos y módulos.
-  const codificador = new TextEncoder();
-  const firmas = await Promise.all(SHELL.filter(ruta => /^(?:index\.html$|(?:js|css)\/)/.test(ruta))
-    .map(async ruta => {
-      const recurso = await cache.match(new URL(ruta, self.registration.scope));
-      const contenido = (await recurso.text()).replace(/\r\n/g, '\n');
-      return ruta + '\0' + await sha256(codificador.encode(contenido)) + '\n';
-    }));
-  return sha256(codificador.encode(firmas.join('')));
+function verificarTipo(ruta, respuesta) {
+  const tipo = respuesta.headers.get('content-type') || '';
+  const esperado = ruta.endsWith('.js') ? /javascript|ecmascript/i
+    : ruta.endsWith('.css') ? /^text\/css\b/i : ruta === 'index.html' ? /^text\/html\b/i : null;
+  if (esperado && !esperado.test(tipo)) throw new Error('Tipo de recurso inesperado: ' + ruta);
 }
 
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
+    const recursos = await Promise.all(RECURSOS.map(async ({ ruta, url }) => {
+      const respuesta = await fetch(url, { cache: 'reload' });
+      if (!respuesta.ok || respuesta.redirected) throw new Error('Recurso no disponible: ' + ruta);
+      verificarTipo(ruta, respuesta);
+      const firma = await sha256(await respuesta.clone().arrayBuffer());
+      return { url, respuesta, firma: ruta + '\0' + firma + '\n' };
+    }));
+    const firmas = recursos.map(r => r.firma).join('');
+    if (await sha256(new TextEncoder().encode(firmas)) !== (PUBLICACION?.huella || HUELLA_APP)) {
+      throw new Error('El servidor todavía no tiene todos los recursos de esta publicación');
+    }
+
+    // El conjunto se descarga y verifica antes de escribir. Una nueva instalación
+    // de la misma publicación solo puede escribir los mismos bytes.
+    const existia = await caches.has(CACHE);
     const cache = await caches.open(CACHE);
-    try {
-      // addAll confirma el lote completo o rechaza la instalación.
-      await cache.addAll([...URLS_APP].map(url => new Request(url, { cache: 'reload' })));
-      for (const ruta of SHELL) {
-        const tipos = ruta.endsWith('.js') ? /javascript|ecmascript/i
-          : ruta.endsWith('.css') ? /^text\/css\b/i
-          : ruta === 'index.html' ? /^text\/html\b/i : null;
-        if (!tipos) continue;
-        const recurso = await cache.match(new URL(ruta, self.registration.scope));
-        const tipo = recurso.headers.get('content-type') || '';
-        if (!tipos.test(tipo)) throw new Error('Tipo de recurso inesperado: ' + ruta);
-      }
-      const version = await cache.match(new URL('js/version.js', self.registration.scope));
-      if (!(await version.text()).includes(`export const APP_VERSION = '${CACHE.slice(4)}'`)) {
-        throw new Error('La versión de la app todavía no está disponible');
-      }
-      if (await huellaApp(cache) !== HUELLA_APP) {
-        throw new Error('El servidor todavía no tiene todos los recursos de esta versión');
-      }
-    } catch (error) {
-      await caches.delete(CACHE);
-      throw error;
+    const escrituras = await Promise.allSettled(recursos.map(({ url, respuesta }) => cache.put(url, respuesta)));
+    if (escrituras.some(r => r.status === 'rejected')) {
+      if (!existia) await caches.delete(CACHE);
+      throw new Error('No se pudo guardar la publicación completa');
     }
   })());
 });
 
 self.addEventListener('message', e => {
-  if (e.data !== 'activar' || !e.source) return;
-  e.waitUntil((async () => {
-    // v2.35 también envía este mensaje. Activar con otras pestañas abiertas
-    // les forzaría una recarga sin comprobar su carrito o su cobro abierto.
-    const abiertas = (await self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
-      .filter(c => c.url.startsWith(self.registration.scope));
-    if (abiertas.length === 1 && abiertas[0].id === e.source.id) await self.skipWaiting();
-    else e.source.postMessage('actualizacion-aplazada');
-  })());
+  // El protocolo heredado no prueba que las pestañas hayan resguardado su trabajo.
+  if (e.data === 'activar') e.source?.postMessage('actualizacion-aplazada');
 });
 
 self.addEventListener('activate', e => {
+  // En una actualización, la siguiente navegación toma el worker nuevo. Evita
+  // reclamar otros documentos antiguos, que podrían recargar al cambiar de controlador.
   e.waitUntil((async () => {
-    // Se conserva la caché previa durante esta transición, también para sus JSON.
-    const antiguas = (await caches.keys()).filter(k => /^pos-v\d+\.\d+$/.test(k) && k !== CACHE && k !== ANTERIOR);
-    await Promise.all(antiguas.map(k => caches.delete(k)));
-    await self.clients.claim();
+    const anteriores = (await caches.keys()).some(k => k.startsWith('pos-v') && k !== CACHE);
+    if (!anteriores) await self.clients.claim();
   })());
 });
 
@@ -119,6 +110,14 @@ self.addEventListener('fetch', e => {
     e.respondWith(caches.open(CACHE).then(c => c.match(navegacion ? URL_INICIO : recurso))
       .then(respuesta => respuesta || RESPUESTA_SIN_APP()));
     return;
+  }
+
+  if (u.href.startsWith(self.registration.scope)) {
+    const ruta = u.pathname.slice(new URL(self.registration.scope).pathname.length);
+    if (/^(?:versiones\/|js\/|css\/|config\.js$)/.test(ruta)) {
+      e.respondWith(caches.match(r).then(guardada => guardada || fetch(r)));
+      return;
+    }
   }
 
   if ((u.hostname === 'www.gstatic.com' && u.pathname.startsWith('/firebasejs/')) || u.hostname.startsWith('fonts.g') ||

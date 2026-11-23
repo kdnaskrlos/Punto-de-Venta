@@ -350,12 +350,20 @@ casos('gestion', [
     await p.waitForSelector('#aj-guardar', { state: 'attached' });
     a.strictEqual(await p.$('#modo-prueba, #quitar-ejemplos, #modo-demo'), null);
   }],
-  ['En computadora, Ajustes conserva Modo demo y no ofrece operaciones de ejemplos', async (env, a) => {
+  ['En computadora, Ajustes conserva Modo demo y las llamadas antiguas se rechazan', async (env, a) => {
     const p = await env.pagina({ ruta: '/ajustes' });
     a.ok(await p.$('#modo-demo'));
     a.strictEqual(await p.$('#modo-prueba, #quitar-ejemplos'), null);
-    const metodos = await p.evaluate(() => ['cargarEjemplos', 'quitarEjemplos'].filter(m => m in window.__pos.ctx.almacen));
-    a.deepStrictEqual(metodos, []);
+    const retiro = await p.evaluate(async () => {
+      const almacen = window.__pos.ctx.almacen;
+      const antes = localStorage.getItem('pos-demo-datos');
+      const resultados = [await almacen.cargarEjemplos({ productos: [{ sku: 'sintetico', demo: true }] }),
+        await almacen.quitarEjemplos()];
+      return { resultados, sinCambios: localStorage.getItem('pos-demo-datos') === antes };
+    });
+    a.deepStrictEqual(retiro, {
+      resultados: [{ ok: false, error: 'retirado' }, { ok: false, error: 'retirado' }], sinCambios: true,
+    });
   }],
   ['Modo demo (teléfono): ver como vendedora quita lo de gestión y «Salir» vuelve', async (env, a) => {
     const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/mas' });

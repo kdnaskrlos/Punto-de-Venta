@@ -53,20 +53,21 @@ let revisando = false;
 export async function revisarPendientes(ctx) {
   const u = ctx.sesion?.usuario, almacen = ctx.almacen;
   if (revisando || !u || !almacen?.verificarServidor || !navigator.onLine) return;
-  let lista = leerPendientes(u);
+  const lista = leerPendientes(u);
   if (!lista.length) return;
   revisando = true;
   try {
     if (!(await almacen.esperarSubidas())) return; // todavía subiendo: se reintenta luego
-    for (const p of [...lista]) {
+    for (const p of lista) {
       let r;
       try { r = await revisarUno(almacen, p, ctx.productos); } catch { return; } // sin conexión a mitad: se sigue luego
       if (r !== 'ok') {
         const g = await almacen.registrarConflicto(r.conflicto);
         if (!g.ok) continue; // p. ej. reglas sin publicar: se reintenta luego, sin perder el pendiente
       }
-      lista = lista.filter(x => x !== p);
-      escribir(u, lista);
+      // Otra pestaña o un cobro en curso pudo añadir pendientes durante la consulta.
+      const confirmado = JSON.stringify(p);
+      escribir(u, leerPendientes(u).filter(actual => JSON.stringify(actual) !== confirmado));
     }
   } finally { revisando = false; }
 }

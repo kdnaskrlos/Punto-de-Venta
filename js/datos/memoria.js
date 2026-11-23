@@ -424,6 +424,9 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       escribio(); avisar('comisiones');
       return SI({ id });
     },
+    // Una vista de v2.35 en caché aún puede llamar a estas operaciones retiradas.
+    async cargarEjemplos() { return NO('retirado'); },
+    async quitarEjemplos() { return NO('retirado'); },
     async congelarCostoVenta(ventaId, costo) {
       const e = exigir('verCostos'); if (e) return NO(e);
       if (!col.costosVenta.has(ventaId)) { col.costosVenta.set(ventaId, { id: ventaId, ...copia(costo) }); avisar('costosVenta'); }
