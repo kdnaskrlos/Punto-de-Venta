@@ -77,7 +77,7 @@ export function abrirCobrar(ctx) {
   const apartar = h('button', { class: 'btn grande cb-apartar', id: 'cobro-apartar', type: 'button' }, h('span', { class: 'cb-ap-t' }, icono('apartado'), 'Apartar'), abonoTxt);
   const actualizar = () => {
     const e = panel.estado();
-    final.disabled = guardando || !e.cuadra;
+    final.disabled = guardando || !e.cuadra || !e.vueltoValido;
     final.classList.toggle('cargando', guardando);
     final.textContent = guardando ? 'Cobrando…' : `Cobrar ${fmtCop(r0.total)}`;
     // Apartar: lo pagado queda como abono (puede ser 0); no se aparta si sobra (eso es una venta).
