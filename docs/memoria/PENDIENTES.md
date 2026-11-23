@@ -45,11 +45,12 @@ Estos escenarios constan en la auditoría. Verificar su alcance antes de tratarl
 
 - Conciliar las instrucciones de sincronización y fotos de la guía con la interfaz actual. [Guía](../../GUIA.md) · [Inventario](../../js/vistas/inventario.js)
 - Conciliar el comentario del importador que dice que `separado` sigue sin uso con su aplicación en el cálculo del carrito. [Importador](../../js/nucleo/importar.js) · [Tramos](../../js/nucleo/tramos.js)
-- Revisar la cobertura del modo prueba en la lista de comprobación de Firestore a la luz de los ejemplos de v2.35. [Lista de comprobación](../../pruebas/REGLAS.md) · [Modo prueba](../../js/vistas/mas.js) · [Reglas](../../firestore.rules)
 
 ## Verificación de Firebase
 
 - Confirmar qué reglas están activas en el proyecto Firebase del POS y su compatibilidad con la versión en uso. El incidente por aplicar reglas al proyecto de Pedidos está documentado. El estado desplegado sigue sin verificar. [Reglas del repositorio](../../firestore.rules) · [Registro v2.35](../superpowers/decisiones-fase1.md) · [POS Comic Shop, mensajes 337–339](README.md#pos-comic-shop)
+- Preparar un entorno independiente con Firebase Emulator Suite. Usar una versión fijada de la CLI fuera de las dependencias del POS, el proyecto ficticio `demo-pos`, Authentication y Firestore en la interfaz local y solo cuentas y datos sintéticos. Conectar ambos emuladores antes de las primeras llamadas del SDK y verificar reglas, roles y transacciones con las reglas del repositorio. La configuración y su ejecución quedan pendientes. [Lista de comprobación](../../pruebas/REGLAS.md)
+- Inventariar por separado los posibles ejemplos históricos del «Modo prueba» en Firestore. Las marcas `demo:true` y los identificadores con prefijo `demo-` son indicios; se necesita verificar procedencia y relaciones con datos operativos antes de decidir sobre cada registro. La retirada del modo no ejecuta ninguna limpieza. Las excepciones para ejemplos siguen en las reglas del repositorio y son parte de la revisión pendiente. [Reglas del repositorio](../../firestore.rules) · [Historial de la decisión](DECISIONES.md#reemplazadas)
 
 ## Incorporación de memoria
 

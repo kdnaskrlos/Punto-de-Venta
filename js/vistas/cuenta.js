@@ -1,7 +1,8 @@
 // Mi cuenta: cambiar PIN y cerrar sesión. Está al final de Más → Usuarios y en la barra lateral (PC).
 import { avatarDe } from './recorte.js';
-import { h, icono, abrirVentana, toast } from '../ui.js';
-import { DEMO_DIRECTO, recordarUsuarioDemo } from '../datos/index.js';
+import { h, icono, abrirVentana, despuesDeCerrar, toast } from '../ui.js';
+import { DEMO_DIRECTO } from '../datos/index.js';
+import { verComo } from '../app.js';
 
 export const NOMBRE_ROL = { admin: 'Administrador', encargada: 'Encargada', vendedora: 'Vendedora' };
 
@@ -37,9 +38,9 @@ function probarComo(ctx, alCambiar) {
   return h('div', { class: 'probar' },
     h('div', { class: 'nota' }, 'Probar como (demostración)'),
     h('div', { class: 'segmentado' }, ...['admin', 'encargada', 'vendedora'].map(u =>
-      h('button', { type: 'button', id: 'probar-' + u, 'aria-pressed': String(u === actual), onclick: async () => {
+      h('button', { type: 'button', id: 'probar-' + u, 'aria-pressed': String(u === actual), onclick: () => {
         if (u === ctx.sesion.usuario) return;
-        recordarUsuarioDemo(u); alCambiar && alCambiar();
-        await ctx.almacen.entrar(u, '1234');
+        alCambiar?.();
+        despuesDeCerrar(() => verComo(u === 'admin' ? null : u));
       } }, NOMBRE_ROL[u]))));
 }

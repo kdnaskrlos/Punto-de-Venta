@@ -1,7 +1,7 @@
 // v2.26 · Revisión de lo guardado sin conexión (C1 / H1).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { revisarUno } from '../../js/datos/pendientes.js';
+import { anotarPendiente, leerPendientes, revisarPendientes, revisarUno } from '../../js/datos/pendientes.js';
 
 const almacen = docs => ({ verificarServidor: async (col, id) => docs[`${col}/${id}`] || null });
 const venta = { id: 'v1', fecha: '2026-11-15T20:00:00Z', cliente: { nombre: 'Ana' }, total: 50000, lineas: [{ sku: 'A', cantidad: 2 }], pagos: [{ nombre: 'Efectivo pesos', moneda: 'COP', monto: 50000 }] };
@@ -37,4 +37,40 @@ test('completar: la venta del apartado debe existir', async () => {
 
 test('sin conexión: la revisión lanza y el pendiente no se toca', async () => {
   await assert.rejects(revisarUno({ verificarServidor: async () => { throw new Error('offline'); } }, { que: 'venta', id: 'v1', datos: venta }));
+});
+
+test('confirmar una venta conserva el abono anotado mientras se esperaba al servidor', async t => {
+  const datos = new Map();
+  const globals = {
+    localStorage: {
+      getItem: clave => datos.get(clave) ?? null,
+      setItem: (clave, valor) => datos.set(clave, valor),
+      removeItem: clave => datos.delete(clave),
+    },
+    navigator: { onLine: true },
+  };
+  for (const [propiedad, value] of Object.entries(globals)) {
+    const original = Object.getOwnPropertyDescriptor(globalThis, propiedad);
+    Object.defineProperty(globalThis, propiedad, { value, configurable: true });
+    t.after(() => original ? Object.defineProperty(globalThis, propiedad, original) : delete globalThis[propiedad]);
+  }
+  const recibida = Promise.withResolvers(), verificacion = Promise.withResolvers();
+  const ctx = {
+    sesion: { usuario: 'pruebas' },
+    almacen: {
+      esperarSubidas: async () => true,
+      verificarServidor: async (col, id) => {
+        assert.deepEqual([col, id], ['ventas', 'v1']);
+        recibida.resolve();
+        return verificacion.promise;
+      },
+    },
+  };
+  anotarPendiente(ctx, { que: 'venta', id: 'v1' });
+  const revision = revisarPendientes(ctx);
+  await recibida.promise;
+  anotarPendiente(ctx, { que: 'abono', id: 'abono-2', apartadoId: 'ap1' });
+  verificacion.resolve({ id: 'v1' });
+  await revision;
+  assert.deepEqual(leerPendientes('pruebas').map(p => [p.que, p.id, p.apartadoId]), [['abono', 'abono-2', 'ap1']]);
 });

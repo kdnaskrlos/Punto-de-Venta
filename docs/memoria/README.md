@@ -4,6 +4,8 @@
 
 La primera revisión cotejó dos transcripciones de `PAQUETE_REVISION_CLAUDE_CODEX.zip`. La segunda incorporó hallazgos de dos memorias, seis conversaciones y tres archivos HTML de `PAQUETE_2_MEMORIA_CLAUDE_CODEX.zip`. El código y la documentación de v2.35 permiten comprobar la implementación. Las referencias a los ZIP identifican las fuentes históricas por su nombre y ruta interna.
 
+La aplicación retira el «Modo prueba» integrado y conserva «Modo demo» para simular roles y `?demo` para la demostración local. Las pruebas con Firebase se harán en un entorno independiente. La revisión de posibles ejemplos históricos sigue pendiente. [Decisiones vigentes](DECISIONES.md#vigentes) · [Pruebas y ejemplos históricos](PENDIENTES.md#verificación-de-firebase)
+
 ## Índice
 
 | Archivo | Contenido |

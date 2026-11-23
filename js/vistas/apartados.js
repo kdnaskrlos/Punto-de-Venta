@@ -7,6 +7,7 @@ import { titulo } from '../nucleo/producto.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { registrarVista } from '../app.js';
+import { verificarResguardoDescuento } from './autorizacion-descuento.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
 import { crearPanelPagos } from './pagos.js';
 import { resumenCliente, lineasParaGuardar, firmaCarrito } from './cobrar.js';
@@ -36,7 +37,7 @@ export function abrirApartar(ctx) {
   const v = abrirVentana({ titulo: 'Apartar', pantallaCompleta: true,
     contenido: h('div', { class: 'cobro' }, cliente.el, h('div', { class: 'total-cobro' }, h('span', { class: 'total-cop num' }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')), h('p', { class: 'nota' }, 'El abono es opcional. Las prendas quedan reservadas.'), panel.el),
     acciones: h('div', { class: 'pie-cobro' }, panel.barra, final) });
-  v.alCerrar = () => cliente.quitar();
+  v.alCerrar = () => { cliente.quitar(); panel.quitar(); };
   marcarCobro(v);
   actualizar();
   final.addEventListener('click', async () => {
@@ -50,6 +51,7 @@ export function abrirApartar(ctx) {
 
 // v2.06: guarda el apartado del carrito con los pagos como abono. Lo usan Apartar y la pantalla de cobro.
 export async function crearApartado(ctx, { id, r0, pagos, cerrar }) {
+  if (!verificarResguardoDescuento(ctx)) return false;
   const r = resumenCarrito(ctx);
   if (firmaCarrito(r) !== firmaCarrito(r0)) { cerrar(); toast('Los precios cambiaron, revisa el apartado', { malo: true }); return false; }
   const c = carrito(ctx);
@@ -74,11 +76,12 @@ function abrirPago(ctx, ap, modo) {
   const panel = crearPanelPagos(ctx, { total: ap.saldo, permitirMenos: !completar, alCambiar: () => actualizar() });
   const actualizar = () => {
     const e = panel.estado();
-    final.disabled = guardando || (completar ? !e.cuadra : (e.pagadoCop <= 0 || e.vueltoCop > 0));
+    final.disabled = guardando || (completar ? (!e.cuadra || !e.vueltoValido) : (e.pagadoCop <= 0 || e.vueltoCop > 0));
   };
   const v = abrirVentana({ titulo: completar ? 'Completar apartado' : 'Abonar', pantallaCompleta: true,
     contenido: h('div', { class: 'cobro' }, h('p', {}, h('b', {}, ap.cliente.nombre), ` · total ${fmtCop(ap.total)} · saldo `, h('b', { class: 'num' }, fmtCop(ap.saldo))), panel.el),
     acciones: h('div', { class: 'pie-cobro' }, panel.barra, final) });
+  v.alCerrar = panel.quitar;
   actualizar();
   const idVenta = ctx.almacen.nuevoId();
   final.addEventListener('click', async () => {

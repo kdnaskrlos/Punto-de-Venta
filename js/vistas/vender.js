@@ -13,6 +13,7 @@ import { aplicarDescuento, requiereAutorizacion } from '../nucleo/descuento.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { desdeCop } from '../nucleo/tasas.js';
 import { ventanaCliente, telefonoLegible } from './cliente.js';
+import { invalidarSolicitudDescuento, solicitarDescuento } from './autorizacion-descuento.js';
 
 
 export function carrito(ctx) {
@@ -35,18 +36,22 @@ export function resumenCarrito(ctx) {
 // no puede quedar por encima del máximo al quitar prendas. Devuelve false si lo quitó.
 export function revisarDescuento(ctx) {
   const c = carrito(ctx);
-  if (!c.descuento) return true;
+  const cambio = invalidarSolicitudDescuento(ctx);
+  if (!c.descuento) return !cambio;
   const sub = calcularCarrito(c.lineas, ctx.productos, { limites: ctx.ajustes.tramos, redondeo: ctx.ajustes.redondeo }).subtotalDescontable;
   const pct = c.descuento.tipo === 'pct' ? c.descuento.valor : (sub ? c.descuento.valor * 100 / sub : 100);
   const invalido = c.autorizacion ? c.autorizacion.subtotal !== sub
     : (requiereAutorizacion(ctx.rol(), pct, 0) || pct >= 100);
-  if (!invalido) return true;
+  if (!invalido) return !cambio;
   c.descuento = null; c.autorizacion = null;
   if (c.lineas.length) toast('Se quitó el descuento: el carrito cambió');
   return false;
 }
 
-export function vaciarCarrito(ctx) { ctx.carrito = { lineas: [], descuento: null, autorizacion: null }; }
+export function vaciarCarrito(ctx) {
+  window.dispatchEvent(new CustomEvent('pos:carrito-vaciado', { detail: ctx.carrito }));
+  ctx.carrito = { lineas: [], descuento: null, autorizacion: null };
+}
 
 function enCarrito(ctx, sku) { return carrito(ctx).lineas.find(l => l.sku === sku)?.cantidad || 0; }
 
@@ -351,9 +356,11 @@ export function abrirDescuento(ctx) {
   const aparte = r.lineas.filter(l => l.separado).reduce((s, l) => s + l.cantidad, 0);
   const max = 0; // la vendedora no da descuentos por su cuenta: todo descuento suyo necesita autorización
   const tasa = ctx.tasas?.copPorUsd || 0;
-  let moneda = c.descuento?.moneda === 'USD' && tasa ? 'USD' : 'COP';
+  const solicitud = c.solicitudDescuento;
+  const previo = ['pendiente', 'rechazada'].includes(solicitud?.estado) ? solicitud.descuento : c.descuento;
+  let moneda = previo?.moneda === 'USD' && tasa ? 'USD' : 'COP';
   const valor = h('input', { class: 'inp num', id: 'desc-valor', inputmode: 'decimal', autocomplete: 'off',
-    value: c.descuento ? (moneda === 'USD' ? fmtDec(c.descuento.valorUsd) : fmtCop(c.descuento.valor)) : '' });
+    value: previo ? (moneda === 'USD' ? fmtDec(previo.valorUsd) : fmtCop(previo.valor)) : '' });
   const sufijo = h('span', { class: 'desc-moneda' });
   const equiv = h('p', { class: 'nota desc-equiv' });
   const err = h('span', { class: 'error' });
@@ -368,18 +375,37 @@ export function abrirDescuento(ctx) {
       onclick: e => { moneda = m; segm.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); valor.value = ''; err.textContent = ''; pintar(); } }, txt)));
   valor.addEventListener('input', pintar);
   const notaAparte = aparte ? h('p', { class: 'nota' }, `No aplica a ${aparte} ${aparte === 1 ? 'prenda que va' : 'prendas que van'} aparte; se descuenta de ${fmtCop(r.subtotalDescontable)} COP.`) : null;
-  const nota = ctx.rol() === 'vendedora' ? h('p', { class: 'nota' }, 'El descuento se aplica cuando lo autorice el administrador o la encargada.') : null;
+  const nota = ctx.rol() === 'vendedora' ? h('p', { class: 'nota' }, 'El descuento se aplica cuando lo autorice el administrador.') : null;
   const aplicar = h('button', { class: 'btn primary' }, 'Aplicar');
   const quitarDesc = c.descuento ? h('button', { type: 'button', class: 'btn texto peligro', id: 'desc-quitar', onclick: () => {
     // v2.08: con «Deshacer»: volver a ponerlo pediría otra autorización.
     const d = c.descuento, au = c.autorizacion;
     c.descuento = null; c.autorizacion = null; v.cerrar(); window.dispatchEvent(new CustomEvent('pos:carrito'));
-    toast('Descuento quitado', { deshacer: () => { c.descuento = d; c.autorizacion = au; window.dispatchEvent(new CustomEvent('pos:carrito')); } });
+    toast('Descuento quitado', { deshacer: () => {
+      if (ctx.carrito !== c || c.descuento || (au?.firma && c.solicitudDescuento?.estado === 'invalidada')) return;
+      c.descuento = d; c.autorizacion = au; window.dispatchEvent(new CustomEvent('pos:carrito'));
+    } });
   } }, 'Quitar descuento') : null;
   const v = abrirVentana({ titulo: 'Descuento', contenido: h('div', { class: 'pila' }, segm,
     h('div', { class: 'campo' }, h('label', { for: 'desc-valor' }, 'Monto a descontar'), h('div', { class: 'desc-entrada' }, valor, sufijo), equiv, err), notaAparte, nota),
     acciones: h('div', { class: 'acciones' }, quitarDesc, aplicar) });
   pintar();
+  let esperando = false, cerrada = false;
+  const reflejar = () => {
+    if (ctx.carrito !== c) return;
+    const estado = c.solicitudDescuento?.estado;
+    if (esperando && estado === 'aprobada') { v.cerrar(); return; }
+    esperando = estado === 'pendiente';
+    aplicar.disabled = valor.disabled = esperando;
+    segm.querySelectorAll('button').forEach(b => { b.disabled = esperando || (b.dataset.moneda === 'USD' && !tasa); });
+    aplicar.textContent = esperando ? 'Esperando autorización…' : 'Aplicar';
+    if (esperando) err.textContent = '';
+    else if (estado === 'rechazada') err.textContent = 'Descuento rechazado';
+    else if (estado === 'invalidada') err.textContent = 'El carrito cambió. Vuelve a pedir autorización.';
+  };
+  window.addEventListener('pos:carrito', reflejar);
+  v.alCerrar = () => { cerrada = true; window.removeEventListener('pos:carrito', reflejar); };
+  reflejar();
   aplicar.addEventListener('click', async () => {
     const n = enPesos();
     if (!n) { err.textContent = 'Escribe un monto'; return; }
@@ -389,18 +415,15 @@ export function abrirDescuento(ctx) {
     const desc = { tipo, valor: n, moneda, valorUsd: moneda === 'USD' ? parseMonto(valor.value, 'USD') : null };
     if (requiereAutorizacion(ctx.rol(), pct, max)) {
       aplicar.disabled = true;
-      const s = await ctx.almacen.solicitarAutorizacion({ pct: Math.round(pct * 100) / 100, tipo, valor: n, subtotal: r.subtotalDescontable });
-      if (!s.ok) { aplicar.disabled = false; err.textContent = s.error === 'red' ? 'Necesitas internet para pedir autorización' : 'No se pudo pedir'; return; }
-      err.textContent = '';
-      aplicar.textContent = 'Esperando autorización…';
-      const quitar = ctx.almacen.escuchar('autorizaciones', lista => {
-        const a = lista.find(x => x.id === s.id);
-        if (!a || a.estado === 'pendiente') return;
-        setTimeout(() => quitar && quitar());
-        if (a.estado === 'aprobada') { c.descuento = desc; c.autorizacion = { id: a.id, por: a.aprueba, subtotal: r.subtotalDescontable }; v.cerrar(); toast('Descuento autorizado'); window.dispatchEvent(new CustomEvent('pos:carrito')); }
-        else { aplicar.disabled = false; aplicar.textContent = 'Aplicar'; err.textContent = 'Descuento rechazado'; }
-      });
-      v.alCerrar = () => quitar && quitar();
+      const s = await solicitarDescuento(ctx, c, r, desc, pct);
+      if (!s.ok && !cerrada && ctx.carrito === c) {
+        reflejar();
+        err.textContent = ({
+          red: 'Necesitas internet para pedir autorización',
+          borrador: 'No se pudo guardar el borrador en esta pestaña',
+          carrito: 'El carrito cambió. Vuelve a abrir el descuento.',
+        })[s.error] || 'No se pudo pedir autorización';
+      }
       return;
     }
     c.descuento = desc; c.autorizacion = null;

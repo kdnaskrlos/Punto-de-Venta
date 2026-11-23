@@ -74,3 +74,16 @@ test('diferencias en otra moneda se juzgan en pesos y se totalizan', () => {
   assert.equal(d.totalCop, -3900);
   assert.equal(d.totalEsperadoCop, 20 * 3900 + Math.round(5000 * 3900 / 1075));
 });
+
+test('bloque 3 · caja descuenta ambas monedas del vuelto mixto', () => {
+  const v = {
+    pagos: [{ forma: 'efectivo-usd', monto: 10 }],
+    vuelto: { partes: [
+      { forma: 'efectivo-usd', moneda: 'USD', monto: 2 },
+      { forma: 'efectivo-cop', moneda: 'COP', monto: 1800 },
+    ], monto: 2, moneda: 'USD', forma: 'efectivo-usd' },
+  };
+  const e = esperadoCaja({ fondo: {}, movimientos: [] }, [v], [], FORMAS);
+  assert.equal(e['efectivo-usd'], 8);
+  assert.equal(e['efectivo-cop'], -1800);
+});
