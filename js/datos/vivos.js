@@ -26,6 +26,8 @@ function guardarCache(t) { try { if (t.bsPorUsd && !t.ultimaConocida && t.fuente
 export function iniciarDatos(ctx) {
   const emitir = que => window.dispatchEvent(new CustomEvent('pos:datos', { detail: { que } }));
   ctx.productos = {};
+  ctx.preciosListos = false;
+  let llegaronProductos = false, llegaronAjustes = false;
   ctx.ajustes = { ...AJUSTES_DEFECTO };
   ctx.ajustesTasas = {};
   ctx.imagenes = {};
@@ -38,7 +40,12 @@ export function iniciarDatos(ctx) {
     emitir('tasas');
   };
   const quitar = [
-    ctx.almacen.escuchar('productos', lista => { ctx.productos = Object.fromEntries(lista.map(p => [p.sku, p])); emitir('productos'); }),
+    ctx.almacen.escuchar('productos', lista => {
+      ctx.productos = Object.fromEntries(lista.map(p => [p.sku, p]));
+      llegaronProductos = lista.length > 0;
+      ctx.preciosListos = llegaronProductos && llegaronAjustes;
+      emitir('productos');
+    }),
     ctx.almacen.escuchar('ajustes', lista => {
       const por = Object.fromEntries(lista.map(d => [d.id, d]));
       ctx.ajustes = { ...AJUSTES_DEFECTO, ...(por.general || {}) };
@@ -47,6 +54,8 @@ export function iniciarDatos(ctx) {
       ctx.ajustesTasas = por.tasas || {};
       // Fotos por código de imagen: { 'img-0001': 'fotos/img-0001.webp?v=…' } (ajustes/imagenes).
       ctx.imagenes = por.imagenes?.fotos || {};
+      llegaronAjustes = true;
+      ctx.preciosListos = llegaronProductos;
       ctx.recalcularTasas();
       emitir('ajustes');
     }),

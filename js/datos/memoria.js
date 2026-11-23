@@ -74,6 +74,40 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
   };
   const leer = (nombre, filtro) => [...col[nombre].values()].filter(d => visible(nombre, d) && cumple(d, filtro)).map(copia);
   const avisar = (...nombres) => { persistir(); for (const o of [...oyentes]) if (nombres.includes(o.nombre)) o.cb(leer(o.nombre, o.filtro)); };
+  // Cada decisión de la demo tiene su propia clave. Una pestaña con una copia
+  // anterior del resto del almacén no puede ocultar una solicitud o su respuesta.
+  const prefijoAutorizacion = guardarEn && guardarEn + ':autorizacion:';
+  const leerAutorizacion = (clave, texto) => {
+    try {
+      const a = JSON.parse(texto);
+      if (a?.id && clave === prefijoAutorizacion + a.id) return a;
+    } catch { /* almacenamiento dañado */ }
+    return null;
+  };
+  const escribirAutorizacion = a => {
+    if (prefijoAutorizacion) {
+      try { localStorage.setItem(prefijoAutorizacion + a.id, JSON.stringify(a)); } catch { /* sin almacenamiento */ }
+    }
+    col.autorizaciones.set(a.id, a);
+    avisar('autorizaciones');
+  };
+  if (prefijoAutorizacion) {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const clave = localStorage.key(i);
+        if (!clave?.startsWith(prefijoAutorizacion)) continue;
+        const a = leerAutorizacion(clave, localStorage.getItem(clave));
+        if (a) col.autorizaciones.set(a.id, a);
+      }
+    } catch { /* sin almacenamiento */ }
+    globalThis.addEventListener?.('storage', e => {
+      if (!e.key?.startsWith(prefijoAutorizacion)) return;
+      const a = leerAutorizacion(e.key, e.newValue);
+      if (!a || (a.estado === 'pendiente' && ['aprobada', 'rechazada'].includes(col.autorizaciones.get(a.id)?.estado))) return;
+      col.autorizaciones.set(a.id, a);
+      for (const o of [...oyentes]) if (o.nombre === 'autorizaciones') o.cb(leer(o.nombre, o.filtro));
+    });
+  }
   const avisarSync = () => { for (const cb of oyentesSync) cb({ enLinea: !offline, pendientes, error: null }); };
   const escribio = () => { if (offline) { pendientes++; avisarSync(); } };
   const cajaAbierta = uid => [...col.cajas.values()].find(c => c.usuario === col.usuarios.get(uid)?.usuario && c.estado === 'abierta');
@@ -403,21 +437,30 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       avisar('clientes');
       return SI({ telefono: tel });
     },
-    async solicitarAutorizacion(a) {
+    async solicitarAutorizacion(a, id = nuevoId()) {
       if (!sesion) return NO('sesion');
       if (offline) return NO('red');
-      const id = nuevoId();
-      col.autorizaciones.set(id, { ...copia(a), id, uid: sesion.uid, usuario: sesion.usuario, solicita: sesion.usuario, estado: 'pendiente', fecha: ahora() });
-      avisar('autorizaciones');
+      if (col.autorizaciones.has(id)) return NO('estado');
+      escribirAutorizacion({ ...copia(a), id, uid: sesion.uid, usuario: sesion.usuario, solicita: sesion.usuario, estado: 'pendiente', fecha: ahora() });
       return SI({ id });
     },
     async responderAutorizacion(id, aprobada) {
       const e = exigir('aprobarDescuento'); if (e) return NO(e);
-      const a = col.autorizaciones.get(id); if (!a) return NO('no-existe');
-      if (a.estado !== 'pendiente') return NO('estado');
-      a.estado = aprobada ? 'aprobada' : 'rechazada'; a.aprueba = sesion.usuario; a.respondida = ahora();
-      avisar('autorizaciones');
-      return SI();
+      const uid = sesion.uid;
+      const responder = () => {
+        if (sesion?.uid !== uid || exigir('aprobarDescuento')) return NO('permiso');
+        let a = col.autorizaciones.get(id);
+        if (prefijoAutorizacion) {
+          const clave = prefijoAutorizacion + id;
+          try { a = leerAutorizacion(clave, localStorage.getItem(clave)) || a; } catch { /* sin almacenamiento */ }
+        }
+        if (!a) return NO('no-existe');
+        if (a.estado !== 'pendiente') return NO('estado');
+        escribirAutorizacion({ ...a, estado: aprobada ? 'aprobada' : 'rechazada', aprueba: sesion.usuario, respondida: ahora() });
+        return SI();
+      };
+      const locks = globalThis.navigator?.locks;
+      return prefijoAutorizacion && locks ? locks.request(prefijoAutorizacion + id, responder) : responder();
     },
     async pagarComisiones(reg) {
       const e = exigir('pagarComisiones'); if (e) return NO(e);

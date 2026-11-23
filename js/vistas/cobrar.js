@@ -6,6 +6,7 @@ import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento, equivalentes, abrirDescuento } from './vender.js';
 import { crearApartado } from './apartados.js';
 import { crearPanelPagos } from './pagos.js';
+import { verificarResguardoDescuento } from './autorizacion-descuento.js';
 import { guardarVentaEnCurso } from './venta-en-curso.js';
 import { anotarPendiente } from '../datos/pendientes.js';
 import { comisionesVenta } from '../nucleo/comisiones.js';
@@ -126,7 +127,7 @@ export function abrirCobrar(ctx) {
   });
 
   final.addEventListener('click', async () => {
-    if (guardando || hecha) return;
+    if (guardando || hecha || !verificarResguardoDescuento(ctx)) return;
     guardando = true; actualizar();
     try {
       const r = resumenCarrito(ctx);

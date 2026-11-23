@@ -7,6 +7,7 @@ import { titulo } from '../nucleo/producto.js';
 import { conCaja } from './caja.js';
 import { cobroAbierto, marcarCobro } from './cobro-abierto.js';
 import { registrarVista } from '../app.js';
+import { verificarResguardoDescuento } from './autorizacion-descuento.js';
 import { resumenCarrito, carrito, vaciarCarrito, revisarDescuento } from './vender.js';
 import { crearPanelPagos } from './pagos.js';
 import { resumenCliente, lineasParaGuardar, firmaCarrito } from './cobrar.js';
@@ -50,6 +51,7 @@ export function abrirApartar(ctx) {
 
 // v2.06: guarda el apartado del carrito con los pagos como abono. Lo usan Apartar y la pantalla de cobro.
 export async function crearApartado(ctx, { id, r0, pagos, cerrar }) {
+  if (!verificarResguardoDescuento(ctx)) return false;
   const r = resumenCarrito(ctx);
   if (firmaCarrito(r) !== firmaCarrito(r0)) { cerrar(); toast('Los precios cambiaron, revisa el apartado', { malo: true }); return false; }
   const c = carrito(ctx);
