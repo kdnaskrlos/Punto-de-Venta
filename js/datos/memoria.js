@@ -424,21 +424,6 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       escribio(); avisar('comisiones');
       return SI({ id });
     },
-    async cargarEjemplos(lote) {
-      const e = exigir('ajustes'); if (e) return NO(e);
-      const CLAVE = { productos: 'sku', costos: 'sku', clientes: 'telefono', ventas: 'id', apartados: 'id', usuarios: 'uid', cajas: 'id', comisiones: 'id' };
-      for (const [n, k] of Object.entries(CLAVE)) for (const d of lote[n] || []) col[n].set(d[k], { ...copia(d), demo: true });
-      escribio(); avisar(...Object.keys(CLAVE));
-      return SI();
-    },
-    async quitarEjemplos() {
-      const e = exigir('ajustes'); if (e) return NO(e);
-      let n = 0;
-      for (const nombre of ['productos', 'costos', 'clientes', 'ventas', 'apartados', 'usuarios', 'cajas', 'comisiones']) for (const [id, d] of col[nombre]) if (d.demo) { col[nombre].delete(id); n++; }
-      for (const id of [...col.costosVenta.keys()]) if (String(id).startsWith('demo-')) col.costosVenta.delete(id);
-      escribio(); avisar('productos', 'costos', 'clientes', 'ventas', 'apartados', 'costosVenta', 'usuarios', 'cajas', 'comisiones');
-      return SI({ quitados: n });
-    },
     async congelarCostoVenta(ventaId, costo) {
       const e = exigir('verCostos'); if (e) return NO(e);
       if (!col.costosVenta.has(ventaId)) { col.costosVenta.set(ventaId, { id: ventaId, ...copia(costo) }); avisar('costosVenta'); }
@@ -478,7 +463,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
   for (const m of ['guardarVenta', 'guardarApartado', 'anularVenta', 'abonarApartado', 'completarApartado', 'cancelarApartado', 'abrirCaja', 'movimientoCaja',
     'cerrarCaja', 'arquearCaja', 'reabrirCaja', 'ajustarExistencia', 'aplicarImportacion', 'guardarOferta', 'guardarImagen', 'guardarAjustes', 'guardarCliente',
     'solicitarAutorizacion', 'responderAutorizacion', 'pagarComisiones', 'crearUsuario', 'cambiarPin', 'marcarComision', 'editarPerfil', 'eliminarUsuario',
-    'activarUsuario', 'registrarConflicto', 'revisarConflicto', 'entrar', 'cargarEjemplos', 'quitarEjemplos']) {
+    'activarUsuario', 'registrarConflicto', 'revisarConflicto', 'entrar']) {
     const f = api[m]; if (!f) continue;
     api[m] = async (...args) => {
       const x = previo[m]?.(args) || {};

@@ -1,7 +1,6 @@
 // Ajustes (solo administrador), en 4 apartados: Tasas, Venta, Pagos y Recibo. Los usuarios están en Más → Usuarios.
 import { h, icono, abrirVentana, toast, unaVez, desplegar, esTelefono } from '../ui.js';
-import { registrarVista } from '../app.js';
-import { bloquePrueba } from './mas.js';
+import { registrarVista, pastillaModoDemo } from '../app.js';
 import { fmtCop, fmtDec, parseMonto } from '../nucleo/dinero.js';
 import { etiquetaTramo } from '../nucleo/tramos.js';
 import { NOMBRE_MONEDA, ICONOS_FORMA, iconoForma } from '../nucleo/formas.js';
@@ -308,10 +307,7 @@ registrarVista('/ajustes', {
     mostrar(pestanaActual);
     cont.append(pest, h('div', { class: 'ajustes' }, ...Object.values(secciones)), barra);
     base = firma();
-    // En la computadora no hay pantalla «Más»: Modo prueba y Modo demo van al pie de Ajustes.
-    if (esTelefono()) return undefined;
-    const prueba = bloquePrueba(ctx);
-    cont.append(prueba.el);
-    return prueba.quitar;
+    // En la computadora no hay pantalla «Más»: Modo demo va al pie de Ajustes.
+    if (!esTelefono()) cont.append(h('div', { class: 'acceso-demo' }, pastillaModoDemo()));
   },
 });

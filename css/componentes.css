@@ -620,8 +620,8 @@ pre.cred{margin:0;white-space:pre-wrap;font:500 14px/1.5 var(--f);background:var
 .ap-pie .nota{font-size:12px}
 .ap-acc{justify-content:flex-end;margin-top:0}
 
-/* Modo prueba (v1.32) */
-.modo-prueba{display:flex;justify-content:center;margin-top:8px}
+/* Acceso a Modo demo en Más y Ajustes */
+.acceso-demo{display:flex;justify-content:center;margin-top:8px}
 .pill.demo{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border:1.5px dashed var(--line);border-radius:99px;background:var(--surface);color:var(--muted);font-weight:600;font-size:13px}
 .pill.demo svg.i{width:16px;height:16px}
 .pill.demo.on{border-style:solid;border-color:var(--y-bd);background:var(--y-bg);color:var(--y-tx)}

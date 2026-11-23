@@ -332,10 +332,25 @@ casos('vender', [
     a.strictEqual(await p.evaluate(() => window.__pos.ctx.ajustesTasas?.copPorUsd), 4000);
   }],
   ['v2.00 · Detalle del apartado: teléfono abre WhatsApp, prendas en filas con una sola línea y sin línea sobre los botones', async (env, a) => {
-    const p = await env.pagina({ movil: true, usuario: 'admin', ruta: '/mas' });
-    await p.click('#modo-prueba'); await p.waitForTimeout(1200);
-    await p.evaluate(() => { location.hash = '/apartados'; }); await p.waitForSelector('.apartado');
-    await p.click('.apartado >> nth=0'); await p.waitForSelector('.ap-det.det2');
+    const p = await env.pagina({ movil: true, usuario: 'admin', caja: true, ruta: '/apartados' });
+    const r = await p.evaluate(() => {
+      const { almacen, productos } = window.__pos.ctx;
+      const lineas = ['J-M', 'J-L'].map(sku => {
+        const { nombre, talla, precios } = productos[sku];
+        return { sku, nombre, talla, cantidad: 1, subtotal: precios[0] };
+      });
+      return almacen.guardarApartado({
+        id: almacen.nuevoId(),
+        fecha: new Date(Date.now() - 18 * 864e5).toISOString(),
+        cliente: { nombre: 'Cliente de prueba', telefono: '584125550100' },
+        lineas,
+        total: lineas.reduce((total, l) => total + l.subtotal, 0),
+        abonos: [],
+      });
+    });
+    a.ok(r.ok, JSON.stringify(r));
+    await p.waitForSelector('.apartado.viejo .ap-hace.viejo');
+    await p.click('.apartado'); await p.waitForSelector('.ap-det.det2');
     a.match(await p.getAttribute('.ap-det-tel.wa', 'href'), /^https:\/\/wa\.me\/58\d{10}$/);
     a.ok(await p.$eval('.ap-det-tel.wa', e => parseFloat(getComputedStyle(e).fontSize) >= 15));
     a.ok(await p.$$eval('.ap-det .dfila', f => f.length >= 2 && f.every(x => getComputedStyle(x).borderBottomWidth === '0px')));
