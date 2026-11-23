@@ -24,3 +24,12 @@ jobs:
           for p in js/nucleo/cobro.js js/nucleo/comisiones.js js/nucleo/caja.js js/nucleo/recibo.js js/vistas/pagos.js js/vistas/cobrar.js js/vistas/ajustes.js js/datos/memoria.js js/datos/firebase.js; do node --check "$p" || exit 1; done
       - name: Suite de núcleo y datos
         run: npm test
+      - name: Instalar navegador de pruebas
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Pruebas de cobro, caja y apartados en navegador
+        run: |
+          node pruebas/e2e/cobrar.cjs
+          node pruebas/e2e/caja.cjs
+          node pruebas/e2e/apartados.cjs
