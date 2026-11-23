@@ -16,6 +16,7 @@ const ALCANCE = '/Punto-de-Venta/';
 const EJEMPLOS = 'js/nucleo/ejemplos.js';
 const AJUSTES = 'js/vistas/ajustes.js';
 const PRINCIPAL = 'js/principal.js';
+const VENTA_EN_CURSO = 'js/vistas/venta-en-curso.js';
 const BORRADOR = 'pos-venta-admin';
 const PENDIENTES = 'pos-pendientes-admin';
 const TIPOS = {
@@ -343,6 +344,86 @@ test('v2.35 salta directamente a una publicación futura con un carrito resguard
   assert.deepEqual(recuperado, c);
   assert.ok(!env.estado.peticiones.some(r => r.raiz === puente || r.ruta.startsWith(infoPuente.prefijo)));
 }));
+
+test('v2.35 retoma un borrador antes de cerrar la última pestaña y lo conserva al actualizar', tiempo, () => escenario(antigua, async env => {
+  const p = await pagina(env);
+  await operativo(p, 'v2.35');
+  const carrito = await borradorActivo(p);
+  await p.reload();
+  await p.waitForSelector('#retomar-si');
+  await esperarActualizacionDesdeV235(env, p);
+
+  await p.click('#retomar-si');
+  await p.waitForFunction(id => window.__pos.ctx.carrito?.ventaId === id, carrito.ventaId);
+  await comprobarBorradorTrasCerrar(env, p, carrito);
+}));
+
+test('v2.35 conserva el carrito activo al cerrar primero la pestaña vacía y finalmente actualizar', tiempo, () => escenario(antigua, async env => {
+  const p = await pagina(env);
+  await operativo(p, 'v2.35');
+  const vacia = await pagina(env);
+  await operativo(vacia, 'v2.35');
+  assert.deepEqual(await Promise.all([p, vacia].map(pag => pag.evaluate(() => window.__pos.ctx.sesion.usuario))), ['admin', 'admin']);
+  assert.equal(await vacia.evaluate(() => window.__pos.ctx.carrito?.lineas?.length || 0), 0);
+  await p.bringToFront();
+  const carrito = await borradorActivo(p);
+  await esperarActualizacionDesdeV235(env, p);
+
+  await vacia.close();
+  assert.deepEqual(await p.evaluate(() => window.__pos.ctx.carrito), carrito);
+  await comprobarBorradorTrasCerrar(env, p, carrito);
+}));
+
+test('El módulo histórico del puente protege la pestaña cuando v2.35 lo carga por red', tiempo, () => escenario(antigua, async env => {
+  const p = await pagina(env);
+  await operativo(p, 'v2.35');
+  const bytes = readFileSync(path.join(puente, VENTA_EN_CURSO), 'utf8');
+  assert.notEqual(bytes, readFileSync(path.join(antigua, VENTA_EN_CURSO), 'utf8'));
+  env.estado.raiz = puente;
+  env.estado.fallos.set(infoPuente.prefijo + AJUSTES, 503);
+  await actualizar(p);
+  await rechazo(p, infoPuente.cache);
+  // El worker antiguo vuelve a descargar su módulo en segundo plano. Las
+  // recargas se hacen antes de abrir un borrador y consumen la copia renovada.
+  await p.reload();
+  await p.waitForFunction(async ({ ruta, bytes }) => {
+    const cache = await caches.open('pos-v2.35');
+    return (await (await cache.match(ruta))?.text()) === bytes;
+  }, { ruta: VENTA_EN_CURSO, bytes });
+  await p.reload();
+  await operativo(p, 'v2.35');
+  const vacia = await pagina(env);
+  await operativo(vacia, 'v2.35');
+  await p.bringToFront();
+  const carrito = await borradorActivo(p);
+  await p.reload();
+  await p.waitForSelector('#retomar-si');
+  const guardado = await leerBorrador(p);
+  assert.deepEqual(guardado.c, carrito);
+  await vacia.close();
+  assert.deepEqual(await leerBorrador(p), guardado);
+
+  env.estado.fallos.clear();
+  await esperarActualizacionDesdeV235(env, p);
+  await comprobarBorradorTrasCerrar(env, p, carrito);
+}));
+
+async function esperarActualizacionDesdeV235(env, p) {
+  env.estado.raiz = puente;
+  await actualizar(p);
+  await esperando(p);
+  await operativo(p, 'v2.35');
+}
+
+async function comprobarBorradorTrasCerrar(env, p, carrito) {
+  await env.contexto.setOffline(true);
+  await p.close();
+  const nueva = await pagina(env);
+  await operativo(nueva, infoPuente.version);
+  assert.deepEqual((await leerBorrador(nueva)).c, carrito);
+  await nueva.click('#retomar-si');
+  assert.deepEqual(await nueva.evaluate(() => window.__pos.ctx.carrito), carrito);
+}
 
 test('Las llamadas históricas se rechazan sin cambiar datos del almacén', tiempo, () => escenario(antigua, async env => {
   const p = await pagina(env);

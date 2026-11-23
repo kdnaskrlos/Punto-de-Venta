@@ -40,7 +40,10 @@ before(async () => {
   execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
     '-subj', '/CN=localhost', '-keyout', key, '-out', cert], { stdio: 'ignore' });
   tls = { cert: readFileSync(cert), key: readFileSync(key) };
-  versionCandidata = readFileSync(path.join(CANDIDATO, 'js/version.js'), 'utf8')
+  const worker = readFileSync(path.join(CANDIDATO, 'sw.js'), 'utf8');
+  const publicacion = worker.match(/^const PUBLICACION = (\{.*\});$/m)?.[1];
+  const prefijo = publicacion ? JSON.parse(publicacion).prefijo : '';
+  versionCandidata = readFileSync(path.join(CANDIDATO, prefijo, 'js/version.js'), 'utf8')
     .match(/export const APP_VERSION\s*=\s*['"]([^'"]+)['"]/)?.[1];
   assert.ok(versionCandidata && versionCandidata !== 'v2.35', 'Se requiere un candidato posterior a v2.35');
   navegador = await chromium.launch({
