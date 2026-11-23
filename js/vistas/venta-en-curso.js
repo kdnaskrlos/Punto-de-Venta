@@ -28,14 +28,31 @@ function descartar(ctx, guardado) {
   } catch { /* sin almacenamiento */ }
 }
 
+export function resguardoVigente(ctx) {
+  return coincide(ctx, resguardos.get(ctx.carrito));
+}
+
+function escribir(c, k, anterior) {
+  const original = JSON.stringify({ c, en: Math.max(Date.now(), (vigente(anterior)?.en || 0) + 1) });
+  localStorage.setItem(k, original);
+  resguardos.set(c, { clave: k, original });
+}
+
+export function actualizarResguardo(c) {
+  const previo = resguardos.get(c);
+  try {
+    if (previo && localStorage.getItem(previo.clave) === previo.original) escribir(c, previo.clave, previo.original);
+  } catch { /* sin almacenamiento */ }
+}
+
 export function guardarVentaEnCurso(ctx) {
   const c = ctx.carrito;
-  if (!ctx.sesion || !c) return;
+  if (!ctx.sesion || !c) return false;
   const previo = resguardos.get(c);
   if (!c.lineas?.length) {
     descartar(ctx, previo);
     resguardos.delete(c);
-    return;
+    return false;
   }
   try {
     const k = clave(ctx);
@@ -43,11 +60,10 @@ export function guardarVentaEnCurso(ctx) {
     const otro = vigente(original);
     const propio = previo?.clave === k && previo.original === original;
     // Un carrito local sin el resguardo actual no reemplaza el de otra pestaña.
-    if (!propio && (otro || previo?.clave === k)) return;
-    const nueva = JSON.stringify({ c, en: Math.max(Date.now(), (otro?.en || 0) + 1) });
-    localStorage.setItem(k, nueva);
-    resguardos.set(c, { clave: k, original: nueva });
-  } catch { /* sin almacenamiento */ }
+    if (!propio && (otro || previo?.clave === k)) return false;
+    escribir(c, k, original);
+    return true;
+  } catch { return false; }
 }
 
 function leer(ctx) {
@@ -101,6 +117,7 @@ export async function ofrecerRetomar(ctx) {
     if (!coincide(ctx, d) || ctx.carrito?.lineas?.length) { v.cerrar(); return; }
     const existe = sku => !ctx.productos || !Object.keys(ctx.productos).length || ctx.productos[sku];
     ctx.carrito = { lineas: c.lineas.filter(l => existe(l.sku)), descuento: c.descuento || null, autorizacion: c.autorizacion || null, ...(c.cliente ? { cliente: c.cliente } : {}),
+      ...(c.solicitudDescuento ? { solicitudDescuento: c.solicitudDescuento } : {}),
       ...(c.ventaId ? { ventaId: c.ventaId } : {}), ...(c.apartadoId ? { apartadoId: c.apartadoId } : {}),
       ...(c.pagos?.length ? { pagos: c.pagos } : {}) }; // v2.26: mismos ids y pagos escritos
     resguardos.set(ctx.carrito, d);

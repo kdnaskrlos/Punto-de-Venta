@@ -649,10 +649,9 @@ export function crearFirebase(config) {
       const r = await sinEsperar(b.commit());
       return r.ok ? SI({ telefono: tel }) : r;
     },
-    async solicitarAutorizacion(a) {
+    async solicitarAutorizacion(a, id = nuevoId()) {
       if (!sesion) return NO('sesion');
       if (!navigator.onLine) return NO('red');
-      const id = nuevoId();
       const r = await conEvento(b => b.set(ref('autorizaciones', id), { ...a, id, uid: sesion.uid, usuario: sesion.usuario, solicita: sesion.usuario, estado: 'pendiente', fecha: ahora() }), 'solicitarAutorizacion', [a], { id });
       return r.ok ? SI({ id }) : r;
     },

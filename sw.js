@@ -2,9 +2,9 @@
 // sigue atendiendo la app hasta que la instalación de la nueva esté completa.
 // scripts/preparar-publicacion.cjs fija una ruta y una huella para el árbol servido.
 const PUBLICACION = null;
-const CACHE = PUBLICACION?.cache || 'pos-v2.37';
+const CACHE = PUBLICACION?.cache || 'pos-v2.38';
 // Generada con node pruebas/pwa/huella.cjs al preparar la publicación.
-const HUELLA_APP = '1faa3ad119c4fc30365520c7927015f18a65d9bc5bd0838e1b26fe905831789b';
+const HUELLA_APP = '430a3f55e915de436d170a9768c9d08403e5f15f95402a5f717e187ce46db054';
 const ANTERIOR = 'pos-v2.35';
 const LIBS = 'libs-v1';
 const FOTOS = 'fotos-v1';
@@ -22,7 +22,7 @@ const SHELL = [
   'js/nucleo/fechas.js', 'js/nucleo/formas.js', 'js/nucleo/fotos.js', 'js/nucleo/importar.js',
   'js/nucleo/permisos.js', 'js/nucleo/producto.js', 'js/nucleo/recibo.js', 'js/nucleo/reportes.js',
   'js/nucleo/tasas.js', 'js/nucleo/tipo-prenda.js', 'js/nucleo/tramos.js', 'js/nucleo/una-vez.js',
-  'js/vistas/actividad.js', 'js/vistas/ajustes.js', 'js/vistas/apartados.js', 'js/vistas/caja.js',
+  'js/vistas/actividad.js', 'js/vistas/ajustes.js', 'js/vistas/apartados.js', 'js/vistas/autorizacion-descuento.js', 'js/vistas/caja.js',
   'js/vistas/calculadora.js', 'js/vistas/calendario.js', 'js/vistas/cliente.js', 'js/vistas/cobrar.js',
   'js/vistas/cobro-abierto.js', 'js/vistas/conflictos.js', 'js/vistas/cuenta.js', 'js/vistas/entrar.js',
   'js/vistas/escaner.js', 'js/vistas/inicio.js', 'js/vistas/inventario.js', 'js/vistas/mas.js',

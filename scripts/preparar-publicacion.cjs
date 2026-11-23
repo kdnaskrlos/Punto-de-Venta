@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const RAIZ = path.resolve(__dirname, '..');
 const ANTERIOR = '1423e187fba3cfe0bda293baaaa26c3350ef7cf2';
+const PUENTE_HISTORICO = '57799ec9e3758883afb41b282e59e61d6e7d7936';
 const ESTABLES = [
   'js/datos/firebase.js', 'js/datos/memoria.js', 'js/datos/pendientes.js',
   'js/nucleo/ejemplos.js', 'js/vistas/mas.js', 'js/vistas/vender.js', 'js/vistas/venta-en-curso.js',
@@ -45,11 +46,13 @@ function preparar(destino, { fuente = RAIZ, conservar } = {}) {
       cpSync(path.join(conservar, dir), path.join(destino, dir), { recursive: true });
     }
   } else {
-    const archivos = execFileSync('git', ['archive', ANTERIOR, 'js', 'css'], {
-      cwd: RAIZ, maxBuffer: 16 * 1024 * 1024,
-    });
-    execFileSync('tar', ['-x', '-C', destino], { input: archivos });
-    for (const ruta of ESTABLES) copyFileSync(path.join(fuente, ruta), path.join(destino, ruta));
+    // Las rutas sin versión pertenecen al puente que ya consumen instalaciones antiguas.
+    for (const [ref, rutas] of [[ANTERIOR, ['js', 'css']], [PUENTE_HISTORICO, ESTABLES]]) {
+      const archivos = execFileSync('git', ['archive', ref, ...rutas], {
+        cwd: RAIZ, maxBuffer: 16 * 1024 * 1024,
+      });
+      execFileSync('tar', ['-x', '-C', destino], { input: archivos });
+    }
   }
 
   for (const ruta of rutas) {

@@ -14,7 +14,7 @@
 // Apartados:   guardarApartado(ap) · abonarApartado(id, pago) · completarApartado(id, venta) · cancelarApartado(id, motivo)
 // Caja:        abrirCaja(fondo) · movimientoCaja(cajaId, mov) · cerrarCaja(cajaId, cierre) · reabrirCaja(cajaId)
 // Inventario:  ajustarExistencia(sku, cantidad, motivo, nota) · aplicarImportacion(plan) · guardarOferta(grupo, oferta) · guardarImagen(codigo, blob)
-// Otros:       guardarAjustes(doc, datos) · guardarCliente({telefono, nombre}) · solicitarAutorizacion(a) · responderAutorizacion(id, aprobada)
+// Otros:       guardarAjustes(doc, datos) · guardarCliente({telefono, nombre}) · solicitarAutorizacion(a, id?) → {id} · responderAutorizacion(id, aprobada)
 //              pagarComisiones(reg) · congelarCostoVenta(ventaId, costo) · estadoSync(cb({enLinea, pendientes, error})) → desuscribir
 export const NOMBRES = ['productos', 'ventas', 'apartados', 'cajas', 'autorizaciones', 'ajustes', 'clientes', 'comisiones', 'costos', 'costosVenta', 'movimientos', 'usuarios', 'conflictos', 'eventos'];
 

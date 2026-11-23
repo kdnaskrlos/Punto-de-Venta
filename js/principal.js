@@ -1,6 +1,7 @@
 // Punto de entrada: crea el almacén, muestra la entrada o la app según la sesión.
 import { ctx, mostrarApp, definirCalculadora } from './app.js';
-import { vigilarVentaEnCurso, ofrecerRetomar } from './vistas/venta-en-curso.js';
+import { vigilarVentaEnCurso, ofrecerRetomar, guardarVentaEnCurso } from './vistas/venta-en-curso.js';
+import { vigilarAutorizacionDescuento } from './vistas/autorizacion-descuento.js';
 import { vigilarPendientes } from './datos/pendientes.js';
 import { h, icono, cerrarCapaSuperior, hayCapas } from './ui.js';
 import { crearAlmacen, MODO_DEMO, DEMO_DIRECTO, usuarioDemo } from './datos/index.js';
@@ -31,7 +32,12 @@ async function iniciar() {
   if (DEMO_DIRECTO) await ctx.almacen.entrar(usuarioDemo(), '1234');
   let anterior, pararDatos = null, turno = 0;
   // Modo demo: cambia de almacén (real ↔ simulado) y vuelve a escuchar los datos del nuevo.
-  ctx.reiniciarDatos = () => { pararDatos && pararDatos(); ctx.carrito = null; pararDatos = ctx.sesion ? iniciarDatos(ctx) : null; };
+  ctx.reiniciarDatos = () => {
+    detenerAutorizacion();
+    pararDatos?.();
+    ctx.carrito = null;
+    pararDatos = ctx.sesion ? iniciarDatos(ctx) : null;
+  };
   ctx.almacen.alCambiarSesion(async s => {
     const clave = s ? s.uid + s.rol : null;
     // Solo se omite si la pantalla que se ve ya corresponde (app con sesión o entrada sin ella).
@@ -39,14 +45,20 @@ async function iniciar() {
     if (clave === anterior && mostrando) { ctx.sesion = s; window.dispatchEvent(new CustomEvent('pos:sesion')); return; } // v2.16: nombre o foto cambiados
     const mio = ++turno;
     anterior = clave;
+    guardarVentaEnCurso(ctx);
+    detenerAutorizacion();
     // Si se sale o cambia la sesión real estando en Modo demo, se vuelve al almacén real.
     if (ctx.almacenReal) { ctx.almacen = ctx.almacenReal; ctx.almacenReal = null; ctx.sesionReal = null; ctx.vistaRol = null; }
     ctx.sesion = s;
     while (hayCapas()) cerrarCapaSuperior();
     pararDatos && pararDatos(); pararDatos = null;
     ctx.carrito = null;
-    if (s) { pararDatos = iniciarDatos(ctx); mostrarApp(); setTimeout(() => ofrecerRetomar(ctx), 700); setTimeout(revisarPendientes, 4000); }
-    else {
+    if (s) {
+      pararDatos = iniciarDatos(ctx);
+      mostrarApp();
+      setTimeout(() => { if (mio === turno) ofrecerRetomar(ctx); }, 700);
+      setTimeout(revisarPendientes, 4000);
+    } else {
       // La consulta a Firebase puede tardar: si mientras tanto alguien entró, su respuesta atrasada no debe
       // tapar la app con la pantalla de entrada (antes pasaba y ya no se podía entrar sin recargar).
       const iniciado = MODO_DEMO || await ctx.almacen.sistemaIniciado();
@@ -56,6 +68,7 @@ async function iniciar() {
     raiz.dataset.listo = '1';
   });
 }
+const detenerAutorizacion = vigilarAutorizacionDescuento(ctx);
 vigilarVentaEnCurso(ctx);
 const revisarPendientes = vigilarPendientes(ctx);
 iniciar();
