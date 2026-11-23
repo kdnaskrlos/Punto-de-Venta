@@ -74,7 +74,7 @@ function abrirPago(ctx, ap, modo) {
   const panel = crearPanelPagos(ctx, { total: ap.saldo, permitirMenos: !completar, alCambiar: () => actualizar() });
   const actualizar = () => {
     const e = panel.estado();
-    final.disabled = guardando || (completar ? !e.cuadra : (e.pagadoCop <= 0 || e.vueltoCop > 0));
+    final.disabled = guardando || (completar ? (!e.cuadra || !e.vueltoValido) : (e.pagadoCop <= 0 || e.vueltoCop > 0));
   };
   const v = abrirVentana({ titulo: completar ? 'Completar apartado' : 'Abonar', pantallaCompleta: true,
     contenido: h('div', { class: 'cobro' }, h('p', {}, h('b', {}, ap.cliente.nombre), ` · total ${fmtCop(ap.total)} · saldo `, h('b', { class: 'num' }, fmtCop(ap.saldo))), panel.el),
