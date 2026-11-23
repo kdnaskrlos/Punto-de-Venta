@@ -22,11 +22,55 @@ export function comisionLinea({ tramo, cantidad, subtotal }, producto, defectos 
   return Math.round(c.tipo === 'Porcentaje' ? subtotal * valor / 100 : valor * cantidad);
 }
 
-export function comisionesVenta(lineasCalculadas, productosPorSku, defectos, hayDescuento) {
-  return lineasCalculadas.map(l => {
-    const reducida = l.tramo === 0 && !!((hayDescuento && !l.separado) || l.oferta); // v2.09: «separado» no lleva el descuento
+// La comisión del grupo (mix o producto «separado») no debe caer cuando
+// alcanza un tramo nuevo. El piso es el máximo de los cierres de tramos
+// anteriores para la MISMA combinación proporcional de prendas actual.
+export function comisionesVenta(lineasCalculadas, productosPorSku, defectos, hayDescuento, limites = [1, 6, 12, 24, 48]) {
+  const reduccion = l => l.tramo === 0 && !!((hayDescuento && !l.separado) || l.oferta);
+  const resultado = lineasCalculadas.map(l => {
+    const reducida = reduccion(l); // Una promoción mayorista nunca reduce la comisión.
     return { sku: l.sku, comision: comisionLinea(l, productosPorSku[l.sku], defectos, reducida), reducida };
   });
+  const grupos = new Map();
+  lineasCalculadas.forEach((l, i) => {
+    const p = productosPorSku[l.sku] || {};
+    const clave = l.separado ? ['separado', p.tipo, p.marca, p.genero, p.modelo].join('|').toLowerCase() : '__mix';
+    if (!grupos.has(clave)) grupos.set(clave, []);
+    grupos.get(clave).push(i);
+  });
+  for (const indices of grupos.values()) {
+    const unidades = indices.reduce((n, i) => n + lineasCalculadas[i].cantidad, 0);
+    const tramoActual = lineasCalculadas[indices[0]].tramo;
+    if (!unidades || tramoActual < 1) continue;
+    let piso = 0;
+    for (let t = 0; t < tramoActual; t++) {
+      const cierre = (limites[t + 1] || 0) - 1;
+      if (cierre < 1) continue;
+      let media = 0;
+      for (const i of indices) {
+        const l = lineasCalculadas[i], p = productosPorSku[l.sku] || {};
+        const precioBase = (p.precios?.[t] > 0 ? p.precios[t] : l.precioUnit) || l.subtotal / l.cantidad;
+        const precio = l.oferta && p.oferta?.pct > 0
+          ? Math.round(precioBase * (1 - p.oferta.pct / 100)) : precioBase;
+        // El descuento manual no alcanza los artículos «separado».
+        const reducida = t === 0 && !!((hayDescuento && !l.separado) || l.oferta);
+        const unitaria = comisionLinea({ tramo: t, cantidad: 1, subtotal: precio }, p, defectos, reducida);
+        media += unitaria * l.cantidad / unidades;
+      }
+      piso = Math.max(piso, Math.round(media * cierre));
+    }
+    const totalActual = indices.reduce((n, i) => n + resultado[i].comision, 0);
+    const extra = Math.max(0, piso - totalActual);
+    if (!extra) continue;
+    let distribuido = 0;
+    indices.forEach((i, pos) => {
+      const adicional = pos === indices.length - 1 ? extra - distribuido
+        : Math.floor(extra * lineasCalculadas[i].cantidad / unidades);
+      resultado[i].comision += adicional;
+      distribuido += adicional;
+    });
+  }
+  return resultado;
 }
 
 export function resumenComisiones(ventas, { vendedor, desde, hasta }, pagosComision = []) {
