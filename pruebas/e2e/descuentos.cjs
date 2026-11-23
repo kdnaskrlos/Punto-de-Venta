@@ -74,10 +74,12 @@ casos('descuentos', [
     await salirDelCobro(p);
     await p.click('#salir-demo');
     await p.waitForFunction(() => window.__pos.ctx.sesion?.usuario === 'admin');
+    a.ok(await p.locator('#aviso-demo').isHidden());
     a.ok(!(await carrito(p))?.lineas?.length);
     a.strictEqual(await p.locator('#retomar-si').count(), 0);
     await responder(p, 'Aprobar');
     await cambiarA(p, 'vendedora');
+    await p.locator('#aviso-demo').getByText('Modo demo · Vendedora', { exact: true }).waitFor();
     await retomar(p);
     await p.waitForSelector('.vista[data-ruta="/vender"] .total-cop:has-text("63.000")');
     const despues = await carrito(p);

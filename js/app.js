@@ -2,7 +2,7 @@
 import { h, icono, logo, abrirHoja, abrirVentana, esTelefono, despuesDeCerrar, toast } from './ui.js';
 import { APP_VERSION } from './version.js';
 import { puede } from './nucleo/permisos.js';
-import { opcionesCuenta } from './vistas/cuenta.js';
+import { NOMBRE_ROL, opcionesCuenta } from './vistas/cuenta.js';
 import { avatarDe } from './vistas/recorte.js';
 import { MODO_DEMO, DEMO_DIRECTO, recordarUsuarioDemo } from './datos/index.js';
 import { crearSimulacion } from './datos/memoria.js';
@@ -59,8 +59,7 @@ export const ctx = {
   sesion: null,
   tasas: { copPorUsd: null, bsPorUsd: null },
   ajustes: {},
-  // La demostración directa cambia de cuenta en el almacén local. Una sesión con PIN
-  // simula el rol sobre una copia temporal y conserva su almacén en almacenReal.
+  // Una sesión con PIN simula el rol sobre una copia temporal. En la demo directa, la sesión fija el rol.
   vistaRol: null,
   rol: () => (!DEMO_DIRECTO && ctx.vistaRol) || ctx.sesion?.rol,
   puedeVer: accion => !!ctx.sesion && puede(ctx.rol(), accion),
@@ -74,15 +73,23 @@ export function fechaCorta(d = new Date()) { return `${DIAS[d.getDay()]} ${d.get
 let raiz, contenedor, barra, cabecera, avisoDemo;
 
 export const ROLES_DEMO = [['vendedora', 'Vendedora'], ['encargada', 'Encargada']];
-const nombreRol = r => (ROLES_DEMO.find(([k]) => k === r) || [, r])[1];
+const nombreRol = r => NOMBRE_ROL[r] || r;
+function rolDemoActivo() {
+  if (!DEMO_DIRECTO) return ctx.vistaRol;
+  return ctx.sesion?.usuario === 'admin' ? null : ctx.sesion?.rol;
+}
 export async function verComo(rol) {
   rol = rol || null;
   if (DEMO_DIRECTO) {
     const usuario = rol || 'admin';
+    if (usuario === ctx.sesion?.usuario) return;
     const resultado = await ctx.almacen.entrar(usuario, '1234');
     if (!resultado.ok) { toast('No se pudo cambiar de perfil', { malo: true }); return; }
     recordarUsuarioDemo(usuario);
-  } else if (rol && rol !== ctx.vistaRol) {
+    if (rutaActual() !== '/inicio') location.replace('#/inicio');
+    return;
+  }
+  if (rol && rol !== ctx.vistaRol) {
     // Se trabaja sobre una copia simulada: nada de lo que se haga en el modo demo se guarda de verdad.
     const real = ctx.almacenReal || ctx.almacen;
     const datos = await copiarDatos(real);
@@ -95,7 +102,7 @@ export async function verComo(rol) {
     ctx.almacenReal = null; ctx.sesionReal = null;
   }
   ctx.vistaRol = rol;
-  if (!DEMO_DIRECTO) ctx.reiniciarDatos?.();
+  ctx.reiniciarDatos?.();
   pintarAvisoDemo();
   if (rutaActual() === '/inicio') montar(); else location.replace('#/inicio');
 }
@@ -111,16 +118,18 @@ function copiarDatos(almacen) {
 }
 function pintarAvisoDemo() {
   if (!avisoDemo) return;
-  avisoDemo.hidden = !ctx.vistaRol;
-  avisoDemo.replaceChildren(...(ctx.vistaRol ? [icono('usuario'), h('span', {}, h('b', {}, `Modo demo · ${nombreRol(ctx.vistaRol)}`)),
-    h('button', { class: 'btn chico', id: 'salir-demo', onclick: () => verComo(null) }, 'Salir')] : []));
+  const rol = rolDemoActivo();
+  avisoDemo.hidden = !rol;
+  avisoDemo.replaceChildren(...(rol ? [icono('usuario'), h('span', {}, h('b', {}, `Modo demo · ${nombreRol(rol)}`)),
+    h('button', { class: 'btn chico', id: 'salir-demo', onclick: () => verComo(null) }, DEMO_DIRECTO ? 'Volver a Administrador' : 'Salir')] : []));
 }
 // Pastilla «Modo demo»: elige con qué rol ver la app.
 export function pastillaModoDemo() {
-  const b = h('button', { class: 'pill demo' + (ctx.vistaRol ? ' on' : ''), id: 'modo-demo', type: 'button' }, icono('usuario'), ctx.vistaRol ? `Modo demo · ${nombreRol(ctx.vistaRol)}` : 'Modo demo');
+  const rol = rolDemoActivo();
+  const b = h('button', { class: 'pill demo' + (rol ? ' on' : ''), id: 'modo-demo', type: 'button' }, icono('usuario'), rol ? `Modo demo · ${nombreRol(rol)}` : 'Modo demo');
   b.onclick = () => {
     const v = abrirVentana({ titulo: 'Modo demo', contenido: h('div', { class: 'pila' },
-      h('div', { class: 'demo-roles' }, ...ROLES_DEMO.map(([k, t]) => h('button', { class: 'btn' + (ctx.vistaRol === k ? ' primary' : ''), 'data-rol': k, onclick: () => { v.cerrar(); despuesDeCerrar(() => verComo(k)); } }, icono('usuario'), t)))) });
+      h('div', { class: 'demo-roles' }, ...ROLES_DEMO.map(([k, t]) => h('button', { class: 'btn' + (rol === k ? ' primary' : ''), 'data-rol': k, onclick: () => { v.cerrar(); despuesDeCerrar(() => verComo(k)); } }, icono('usuario'), t)))) });
   };
   return b;
 }
@@ -218,6 +227,7 @@ export function mostrarApp() {
   raiz.replaceChildren(barra, h('div', { class: 'main' }, cabecera, avisoDemo, contenedor));
   if (!location.hash || location.hash === '#') history.replaceState(null, '', '#/inicio');
   pintarCabecera();
+  pintarAvisoDemo();
   montar();
   if (!escuchando) {
     escuchando = true;
