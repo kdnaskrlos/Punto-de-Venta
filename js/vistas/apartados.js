@@ -37,7 +37,7 @@ export function abrirApartar(ctx) {
   const v = abrirVentana({ titulo: 'Apartar', pantallaCompleta: true,
     contenido: h('div', { class: 'cobro' }, cliente.el, h('div', { class: 'total-cobro' }, h('span', { class: 'total-cop num' }, fmtCop(r0.total)), h('span', { class: 'moneda c-cop' }, 'COP')), h('p', { class: 'nota' }, 'El abono es opcional. Las prendas quedan reservadas.'), panel.el),
     acciones: h('div', { class: 'pie-cobro' }, panel.barra, final) });
-  v.alCerrar = () => cliente.quitar();
+  v.alCerrar = () => { cliente.quitar(); panel.quitar(); };
   marcarCobro(v);
   actualizar();
   final.addEventListener('click', async () => {
@@ -81,6 +81,7 @@ function abrirPago(ctx, ap, modo) {
   const v = abrirVentana({ titulo: completar ? 'Completar apartado' : 'Abonar', pantallaCompleta: true,
     contenido: h('div', { class: 'cobro' }, h('p', {}, h('b', {}, ap.cliente.nombre), ` · total ${fmtCop(ap.total)} · saldo `, h('b', { class: 'num' }, fmtCop(ap.saldo))), panel.el),
     acciones: h('div', { class: 'pie-cobro' }, panel.barra, final) });
+  v.alCerrar = panel.quitar;
   actualizar();
   const idVenta = ctx.almacen.nuevoId();
   final.addEventListener('click', async () => {

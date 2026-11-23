@@ -1,6 +1,6 @@
 // Panel de pagos reutilizable (cobrar, apartar, abonar, completar): formas por moneda, montos, falta y vuelto (§9.2).
 import { h, icono, esTelefono, deslizarParaQuitar, alEnfocarCampo, toast } from '../ui.js';
-import { estadoCobro, montoSugerido, vueltoEn, vueltoMixto } from '../nucleo/cobro.js';
+import { estadoCobro, montoSugerido, vueltoEn, vueltoMixto, elegirMonedaVuelto } from '../nucleo/cobro.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
 import { aCop } from '../nucleo/tasas.js';
 import { formaEfectivo, NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
@@ -9,6 +9,7 @@ import { formaEfectivo, NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
 export const nombreCorto = n => (n.split('/')[0].replace(/\(.*?\)/g, '').replace(/\b(pesos|d[oó]lares|bol[ií]vares)\b/gi, '').replace(/\s+/g, ' ').trim()) || n;
 
 const GRUPOS = [['COP', 'Pesos', 'c-cop'], ['USD', 'Dólares', 'c-usd'], ['BS', 'Bs', 'c-bs']];
+const tasaValida = n => Number.isFinite(n) && n > 0;
 
 // total: monto a cubrir en COP. permitirMenos: en abonos de apartado se puede pagar menos que el total.
 // iniciales (v2.26): pagos ya escritos [{ forma, monto }] (borrador recuperado tras un apagón).
@@ -18,16 +19,32 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   for (const x of iniciales || []) { const forma = formas.find(f => f.id === x.forma); if (forma && x.monto > 0 && !pagos.some(p => p.forma.id === forma.id)) pagos.push({ forma, monto: x.monto }); }
   const lista = h('div', { class: 'pagos' });
   let botones = null;
-  let monedaVuelto = formaEfectivo(formas, 'USD') && formaEfectivo(formas, 'COP') && ctx.tasas?.copPorUsd ? 'MIXTO' : 'COP';
+  let monedaManual = null;
+  const modos = [
+    ...(formaEfectivo(formas, 'USD') && formaEfectivo(formas, 'COP') ? [['MIXTO', 'USD + COP']] : []),
+    ...GRUPOS.filter(([m]) => formaEfectivo(formas, m)).map(([m]) => [m, m === 'COP' ? 'Todo en pesos' : NOMBRE_MONEDA[m]]),
+  ];
   const barra = h('div', { class: 'barra-falta', role: 'status' });
   const red = ctx.ajustes.redondeo || 100, billeteMinimoUsd = ctx.ajustes.billeteMinimoUsd || 1;
   let listo = false; // no avisar cambios mientras se construye el panel
   const avisar = () => { if (listo) alCambiar(); };
 
-  const estado = () => {
+  function evaluar() {
     const e = estadoCobro({ total, pagos: pagos.map(p => ({ forma: p.forma.id, moneda: p.forma.moneda, monto: p.monto || 0 })), tasas: ctx.tasas, redondeo: red });
-    return { ...e, vueltoValido: permitirMenos || e.vueltoCop <= 0 || calcularCambio(e) != null };
-  };
+    const cambios = new Map();
+    if (!permitirMenos && (e.vueltoCop > 0 || monedaManual)) {
+      for (const [moneda] of modos) {
+        const cambio = calcularCambio(e, moneda);
+        if (cambio) cambios.set(moneda, cambio);
+      }
+    }
+    if (!cambios.has(monedaManual)) monedaManual = null;
+    const moneda = elegirMonedaVuelto(pagos, [...cambios.keys()], monedaManual);
+    const cambio = cambios.get(moneda);
+    e.vueltoValido = permitirMenos || e.vueltoCop <= 0 || Boolean(cambio);
+    return { e, cambios, moneda, cambio };
+  }
+  const estado = () => evaluar().e;
 
   function agregar(forma) {
     if (esTelefono()) document.activeElement?.blur(); // sin borde de foco que parezca una selección
@@ -56,8 +73,9 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       inp.addEventListener('focus', () => alEnfocarCampo(inp)); // v2.07: sin menú Cortar/Copiar en el teléfono
       inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') inp.blur(); });
       const eq = h('span', { class: 'nota num equiv' });
-      p.pintarEq = () => { const e = estado().pagos.find(x => x.forma === f.id); eq.textContent = f.moneda === 'COP' ? '' : (e?.equivalenteCop == null ? 'Sin tasa' : e.equivalenteCop > 0 ? `≈ ${fmtCop(e.equivalenteCop)} COP` : ''); };
-      p.pintarEq();
+      p.pintarEq = equivalente => {
+        eq.textContent = f.moneda === 'COP' ? '' : equivalente == null ? 'Sin tasa' : equivalente > 0 ? `≈ ${fmtCop(equivalente)} COP` : '';
+      };
       // v2.30: en la PC tampoco se enfoca ni se selecciona solo (igual que en el teléfono): al tocarlo se vacía.
       // Tarjeta de pago (v1.94): ícono; nombre con la moneda debajo (COP, USD, Bs);
       // el monto en su recuadro; un bote de basura al lado para quitarla.
@@ -79,17 +97,21 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
         { duration: 210, easing: 'cubic-bezier(.4,0,.2,1)' })
         .onfinish = () => { nueva.style.overflow = ''; };
     }
+    pintarFormas();
+    pintarBarra();
+    avisar();
+  }
+
+  function pintarFormas() {
     botones.replaceChildren(...formas.map(f => {
       const elegida = pagos.some(x => x.forma.id === f.id);
-      const bloqueada = (f.moneda === 'BS' && !ctx.tasas.bsPorUsd) || (f.moneda !== 'COP' && !ctx.tasas.copPorUsd);
+      const bloqueada = (f.moneda === 'BS' && !tasaValida(ctx.tasas?.bsPorUsd)) || (f.moneda !== 'COP' && !tasaValida(ctx.tasas?.copPorUsd));
       return h('button', { type: 'button', class: `forma forma-tarjeta forma-cobro m-${f.moneda.toLowerCase()}` + (elegida ? ' activa' : ''), 'data-forma': f.id, 'data-forma-card': f.id, disabled: bloqueada, 'aria-pressed': String(elegida),
         onclick: () => { if (elegida) quitarPago(pagos.find(x => x.forma.id === f.id)); else agregar(f); } },
         h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
         h('span', { class: 'forma-txt' }, h('b', {}, nombreCorto(f.nombre)),
           h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), bloqueada ? (f.moneda === 'BS' ? ' · Sin tasa de Bs' : ' · Sin tasa') : f.efectivo && !/efectivo/i.test(nombreCorto(f.nombre)) ? ' · efectivo' : '')));
     }));
-    pintarBarra();
-    avisar();
   }
 
   // Quitar un pago: la tarjeta se cierra (alto y opacidad) y luego se recalcula.
@@ -133,8 +155,10 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   }
   // Lo que se devuelve físicamente puede repartirse entre dos monedas.
   // El remanente COP no entregable con el paso elegido se muestra sin ocultarlo.
-  function calcularCambio(e) {
-    if (monedaVuelto === 'MIXTO') {
+  function calcularCambio(e, moneda) {
+    if (moneda !== 'COP' && !tasaValida(ctx.tasas?.copPorUsd)) return null;
+    if (moneda === 'BS' && !tasaValida(ctx.tasas?.bsPorUsd)) return null;
+    if (moneda === 'MIXTO') {
       const d = vueltoMixto(e.vueltoCop, ctx.tasas, { billeteMinimoUsd, redondeoCop: red });
       if (!d) return null;
       const partes = [];
@@ -143,32 +167,25 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
       return { partes, equivalenteCop: d.equivalenteCop, remanenteCop: d.remanenteCop,
         texto: partes.map(p => fmtMonto(p.monto, p.moneda) + ' ' + NOMBRE_MONEDA[p.moneda]).join(' + ') || '0 COP' };
     }
-    const monto = vueltoEn(e.vueltoCop, monedaVuelto, ctx.tasas, red);
-    if (monto == null) return null;
-    const parte = { moneda: monedaVuelto, monto, forma: formaEfectivo(formas, monedaVuelto) };
-    const equivalenteCop = aCop(monto, monedaVuelto, ctx.tasas);
+    const monto = vueltoEn(e.vueltoCop, moneda, ctx.tasas, red);
+    if (!Number.isFinite(monto)) return null;
+    const parte = { moneda, monto, forma: formaEfectivo(formas, moneda) };
+    const equivalenteCop = aCop(monto, moneda, ctx.tasas);
     const remanenteCop = Math.max(0, e.vueltoCop - (equivalenteCop || 0));
     return { partes: monto > 0 ? [parte] : [], equivalenteCop, remanenteCop,
-      texto: fmtMonto(monto, monedaVuelto) + ' ' + NOMBRE_MONEDA[monedaVuelto] };
+      texto: fmtMonto(monto, moneda) + ' ' + NOMBRE_MONEDA[moneda] };
   }
 
   function pintarBarraYa() {
-    const e = estado();
-    pagos.forEach(p => p.pintarEq && p.pintarEq());
+    const { e, cambios, moneda, cambio } = evaluar();
+    pagos.forEach((p, i) => p.pintarEq?.(e.pagos[i].equivalenteCop));
     if (e.vueltoCop > 0 && !permitirMenos) {
-      const cambio = calcularCambio(e);
-      const modos = [
-        ...(formaEfectivo(formas, 'USD') && formaEfectivo(formas, 'COP') ? [['MIXTO', 'USD + COP']] : []),
-        ...GRUPOS.filter(([m]) => formaEfectivo(formas, m)).map(([m]) => [m, m === 'COP' ? 'Todo en pesos' : NOMBRE_MONEDA[m]]),
-      ];
       barra.className = 'barra-falta vuelto';
       barra.replaceChildren(h('span', {}, 'Vuelto'), ' ', h('span', { class: 'monto num' }, cambio?.texto || 'Sin tasa'),
         ...(cambio?.remanenteCop ? [h('span', { class: 'nota' }, `Ajuste por redondeo: ${fmtCop(cambio.remanenteCop)} COP`)] : []),
         h('div', { class: 'vuelto-moneda segmentado' }, ...modos.map(([m, etiqueta]) => h('button', { type: 'button', 'data-moneda': m,
-          'aria-pressed': String(m === monedaVuelto), disabled: m === 'MIXTO'
-            ? vueltoMixto(e.vueltoCop, ctx.tasas, { billeteMinimoUsd, redondeoCop: red }) == null
-            : vueltoEn(e.vueltoCop, m, ctx.tasas, red) == null,
-          onclick: () => { monedaVuelto = m; pintarBarra(); avisar(); } }, etiqueta))));
+          'aria-pressed': String(m === moneda), disabled: !cambios.has(m),
+          onclick: () => { monedaManual = m; pintarBarra(); avisar(); } }, etiqueta))));
     } else if (e.cuadra || (permitirMenos && e.faltaCop < total)) {
       barra.className = 'barra-falta ok';
       barra.replaceChildren(h('span', {}, permitirMenos && !e.cuadra ? 'Saldo' : 'Faltan'), ' ', h('span', { class: 'monto num' }, fmtCop(e.cuadra ? 0 : e.faltaCop)));
@@ -197,7 +214,15 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
   const el = h('div', { class: 'panel-pagos' }, lista, h('div', { class: 'sec-m' }, 'Forma de pago'), botones);
   pintar();
   listo = true;
+  const alCambiarTasas = e => {
+    if (e.detail.que !== 'tasas') return;
+    pintarFormas();
+    pintarBarra();
+    avisar();
+  };
+  window.addEventListener('pos:datos', alCambiarTasas);
   return {
+    quitar: () => window.removeEventListener('pos:datos', alCambiarTasas),
     el,
     // v2.06: el total puede cambiar dentro del cobro (descuento): se recalcula falta y vuelto.
     ponerTotal(n) { total = n; pintarBarra(); avisar(); },
@@ -207,12 +232,11 @@ export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar =
     borrador: () => pagos.filter(p => p.monto > 0).map(p => ({ forma: p.forma.id, monto: p.monto })),
     // Pagos y vuelto listos para guardar en la venta o el apartado.
     resultado() {
-      const e = estado();
+      const { e, cambio } = evaluar();
       const pagosOk = e.pagos.filter(p => p.monto > 0).map(p => ({ forma: p.forma, nombre: formas.find(f => f.id === p.forma).nombre, moneda: p.moneda, monto: p.monto, equivalenteCop: p.equivalenteCop }));
       let vuelto = null;
-      if (!permitirMenos && e.vueltoCop > 0) {
-        const cambio = calcularCambio(e);
-        if (cambio) vuelto = { partes: cambio.partes, equivalenteCop: cambio.equivalenteCop,
+      if (!permitirMenos && e.vueltoCop > 0 && cambio) {
+        vuelto = { partes: cambio.partes, equivalenteCop: cambio.equivalenteCop,
           remanenteCop: cambio.remanenteCop, // compatibilidad con recibos históricos
           moneda: cambio.partes[0]?.moneda || 'COP', monto: cambio.partes[0]?.monto || 0,
           forma: cambio.partes[0]?.forma || formaEfectivo(formas, 'COP') };
