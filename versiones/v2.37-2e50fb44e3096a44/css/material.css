@@ -1,0 +1,1588 @@
+/* Material Design 3 adaptado a la identidad de Comic Shop (v1.44).
+   Colores, fuente y verde de acción no cambian; aquí van componentes, toques de 48, estados y sombras.
+   Archivo aparte para poder revertirlo de una vez. */
+
+:root{
+  --toque:48px;
+  --sombra-1:0 1px 2px rgba(16,24,40,.06),0 2px 6px rgba(16,24,40,.06);
+  --sombra-2:0 8px 28px rgba(16,24,40,.18);
+  --capa-encima:rgba(17,24,39,.08);   /* hover */
+  --capa-presion:rgba(17,24,39,.12);  /* pressed / focus */
+}
+
+/* ---------- 5. Componentes ---------- */
+/* Botones: 48 normal, 56 acción final; deshabilitado gris neutro (no verde pálido) */
+.btn{min-height:48px;border-radius:12px;padding:0 16px;font-size:14px;gap:8px}
+.btn svg.i{width:18px;height:18px}
+.btn.grande{min-height:56px;font-size:16px;border-radius:12px}
+.btn.chico{min-height:40px;padding:0 12px;font-size:13px;position:relative}
+.btn:disabled,.btn[disabled]{background:rgba(17,24,39,.12)!important;border-color:transparent!important;color:rgba(17,24,39,.38)!important;box-shadow:none!important;cursor:not-allowed;opacity:1}
+.btn:disabled svg.i{color:inherit}
+/* Botón de texto (acciones terciarias o peligrosas que no deben competir) */
+.btn.texto{background:none;border-color:transparent;padding:0 12px}
+.btn.texto.peligro{color:var(--r-tx)}
+
+/* Campos: un solo estilo — blanco, borde 1px, 48 de alto, radio 12; foco con borde de 2px gris oscuro */
+.inp{background:var(--surface);border:1px solid #c4cad3;border-radius:12px;min-height:48px;padding:8px 12px;font-size:16px}
+.inp::placeholder{color:#8b93a1}
+.inp:focus{border-color:var(--sel-neu);box-shadow:inset 0 0 0 1px var(--sel-neu);outline:0}
+.inp.num,.pago-monto .inp,.tasa-entrada .inp{text-align:right}
+.tasa-entrada,.calc-caja{background:var(--surface);border:1px solid #c4cad3;border-radius:12px;min-height:48px}
+.tasa-entrada:focus-within,.calc-caja:focus-within{border-color:var(--sel-neu);box-shadow:inset 0 0 0 1px var(--sel-neu)}
+.calc-caja .inp,.tasa-entrada .inp{border:0;box-shadow:none!important}
+
+/* Una sola X para cerrar: sin círculo, 48 de toque */
+.cerrar,.hoja .cab .cerrar{width:48px;height:48px;border-radius:50%;background:none;color:var(--muted)}
+.cab{min-height:56px}
+.caja .cab{padding:4px 4px 4px 16px}
+.cab h2{font-size:20px;font-weight:700}
+
+/* Títulos de sección: un solo estilo (15/16 px, sin mayúsculas, ícono opcional en gris) */
+.sec-t,.ap-det-t,.dg-t,.rep .sec-t{font-size:16px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink)}
+.sec-m,.sub-t{font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink)}
+.sec-t svg.i,.ap-det-t svg.i{width:20px;height:20px;color:var(--muted)}
+
+/* Superficies: tarjetas con borde, radio 12 y sin sombra; ventanas y hojas con sombra nivel 2; barra del carrito nivel 1 */
+.tarjeta{box-shadow:none;border-radius:12px}
+.ventana .caja,.hoja .caja,.capa.ventana.desplegable .caja{box-shadow:var(--sombra-2)}
+.ventana .caja{border-radius:16px}
+.barra-carrito,.pie-fijo,#aj-guardar{box-shadow:var(--sombra-1)}
+.forma-tarjeta.activa{box-shadow:none}
+
+/* Opción elegida (Tasas → Manual y similares): borde de 2 px y fondo suave, no negro grueso */
+.modo-bs.activo{border:2px solid var(--sel-neu);background:var(--sel-neu-bg)}
+
+/* Avatares en gris: el color queda solo en la pastilla del rol */
+.avatar,.lista-usuarios .u-cab .avatar{background:var(--surface-2);color:var(--ink)}
+
+/* ---------- 3. Toques de 48 × 48 sin cambiar cómo se ven ---------- */
+.chip,.lc-cont button,.forma-acc .ibtn,.rep-ver,.enlace-ver,.tasas-ajustar,.btn.chico,.ibtn.chico,.tf-paso button,.linea-der .quitar{position:relative}
+.chip::after,.lc-cont button::after,.forma-acc .ibtn::after,.rep-ver::after,.enlace-ver::after,.tasas-ajustar::after,.btn.chico::after,.ibtn.chico::after{
+  content:"";position:absolute;left:50%;top:50%;width:max(100%,var(--toque));height:max(100%,var(--toque));transform:translate(-50%,-50%)}
+.ibtn{width:48px;height:48px}
+.ibtn.chico{width:40px;height:40px}
+.lc-cont{gap:8px}
+.tf-paso{gap:8px}
+.ventana-tallas .tf-paso button{width:48px;height:48px}
+
+/* ---------- 4. Estados de interacción (capas de Material: 8 % encima, 12 % al presionar) ---------- */
+.btn,.chip,.tarjeta-prenda,.apartado,.grupo-inv,.forma-cobro,.forma-toque,.mas-fila,.rep-fila,.u-cab,.linea.mini,.venta-hoy,.barra-talla,.talla-mas,.talla-menos,.lc-cont button,.ibtn,.despl > summary,.tile[data-k],.segmentado button,.rep-ver,.enlace-ver,.tasas-ajustar,.nav{
+  transition:background-color .15s,box-shadow .15s,transform .1s}
+@media (hover:hover){
+  .btn:not(:disabled):hover,.chip:hover,.tarjeta-prenda:hover,.apartado:hover,.grupo-inv:hover,.forma-cobro:not(:disabled):hover,.forma-toque:hover,.mas-fila:hover,.rep-fila:hover,.u-cab:hover,.linea.mini:hover,.venta-hoy:hover,.barra-talla:hover,.ibtn:not(:disabled):hover,.despl > summary:hover,.tile[data-k]:hover,.segmentado button:not([aria-pressed="true"]):hover,.nav:hover{
+    background-image:linear-gradient(var(--capa-encima),var(--capa-encima))}
+  .tarjeta-prenda:hover,.grupo-inv:hover{border-color:var(--line)}
+}
+.btn:not(:disabled):active,.chip:active,.tarjeta-prenda:active,.apartado:active,.grupo-inv:active,.forma-cobro:not(:disabled):active,.forma-toque:active,.mas-fila:active,.rep-fila:active,.u-cab:active,.linea.mini:active,.venta-hoy:active,.barra-talla:active,.ibtn:not(:disabled):active,.lc-cont button:active,.tf-paso button:not(:disabled):active,.despl > summary:active,.tile[data-k]:active,.nav:active{
+  background-image:linear-gradient(var(--capa-presion),var(--capa-presion));transform:scale(.99)}
+.btn:not(:disabled):active,.ibtn:active,.lc-cont button:active,.tf-paso button:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--sel-neu);outline-offset:2px}
+/* Botones trabajando: «Guardando…», «Cobrando…» con indicador y sin doble toque */
+.btn.cargando{pointer-events:none;position:relative}
+.btn.cargando::before{content:"";width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:gira .7s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+/* Límite de existencia en tallas */
+.tf-max{display:block;font-size:12px;font-weight:600;color:var(--y-tx)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.btn.cargando::before{animation:none}}
+.tasa-entrada{gap:8px;padding:0 16px}
+
+/* Menú ⋮ de las formas de pago */
+.forma-acc{display:block}
+.menu-acc{position:absolute;right:0;top:44px;z-index:5;min-width:160px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--sombra-2);display:flex;flex-direction:column}
+.menu-acc[hidden]{display:none}
+.menu-acc button{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 12px;border:0;border-radius:8px;background:none;font:inherit;font-size:14px;font-weight:500;color:var(--ink);text-align:left;cursor:pointer}
+.menu-acc button svg.i{width:18px;height:18px;color:var(--muted)}
+.menu-acc button.peligro,.menu-acc button.peligro svg.i{color:var(--r-tx)}
+@media (hover:hover){.menu-acc button:hover{background:var(--surface-2)}}
+.forma-acc .ibtn{color:var(--muted)}
+/* Inicio: «Ventas de hoy» manda; las cifras en cero se apagan */
+.tiles .tile.principal{grid-column:1/-1}
+.tiles .tile.principal .val{font-size:32px!important}
+.tiles .tile.cero{border-color:var(--line)!important;background:var(--surface)!important}
+.tiles .tile.cero .val,.tiles .tile.cero .et,.tiles .tile.cero .sub{color:var(--muted)!important}
+.tiles .tile.cero .tile-ic{opacity:.05}
+/* Comisiones: barra con texto */
+.com-prog{display:flex;flex-direction:column;gap:4px;margin:8px 0 4px}
+.com-prog .com-barra{margin:0}
+.talla-fila-v{flex-wrap:wrap}
+.talla-fila-v .tf-max{flex-basis:100%;text-align:right;margin-top:-4px}
+.tiles:has(.principal) .tile:last-child:nth-child(odd){grid-column:auto}
+.tiles:has(.principal) .tile:last-child:nth-child(even){grid-column:1/-1}
+/* Tarjetas de lista más compactas (≈ 84–88 px): interlineado de lista, no de párrafo */
+.ap-main{line-height:1.3}
+.ap-main .pastilla{line-height:1.2}
+.grupo-inv{line-height:1.3}
+.ap-det-fila.prenda{grid-template-columns:minmax(0,1fr) auto}
+.ap-det-pn{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+.rep-fila-t .nota{white-space:normal}
+/* Montos largos: bajan un paso en la escala de letra (24→20→16 y 32→24→20), nunca tamaños intermedios */
+.total-cop[data-largo=l],.tiles .tile .val[data-largo=l]{font-size:20px!important}
+.total-cop[data-largo=xl],.tiles .tile .val[data-largo=xl]{font-size:16px!important}
+.caja-total .total-cop[data-largo=l],.com-monto[data-largo=l],.ap-det-cifras b.grande[data-largo=l],.tiles .tile.principal .val[data-largo=l]{font-size:24px!important}
+.caja-total .total-cop[data-largo=xl],.com-monto[data-largo=xl],.ap-det-cifras b.grande[data-largo=xl],.tiles .tile.principal .val[data-largo=xl]{font-size:20px!important}
+.tp-mas{color:var(--muted);font-weight:600}
+/* Ventanas adaptables (Material 3): compacto < 600, mediano 600–839, expandido ≥ 840.
+   Vender: una columna en el teléfono, dos en la tableta, rejilla libre en la computadora. */
+@media (min-width:600px) and (max-width:839px){.rejilla{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:600px) and (max-width:839px){.tp-tallas .tp-pal{display:none}}
+/* Apartados: sin flecha; pastilla y monto pegados al borde derecho, el monto siempre a la altura de la fecha */
+.apartado{align-items:stretch}
+.ap-der{align-self:stretch;align-items:flex-end;text-align:right}
+.ap-der .ap-saldo{margin-top:auto}
+
+/* v1.45 — Consistencia en todo el sistema */
+/* Títulos y nombres: peso 700 en todas las pantallas (el 800 queda solo para cifras) */
+.saludo,.cab h2,.caja .cab h2,.listo h2,.entrar h1,.sec-t,.ap-nombre,.ap-det-nombre,.tf-talla,.stepper .cant,.lc-cont .cant,.lc-q{font-weight:600!important}
+/* Nombres en tarjetas de lista: mismo tamaño en Vender, Inventario y Apartados */
+.ap-nombre,.gi-info b,.tarjeta-prenda .info b{font-size:16px}
+/* Alturas: 48 normal, 56 acción final de ancho completo y campos de cifra grande */
+.acciones-carrito .cobrar,.guardar-ajustes .btn,.cliente-registrar{min-height:56px!important}
+.calc-entrada .inp,.calc-caja .inp,.tasa-entrada .inp{min-height:56px}
+
+/* v1.46 */
+/* Rol en Usuarios: pastilla neutra (el color queda para estados que piden atención) */
+.est.rol{background:var(--sel-neu-bg);border-color:var(--sel-neu-bd);color:var(--ink)}
+/* Prenda en el carrito: selección neutra como las pastillas activas, sin azul */
+.tarjeta-prenda.elegida{background:var(--sel-neu-bg)!important;border-color:var(--sel-neu-bd)!important}
+.tarjeta-prenda.elegida .foto{background:var(--surface)!important}
+.tarjeta-prenda.elegida .foto svg.i{color:var(--muted)!important}
+.tarjeta-prenda .en-carrito,.talla .en-carrito{background:var(--sel-neu)!important;color:#fff!important;border-color:var(--sel-neu)!important}
+.tarjeta-prenda .en-carrito svg.i{color:#fff!important}
+/* Mismo espacio (12px) entre las pastillas de filtro y lo primero que sigue, en todas las pantallas */
+.filtro-ap,.filtro-inv{margin-bottom:0!important}
+.ap-filtros{margin-bottom:12px}
+.cab-vista:has(.rango){margin-bottom:-4px}
+/* Tasas del día: monto más pequeño y alineado arriba con el título */
+.desplegable .tasa-fila{align-items:flex-start}
+.desplegable .tasa-fila .tasa-val{font-size:20px!important}
+/* Apartados: nombre y estado en la primera línea; fecha y monto en la última, sobre la misma línea base */
+.apartado .ap-l1{display:flex;align-items:center;gap:8px}
+.apartado .ap-l1 .est{flex:none;line-height:1.2}
+.apartado .ap-l3{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.apartado .ap-fecha{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apartado .ap-saldo{flex:none;font-size:16px;font-weight:700;color:var(--r-tx);white-space:nowrap}
+.apartado .ap-saldo.cerrado{color:var(--ink)}
+.apartado .ap-saldo{line-height:1.2}
+/* Pastilla de fecha en Reportes/Comisiones: caja del tamaño de lo que se ve; el área de toque de 48 la da ::after */
+.rango-btn{min-height:36px!important;position:relative}
+.rango-btn::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,48px);height:48px;transform:translate(-50%,-50%)}
+.rango-btn{display:inline-flex;align-items:stretch;padding:0}.rango-btn>span{min-height:36px;box-sizing:border-box}
+/* Tasas del día: el monto se apoya en la misma línea que la fecha y hora */
+.desplegable .tasa-fila{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:12px;row-gap:2px;align-items:center}
+.desplegable .tasa-fila .tasa-ic{grid-row:1/3;grid-column:1;align-self:center}
+.desplegable .tasa-fila .tasa-txt{display:contents}
+.desplegable .tasa-fila .tasa-et{grid-row:1;grid-column:2/4}
+.desplegable .tasa-fila .tasa-dato{grid-row:2;grid-column:2;align-self:baseline}
+.desplegable .tasa-fila .tasa-val{grid-row:2;grid-column:3;align-self:baseline;line-height:1.2}
+
+/* Valores de recuadros en Inicio: tamaños fijos de la escala (24; «Ventas de hoy» 32) */
+.tiles .tile .val{font-size:24px}
+
+/* v1.51 — Carrito */
+/* Nombre largo: se corta con «…» en lugar de cortarse a la mitad de una letra */
+.linea-info{min-width:0}
+.linea-info b{display:block!important;min-width:0;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Contador: mismo ancho y mismos botones con 1 o con varias; el bote solo cambia el color del ícono */
+.lc-cont{flex:none}
+.lc-cont .quitar{background:var(--surface-2)!important;color:var(--r-tx)!important;margin:0!important}
+.lc-cont .cant{min-width:32px}
+/* Tarifa: pastilla neutra (el verde queda para Cobrar) */
+.lc-chip.tramo:not(.oferta){background:var(--surface-2);color:var(--muted)}
+/* Total en recuadro neutro */
+.caja-total{background:var(--g-bg)}
+.caja-total .et-total{font-weight:600}
+.fila-total .desc-et{display:inline-flex;align-items:center;gap:8px}
+/* El nombre puede usar dos líneas antes de cortarse (el contador ocupa la esquina) */
+.linea-info b{white-space:normal!important;display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.25}
+
+/* v1.55 — Aviso discreto de cambios sin guardar en Ajustes */
+.aviso-guardar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;padding:4px 4px 4px 16px;border:1px solid var(--line);border-radius:99px;background:var(--surface);box-shadow:var(--sombra-2);font-size:13px;font-weight:500;color:var(--ink);white-space:nowrap;animation:avisoEntra .15s var(--ease)}
+.aviso-guardar[hidden]{display:none}
+.aviso-guardar .btn.texto{min-height:40px;color:var(--accent);font-weight:600}
+@media (max-width:839px){.aviso-guardar{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
+@keyframes avisoEntra{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+/* Ajustes → Pagos: nombre y moneda alineados a la derecha */
+.formas-aj .forma-txt{text-align:right;display:flex;flex-direction:column;align-items:flex-end}
+.formas-aj .forma-toque b{max-width:100%}
+/* Tarjeta de apartado (v1.55): izquierda quién y detalle; derecha cuánto debe */
+.apartado{flex-direction:column!important;align-items:stretch!important;gap:4px!important;padding:12px 16px!important}
+.apartado .ap-l1,.apartado .ap-l2,.apartado .ap-l3{display:flex;justify-content:space-between;align-items:baseline;gap:12px;min-width:0}
+.apartado .ap-l1{align-items:center}
+.apartado .ap-nombre{font-size:16px;line-height:1.3}
+.apartado .ap-meta{min-width:0;font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apartado .ap-et{flex:none;font-size:12px;font-weight:400;color:var(--muted)}
+.apartado .ap-abono{font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap}
+.apartado .ap-abono b{color:var(--ink);font-weight:600}
+.apartado .ap-l3 .ap-saldo{font-size:20px;line-height:1.1}
+.apartado .ap-l2,.apartado .ap-l3{line-height:1.3}
+/* Descuento: monto descontado en rojo, sin X (se quita desde la ventana Descuento) */
+.totales .fila-total .desc-monto,.totales .fila-total .desc-monto .c-cop.moneda{color:var(--r-tx)!important}
+.desc-entrada{position:relative}
+.desc-entrada .inp{padding-right:56px;text-align:right}
+.desc-entrada .desc-moneda{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:600}
+.desc-equiv{text-align:right;margin:4px 0 0}
+.desc-equiv:empty{display:none}
+/* Calendario: tira de tres meses que se desliza como en Pedidos */
+.cal-visor{overflow:hidden;touch-action:pan-y;margin:0 -2px}
+.cal-pista{display:flex;width:300%;transform:translateX(-33.3333%);will-change:transform}
+.cal-pista>.cal-dias{width:33.3333%;flex:none;padding:0 2px;box-sizing:border-box}
+/* Pastillas de filtro: solo se desplazan de lado; sin el bamboleo vertical (el área de toque de 48 px sobresalía) */
+.filtros,.filtro-ap,.filtro-inv{overflow-y:hidden!important;overscroll-behavior-x:contain}
+/* Hojas: entran completas desde su borde (abajo o derecha), suave; al cerrar hacen lo inverso (ui.js quitar) */
+.hoja.abajo .caja{animation:hojaSube .2s cubic-bezier(.22,.9,.3,1)!important}
+.hoja.derecha .caja{animation:hojaEntra .18s cubic-bezier(.22,.9,.3,1)!important}
+@keyframes hojaSube{from{transform:translateY(100%)}to{transform:none}}
+@keyframes hojaEntra{from{transform:translateX(100%)}to{transform:none}}
+@media (prefers-reduced-motion:reduce){.hoja.abajo .caja,.hoja.derecha .caja{animation:none!important}}
+/* Flecha de los desplegables: gira con la misma curva que el despliegue */
+.lista-usuarios .u-cab > svg.i,.despl > summary > svg.i{transition:transform .2s cubic-bezier(.22,.9,.3,1)}
+
+/* v1.56 — Pagos en Cobrar (imagen 4): ícono · nombre y ≈ pesos · recuadro con el monto; − redondo en la esquina */
+.pagos{gap:12px!important;padding-top:8px}
+.pagos .pago{position:relative;display:grid!important;grid-template-columns:40px minmax(0,1fr) minmax(128px,46%)!important;grid-template-areas:"ic nombre monto"!important;align-items:center;gap:12px!important;border-radius:16px!important;background:var(--surface)!important;box-shadow:var(--sombra-1);overflow:visible}
+.pagos .pago .forma-ic{width:40px!important;height:40px!important;border-radius:12px!important;align-self:center!important}
+.pagos .pago .forma-ic svg.i{width:20px!important;height:20px!important}
+.pagos .pago-nombre{flex-direction:column!important;align-items:flex-start!important;gap:2px!important}
+.pagos .pago-nombre b{font-size:16px!important;max-width:100%}
+.pagos .pago-nombre .equiv{margin:0!important;font-size:13px!important;font-weight:400;color:var(--muted)}
+.pagos .pago-nombre .equiv:empty{display:none}
+.pagos .pago-monto{display:flex!important;align-items:baseline;gap:4px!important;height:48px;padding:0 12px!important;border:1px solid #c4cad3;border-radius:12px;background:var(--surface);cursor:text}
+.pagos .pago-monto:focus-within{border-color:var(--sel-neu);box-shadow:inset 0 0 0 1px var(--sel-neu)}
+.pagos .pago-monto .inp{border:0!important;box-shadow:none!important;background:none!important;padding:0!important;min-height:0!important;height:46px;font-size:20px!important;font-weight:700!important;text-align:right;color:var(--ink)}
+.pagos .pago-monto .moneda{flex:none;min-width:0!important;font-size:13px!important;font-weight:600!important;color:var(--muted)!important}
+.pago-quitar{position:absolute;top:-10px;right:-10px;width:28px;height:28px;border-radius:50%;border:0;display:grid;place-items:center;background:var(--r-bg);color:var(--r-tx);box-shadow:var(--sombra-1);cursor:pointer;z-index:1}
+.pago-quitar svg.i{width:16px;height:16px;stroke-width:3}
+.pago-quitar::after{content:"";position:absolute;inset:-10px}
+.panel-pagos .pagos{padding-right:10px;padding-top:10px}
+/* Cobrar: el total va en verde crema */
+.total-cobro.tarjeta{background:var(--g-bg)!important;border-color:var(--g-bd)!important}
+/* Venta exitosa */
+.listo.exito{gap:12px;padding:24px 0 8px;max-width:420px;margin:0 auto;width:100%}
+.exito-ic{position:relative;width:80px;height:80px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff;margin-bottom:4px;animation:exitoEntra .35s cubic-bezier(.34,1.56,.64,1) both}
+.exito-ic svg.i{width:40px;height:40px;stroke-width:3;stroke-dasharray:30;stroke-dashoffset:30;animation:exitoTrazo .28s .18s ease-out forwards}
+.exito-onda{position:absolute;inset:0;border-radius:50%;background:var(--accent);opacity:.25;animation:exitoOnda 1.2s .14s ease-out both}
+@keyframes exitoEntra{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes exitoTrazo{to{stroke-dashoffset:0}}
+@keyframes exitoOnda{from{transform:scale(1);opacity:.3}to{transform:scale(1.8);opacity:0}}
+.listo.exito h2{font-size:24px;margin:0;animation:entra .21s .15s var(--ease) both}
+.exito-sub{margin:-8px 0 0;font-size:14px}
+.exito-sub:empty{display:none}
+.exito-total{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px;border-radius:16px;background:var(--g-bg);border:1px solid var(--g-bd);animation:entra .21s .18s var(--ease) both}
+.exito-total .et{font-size:13px;font-weight:500;color:var(--g-tx)}
+.exito-total .total{display:flex;align-items:baseline;gap:8px}
+.exito-total .total-cop{font-size:32px;font-weight:700;line-height:1.1}
+.exito-total .moneda{font-size:13px;font-weight:600}
+.exito-pagos{width:100%;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;padding:4px 16px;animation:entra .21s .22s var(--ease) both}
+.exito-fila{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0;font-size:14px;font-weight:400;color:var(--muted);border-bottom:1px solid var(--line)}
+.exito-fila:last-child{border-bottom:0}
+.exito-fila b{color:var(--ink);font-size:16px}
+.exito-fila .moneda{font-size:12px;color:var(--muted)}
+.exito-fila.vuelto,.exito-fila.vuelto b{color:var(--y-tx)}
+.exito-acc{width:100%;display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.exito-acc .btn{max-width:none!important}
+.exito-cuenta{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12px;font-weight:400;color:var(--muted);margin-top:4px}
+.exito-barra{width:100%;height:4px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.exito-barra i{display:block;height:100%;background:var(--accent);transform-origin:left center}
+.exito-cuenta.parada .exito-barra{display:none}
+@media (prefers-reduced-motion:reduce){.exito-ic,.exito-ic svg.i,.exito-onda,.listo.exito h2,.exito-total,.exito-pagos{animation:none!important}.exito-ic svg.i{stroke-dashoffset:0}}
+/* Tarjeta de apartado v1.56: quién | Abonado | Saldo */
+.apartado{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto;align-items:center!important;gap:0!important;padding:12px 4px 12px 16px!important;min-height:72px}
+.apartado .ap-izq{display:flex;flex-direction:column;gap:4px;min-width:0;padding-right:12px}
+.apartado .ap-nombre{font-size:16px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apartado .ap-meta{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:13px;font-weight:400;color:var(--muted);line-height:1.3}
+.apartado .ap-dato{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.apartado .ap-dato svg.i{width:14px;height:14px}
+.apartado .ap-dato.viejo{color:var(--r-tx)}
+.apartado .ap-col{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:0 12px;border-left:1px solid var(--line);align-self:stretch;justify-content:center}
+.apartado .ap-et{font-size:12px;font-weight:400;color:var(--muted);line-height:1.2}
+.apartado .ap-col b{font-size:16px;font-weight:700;line-height:1.2;white-space:nowrap;color:var(--ink)}
+.apartado .ap-col .ap-saldo{color:var(--r-tx)}
+.apartado .ap-col .ap-saldo.cerrado{color:var(--ink)}
+@media (min-width:600px){.apartado .ap-col{padding:0 16px}.apartado .ap-col b{font-size:20px}}
+/* Detalle de apartado: abonado y saldo con el mismo tamaño (24) */
+.ap-det-cifras b,.ap-det-cifras b.grande{font-size:24px!important;line-height:1.15!important}
+.ap-det-cifras b.grande[data-largo=l]{font-size:20px!important}
+.ap-det-cifras b.grande[data-largo=xl]{font-size:16px!important}
+/* Ventana Descuento: la línea del equivalente siempre ocupa su lugar (sin brinco al cambiar de moneda) */
+.desc-equiv{min-height:19px;display:block!important}
+.desc-equiv:empty{visibility:hidden}
+/* Columnas Abonado y Saldo del mismo ancho en todas las tarjetas: los montos quedan alineados en la lista */
+.apartado .ap-col{min-width:96px;box-sizing:border-box}
+@media (min-width:600px){.apartado .ap-col{min-width:120px}}
+/* Más espacio para el nombre: columnas con margen solo a la izquierda de su línea; el nombre puede usar dos líneas */
+.apartado{padding:12px 16px!important}
+.apartado .ap-col{min-width:84px;padding:0 0 0 12px}
+
+.apartado .ap-nombre{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+/* Tarjeta de apartado v1.57: tres líneas, línea divisoria continua entre Abonado y Saldo */
+.apartado{display:grid!important;grid-template-columns:minmax(0,1fr) 84px 84px!important;grid-template-rows:auto auto auto;row-gap:4px!important;column-gap:0!important;align-items:baseline!important;padding:12px 16px!important;min-height:0}
+.apartado > *{min-width:0}
+.apartado .ap-nombre{grid-column:1/-1;grid-row:1;font-size:16px;line-height:1.3;white-space:normal!important;display:block!important;-webkit-line-clamp:unset;overflow:visible;margin-bottom:4px}
+.apartado .ap-hace{grid-column:1;grid-row:2;font-size:12px;font-weight:400;color:var(--muted);line-height:1.2}
+.apartado .ap-hace.viejo{color:var(--r-tx)}
+.apartado .ap-et{grid-row:2;font-size:12px;font-weight:400;color:var(--muted);line-height:1.2;padding-left:12px;white-space:nowrap}
+.apartado .ap-et-abono{grid-column:2}
+.apartado .ap-et-saldo{grid-column:3}
+.apartado .ap-fecha{grid-column:1;grid-row:3;display:inline-flex;align-items:baseline;gap:4px;font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap;line-height:1.2}
+.apartado .ap-fecha svg.i{width:14px;height:14px;align-self:center}
+.apartado .ap-abono,.apartado .ap-saldo{grid-row:3;padding-left:12px;font-size:16px!important;font-weight:700;line-height:1.2;white-space:nowrap}
+.apartado .ap-abono{grid-column:2;color:var(--ink)}
+.apartado .ap-saldo{grid-column:3;color:var(--r-tx)}
+.apartado .ap-saldo.cerrado{color:var(--ink)}
+.apartado .ap-linea{grid-column:3;grid-row:2/4;align-self:stretch;border-left:1px solid var(--line)}
+@media (min-width:600px){.apartado{grid-template-columns:minmax(0,1fr) 120px 120px!important}.apartado .ap-abono,.apartado .ap-saldo{font-size:20px!important}}
+/* Pagos: el espacio entre tarjetas va en cada tarjeta (margen) y no en el contenedor, para que al quitar la última no haya salto */
+.pagos{gap:0!important;padding-top:0!important}
+.pagos .pago{margin-top:12px}
+.panel-pagos{gap:0!important}
+.panel-pagos .pagos:empty{display:block!important}
+.panel-pagos > .sec-m{margin:16px 0 8px}
+
+/* Relleno y borde sin !important: así la animación al quitar un pago puede cerrarlos (las reglas !important no se animan) */
+.panel-pagos .pagos .pago,.pagos .pago.pago{padding:12px;border:1px solid var(--line)}
+/* Sin «anclaje de desplazamiento» del navegador en Cobrar: evitaba que el contenido se acomodara solo y daba saltos */
+.capa .cuerpo,.panel-pagos{overflow-anchor:none}
+/* Reportes: Ventas y Ganancia del mismo tamaño (32; 24 o 20 si son largos) */
+.rep-kpis .rep-kpi .val{font-size:32px!important}
+.rep-kpis[data-largo=l] .rep-kpi .val{font-size:24px!important}
+.rep-kpis[data-largo=xl] .rep-kpi .val{font-size:20px!important}
+/* Botón de confirmación destructiva (Eliminar usuario) */
+.btn.primary.peligro-lleno{background:var(--err);border-color:var(--err);color:#fff}
+.lista-usuarios .u-acc{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;justify-content:stretch}
+.lista-usuarios .u-acc .btn{width:100%;justify-content:center}
+.lista-usuarios .u-acc .u-eliminar{grid-column:1/-1;justify-self:start;width:auto;padding-left:4px}
+.entrar-paso{text-align:center;min-height:19px;margin:0}
+.resumen-imp.r{background:var(--r-bg);border-color:var(--r-bd);color:var(--r-tx)}
+
+/* v1.71 — Sincronizar inventario */
+.sinc-acc{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sinc-ultima{margin:0;font-size:12px}
+.sinc-fecha{margin:0}
+.sinc-check{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:12px;cursor:pointer}
+.sinc-check input{width:20px;height:20px;margin:2px 0 0;flex:none;accent-color:var(--sel-neu)}
+.sinc-check > span{display:flex;flex-direction:column;gap:4px}
+.sinc-check .nota{margin:0}
+.sinc-lista summary{cursor:pointer;font-weight:600;font-size:14px;min-height:40px;display:flex;align-items:center}
+.sinc-cambio{display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+.sinc-cambio:last-child{border-bottom:0}
+.sinc-cambio b{color:var(--ink);font-size:13px}
+.sinc .resumenes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+/* v1.73 · Foto por código de imagen en el detalle de la prenda */
+.foto-grupo{display:flex;align-items:center;gap:12px}
+.foto-grupo .miniatura{width:72px;height:72px;border-radius:12px}
+
+/* v1.77 · Modo demo: ver la app como vendedora o encargada */
+.aviso-demo{position:sticky;top:56px;z-index:14;display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--y-bg);border-bottom:1px solid var(--y-bd);color:var(--y-tx);font-size:13px}
+.aviso-demo[hidden]{display:none}
+.aviso-demo > span{flex:1;min-width:0}
+.aviso-demo .nota{color:inherit;opacity:.85}
+.aviso-demo svg.i{width:16px;height:16px;flex:none}
+.demo-roles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.demo-roles .btn{min-height:52px;justify-content:center}
+
+/* v1.87 · Lineamiento de tarjetas (Apartados, Carrito e Inventario), con los tamaños de la app «Stock, Comic Shop»:
+   nombre 14,5 px/600 completo (sin cortar) · detalle 12,5 px/400 · datos y etiquetas 12 px/400–500 ·
+   cifra principal de la tarjeta 14,5 px/600 · foto 58 px · relleno 10 px 12 px, alto mínimo 68 px. */
+.apartado{padding:10px 12px!important;min-height:68px}
+.apartado .ap-nombre{font-size:14.5px!important;font-weight:600!important;line-height:1.25!important;white-space:normal!important;overflow:visible!important}
+.apartado .ap-hace{font-size:12px;font-weight:400}
+.apartado .ap-hace.viejo{font-weight:500}
+.apartado .ap-et{font-size:12px;font-weight:400}
+.apartado .ap-fecha{font-size:12.5px;font-weight:400}
+.apartado .ap-abono,.apartado .ap-saldo{font-size:14.5px!important;font-weight:600}
+@media (min-width:600px){.apartado .ap-abono,.apartado .ap-saldo{font-size:14.5px!important}}
+.carrito .linea:not(.mini),.hoja-carrito .linea:not(.mini){padding:10px 12px;min-height:68px;grid-template-columns:58px minmax(0,1fr) auto}
+.linea > .foto{width:58px!important;height:58px!important;border-radius:10px!important}
+.linea-info b{font-size:14.5px!important;font-weight:600!important;line-height:1.25!important;white-space:normal!important;display:block!important;-webkit-line-clamp:unset!important;overflow:visible!important}
+.linea-info .lc-chip{font-size:12.5px;font-weight:400;white-space:normal}
+.linea-info .lc-chip.tramo{font-size:12px;font-weight:500}
+.linea-der .monto,.lc-monto .monto{font-size:14.5px;font-weight:600}
+.lc-cu{font-size:12px;font-weight:400}
+/* Líneas compactas del carrito: el nombre y la variante se ven completos (pueden ocupar dos líneas). */
+.linea.mini{padding:10px 12px;min-height:56px}
+.lc-t{white-space:normal;overflow:visible;text-overflow:clip;font-size:14.5px;line-height:1.3}
+.lc-t b{font-weight:600}
+.lc-t small{font-size:12.5px;font-weight:400}
+.linea.mini .lc-monto .monto{font-size:14.5px;font-weight:600}
+
+/* v1.88 · Tarjeta de apartado en dos líneas: nombre | Abono | Saldo  /  fecha / hace N días | monto | saldo.
+   Abono y saldo pegados a la derecha (columnas al ancho de su contenido), con la divisoria continua. */
+.apartado{grid-template-columns:minmax(0,1fr) auto auto!important;grid-template-rows:auto auto!important;row-gap:2px!important;align-items:baseline!important}
+.apartado .ap-nombre{grid-column:1!important;grid-row:1!important;margin:0!important;min-width:0}
+.apartado .ap-et{grid-row:1!important;text-align:right;padding-left:16px!important}
+.apartado .ap-et-abono{grid-column:2!important;padding-right:12px}
+.apartado .ap-et-saldo{grid-column:3!important}
+.apartado .ap-fecha{grid-column:1!important;grid-row:2!important;display:flex!important;flex-wrap:wrap;align-items:baseline;gap:4px;white-space:normal!important;min-width:0}
+.apartado .ap-fecha .ap-sep{color:var(--line-strong,#cbd2d9);margin:0 2px}
+.apartado .ap-fecha .ap-hace{grid-column:auto!important;grid-row:auto!important;font-size:12.5px!important}
+.apartado .ap-abono,.apartado .ap-saldo{grid-row:2!important;text-align:right;padding-left:16px!important}
+.apartado .ap-abono{grid-column:2!important;padding-right:12px}
+.apartado .ap-saldo{grid-column:3!important}
+.apartado .ap-linea{grid-column:3!important;grid-row:1/3!important;justify-self:start;border-left:1px solid var(--line);align-self:stretch}
+
+/* v1.88 · Filtros (chips) con esquinas como los filtros del Inventario (10 px), no en forma de pastilla. */
+.chip{border-radius:10px!important}
+
+/* v1.89 · Menú propio de los filtros (reemplaza la lista gris del sistema). */
+.capa-menu{position:fixed;inset:0;z-index:60}
+.menu-fondo{position:absolute;inset:0}
+.menu-op{position:fixed;max-height:320px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 44px rgba(0,0,0,.16);padding:6px;opacity:0;transform:translateY(-4px) scale(.98);transform-origin:top center;transition:opacity .14s ease-out,transform .14s cubic-bezier(.22,.9,.3,1)}
+.capa-menu.abierto .menu-op{opacity:1;transform:none}
+.menu-it{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:8px;background:none;font:inherit;font-size:14px;font-weight:400;color:var(--ink);text-align:left;cursor:pointer}
+.menu-it:hover{background:var(--surface-2)}
+.menu-it.on{font-weight:600;background:var(--sel-neu-bg)}
+.menu-it svg.i{width:18px;height:18px;color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.menu-op{transition:none}}
+
+
+/* v1.89 · Hoja del carrito sin el título «Carrito»: solo la flecha para ocultarla, al centro. */
+.cab.solo-flecha{justify-content:center!important;padding-top:6px!important;padding-bottom:6px!important;min-height:0}
+.cab.solo-flecha .cerrar{margin:0 auto!important}
+
+/* v1.89 · Botón del escáner en Vender: el mismo del Inventario (cuadro verde de 52 × 48 con el ícono de código de barras). */
+.btn-escaner{flex:none;width:52px;height:48px;border:0;border-radius:12px;background:var(--accent);color:#fff;display:grid;place-items:center;cursor:pointer;transition:transform .14s ease-out}
+.btn-escaner:active{transform:scale(.97)}
+.btn-escaner svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+/* v1.89 · Bordes de chips y pastillas que se veían incompletos: con el gris tan claro (#e5e9ee) y la fila en
+   una posición con decimales, el navegador suavizaba el borde hasta casi borrarlo. Un gris un poco más firme. */
+.chip:not(.activo),.pill:not(button),.filtro-menu:not(.activo){border-color:#d5dbe2!important}
+.filtros,.filtro-ap,.filtro-inv{padding-top:3px!important;padding-bottom:3px!important}
+
+/* v1.89 · Usuarios: el despliegue lo anima la tarjeta completa (como en Pedidos), no el cuerpo; la flecha gira en .15 s.
+   Opciones dentro del recuadro: los botones se reparten y bajan de fila si no caben. */
+.lista-usuarios .u-cuerpo{animation:none!important}
+.lista-usuarios .u-cab > svg.i:last-child{transition:transform .15s}
+.lista-usuarios .usuario.abierto .u-cab > svg.i:last-child{transform:rotate(180deg)}
+.lista-usuarios .usuario{min-width:0;overflow:hidden}
+.lista-usuarios .u-acc{display:flex!important;flex-wrap:wrap;gap:8px;min-width:0}
+.lista-usuarios .u-acc .btn{flex:1 1 140px;min-width:0;width:auto!important;white-space:normal;text-align:center}
+.lista-usuarios .u-acc .u-eliminar{flex:1 1 100%;justify-content:flex-start}
+.lista-usuarios .u-com{min-width:0;white-space:normal}
+/* v1.90 · Vender: tarjeta de prenda sin tallas; nombre completo en dos líneas si es largo (como el Inventario). */
+.tarjeta-prenda .info b{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;display:block!important;-webkit-line-clamp:unset!important;line-height:1.25}
+/* Círculo de unidades en el carrito arriba a la izquierda de la foto; cada toque resta una (área de toque ampliada). */
+.tarjeta-prenda .en-carrito{top:-6px!important;left:-6px!important;right:auto!important;min-width:24px;height:24px;cursor:pointer;z-index:1}
+.tarjeta-prenda .en-carrito::before{content:"";position:absolute;inset:-10px}
+.tarjeta-prenda .en-carrito:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Selección de tallas: contador de tres partes iguales − / cantidad / + y cantidad escribible. */
+.tf-paso{display:grid!important;grid-template-columns:repeat(3,48px);gap:0!important;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.tf-paso button{width:48px!important;height:48px!important;border:0!important;border-radius:0!important}
+.tf-paso .talla-menos{border-right:1px solid var(--line)!important}
+.tf-paso .talla-mas{border-left:1px solid var(--line)!important}
+.tf-cant{width:48px;height:48px;min-width:0!important;border:0;background:var(--surface);font:inherit;font-size:18px!important;font-weight:600;text-align:center;color:var(--muted);padding:0;outline:none}
+.tf-cant.con{color:var(--sel)}
+.tf-cant:focus{background:color-mix(in srgb,var(--accent) 8%,var(--surface));color:var(--ink)}
+.tf-cant:disabled{opacity:.35}
+.tarjeta-prenda .tp-color{border-right:0!important;padding-right:0!important;margin-right:0!important;flex:0 1 auto!important;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ===== v1.91 ===== */
+/* Ventana, hoja o menú abierto: la pantalla de abajo no se desplaza y no hay «deslizar para actualizar». */
+html.con-capa{overflow:hidden;overscroll-behavior:none}
+html.con-capa body{overscroll-behavior:none}
+.capa .cuerpo,.capa .caja,.stk .sheet,.menu-op{overscroll-behavior:contain}
+.solo-lector{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}
+/* Hoja del carrito (Tarjetas cobrar): barrita para arrastrar hacia abajo, como las hojas del Inventario. */
+.cab.solo-agarre{display:flex;justify-content:center;align-items:center;min-height:0!important;padding:10px 0 8px!important;border-bottom:0!important;touch-action:none;cursor:grab}
+.cab.solo-agarre .agarre{width:42px;height:4px;border-radius:2px;background:var(--line)}
+/* Tarjetas cobrar: el color, la tela y la talla en texto, sin pastilla; la tarifa sigue en pastilla. */
+.linea-info .lc-chip:not(.tramo){background:none!important;padding:0!important;border-radius:0!important;color:var(--muted)}
+/* Tarjetas listado: círculo con «−» para quitar la prenda del carrito. */
+.tarjeta-prenda .en-carrito.quitar-sel{width:24px;min-width:24px;height:24px;padding:0!important;display:grid;place-items:center}
+.tarjeta-prenda .en-carrito.quitar-sel svg.i{width:14px;height:14px;stroke-width:2.6}
+/* Ventana de tallas: la cantidad sin fondo verde (también al escribirla). */
+.ventana-tallas .tf-cant.con,.tf-cant.con,.tf-cant:focus{background:var(--surface)!important;color:var(--ink)}
+@media (hover:none){.tarjeta-prenda:hover{box-shadow:none}}
+.pill.demo:not(.on){border-color:#d5dbe2!important}
+
+/* ===== v1.92 ===== */
+/* Doble contorno: los botones .pill con una pastilla adentro (fecha de Reportes, tasas de la barra superior) ya no
+   llevan borde propio; el borde lo pone solo la pastilla de adentro. */
+button.pill:not(.demo){border-color:transparent!important}
+/* Tarjetas cobrar: nombre en una sola línea, con «…» si es largo. */
+.linea:not(.mini) .linea-info b{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;max-width:100%!important;-webkit-line-clamp:unset!important}
+/* Hoja del carrito: apertura, arrastre y cierre como la hoja del Inventario (transición en vez de animación). */
+.hoja-arrastre .caja{animation:none!important;transform:translate3d(0,100%,0);transition:transform .24s cubic-bezier(.22,.9,.28,1);will-change:transform;backface-visibility:hidden;touch-action:pan-y}
+.hoja-arrastre.in .caja{transform:translate3d(0,0,0)}
+.hoja-arrastre .fondo{animation:none!important;opacity:0;transition:opacity .2s ease;will-change:opacity}
+.hoja-arrastre.in .fondo{opacity:1}
+.hoja-arrastre.drag .caja,.hoja-arrastre.drag .fondo{transition:none!important}
+@media (prefers-reduced-motion:reduce){.hoja-arrastre .caja,.hoja-arrastre .fondo{transition:none!important}}
+/* Panel del carrito en el teléfono (v1.94): de borde a borde, esquinas de arriba redondeadas; la cabecera (degradado
+   verde crema como el resumen de Apartados) asoma sobre la barra inferior y el panel entero sube al tocarla. */
+.panel-carrito{display:none}
+@media (max-width:839px){
+  .barra-carrito{display:none!important}
+  .panel-carrito{display:flex;flex-direction:column;position:fixed;left:0;right:0;bottom:0;z-index:18;max-height:88vh;max-height:88dvh;
+    background:var(--surface);border-radius:18px 18px 0 0;border-top:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));
+    box-shadow:0 -6px 24px rgba(16,24,40,.12);transform:translate3d(0,calc(100% - var(--asoma,136px)),0);
+    transition:transform .24s cubic-bezier(.22,.9,.28,1);will-change:transform;backface-visibility:hidden}
+  .panel-carrito[hidden]{display:none}
+  .panel-carrito.alto{z-index:46}
+  .panel-carrito.abierto{transform:translate3d(0,0,0)}
+  .panel-carrito.drag{transition:none}
+  body.teclado .panel-carrito:not(.abierto){display:none}
+  .panel-carrito .barra-carrito{display:grid!important;position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;margin:0!important;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;column-gap:12px;
+    width:100%;min-height:72px;padding:22px 16px 12px;border:0;border-radius:18px 18px 0 0;color:var(--ink);text-align:left;box-shadow:none;flex:none;touch-action:none;
+    background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 12%,var(--surface)) 0%,var(--surface) 75%)}
+  .panel-carrito .barra-carrito:active{transform:none}
+  .barra-carrito .bc-flecha{position:absolute;top:2px;left:50%;margin-left:-14px;width:28px;height:22px;display:grid;place-items:center;color:var(--muted)}
+  .barra-carrito .bc-flecha svg.i{width:20px;height:20px;transform:rotate(180deg);transition:transform .2s ease}
+  .panel-carrito.abierto .bc-flecha svg.i{transform:none}
+  .barra-carrito .bc-ic{position:relative;width:40px;height:40px;border-radius:12px;background:var(--accent);color:#fff;display:grid;place-items:center}
+  .barra-carrito .bc-ic svg.i{width:20px;height:20px}
+  .barra-carrito .bc-n{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:99px;background:var(--sel-neu);color:#fff;font-size:11.5px;font-weight:700;display:grid;place-items:center;box-shadow:0 0 0 2px var(--surface)}
+  .barra-carrito .bc-tx{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+  .barra-carrito .bc-tx b{font-size:15px;font-weight:600}
+  .barra-carrito .bc-tx small{font-size:12.5px;color:var(--muted);font-weight:400}
+  .barra-carrito .bc-total{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
+  .barra-carrito .bc-total b{font-size:16px;font-weight:700}
+  .barra-carrito .bc-total small{font-size:11.5px;font-weight:700;color:var(--cop)}
+  .pc-cuerpo{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:4px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+  .pc-velo{position:fixed;inset:0;z-index:45;background:rgba(10,15,20,.45);opacity:0;transition:opacity .2s ease}
+  .pc-velo.on{opacity:1}
+  .panel-carrito.drag ~ .pc-velo,.pc-velo.drag{transition:none}
+  .vista.vender .vender-main{padding-bottom:96px!important}
+}
+/* Búsqueda: lupa antes del texto y × para borrar, en todos los buscadores. */
+.buscar-caja .buscar-inp{padding-left:38px;padding-right:40px}
+.buscar-caja .buscar-inp::-webkit-search-cancel-button{display:none;-webkit-appearance:none}
+.buscar-caja > svg.i{pointer-events:none;z-index:1}
+.buscar-borrar{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;border-radius:10px;background:none;color:var(--muted);display:grid;place-items:center}
+.buscar-borrar[hidden]{display:none}
+.buscar-borrar svg.i{width:18px;height:18px}
+.ap-filtros .buscar-caja{width:100%}
+.stk .search .f .lupa{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.stk .search input{padding-left:38px!important}
+/* Detalle de prenda del Inventario: tallas sin SKU y sin tocar. */
+.stk .talla-inv{cursor:default}
+.stk .talla-inv:active{transform:none}
+/* Resumen de Apartados con el degradado de las tarjetas de Inicio (sin el ícono grande). */
+.ap-resumen{--c:var(--tono-azul);border:1px solid color-mix(in srgb,var(--c) 28%,var(--line))!important;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 9%,var(--surface)) 0%,var(--surface) 75%)!important}
+.ap-res-et{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:4px}
+.ap-res-et .chip-ic{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--c);background:linear-gradient(135deg,color-mix(in srgb,var(--c) 16%,var(--surface)),color-mix(in srgb,var(--c) 6%,var(--surface)));border:1px solid color-mix(in srgb,var(--c) 22%,var(--line))}
+.ap-res-et .chip-ic svg.i{width:16px;height:16px}
+.ap-res-estado{display:inline-flex;align-items:center;gap:4px}
+.ap-res-estado svg.i{width:14px;height:14px}
+.ap-res-estado.revisar,.ap-res-estado.revisar b{color:var(--r-tx)}
+.ap-res-estado.al-dia,.ap-res-estado.al-dia b{color:var(--g-tx)}
+.rango-btn{padding:0!important}
+/* Tarjetas cobrar: «Precio 1–5» y el precio por unidad en la misma fila. */
+.linea-info .lc-precio{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;min-width:0}
+.linea-info .lc-precio .lc-cu{margin:0!important;font-size:12px;white-space:nowrap}
+/* v1.94 · Tarjetas cobrar: el monto siempre en la línea base del último dato bajo el nombre («Precio 1–5 · c/u»).
+   La tarjeta pasa a una rejilla de 3 filas (nombre / color · talla / precio) y el monto ocupa la 3.ª fila a la derecha. */
+.linea:not(.mini){display:grid!important;grid-template-columns:56px minmax(0,1fr) auto!important;grid-template-rows:auto auto auto!important;grid-template-areas:none!important;column-gap:12px!important;row-gap:4px!important;align-items:start!important}
+.linea:not(.mini) > .foto{grid-column:1!important;grid-row:1 / 4!important;align-self:center!important;width:56px!important;height:56px!important}
+.linea:not(.mini) .linea-info,.linea:not(.mini) .linea-der,.linea:not(.mini) .lc-pie{display:contents!important}
+.linea:not(.mini) .linea-info > b{grid-column:2;grid-row:1;align-self:center}
+.linea:not(.mini) .linea-info > .lc-chip:not(.tramo){grid-column:2;grid-row:2}
+.linea:not(.mini) .linea-info > .lc-precio{grid-column:2;grid-row:3;align-self:baseline}
+.linea:not(.mini) .linea-der > .stepper{grid-column:3;grid-row:1 / 3;justify-self:end;align-self:start}
+.linea:not(.mini) .lc-pie > .lc-monto{grid-column:3;grid-row:3;align-self:baseline;justify-self:end;display:flex;align-items:baseline;gap:4px}
+.linea:not(.mini) .linea-der{border:0!important;padding:0!important}
+/* v1.94 · Reportes: Ventas y Ganancia en dos columnas iguales, con espacio entre ellas, para que nunca se toquen. */
+.rep-kpis{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:20px}
+.rep-kpis .rep-kpi{min-width:0}
+.rep-kpis .rep-kpi .val{overflow-wrap:anywhere}
+.rep-kpis[data-largo=m] .rep-kpi .val{font-size:28px!important}
+@media (max-width:380px){.rep-kpis[data-largo=m] .rep-kpi .val{font-size:24px!important}.rep-kpis[data-largo=l] .rep-kpi .val{font-size:21px!important}.rep-kpis[data-largo=xl] .rep-kpi .val{font-size:18px!important}}
+/* v1.94 · Calculadora de tasas: más aire al final. */
+.pila.calc{padding-bottom:40px}
+/* v1.94 · Formas de pago en Cobrar: moneda bajo el nombre, el monto ocupa el campo (sin «COP» adentro y con letra que
+   baja si es largo) y un bote de basura al lado para quitarla. */
+.pagos .pago{grid-template-columns:40px minmax(0,1fr) minmax(120px,48%) 36px!important;grid-template-areas:none!important;column-gap:10px!important}
+.pagos .pago .pago-moneda{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.pagos .pago-nombre b{font-size:15px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pagos .pago-monto{padding:0 10px!important;min-width:0}
+.pagos .pago-monto .inp{width:100%;min-width:0;font-size:20px!important}
+.pagos .pago-monto .inp[data-largo=l]{font-size:17px!important}
+.pagos .pago-monto .inp[data-largo=xl]{font-size:15px!important}
+.pago-quitar{position:static!important;width:36px!important;height:36px!important;border-radius:10px!important;background:none!important;color:var(--r-tx)!important;box-shadow:none!important;border:0!important}
+.pago-quitar svg.i{width:20px!important;height:20px!important;stroke-width:1.9!important}
+.pago-quitar::after{inset:-6px!important}
+.panel-pagos .pagos{padding-right:0!important;padding-top:0!important}
+.pagos .pago > .forma-ic{grid-area:auto!important;grid-column:1!important;grid-row:1!important}
+.pagos .pago > .pago-nombre{grid-area:auto!important;grid-column:2!important;grid-row:1!important;min-width:0;display:flex}
+.pagos .pago > .pago-monto{grid-area:auto!important;grid-column:3!important;grid-row:1!important}
+.pagos .pago > .pago-quitar{grid-area:auto!important;grid-column:4!important;grid-row:1!important;justify-self:end}
+/* v1.94 · Ventana de tallas sin «disponibles»: el contador pegado a la derecha aunque no haya texto en medio. */
+.ventana-tallas .talla-fila-v > .tf-paso{grid-column:3}
+.ventana-tallas .talla-fila-v > .tf-disp{grid-column:2}
+.ventana-tallas .talla-fila-v > .tf-max{grid-column:1 / -1}
+/* Formas de pago: el equivalente en pesos no se mete bajo el campo. */
+.pagos .pago-nombre .equiv{white-space:normal;overflow-wrap:anywhere;line-height:1.25;font-size:12px!important}
+.pagos .pago-nombre .pago-moneda{line-height:1.2}
+/* v1.94 · Panel del carrito abierto: la cabecera se recoge (su información ya está en el total de abajo) y queda solo
+   la flecha para bajarlo; todo con transición. */
+@media (max-width:839px){
+  .panel-carrito .barra-carrito{max-height:84px;overflow:hidden;transition:max-height .24s cubic-bezier(.22,.9,.28,1),padding .24s cubic-bezier(.22,.9,.28,1),min-height .24s cubic-bezier(.22,.9,.28,1)}
+  .panel-carrito .barra-carrito > :not(.bc-flecha){transition:opacity .16s ease,transform .24s cubic-bezier(.22,.9,.28,1)}
+  .panel-carrito.abierto .barra-carrito{max-height:30px;min-height:30px;padding-top:30px;padding-bottom:0}
+  .panel-carrito.abierto .barra-carrito > :not(.bc-flecha){opacity:0;transform:translateY(-10px);pointer-events:none}
+}
+/* v1.95 · Panel del carrito: mientras está abierto, la barra de íconos baja y se esconde; al ocultarlo vuelve a subir
+   con la misma transición. El panel queda debajo de la barra (z 19 < 20) y el fondo oscuro debajo de ambos, así la
+   barra entra por encima del panel mientras este baja. */
+@media (max-width:839px){
+  .side{transition:transform .24s cubic-bezier(.22,.9,.28,1);will-change:transform}
+  body.panel-abierto .side{transform:translate3d(0,100%,0)}
+  .panel-carrito,.panel-carrito.alto{z-index:19}
+  .pc-velo{z-index:17}
+}
+@media (max-width:839px) and (prefers-reduced-motion:reduce){.side{transition:none}}
+
+
+/* ===== v1.97 · Vender: la pantalla es el carrito ===== */
+/* Lista de prendas solo al buscar o con «Todos los productos» (Tarjetas listado alargadas, una columna). */
+.vista.vender .filtros[hidden],.vista.vender .rejilla[hidden],.venta-vacia[hidden],.zona-carrito[hidden],.lado-carrito[hidden]{display:none!important}
+.venta-vacia{display:flex;justify-content:center;padding:48px 0 24px}
+.btn-todos{min-height:48px;padding:0 20px;gap:8px;background:var(--surface);border:1px solid var(--line)}
+.btn-todos svg.i{width:18px;height:18px}
+/* Espaciado del sistema: 12 px entre bloques (16 px en la computadora). */
+.vista.vender .vender-main > .buscador,.vista.vender .vender-main > .filtros{margin:0!important}
+@media (min-width:840px){.vista.vender .vender-main{gap:16px}}
+.zona-carrito .carrito{padding:0!important;border:0!important;background:none!important}
+.zona-carrito .caja-total,.zona-carrito .acciones-carrito{display:none!important}
+.zona-carrito .totales:not(:has(.fila-total)){display:none!important}
+/* Barra de cobro: total + equivalentes, Cobrar, y debajo Descuento | Apartar. */
+.barra-cobro{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"tot cob" "des apa";gap:10px 8px;align-items:center}
+.barra-cobro .bco-total{grid-area:tot;min-width:0;line-height:1.15}
+.barra-cobro .bco-total .total{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
+.barra-cobro .bco-total .total-cop{font-size:22px;font-weight:700}
+.barra-cobro .bco-total .total-cop[data-largo=l]{font-size:19px}.barra-cobro .bco-total .total-cop[data-largo=xl]{font-size:17px}
+.barra-cobro .bco-total .c-cop{font-size:12px;font-weight:700}
+.barra-cobro .tc-eq{font-size:12.5px;font-weight:600;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.barra-cobro .bco-desc{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--r-tx);margin-bottom:2px}
+.barra-cobro .bco-desc svg.i{width:13px;height:13px}
+.barra-cobro .cobrar{grid-area:cob;min-height:52px!important;font-size:16px!important;border-radius:14px!important}
+.barra-cobro .btn:not(.cobrar){min-height:44px!important;background:var(--surface)}
+.barra-cobro #car-descuento{grid-area:des}.barra-cobro .btn:last-child{grid-area:apa}
+@media (max-width:839px){
+  .vista.vender .lado-carrito:not([hidden]){display:block!important;position:fixed;left:0;right:0;bottom:calc(72px + env(safe-area-inset-bottom,0px));top:auto;height:auto;z-index:18;
+    padding:14px 12px 12px;border:0;border-top:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:18px 18px 0 0;overflow:visible;
+    background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 12%,var(--surface)) 0%,var(--surface) 75%);box-shadow:0 -6px 24px rgba(16,24,40,.12)}
+  body.teclado .vista.vender .lado-carrito{display:none!important}
+  .vista.vender.con-barra .vender-main{padding-bottom:150px!important}
+  .vista.vender:not(.con-barra) .vender-main{padding-bottom:12px!important}
+}
+@media (min-width:840px){
+  .vista.vender .lado-carrito{padding:16px;height:auto;max-height:calc(100vh - 56px);align-self:start;border-left:1px solid var(--line)}
+  .vista.vender .barra-cobro{grid-template-columns:1fr 1fr;grid-template-areas:"tot tot" "cob cob" "des apa";gap:12px 8px}
+  .vista.vender .barra-cobro .bco-total .total-cop{font-size:30px}
+  .vista.vender .barra-cobro .bco-total{padding:4px 0 4px}
+  .vista.vender:not(.con-barra){grid-template-columns:minmax(0,1fr)!important}
+}
+
+/* ===== v1.98 · Animaciones fluidas ===== */
+/* Vender en el teléfono entra solo con fundido: un «transform» en la vista hacía que la barra de cobro fija
+   apareciera a media pantalla y luego saltara abajo. La barra sube por su cuenta. */
+@keyframes barraCobroSube{from{transform:translateY(100%);opacity:.4}to{transform:none;opacity:1}}
+@media (max-width:839px){
+  .vista.vender{animation-name:fade!important}
+  .vista.vender .lado-carrito:not([hidden]){animation:barraCobroSube .26s cubic-bezier(.22,.9,.3,1)}
+}
+/* El vacío, la lista y el carrito aparecen con un fundido corto en vez de golpe. */
+@keyframes aparece{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.venta-vacia:not([hidden]),.zona-carrito:not([hidden]){animation:aparece .2s cubic-bezier(.22,.9,.3,1)}
+.vista.vender.lista-entra .filtros{animation:aparece .2s cubic-bezier(.22,.9,.3,1) both}
+.vista.vender.lista-entra .rejilla > *{animation:aparece .22s cubic-bezier(.22,.9,.3,1) both}
+.vista.vender.lista-entra .rejilla > :nth-child(2){animation-delay:30ms}
+.vista.vender.lista-entra .rejilla > :nth-child(3){animation-delay:60ms}
+.vista.vender.lista-entra .rejilla > :nth-child(4){animation-delay:90ms}
+.vista.vender.lista-entra .rejilla > :nth-child(n+5){animation-delay:120ms}
+/* Datos que aún cargan: bloque gris que respira, en vez de mostrar 0 o «Todavía no hay…» por un instante. */
+@keyframes respira{0%,100%{opacity:1}50%{opacity:.45}}
+.esqueleto{display:inline-block;border-radius:8px;background:#eef1f4;color:transparent!important;animation:respira 1.1s ease-in-out infinite}
+.tile.cargando .val{min-width:96px}.tile.cargando .val,.tile.cargando .sub{display:inline-block;border-radius:8px;background:#eef1f4;color:transparent!important;animation:respira 1.1s ease-in-out infinite}
+.tile.cargando .sub{min-width:120px;margin-top:4px}
+.ap-esqueleto{height:84px;border-radius:14px;background:#f3f5f7;animation:respira 1.1s ease-in-out infinite}
+.tile .val.llega,.ap-res-cifra .num.llega{animation:aparece .22s cubic-bezier(.22,.9,.3,1)}
+@media (prefers-reduced-motion:reduce){
+  .vista.vender .lado-carrito,.venta-vacia,.zona-carrito,.vista.vender.lista-entra .filtros,.vista.vender.lista-entra .rejilla > *,.tile .val.llega{animation:none!important}
+  .esqueleto,.tile.cargando .val,.tile.cargando .sub,.ap-esqueleto{animation:none}
+}
+
+/* ===== v1.99 ===== */
+/* Barra de cobro: total arriba a la derecha; Descuento · Apartar · Cobrar en una sola línea. */
+.vista.vender .barra-cobro{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr)!important;grid-template-areas:"tot tot tot" "des apa cob"!important;gap:10px 8px!important}
+.vista.vender .barra-cobro .bco-total{justify-self:end;text-align:right;min-width:0;max-width:100%}
+.vista.vender .barra-cobro .bco-total .total{justify-content:flex-end}
+.vista.vender .barra-cobro .bco-desc{justify-content:flex-end;width:100%}
+.vista.vender .barra-cobro .btn{min-height:48px!important;height:48px;padding:0 8px!important;gap:6px;font-size:14px;white-space:nowrap}
+.vista.vender .barra-cobro .cobrar{grid-area:cob!important;font-size:15.5px!important;border-radius:12px!important}
+.vista.vender .barra-cobro #car-descuento{grid-area:des!important}.vista.vender .barra-cobro .apartar{grid-area:apa!important}
+@media (max-width:360px){.vista.vender .barra-cobro .btn:not(.cobrar) svg.i{display:none}}
+@media (min-width:840px){
+  .vista.vender.con-barra{grid-template-columns:minmax(0,1fr) 360px!important}
+  .vista.vender .barra-cobro .btn:not(.cobrar){font-size:13px}
+  .vista.vender .barra-cobro .btn svg.i{width:16px;height:16px}
+}
+/* «Todos los productos» al centro del espacio libre. */
+.venta-vacia{padding:0!important;align-items:center;min-height:calc(100dvh - 213px - env(safe-area-inset-bottom,0px))}
+@media (min-width:840px){.venta-vacia{min-height:calc(100dvh - 153px)}}
+/* Tarjetas cobrar: tramo en texto verde (oferta en ámbar), «COP» del color del precio y el subtotal en la
+   línea base del último texto de la izquierda (el tramo o el «c/u»). */
+.linea-info .lc-tramo{font-size:12.5px;font-weight:600;color:var(--accent);white-space:nowrap}
+.linea-info .lc-tramo.oferta{color:var(--y-tx)}
+.linea-info .lc-precio{align-items:baseline!important}
+.linea:not(.mini) .linea-info > .lc-precio,.linea:not(.mini) .lc-pie > .lc-monto{align-self:last baseline!important}
+.linea .lc-monto .c-cop{color:inherit!important}
+/* Detalle del apartado: sin los recuadros que encierran pago, prendas y último abono; barra de abonos en degradado. */
+.ap-det .ap-det-pago{border:0!important;background:none!important;padding:4px 0 0!important;border-radius:0!important}
+.ap-det .ap-det-caja{border:0!important;padding:0!important;border-radius:0!important}
+.ap-det .ap-det-abono{background:none!important;padding:0!important;border-radius:0!important}
+.ap-barra{height:10px!important;border-radius:99px!important;border:0!important;background:color-mix(in srgb,var(--accent) 10%,#eef1f4)!important}
+.ap-barra i{border-radius:99px!important;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 30%,#fff) 0%,color-mix(in srgb,var(--accent) 75%,#fff) 55%,var(--accent) 100%)!important}
+/* Detalle de la prenda (Inventario): color con su punto y la tela bajo el nombre; ficha en dos columnas sin cajitas. */
+.stk .sub-prenda{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-top:6px;min-width:0}
+.stk .ficha2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin-top:4px}
+.stk .ficha2 > div{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 0;border-top:1px solid var(--line);min-width:0}
+.stk .ficha2 > div:nth-child(-n+2){border-top:0;padding-top:4px}
+.stk .ficha2 > div:nth-child(odd){padding-right:12px}
+.stk .ficha2 span{font-size:12px;color:var(--muted)}
+.stk .ficha2 b{font-size:14.5px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.stk .ficha2 b.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;font-weight:500}
+/* Buscador del Inventario con la misma letra y color que los demás buscadores. */
+.stk .search input{font-family:inherit;font-weight:500;color:var(--ink)}
+.stk .search input::placeholder{color:#8b93a1!important;font-weight:500;opacity:1}
+/* Ajustes · Tasas: ícono de «guardar» junto a «Peso colombiano» (sin aviso flotante) y más aire bajo el título. */
+.tasa-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;margin-bottom:6px}
+.aj-pendiente{width:36px;height:36px;border-radius:10px;color:var(--tono-ambar);background:color-mix(in srgb,var(--tono-ambar) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--tono-ambar) 35%,var(--line));animation:aparece .2s cubic-bezier(.22,.9,.3,1)}
+.aj-pendiente[hidden]{display:none!important}
+.aj-pendiente svg.i{width:18px;height:18px}
+.campo:has(> #aj-bs-modo) > .et-moneda{margin-bottom:6px}
+/* Binance / BCV / Manual con su color, como las formas de pago. */
+.modo-bs[data-modo=binance]{--c:var(--tono-ambar)}.modo-bs[data-modo=bcv]{--c:var(--tono-azul)}.modo-bs[data-modo=manual]{--c:var(--tono-violeta)}
+.modo-bs{border-color:color-mix(in srgb,var(--c) 22%,var(--line))!important;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 5%,var(--surface)),var(--surface) 80%)!important}
+.modo-bs .radio{border-color:color-mix(in srgb,var(--c) 55%,var(--line))!important}
+.modo-bs .modo-txt b{color:var(--c)}
+.modo-bs.activo{border:2px solid color-mix(in srgb,var(--c) 60%,var(--line))!important;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 12%,var(--surface)),color-mix(in srgb,var(--c) 3%,var(--surface)) 85%)!important;box-shadow:0 4px 14px color-mix(in srgb,var(--c) 14%,transparent)}
+.modo-bs.activo .radio{border-color:var(--c)!important}
+.modo-bs.activo .radio::after{background:var(--c)!important}
+@media (prefers-reduced-motion:reduce){.aj-pendiente{animation:none}}
+/* Detalle del apartado: botones alineados a la derecha. */
+.stk.ap-hoja .ap-acc{display:flex!important;justify-content:flex-end;gap:8px;width:auto!important}
+.stk.ap-hoja .ap-acc .btn{flex:0 0 auto;min-width:104px}
+.tasa-cab > label{margin:0!important;line-height:1.3}
+
+/* ===== v2.00 ===== */
+/* --- Paneles de detalle (Apartado e Inventario): un mismo sistema. Cabecera con título 21/700 y línea
+   secundaria; cerrar de 44 px sin recuadro; secciones sin cajas, separadas por una línea fina y 20 px de aire;
+   títulos de sección 15/600 con ícono gris; filas de 52 px con línea fina entre ellas. --- */
+.det2{display:flex;flex-direction:column;padding-bottom:4px}
+.stk .det2 .det-cab{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:4px 12px;padding:2px 0 16px}
+.stk .det2 .det-cab h2{margin:0;font-size:21px;font-weight:700;line-height:1.25;letter-spacing:-.01em;color:var(--ink);overflow-wrap:anywhere}
+.stk .det2 .det-sub{display:inline-flex;align-items:center;gap:8px;margin-top:6px;font-size:13.5px;color:var(--muted);text-decoration:none;min-height:24px}
+.stk .det2 a.det-sub{color:var(--ink);font-weight:500}
+.stk .det2 a.det-sub svg.i{width:16px;height:16px;color:var(--accent)}
+.stk .det2 .det-sub .punto-color{width:12px;height:12px}
+.stk .det2 .det-der{display:flex;align-items:center;gap:4px;margin:-6px -10px 0 0}
+.stk .det2 .det-x{width:44px;height:44px;border:0;background:none;border-radius:12px;display:grid;place-items:center;color:var(--ink);cursor:pointer;font-size:0;padding:0}
+.stk .det2 .det-x:hover{background:var(--surface-2)}
+.stk .det2 .det-x:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stk .det2 .det-x svg.i{width:22px;height:22px}
+.stk .det2 .det-sec{border-top:1px solid var(--line);padding:16px 0 4px}
+.stk .det2 .det-t{display:flex;align-items:center;gap:8px;margin:0 0 4px;font-size:15px;font-weight:600;color:var(--ink);text-transform:none;letter-spacing:0}
+.stk .det2 .det-t svg.i{width:18px;height:18px;color:var(--muted)}
+.stk .det2 .det-t .det-t-der{margin-left:auto;font-size:13px;font-weight:500;color:var(--muted)}
+.stk .det2 .dfila{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;min-height:52px;padding:8px 0}
+.stk .det2 .dfila + .dfila{border-top:1px solid var(--line)}
+.stk .det2 .dfila .n{display:flex;flex-direction:column;gap:2px;min-width:0}
+.stk .det2 .dfila .n b{font-size:14.5px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.stk .det2 .dfila .n small{font-size:12.5px;color:var(--muted)}
+.stk .det2 .dfila .v{font-size:14.5px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.stk .det2 .dfila.con-q{grid-template-columns:32px minmax(0,1fr) auto}
+.stk .det2 .det-q{width:32px;height:32px;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.stk .det2 .det-meta{display:flex;align-items:center;gap:8px;margin:12px 0 0;font-size:12.5px;color:var(--muted)}
+.stk .det2 .det-meta svg.i{width:16px;height:16px}
+.stk .det2 .det-ver{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:44px;margin-top:2px;padding:0;border:0;border-top:1px solid var(--line);background:none;font:inherit;font-size:14px;font-weight:600;color:var(--accent);cursor:pointer;text-align:left}
+.stk .det2 .det-ver svg.i{width:18px;height:18px}
+
+/* Apartado: el saldo manda (es lo que se cobra); abonado y total al lado; barra en degradado con su porcentaje. */
+.stk .det2 .ap-cifras2{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:4px 16px;padding:4px 0 12px}
+.stk .det2 .ap-cifras2 span{display:block;font-size:12.5px;color:var(--muted)}
+.stk .det2 .ap-cifras2 .saldo b{display:block;font-size:30px;font-weight:700;line-height:1.1;color:var(--r-tx,#b91c1c);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stk .det2 .ap-cifras2 .saldo.cero b{color:var(--accent)}
+.stk .det2 .ap-cifras2 .abonado{text-align:right}
+.stk .det2 .ap-cifras2 .abonado b{display:block;font-size:17px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.stk .det2 .ap-barra2{height:10px;border-radius:99px;background:color-mix(in srgb,var(--accent) 10%,#eef1f4);overflow:hidden}
+.stk .det2 .ap-barra2 i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 30%,#fff) 0%,color-mix(in srgb,var(--accent) 75%,#fff) 55%,var(--accent) 100%)}
+.stk .det2 .ap-barra-pie{display:flex;justify-content:space-between;margin-top:6px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stk .det2 .ap-barra-pie b{color:var(--ink);font-weight:600}
+
+/* Inventario: tallas con su total en el título; precios por tramo en filas; ficha en dos columnas. */
+.stk .det2 .talla2 .n b{font-size:15px}
+.stk .det2 .talla2 .uds{display:flex;flex-direction:column;align-items:flex-end;gap:0;line-height:1.2}
+.stk .det2 .talla2 .uds b{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--accent)}
+.stk .det2 .talla2 .uds b.low{color:var(--y-tx,#a16207)}.stk .det2 .talla2 .uds b.out{color:var(--r-tx,#b91c1c)}
+.stk .det2 .talla2 .uds small{font-size:12px;color:var(--muted)}
+.stk .det2 .talla2{grid-template-columns:minmax(0,1fr) auto auto}
+.stk .det2 .talla2 .tacc{display:flex;gap:4px}
+.stk .det2 .ti-btn2{width:44px;height:44px;border:0;border-radius:12px;background:var(--surface-2);color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer}
+.stk .det2 .ti-btn2 svg{width:20px;height:20px}
+.stk .det2 .ti-btn2:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stk .det2 .precios2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px}
+.stk .det2 .precios2 .dfila{min-height:44px;padding:6px 0;border-top:1px solid var(--line)}
+.stk .det2 .precios2 .dfila:nth-child(-n+2){border-top:0}
+.stk .det2 .precios2 .n{font-size:13px;color:var(--muted)}
+.stk .det2 .ficha3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px}
+.stk .det2 .ficha3 > div{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 0;border-top:1px solid var(--line);min-width:0}
+.stk .det2 .ficha3 > div:nth-child(-n+2){border-top:0;padding-top:4px}
+.stk .det2 .ficha3 span{font-size:12.5px;color:var(--muted)}
+.stk .det2 .ficha3 b{font-size:14.5px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.stk .det2 .ver-costo{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0;border:0;background:none;font:inherit;font-size:14.5px;font-weight:600;color:var(--accent);cursor:pointer}
+.stk .det2 .ver-costo svg.i{width:18px;height:18px}
+
+/* --- Calculadora: solo la cabecera con el degradado verde crema de la app; ✓ al copiar. --- */
+.calc2 .cab{background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 12%,var(--surface)) 0%,var(--surface) 75%);border-bottom:1px solid color-mix(in srgb,var(--accent) 18%,var(--line))}
+.calc2 .calc-caja .ibtn.copiado{color:var(--accent)}
+
+/* --- Ajustes · Tasas: «Bs» con el mismo título que «Peso colombiano»; Binance en verde; el ícono de guardar
+   es solo un indicador (sin recuadro ni acción). --- */
+.campo:has(> #aj-bs-modo) > .et-moneda{font-weight:600!important;color:var(--muted)!important;font-size:13px}
+.modo-bs[data-modo=binance]{--c:var(--tono-verde)!important}
+.aj-pendiente{width:auto!important;height:auto!important;border:0!important;background:none!important;padding:0!important;color:var(--accent)!important;display:inline-grid;place-items:center}
+.aj-pendiente svg.i{width:20px;height:20px}
+
+/* --- Ajustes · Formas de pago en degradado, con el color de su moneda. --- */
+.forma-tarjeta.activa{background:linear-gradient(120deg,color-mix(in srgb,var(--c) 16%,var(--surface)) 0%,var(--surface) 70%)!important}
+.stk .det2 .ti-btn2 svg{fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* Apartado: la cabecera y las cifras quedan como estaban; el teléfono más grande y abre el chat de WhatsApp. */
+.ap-det .ap-det-tel.wa{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin:0 0 -6px;font-size:15.5px!important;font-weight:500;color:var(--ink)!important;text-decoration:none}
+.ap-det .ap-det-tel.wa svg.i{width:18px;height:18px;color:#16a34a}
+.ap-det .ap-det-tel.wa:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+/* La primera sección tras las cifras del apartado: sin línea encima, 20 px de aire. Abonado y saldo centrados en su mitad. */
+.stk .ap-det.det2 .ap-det-pago + .det-sec{border-top:0;padding-top:8px}
+.ap-det .ap-cif-abono,.ap-det .ap-cif-saldo{display:flex;flex-direction:column;align-items:center;text-align:center}
+.stk .det2 .prices{margin:8px 0 12px}
+.stk .ap-det.det2{gap:0}
+.stk .ap-det.det2 > .ap-det-pago{margin:4px 0 12px}
+.stk .ap-det.det2 > .det-meta{margin-top:12px}
+/* Detalle del apartado: sin la línea sobre los botones. */
+.stk.ap-hoja .ap-acc{border-top:0!important}
+/* v2.00: sin barras de desplazamiento visibles en todo el sistema (se sigue desplazando igual). */
+*{scrollbar-width:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+/* Listas largas: el navegador no dibuja las tarjetas que no se ven (búsqueda más fluida). */
+.rejilla .tarjeta-prenda{content-visibility:auto;contain-intrinsic-size:auto 80px}
+.vender-main .mostrar-mas{align-self:center;margin:4px auto 8px}
+
+/* ===== v2.01 · Reportes ===== */
+/* Cifras principales con un solo tamaño en Hoy, Semana, Mes y Año (el reducido); solo bajan más si son muy largas. */
+.rep-kpis .rep-kpi .val,.rep-kpis[data-largo=m] .rep-kpi .val,.rep-kpis[data-largo=l] .rep-kpi .val{font-size:24px!important}
+.rep-kpis[data-largo=xl] .rep-kpi .val{font-size:20px!important}
+@media (max-width:380px){.rep-kpis .rep-kpi .val,.rep-kpis[data-largo=m] .rep-kpi .val,.rep-kpis[data-largo=l] .rep-kpi .val{font-size:21px!important}.rep-kpis[data-largo=xl] .rep-kpi .val{font-size:18px!important}}
+/* «Ver montos», «Ver los N»…: fila tocable de 44 px en verde, con la flecha al final (como «Ver historial de abonos»). */
+.rep-ver{display:flex!important;align-items:center;justify-content:space-between;width:100%;min-height:44px;margin-top:12px!important;padding:0!important;border:0!important;border-top:1px solid var(--line)!important;background:none!important;font-size:14px!important;font-weight:600!important;color:var(--accent)!important;text-align:left}
+.rep-ver svg.i{width:18px!important;height:18px!important}
+.rep-ver::after{content:none!important}
+/* Al cambiar de período: el contenido entra con un fundido y las gráficas crecen. */
+@keyframes repCrece{from{transform:scaleY(0)}to{transform:none}}
+@keyframes repLlena{from{transform:scaleX(0)}to{transform:none}}
+.rep.rep-anim > *{animation:aparece .28s cubic-bezier(.22,.9,.3,1) both}
+.rep.rep-anim > :nth-child(2){animation-delay:50ms}.rep.rep-anim > :nth-child(3){animation-delay:100ms}
+.rep.rep-anim .graf-col i{transform-origin:bottom;animation:repCrece .45s cubic-bezier(.22,.9,.3,1) both;animation-delay:calc(var(--i,0) * 12ms + 40ms)}
+.rep.rep-anim .rep-pila i{transform-origin:left;animation:repLlena .6s cubic-bezier(.22,.9,.3,1) both .12s}
+.rep.rep-anim .rep-top-barra i{transform-origin:left;animation:repLlena .55s cubic-bezier(.22,.9,.3,1) both;animation-delay:calc(var(--i,0) * 50ms + 150ms)}
+.rep.rep-anim .graf-tope{animation:aparece .3s ease-out both .45s}
+/* Ventanas de Reportes: total arriba y filas con ícono o puesto, nombre, detalle, monto y barra. */
+.rd{display:flex;flex-direction:column}
+.rd-tot{display:flex;flex-direction:column;gap:2px;padding:4px 0 16px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.rd-tot span{font-size:13px;color:var(--muted)}
+.rd-tot b{font-size:26px;font-weight:700;line-height:1.15;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.rd-tot b[data-largo=l]{font-size:23px}.rd-tot b[data-largo=xl]{font-size:20px}
+.rd-tot small{font-size:12.5px;color:var(--muted)}
+.rd-fila{--c:var(--accent);display:grid;grid-template-columns:36px minmax(0,1fr) auto;grid-template-areas:"ic n v" "ic b b";align-items:center;column-gap:12px;row-gap:6px;padding:12px 0;border-top:1px solid var(--line)}
+.rd-tot + .rd-fila{border-top:0}
+.rd-fila:not(.con-barra){grid-template-areas:"ic n v"}
+.rd-ic,.rd-puesto{grid-area:ic;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;align-self:start}
+.rd-ic{color:var(--c);background:color-mix(in srgb,var(--c) 12%,var(--surface))}
+.rd-ic svg.i{width:18px;height:18px}
+.rd-puesto{background:var(--surface-2);font-size:13.5px;font-weight:700;color:var(--muted)}
+.rd-puesto.top{background:color-mix(in srgb,var(--accent) 14%,var(--surface));color:var(--accent)}
+.rd-n{grid-area:n;display:flex;flex-direction:column;gap:2px;min-width:0}
+.rd-n b{font-size:14.5px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.rd-n small{font-size:12.5px;color:var(--muted)}
+.rd-v{grid-area:v;display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;white-space:nowrap}
+.rd-v b{font-size:15px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.rd-v small{font-size:12px;color:var(--muted)}
+.rd-barra{grid-area:b;height:6px;border-radius:99px;background:color-mix(in srgb,var(--c) 10%,#eef1f4);overflow:hidden}
+.rd-barra i{display:block;height:100%;border-radius:99px;background:var(--c);transform-origin:left;animation:repLlena .5s cubic-bezier(.22,.9,.3,1) both .1s}
+.rd-tallas{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.rd-chip{font-size:11.5px;font-weight:600;color:var(--muted);background:var(--surface-2);border-radius:6px;padding:2px 6px}
+.rd .lista-ventas{margin-top:4px}
+.rd-stats{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.rd-stat{display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:12px;background:var(--surface-2);min-width:0}
+.rd-stat span{font-size:12.5px;color:var(--muted)}
+.rd-stat b{font-size:19px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.rd-stat b[data-largo=l]{font-size:17px}.rd-stat b[data-largo=xl]{font-size:15px}
+.rd-stat small{font-size:12px;color:var(--muted)}
+.rd-stat.ganancia{margin-top:8px;background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 14%,var(--surface)) 0%,var(--surface) 75%);border:1px solid color-mix(in srgb,var(--accent) 25%,var(--line))}
+.rd-stat.ganancia b{font-size:24px;color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.rep.rep-anim > *,.rep.rep-anim .graf-col i,.rep.rep-anim .rep-pila i,.rep.rep-anim .rep-top-barra i,.rep.rep-anim .graf-tope,.rd-barra i{animation:none!important}}
+/* Usuarios: «Eliminar» centrado. */
+.u-eliminar{align-self:center!important;justify-content:center!important;margin-inline:auto!important}
+.cab-vista .rango .segmentado{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+.stk.ap-hoja .ap-acc{flex-wrap:nowrap!important}
+.stk.ap-hoja .ap-acc .btn{min-width:0!important;flex:0 1 auto;padding:0 16px!important;white-space:nowrap}
+.stk.ap-hoja .ap-acc .btn.texto{padding:0 12px!important}
+/* Reportes: mientras llegan los datos del nuevo período, lo anterior queda atenuado (sin brincos). */
+.rep{transition:opacity .18s ease}
+.rep.rep-cargando{opacity:.45;pointer-events:none}
+
+/* ===== v2.03 ===== */
+/* Carrito: deslizar a la izquierda para quitar (como en Pedidos). */
+.zona-carrito .lineas{position:relative}
+.zona-carrito .linea{touch-action:pan-y;position:relative;z-index:1}
+.zona-carrito .linea.deslizando{background:var(--surface)!important;user-select:none}
+.quitar-fondo{position:absolute;left:0;right:0;z-index:0;border-radius:16px;background:#fdecec;border:1px solid #f6c0c0;display:flex;align-items:center;justify-content:flex-end;padding-right:22px;pointer-events:none;transition:background .15s,border-color .15s}
+.quitar-fondo span{display:inline-flex;align-items:center;gap:6px;color:var(--err);font-weight:700;font-size:13px}
+.quitar-fondo svg.i{width:17px;height:17px}
+.quitar-fondo.armado{background:#fbd5d5;border-color:#f19c9c}
+.quitar-fondo.armado svg.i{animation:papelera .5s ease-in-out infinite}
+@keyframes papelera{0%,100%{transform:rotate(0) scale(1.15)}25%{transform:rotate(-14deg) scale(1.25)}75%{transform:rotate(14deg) scale(1.25)}}
+@media (prefers-reduced-motion:reduce){.quitar-fondo.armado svg.i{animation:none}}
+/* Aviso de tramos: sin latido ni brillo (solo el ícono se mueve una vez al cambiar de tramo, desde JS). */
+.aviso-tramo.anim,.aviso-tramo.anim svg.i{animation:none!important}
+/* Ajustes: sin el recuadro que encierra cada pestaña. */
+.ajustes > section.tarjeta{background:none!important;border:0!important;box-shadow:none!important;padding:0!important}
+.zona-carrito .lineas{overflow-x:clip;overflow-clip-margin:6px}
+/* Ajustes: un mismo ritmo en las 4 pestañas — 16 px bajo las pestañas, 20 px entre grupos y 8 px entre un
+   título y su campo. */
+.pestanas-aj{margin-bottom:16px!important}
+.ajustes{margin-top:0!important}
+.ajustes > section.tarjeta{gap:20px!important}
+.ajustes > section.tarjeta > *{margin-top:0!important;margin-bottom:0!important}
+.ajustes .campo{gap:8px!important}
+.ajustes .campo > .et-moneda,.ajustes .campo > label{margin:0!important}
+.tasa-cab{min-height:0!important;margin:0!important}
+.aj-pendiente svg.i{width:18px!important;height:18px!important}
+.ajustes .sec-t{margin:0!important}
+/* Barra de cobro (propuesta A). */
+.vista.vender .barra-cobro.bcA{display:flex!important;flex-direction:column;gap:12px!important;grid-template-areas:none!important}
+.bcA .bc-f1{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;min-width:0}
+.bcA .bc-cnt{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:99px;background:var(--surface);border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;flex:none}
+.bcA .bc-cnt svg.i{width:15px;height:15px;color:var(--accent)}
+.vista.vender .bcA .bco-total{text-align:right;min-width:0}
+.vista.vender .bcA .bco-total .total-cop{font-size:24px!important;letter-spacing:-.01em}
+.vista.vender .bcA .bco-total .total-cop[data-largo=l]{font-size:21px!important}.vista.vender .bcA .bco-total .total-cop[data-largo=xl]{font-size:19px!important}
+.bcA .bc-f2{display:grid;grid-template-columns:64px 64px minmax(0,1fr);gap:8px}
+.vista.vender .bcA .bc-ac{height:56px!important;min-height:56px!important;padding:0 2px!important;border-radius:14px!important;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:3px!important;font-size:11.5px!important;font-weight:600;background:var(--surface)}
+.vista.vender .bcA .bc-ac svg.i{width:20px!important;height:20px!important;display:block!important}
+.vista.vender .bcA .cobrar{height:56px!important;min-height:56px!important;border-radius:14px!important;display:flex!important;align-items:center;justify-content:space-between;padding:0 18px!important;font-size:17px!important;font-weight:700!important;box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 30%,transparent)}
+.vista.vender .bcA .cobrar svg.i{width:22px;height:22px}
+@media (min-width:840px){.vista.vender .bcA .bco-total .total-cop{font-size:28px!important}}
+.vista.vender .bcA .bc-f2 > *{grid-area:auto!important}
+/* Ajustes · Venta: «Redondeo del vuelto» en negrita, como los títulos de Tasas. */
+label[for=aj-redondeo]{font-weight:600!important}
+.vista.vender .barra-cobro.bcA #car-descuento,.vista.vender .barra-cobro.bcA .apartar,.vista.vender .barra-cobro.bcA .cobrar,.vista.vender .barra-cobro.bcA .bco-total{grid-area:auto!important}
+.vista.vender .barra-cobro.bcA{align-items:stretch!important}
+.bcA .bc-f2{grid-template-columns:72px 72px minmax(0,1fr)!important}
+
+/* v2.03 · Tarjetas de Bs reorganizadas (Ajustes · Tasas). */"
+.mb{display:flex;flex-direction:column;gap:8px}
+.modo-bs.mb-card{padding:0!important;display:block!important;gap:0!important;--c:var(--tono-verde);border-radius:14px;border:1px solid color-mix(in srgb,var(--c) 22%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--c) 5%,var(--surface)),var(--surface) 80%);transition:border-color .15s,background .15s,box-shadow .15s}
+.mb-card[data-modo=bcv]{--c:var(--tono-azul)}.mb-card[data-modo=manual]{--c:var(--tono-violeta)}
+.modo-bs.mb-card.activo{border:2px solid color-mix(in srgb,var(--c) 60%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--c) 12%,var(--surface)),color-mix(in srgb,var(--c) 3%,var(--surface)) 85%);box-shadow:0 4px 14px color-mix(in srgb,var(--c) 14%,transparent)}
+.mb-cab{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;column-gap:12px;padding:14px 16px;min-height:64px}
+.mb-card.activo .mb-cab{padding:13px 15px}
+.mb-radio{width:22px;height:22px;border-radius:50%;border:2px solid color-mix(in srgb,var(--c) 55%,var(--line));display:grid;place-items:center}
+.mb-card.activo .mb-radio{border-color:var(--c)}.mb-card.activo .mb-radio::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--c)}
+.mb-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mb-t b{font-size:15px;font-weight:600;color:var(--c)}
+.mb-t small{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mb-val{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;text-align:right}
+.mb-val b{font-size:17px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.mb-card:not(.activo) .mb-val b{color:color-mix(in srgb,var(--ink) 70%,var(--surface))}
+.mb-val small{font-size:11.5px;color:var(--muted)}
+.mb-val.sin b{font-size:13px;font-weight:600;color:var(--muted)}
+.modo-bs .mb-extra{display:none!important;border-top:1px solid color-mix(in srgb,var(--c) 20%,var(--line));margin:0 15px;padding:12px 0 14px 34px}
+.modo-bs.mb-card.activo .mb-extra{display:grid!important;grid-template-columns:minmax(0,1fr) 148px;align-items:center;gap:12px}
+.mb-extra .et{font-size:13px;color:var(--muted);line-height:1.3}
+.mb-extra .et b{display:block;color:var(--ink);font-weight:600;font-size:13.5px}
+.mb-in{display:flex;align-items:center;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:0 12px;gap:6px}
+.mb-in input{flex:1;min-width:0;border:0;background:none;font:600 16px var(--f,inherit);text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);outline:0}
+.mb-in span{font-size:13px;font-weight:600;color:var(--muted)}
+.mb-in:focus-within{border-color:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 18%,transparent)}
+
+.mb-t b{font-size:15px!important}
+.mb-val b.modo-val{font:700 17px var(--f,inherit)!important}
+.mb-val.sin b.modo-val{font-size:13px!important;font-weight:600!important;color:var(--muted)!important}
+.modo-bs.mb-card{border:1px solid color-mix(in srgb,var(--c) 22%,var(--line))!important;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 5%,var(--surface)),var(--surface) 80%)!important;border-radius:14px!important}
+.modo-bs.mb-card.activo{border:2px solid color-mix(in srgb,var(--c) 60%,var(--line))!important;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 12%,var(--surface)),color-mix(in srgb,var(--c) 3%,var(--surface)) 85%)!important;box-shadow:0 4px 14px color-mix(in srgb,var(--c) 14%,transparent)!important}
+.modo-bs .mb-t b{color:var(--c)!important}
+
+/* v2.03 · Encabezado de las ventanas de Reportes. */
+.rd-hero{--c:var(--accent);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;align-items:end;padding:14px 16px;margin-bottom:8px;border-radius:16px;border:1px solid color-mix(in srgb,var(--c) 22%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--c) 12%,var(--surface)) 0%,var(--surface) 78%)}
+.rh-et{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.rh-et svg.i{width:15px;height:15px;color:var(--c)}
+.rh-num{display:block;margin-top:2px;font-size:28px;font-weight:700;line-height:1.1;letter-spacing:-.01em;color:var(--ink);font-variant-numeric:tabular-nums}
+.rh-num small{font-size:12px;font-weight:700;color:var(--cop);margin-left:4px;letter-spacing:0}
+.rh-stats{display:flex;gap:0}
+.rh-stats > div{display:flex;flex-direction:column;align-items:flex-end;padding-left:14px;margin-left:14px;border-left:1px solid color-mix(in srgb,var(--c) 22%,var(--line));line-height:1.15}
+.rh-stats > div:first-child{border-left:0;margin-left:0;padding-left:0}
+.rh-stats b{font-size:16px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rh-stats span{font-size:11.5px;color:var(--muted);white-space:nowrap;margin-top:2px}
+.rh-pila{grid-column:1/-1;display:flex;height:10px;gap:2px;border-radius:99px;overflow:hidden;background:color-mix(in srgb,var(--c) 10%,#eef1f4)}
+.rh-pila i{display:block;height:100%;background:var(--c2)}
+.rh-ley{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:-4px;font-size:11.5px;color:var(--muted)}
+.rh-ley span{display:inline-flex;align-items:center;gap:5px}.rh-ley i{width:8px;height:8px;border-radius:3px;background:var(--c2)}
+.rh-ley b{color:var(--ink);font-weight:600}
+.rd-hero + .rd-fila{border-top:0}
+.rh-lado{text-align:right;font-size:12.5px;color:var(--muted);line-height:1.5}.rh-lado b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.rd-hero{padding:12px 14px!important;gap:10px 16px!important}.rh-num{font-size:26px!important}
+.rd-hero + .rd-fila,.rd-hero + .lista-ventas{border-top:0}
+.rh-lado{text-align:right;font-size:12.5px;color:var(--muted);line-height:1.5}.rh-lado b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.rd-hero{padding:12px 14px!important;gap:10px 16px!important}.rh-num{font-size:26px!important}.rh-num[data-largo=l]{font-size:23px!important}.rh-num[data-largo=xl]{font-size:20px!important}
+.rh-pila i{transform-origin:left;animation:repLlena .55s cubic-bezier(.22,.9,.3,1) both .1s}
+@media (prefers-reduced-motion:reduce){.rh-pila i{animation:none}}
+/* v2.05: carrito plegado — color y talla debajo del nombre; el monto alineado con la línea base de esa segunda línea */
+.linea.mini{align-items:last baseline}
+.linea.mini > .lc-q,.linea.mini > svg.i{align-self:center}
+.linea.mini .lc-t{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.linea.mini .lc-t b,.linea.mini .lc-t small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.linea.mini .lc-t small{font-size:13px;color:var(--muted)}
+/* v2.06: la papelera del pago ya no tapa la tarjeta (su zona táctil cubría el campo del monto y al tocarlo se quitaba el pago) */
+.pago-quitar{position:relative!important;top:0!important;right:0!important}
+/* v2.06: ícono de calculadora en su cabecera */
+.calc2 .cab h2{display:flex;align-items:center;gap:10px}
+.calc2 .cab h2 svg.i{width:22px;height:22px;flex:none;color:var(--accent)}
+/* v2.06: Ajustes vuelve a tener el marco de cada pestaña (mismo relleno), pero invisible: sin fondo, borde ni sombra */
+.ajustes > section.tarjeta{padding:16px!important}
+@media (max-width:839px){.ajustes > section.tarjeta{padding:12px!important}}
+/* v2.06: tasa Manual en una sola fila, con el campo donde iba el monto */
+.mb-val-in{gap:3px}
+.mb-val-in .mb-in{width:132px;height:40px;padding:0 10px}
+.mb-val-in .mb-in input{font-size:16px}
+.mb-card[data-modo=manual] .mb-cab{align-items:center}
+/* v2.06: redondeo del vuelto, COP y USD, escrito a mano */
+.red-dos{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.red-in{display:flex;align-items:baseline;gap:6px;height:48px;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:0 14px}
+.red-in input{flex:1;min-width:0;border:0;background:none;outline:0;font:600 17px var(--f,inherit);line-height:46px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.red-in .moneda{font-size:13px;font-weight:700}
+.red-in:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+/* v2.06: los tres puntos de las tarjetas de Pagos, rellenos */
+.forma-acc svg.i circle{fill:currentColor}
+/* v2.06: barra de cobro «ticket» — toda la barra es el botón Cobrar */
+.vista.vender .barra-cobro.bcT{display:block!important;padding-top:10px!important}
+.vista.vender .bcT .cobrar.bt{width:100%;height:auto!important;min-height:68px!important;padding:10px 14px 10px 10px!important;border-radius:18px!important;display:grid!important;grid-template-columns:48px minmax(0,1fr) auto 20px;align-items:center;column-gap:12px;text-align:left;box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 32%,transparent)}
+.bcT .bt-cnt{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.18);font-size:20px;font-weight:800;color:#fff}
+.bcT .bt-txt{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.bcT .bt-txt b{font-size:16px;font-weight:700;color:#fff}
+.bcT .bt-txt small{font-size:13px;font-weight:400;color:rgba(255,255,255,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bcT .bt-total{display:flex;flex-direction:column;align-items:flex-end;min-width:0;line-height:1.1}
+.bcT .bt-total .total{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
+.vista.vender .bcT .bt-total .total-cop{font-size:24px!important;font-weight:800;color:#fff;letter-spacing:-.01em}
+.vista.vender .bcT .bt-total .total-cop[data-largo=l]{font-size:21px!important}.vista.vender .bcT .bt-total .total-cop[data-largo=xl]{font-size:19px!important}
+.bcT .bt-total .moneda{font-size:12px;font-weight:800;color:rgba(255,255,255,.85)}
+.bcT .bt-total .equivalentes,.bcT .bt-total .equivalentes span{color:rgba(255,255,255,.82)!important;font-size:12px;font-weight:600;white-space:nowrap}
+.vista.vender .bcT .cobrar.bt > svg.i{width:20px;height:20px;color:#fff}
+/* v2.06: pantalla de cobro sin encabezado */
+.cobro2{gap:12px!important}
+.cb-arriba{display:flex;align-items:center;gap:8px}
+.cb-arriba .cliente-resumen{flex:1;min-width:0}
+.cb-volver{flex:none}
+.cb-total{display:flex!important;flex-direction:column;gap:12px;padding:16px!important}
+.cb-fila{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.cb-desc{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--accent) 22%,transparent)}
+.cb-desc-btn{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:99px;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));background:var(--surface);color:var(--ink);font:600 13.5px var(--f,inherit);cursor:pointer}
+.cb-desc-btn svg.i{width:16px;height:16px;color:var(--accent)}
+.cb-desc-monto{font-weight:700;color:var(--err);font-size:15px}
+.cb-desc-monto small{font-weight:500;color:var(--muted);font-size:12px}
+.cb-botones{display:grid;grid-template-columns:minmax(0,.42fr) minmax(0,1fr);gap:8px}
+.cb-apartar{display:flex!important;align-items:center;justify-content:center;gap:6px;padding:0 10px!important;white-space:nowrap;overflow:hidden}
+.cb-apartar .cb-ap-t{overflow:hidden;text-overflow:ellipsis}
+.cb-apartar svg.i{width:18px;height:18px;flex:none}
+/* v2.06: total de la pantalla de cobro a todo el ancho; papelera del pago centrada */
+.total-cobro.cb-total{align-items:stretch!important}
+.cb-total .cb-fila .et{padding-top:6px}
+.cb-total .tc-der{display:flex;flex-direction:column;align-items:flex-end}
+.pagos .pago > .pago-quitar{align-self:center!important}
+.cb-botones{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)!important}
+.cb-apartar{flex-direction:column;gap:1px!important;line-height:1.15}
+.cb-apartar .cb-ap-t{display:flex;align-items:center;gap:6px;font-weight:700}
+.cb-apartar small{font-size:12px;font-weight:600;color:var(--muted)}
+/* v2.06: formas de pago del cobro: en el teléfono se quitan deslizando (sin papelera) */
+.pagos{position:relative}
+@media (max-width:839px){
+  .pagos .pago{touch-action:pan-y;z-index:1;grid-template-columns:40px minmax(0,1fr) minmax(120px,52%)!important}
+  .pagos .pago > .pago-quitar{display:none!important}
+  .pagos .pago.deslizando{user-select:none}
+}
+/* v2.06 (corrección): descuento fuera del recuadro verde */
+.cobro2 .cb-desc{border-top:0;padding:0;margin-top:-4px}
+.cb-desc-monto{display:inline-flex;align-items:baseline;gap:4px}
+.cb-desc-monto .moneda{font-size:12px;font-weight:700}
+/* v2.06: tarjetas de prenda (Inventario y «Todos los productos» usan la misma tarjetaPrenda y estas mismas reglas):
+   nombre y disponibles arriba, color y precio abajo (misma línea base); con el nombre en una línea el color queda
+   junto al nombre y el sobrante se reparte arriba y abajo */
+.tarjeta-prenda{display:grid!important;grid-template-columns:56px minmax(0,1fr) auto;grid-template-rows:auto auto;align-content:center;align-items:stretch;column-gap:12px;row-gap:4px}
+.tarjeta-prenda > .tp-img{grid-column:1;grid-row:1 / 3;align-self:center}
+.tarjeta-prenda > .info,.tarjeta-prenda > .tp-der{display:contents!important}
+.tarjeta-prenda > .info > b{grid-column:2;grid-row:1;align-self:center}
+.tarjeta-prenda > .info > .tp-linea{grid-column:2;grid-row:2;align-self:baseline}
+.tarjeta-prenda > .tp-der > .tp-disp,.tarjeta-prenda > .tp-der > .tp-estado:not(.tp-oferta){grid-column:3;grid-row:1;justify-self:end;align-self:center}
+.tarjeta-prenda > .tp-der > .precio{grid-column:3;grid-row:2;justify-self:end;align-self:baseline}
+.tarjeta-prenda > .tp-der > .tp-oferta{grid-column:3;grid-row:3;justify-self:end}
+
+/* v2.06: el código de moneda junto a un campo de monto queda en la línea base del monto (no centrado en la caja) */
+.tasa-entrada,.mb-in,.red-in{align-items:baseline!important}
+.tasa-entrada .inp{min-height:0!important;height:auto;line-height:52px;padding:0!important}
+.mb-in input{height:auto;line-height:42px;padding:0}
+.mb-val-in .mb-in input{line-height:38px}
+/* v2.06: botón de cobro flotante y degradado, sin el panel de fondo */
+@media (max-width:839px){
+  .vista.vender .lado-carrito.barra-cobro-lado{background:none!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important}
+  .vista.vender .lado-carrito.barra-cobro-lado::before,.vista.vender .lado-carrito.barra-cobro-lado::after{display:none!important}
+  .vista.vender .barra-cobro.bcT{background:none!important;border:0!important;box-shadow:none!important;padding:0 0 8px!important}
+}
+.vista.vender .bcT .cobrar.bt{background:linear-gradient(115deg,color-mix(in srgb,var(--accent) 78%,#22c55e) 0%,var(--accent) 55%,color-mix(in srgb,var(--accent) 80%,#064e3b) 100%)!important;border:0!important;box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 38%,transparent),0 2px 6px rgba(15,23,42,.12)!important}
+/* v2.08 · Semáforo de existencias, el mismo en toda la app: verde = hay, amarillo = stock bajo (en el mínimo o menos),
+   rojo = agotado. Lo usan la ventana de tallas, las tarjetas de prenda, el detalle del Inventario y Reportes. */
+:root{--stk-ok:#15803d;--stk-bajo:#a16207;--stk-agotado:#b91c1c;--stk-ok-bg:#f0fdf4;--stk-bajo-bg:#fef9c3;--stk-agotado-bg:#fef2f2;--stk-ok-bd:#bbf7d0;--stk-bajo-bd:#fde047;--stk-agotado-bd:#fecaca}
+.barra-falta{transition:background-color .2s ease,border-color .2s ease,color .2s ease}
+/* ventana de tallas */
+.tf-disp{color:var(--stk-ok)!important;font-weight:600!important}
+.tf-disp.pocas{color:var(--stk-bajo)!important}
+.talla-fila-v.agotada .tf-disp{color:var(--stk-agotado)!important}
+/* pastillas de las tarjetas */
+.est.tp-disp.g{background:var(--stk-ok-bg)!important;border-color:var(--stk-ok-bd)!important;color:var(--stk-ok)!important}
+.est.tp-disp.y{background:var(--stk-bajo-bg)!important;border-color:var(--stk-bajo-bd)!important;color:var(--stk-bajo)!important}
+.tarjeta-prenda .est.r.tp-estado{background:var(--stk-agotado-bg)!important;border-color:var(--stk-agotado-bd)!important;color:var(--stk-agotado)!important}
+/* detalle de la prenda (Inventario) */
+.stk .talla-inv .ti-u b,.stk .det2 .talla2 .uds b{color:var(--stk-ok)!important}
+.stk .talla-inv .ti-u.low b,.stk .det2 .talla2 .uds b.low{color:var(--stk-bajo)!important}
+.stk .talla-inv .ti-u.out b,.stk .det2 .talla2 .uds b.out{color:var(--stk-agotado)!important}
+.stk .stk.low{color:var(--stk-bajo)!important}.stk .stk.out{color:var(--stk-agotado)!important}
+.stk .item .pr .u.low{color:var(--stk-bajo)!important}.stk .item .pr .u.out{color:var(--stk-agotado)!important}
+/* Reportes · existencias bajas */
+.mini-tallas .mt b{color:var(--stk-ok)!important}
+.mini-tallas .mt.y b{color:var(--stk-bajo)!important}
+.mini-tallas .mt.r b{color:var(--stk-agotado)!important}
+/* v2.10: botón de cobro sin «prendas en total»: camiseta blanca rellena con la cantidad adentro */
+.vista.vender .bcT .cobrar.bt{grid-template-columns:48px minmax(0,1fr) 20px!important}
+.vista.vender .bcT .bt-total{justify-self:end}
+.bcT .bt-cnt{position:relative}
+.bcT .bt-cnt svg.i{width:40px;height:40px;fill:#fff;stroke:#fff;stroke-width:1;color:#fff}
+.bcT .bt-cnt b{position:absolute;left:0;right:0;top:53%;transform:translateY(-50%);text-align:center;font-size:15px;font-weight:800;color:var(--accent);line-height:1;letter-spacing:-.02em}
+.bcT .bt-cnt b[data-n]{font-size:13px}
+/* v2.10: aviso de tramo de las prendas «separado» (mismo estilo que el aviso del carrito) */
+.carrito .aviso-sep{margin:0}
+/* v2.11: círculo de «faltan N para el próximo tramo» en las tarjetas del carrito */
+.lc-falta{display:inline-grid;place-items:center;flex:none;width:1.25em;height:1.25em;border-radius:50%;background:var(--y-bg);border:1px solid var(--y-bd);color:var(--y-tx);font-size:inherit;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;vertical-align:middle;margin-left:6px;box-sizing:border-box}
+/* el círculo del mismo alto que el texto de al lado (≈1,1 veces su tamaño de letra); el número, un poco menor */
+.linea .lc-falta{font-size:.75em;width:1.47em;height:1.47em;margin-left:5px}
+/* centrado con las mayúsculas del tramo: se alinea por la línea base (no depende de la fuente cargada) y sube 0,21 em */
+.linea:not(.mini) .lc-precio .lc-falta{margin:0 0 0 -4px;font-size:9px;width:14px;height:14px;align-self:baseline;transform:translateY(-.21em)}
+.linea:not(.mini) .lc-precio .lc-cu{flex-basis:100%}
+.linea.mini .lc-t small{display:flex;align-items:center;gap:0}
+/* v2.11: punto en el ícono de Vender cuando hay una venta en curso en el carrito (fuera de Vender) */
+.nav .ring,.nav .nav-ic{position:relative}
+.nav .nav-ic{display:inline-grid;place-items:center}
+.nav-punto{display:none;position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 2px var(--surface,#fff)}
+.nav.con-carrito .nav-punto{display:block}
+.nav.con-carrito.punto-nuevo .nav-punto{animation:puntoEntra .25s cubic-bezier(.22,.9,.3,1)}
+@keyframes puntoEntra{from{transform:scale(0)}to{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.nav.con-carrito .nav-punto{animation:none}}
+.calc-caja .inp,.calc .inp.num{text-align:left!important} /* v2.15: montos de la calculadora a la izquierda (teléfono y PC) */
+/* v2.15 · PC: barra izquierda con el perfil arriba y Vender verde, sin nombre, al centro */
+@media (min-width:840px){
+  .side .cuenta-btn{margin-bottom:12px;width:48px;height:48px}
+  .side .cuenta-btn .avatar{width:40px;height:40px;font-size:16px;font-weight:700;background:var(--g-bg);color:var(--g-tx);border:1px solid var(--g-bd)}
+  .side .nav.centro{padding:6px 0;margin:4px 0}
+  .side .nav.centro .ring{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 80%,#22c55e),var(--accent));color:#fff;display:grid;place-items:center;box-shadow:0 6px 14px color-mix(in srgb,var(--accent) 30%,transparent)}
+  .side .nav.centro .ring svg.i{width:24px;height:24px}
+  .side .nav.centro[aria-current="true"]{background:none}
+  .side .nav.centro[aria-current="true"] .ring{box-shadow:0 0 0 3px var(--g-bd),0 6px 14px color-mix(in srgb,var(--accent) 30%,transparent)}
+}
+/* v2.15 · PC: tasas en dos pastillas */
+.tasa-pc{padding:0 4px!important}
+.tasa-pc > span{display:inline-flex;align-items:baseline;gap:6px}
+.tasa-pc small{font-size:11.5px;font-weight:600;color:var(--muted)}
+.tasa-pc b{font-weight:700}
+@media (min-width:840px){.vista.vender .btn-escaner{display:none!important}} /* v2.15: sin botón de escáner en la PC (el lector USB escribe en el buscador) */
+/* v2.15 · PC: Vender con el carrito como tabla y la barra de cobro abajo (cliente | total y Cobrar) */
+@media (min-width:840px){
+  .vista.vender.pc{display:block!important;padding:16px 24px 0!important}
+  .vista.vender.pc .lado-carrito{display:none!important}
+  .vista.vender.pc .vender-main{display:flex;flex-direction:column;gap:16px;min-height:calc(100dvh - 56px - 16px)}
+  .vista.vender.pc .zona-carrito{flex:1;display:flex;flex-direction:column;min-height:0}
+  .tabla-pc{flex:1;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;gap:0!important;padding:0!important}
+  .tabla-pc .tp-cab,.tabla-pc .fila-pc{display:grid!important;grid-template-columns:minmax(0,2.6fr) minmax(130px,1fr) 150px 110px 150px 48px!important;align-items:center!important;column-gap:16px!important;row-gap:0!important;padding-left:20px!important;padding-right:20px!important}
+  .tabla-pc .fila-pc > *{grid-column:auto!important;grid-row:auto!important;align-self:center!important}
+  .tabla-pc .tp-cab{min-height:44px;background:var(--surface-2);border-bottom:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--muted)}
+  .tabla-pc .tp-cab span:nth-child(n+4){text-align:right}
+  .tabla-pc .tp-cab span:nth-child(3){text-align:center}
+  .tabla-pc .lineas{display:flex;flex-direction:column;gap:0!important;overflow:auto}
+  .tabla-pc .fila-pc{min-height:68px!important;border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;background:var(--surface);box-shadow:none!important;padding-top:8px!important;padding-bottom:8px!important;grid-template-rows:auto!important;grid-template-areas:none!important}
+  .tabla-pc .fila-pc:hover{background:color-mix(in srgb,var(--surface-2) 60%,var(--surface))}
+  .tabla-pc .fp-prenda{display:flex;align-items:center;gap:12px;min-width:0}
+  .tabla-pc .fp-prenda .foto{width:44px!important;height:44px!important;flex:none;border-radius:10px}
+  .tabla-pc .fp-t{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+  .tabla-pc .fp-t b{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tabla-pc .fp-t small{font-size:13px;color:var(--muted)}
+  .tabla-pc .fp-tramo{display:flex;align-items:center;font-size:13px;font-weight:600}
+  .tabla-pc .fp-tramo .lc-tramo{color:var(--g-tx)}
+  .tabla-pc .fp-tramo .lc-falta{font-size:9.5px;width:15px;height:15px}
+  .tabla-pc .fp-cant{display:flex;justify-content:center}
+  .tabla-pc .fp-unit{text-align:right;font-size:14px;color:var(--muted)}
+  .tabla-pc .fp-total{text-align:right;font-size:16px;font-weight:700;display:flex;justify-content:flex-end;align-items:baseline;gap:4px}
+  .tabla-pc .fp-total small{font-size:11px;font-weight:700}
+  .tabla-pc .fp-quitar{color:var(--r-tx);justify-self:end}
+  .tabla-pc .tp-vacio{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);padding:48px 16px}
+  .tabla-pc .tp-vacio > svg.i{width:40px;height:40px;opacity:.5}
+  .tabla-pc .tp-vacio b{font-size:15px;font-weight:600;color:var(--ink)}
+  .pie-pc-cont{position:sticky;bottom:0;z-index:5;padding:0 0 16px;background:linear-gradient(to top,var(--bg) 70%,transparent)}
+  .pie-pc{display:flex;align-items:center;justify-content:space-between;gap:24px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px 14px 20px;box-shadow:0 -4px 18px rgba(15,23,42,.05)}
+  .pc-cli{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .pc-et{font-size:12.5px;font-weight:600;color:var(--muted)}
+  .pc-cli-btn{display:flex;align-items:center;gap:10px;min-height:48px;min-width:300px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font:inherit;color:var(--muted);cursor:pointer;text-align:left}
+  .pc-cli-btn.con{color:var(--ink)}
+  .pc-cli-btn > span{flex:1;display:flex;flex-direction:column;line-height:1.2;min-width:0}
+  .pc-cli-btn b{font-weight:600;color:var(--ink)}
+  .pc-cli-btn small{font-size:12.5px;color:var(--muted)}
+  .pc-cli-btn svg.i{width:20px;height:20px}
+  .pie-pc kbd{font:700 11px var(--f,inherit);padding:3px 6px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
+  .pc-tot{display:flex;align-items:center;gap:24px}
+  .pc-tot-num{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+  .pc-tot-num .total{display:flex;align-items:baseline;gap:6px}
+  .pc-tot-num .total-cop{font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .pc-tot-num .moneda{font-size:14px;font-weight:800}
+  .pc-tot-num .equivalentes{font-size:13.5px;font-weight:600;color:var(--muted)}
+  .pc-cobrar{min-height:60px!important;min-width:230px;padding:0 18px!important;border-radius:14px!important;font-size:18px!important;font-weight:800!important;display:flex!important;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(115deg,color-mix(in srgb,var(--accent) 78%,#22c55e) 0%,var(--accent) 55%,color-mix(in srgb,var(--accent) 80%,#064e3b) 100%)!important;border:0!important;box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 30%,transparent)!important}
+  .pc-cobrar:disabled{background:var(--surface-2)!important;color:var(--muted)!important;box-shadow:none!important}
+  .pc-cobrar kbd{background:rgba(255,255,255,.18)!important;border-color:transparent!important;color:#fff!important}
+  .pc-cobrar:disabled kbd{color:var(--muted)!important;background:var(--surface)!important}
+  .pc-cant{position:relative;display:inline-grid;place-items:center}
+  .pc-cant svg.i{width:34px;height:34px;fill:#fff;stroke:#fff;stroke-width:1}
+  .pc-cant b{position:absolute;left:0;right:0;top:53%;transform:translateY(-50%);text-align:center;font-size:13px;font-weight:800;color:var(--accent)}
+}
+/* v2.15 · PC: paneles de detalle (prenda del Inventario y apartado) más anchos y en dos columnas */
+@media (min-width:840px){
+  .stk .sheet{max-width:min(1040px,calc(100vw - var(--side,84px) - 64px))!important}
+  .stk .sheet > .det2:has(> .det-tallas){display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:32px;align-items:start}
+  .stk .sheet > .det2:has(> .det-tallas) > .det-cab{grid-column:1 / -1}
+  .stk .sheet > .det2:has(> .det-tallas) > .fotocard{grid-column:1}
+  .stk .sheet > .det2:has(> .det-tallas) > .det-tallas{grid-column:1;grid-row:span 3}
+  .stk .sheet > .det2:has(> .det-tallas) > .det-precios,.stk .sheet > .det2:has(> .det-tallas) > .det-ficha{grid-column:2}
+  .stk .sheet .ap-det{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);column-gap:32px;align-items:start}
+  .stk .sheet .ap-det > .ap-det-cab{grid-column:1 / -1}
+  .stk .sheet .ap-det > .ap-det-pago,.stk .sheet .ap-det > .ap-sec-abono,.stk .sheet .ap-det > .det-meta{grid-column:1}
+  .stk .sheet .ap-det > .ap-sec-prendas{grid-column:2;grid-row:2 / span 3}
+}
+/* v2.15 · PC: Caja y Ajustes usan el ancho de la pantalla (antes quedaban en una columna angosta a la izquierda) */
+@media (min-width:840px){
+  .vista[data-ruta="/caja"]{max-width:1180px!important;width:100%;margin:0 auto;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px;align-items:start}
+  .vista[data-ruta="/caja"] > *{min-width:0}
+  .vista[data-ruta="/ajustes"]{max-width:1180px;width:100%;margin:0 auto}
+  .vista[data-ruta="/ajustes"] .ajustes{grid-template-columns:minmax(0,1fr)!important}
+  /* v2.16 · Tasas (propuesta): el peso en una tarjeta compacta arriba y las tres fuentes de Bs en una fila */
+  .ajustes > section.aj-tasas:not([hidden]){display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px;row-gap:10px!important;align-items:stretch}
+  .aj-tasas > .campo,.aj-tasas .modos-bs.mb{display:contents!important}
+  .aj-tasas > .campo:first-child > .tasa-cab{grid-column:1 / -1;grid-row:1}
+  .aj-tasas > .campo:first-child > .fila-usd{grid-column:1;grid-row:2;max-width:none}
+  .aj-tasas > .campo:first-child > .fila-usd .tasa-entrada{height:52px}
+  .aj-tasas > .campo:first-child > .fila-usd .tasa-entrada .inp{font-size:20px!important;line-height:50px}
+  .aj-tasas > .campo:nth-child(2) > .et-moneda{grid-column:1 / -1;grid-row:3;margin-top:14px}
+  .aj-tasas .mb-card{grid-row:4;min-width:0}
+  .aj-tasas .mb-card[data-modo=binance]{grid-column:1}.aj-tasas .mb-card[data-modo=bcv]{grid-column:2}.aj-tasas .mb-card[data-modo=manual]{grid-column:3}
+  /* v2.16 · Venta: fila 1 redondeo en pesos | redondeo en dólares (cada uno con su título); fila 2 Tramos | Comisión, siempre abiertos */
+  .ajustes > section.aj-venta:not([hidden]){display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px;row-gap:20px!important;align-items:start}
+  .aj-venta > .red-aj{grid-column:1 / -1;max-width:calc(50% - 12px);display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+  .aj-venta > .red-aj > .campo{margin:0}
+  .aj-venta .despl.fijo > summary{cursor:default}
+  .aj-venta .despl.fijo > summary > svg.i:last-child{display:none}
+  /* Pagos: más tarjetas por fila */
+  .ajustes > section.aj-pagos .formas-aj{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))!important}
+  /* Recibo: el mensaje y los datos a la izquierda; la vista previa a la derecha */
+  .ajustes > section.aj-recibo:not([hidden]){display:grid!important;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);column-gap:32px;align-items:start}
+  .aj-recibo > .wa-fondo{grid-column:2;grid-row:1 / span 3}
+  .aj-recibo > :not(.wa-fondo){grid-column:1}
+  /* Sin el marco invisible (relleno) en la PC */
+  .ajustes > section.tarjeta{padding:0!important}
+  /* Caja: sus tarjetas en dos columnas */
+  .vista[data-ruta="/caja"]{grid-template-columns:minmax(0,1fr)!important}
+  .vista[data-ruta="/caja"] > .pila{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px 24px;align-items:start}
+  .vista[data-ruta="/caja"] > .pila > .aviso,.vista[data-ruta="/caja"] > .pila > .btn{grid-column:1 / -1}
+  /* Detalle del apartado: la pastilla del estado en la columna del cliente, alineada con el final de la barra */
+  .stk .sheet .ap-det > .ap-det-cab{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);column-gap:32px;align-items:start}
+  .stk .sheet .ap-det > .ap-det-cab > .ap-det-cab-der{display:contents!important}
+  .stk .sheet .ap-det > .ap-det-cab > div:first-child{grid-column:1;grid-row:1}
+  .stk .sheet .ap-det > .ap-det-cab .est{grid-column:1;grid-row:1;justify-self:end;align-self:start;margin-top:4px}
+  .stk .sheet .ap-det > .ap-det-cab .cerrar{grid-column:2;grid-row:1;justify-self:end;align-self:start}
+}
+.btn-todos-pc{display:none!important}
+@media (min-width:840px){.vista.vender.pc .btn-todos-pc{display:inline-flex!important;flex:none;min-height:48px;white-space:nowrap}.vista.vender.pc .buscador{display:flex;gap:12px;align-items:center}.vista.vender.pc .buscador .buscar-caja{flex:1}}
+/* v2.15 · PC: en Vender la calculadora termina encima de la barra de cobro (no tapa Cobrar) */
+@media (min-width:840px){body:has(.vista.vender.pc .pie-pc-cont:not([hidden])) .capa.hoja.derecha:has(.calc2){bottom:136px;height:auto}body:has(.vista.vender.pc .pie-pc-cont:not([hidden])) .capa.hoja.derecha .caja.calc2{border-bottom:1px solid var(--line);border-radius:0 0 0 16px}}
+/* v2.16 · Filtros y opciones de arriba con una sola forma en toda la app (teléfono y PC): la de Género y Marca.
+   Rectángulo blanco con borde suave y esquinas de 10 px; el elegido en verde crema (ya no negro). */
+:root{--flt-h:40px;--flt-bd:#d5dbe2}
+.stk .filtro-menu,.stk .seg .tj,.filtro-ap .chip,.filtro-inv .chip,.vista.vender .filtros .chip,
+.cab-vista .rango .segmentado button,.pestanas-aj button,.rango .rango-btn{
+  height:var(--flt-h)!important;min-height:var(--flt-h)!important;border:1px solid var(--flt-bd)!important;border-radius:10px!important;
+  background:var(--surface)!important;color:var(--ink)!important;font:600 14px var(--f,inherit)!important;padding:0 12px!important;box-shadow:none!important}
+.stk .filtro-menu.activo,.stk .top>.seg .tj[aria-pressed=true],.stk .seg .tj[aria-pressed=true],.filtro-ap .chip.activo,.filtro-inv .chip.activo,.vista.vender .filtros .chip.activo,
+.cab-vista .rango .segmentado button[aria-pressed=true],.pestanas-aj button[aria-selected=true],.pestanas-aj button[aria-pressed=true]{
+  background:var(--g-bg)!important;border-color:var(--g-bd)!important;color:var(--g-tx)!important}
+.stk .top>.seg .tj[aria-pressed=true] b,.stk .top>.seg .tj[aria-pressed=true] span,.stk .seg .tj[aria-pressed=true] b,.stk .seg .tj[aria-pressed=true] span{color:var(--g-tx)!important}
+.filtro-ap .chip.activo .cuenta,.filtro-inv .chip.activo .cuenta{background:var(--surface)!important;color:var(--g-tx)!important}
+/* los grupos (Hoy/Semana…, pestañas de Ajustes) pasan a botones sueltos con 8 px entre ellos */
+.cab-vista .rango .segmentado,.pestanas-aj{border:0!important;overflow:visible!important;gap:8px!important;display:flex!important;background:none!important}
+.cab-vista .rango .segmentado button,.pestanas-aj button{flex:1 1 0;border-right:1px solid var(--flt-bd)!important}
+/* Inventario: los estados como estos filtros (número a la derecha, sin las tarjetas grandes) */
+.stk .seg{display:flex!important;gap:8px!important;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.stk .seg .tj{flex:0 0 auto!important;flex-direction:row!important;align-items:center!important;gap:8px!important;min-width:0!important;width:auto!important}
+.stk .seg .tj > svg{display:none!important}
+.stk .seg .tj b{order:2;font-size:14px!important;font-weight:700!important;color:var(--muted)!important}
+.stk .seg .tj span{order:1;font-size:14px!important;font-weight:600!important;color:var(--ink)!important}
+.stk .seg .tj::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;order:0}
+.stk .seg .tj.w::before{background:#eab308}.stk .seg .tj.x::before{background:var(--stk-agotado)}
+.stk .filters #fSt{display:none!important}
+@media (min-width:840px){
+  /* fila 1: búsqueda | Fotos y Sincronizar; fila 2: Género, Marca y después Todos / Stock bajo / Agotados */
+  .stk .top{display:flex!important;flex-wrap:wrap;align-items:center;gap:12px!important}
+  .stk .top>.search{order:1;flex:1 1 calc(100% - 340px)!important;margin:0!important}
+  .stk .top>.adm{order:2;flex:none}
+  .stk .top>.filters{order:3;flex:none!important;justify-self:auto;margin:0!important}
+  .stk .top>.seg{order:4;flex:none!important;margin:0!important}
+  .stk .top>.filters .filtro-menu{min-width:160px;flex:none!important}
+  /* separador por tipo */
+  .stk #list .inv-tipo,.vista.vender .rejilla .inv-tipo{grid-column:1 / -1;display:flex;align-items:baseline;gap:8px;margin:12px 0 -4px;font-size:15px;font-weight:700;color:var(--ink)}
+  .stk #list .inv-tipo:first-child,.vista.vender .rejilla .inv-tipo:first-child{margin-top:0}
+  .stk #list .inv-tipo small,.vista.vender .rejilla .inv-tipo small{font-size:13px;font-weight:600;color:var(--muted)}
+  .stk #list .inv-tipo::after,.vista.vender .rejilla .inv-tipo::after{content:"";flex:1;height:1px;background:var(--line);align-self:center;margin-left:4px}
+}
+/* v2.16 · Foto de perfil: avatar con foto, lápiz para editar y recorte libre */
+.avatar.con-foto{padding:0!important;overflow:hidden;background:var(--surface-2)!important}
+.avatar.con-foto img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}
+.avatar.grande{width:96px!important;height:96px!important;font-size:36px!important;font-weight:700;border-radius:50%;display:grid;place-items:center;background:var(--g-bg);color:var(--g-tx);border:1px solid var(--g-bd)}
+.pf-arriba{display:flex;align-items:center;gap:16px}
+.pf-botones{display:flex;flex-wrap:wrap;gap:8px}
+.rc{display:flex;flex-direction:column;gap:10px;align-items:center}
+.rc-marco{position:relative;display:inline-block;max-width:100%;touch-action:none;user-select:none;border-radius:10px;overflow:hidden;background:#0f172a}
+.rc-img{display:block;max-width:min(560px,100%);max-height:58vh;width:auto;height:auto}
+.rc-caja{position:absolute;box-shadow:0 0 0 9999px rgba(15,23,42,.55);border:2px solid #fff;cursor:move;border-radius:4px}
+.rc-asa{position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.rc-asa.nw{left:-10px;top:-10px;cursor:nwse-resize}.rc-asa.ne{right:-10px;top:-10px;cursor:nesw-resize}
+.rc-asa.sw{left:-10px;bottom:-10px;cursor:nesw-resize}.rc-asa.se{right:-10px;bottom:-10px;cursor:nwse-resize}
+.rc-sombra{display:none}
+/* v2.17 · Editar perfil (PC): foto grande centrada con lápiz; recorte en círculo */
+.pf-centro{flex-direction:column;justify-content:center;gap:8px}
+.pf-circulo{position:relative;display:inline-grid}
+.pf-centro .avatar.grande{width:140px!important;height:140px!important;font-size:52px!important}
+.pf-lapiz{position:absolute;right:4px;bottom:4px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);box-shadow:0 2px 8px rgba(15,23,42,.16);color:var(--ink);cursor:pointer;padding:0}
+.pf-lapiz svg.i{width:18px;height:18px}
+.pf-lapiz:hover{background:var(--g-bg);color:var(--g-tx);border-color:var(--g-bd)}
+.pf-centro .pf-quitar{min-height:32px}
+/* Recorte (v2.17, estilo de la captura): marco cuadrado con esquinas en L; dentro, el círculo claro y lo demás oscurecido */
+.rc-caja.rc-circulo{border:1px solid rgba(255,255,255,.55);border-radius:0;box-shadow:0 0 0 9999px rgba(15,23,42,.62);overflow:visible}
+.rc-caja.rc-circulo::before{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(15,23,42,.38);clip-path:inset(0);pointer-events:none}
+.rc-circulo .rc-asa{width:26px;height:26px;background:none;border-radius:0;box-shadow:none;border:0 solid #fff;transform:none}
+.rc-circulo .rc-asa.nw{left:-4px;top:-4px;border-width:4px 0 0 4px}
+.rc-circulo .rc-asa.ne{right:-4px;top:-4px;left:auto;border-width:4px 4px 0 0}
+.rc-circulo .rc-asa.sw{left:-4px;bottom:-4px;top:auto;border-width:0 0 4px 4px}
+.rc-circulo .rc-asa.se{right:-4px;bottom:-4px;left:auto;top:auto;border-width:0 4px 4px 0}
+.u-acc .u-editar{order:-1}
+/* v2.17 · Teléfono: redondeo con un solo título */
+.red-uno .red-tit{margin:0 0 8px;font-size:15px;font-weight:700;color:var(--ink)}
+.red-uno .red-fila{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* v2.17 · Barra de cobro PC: «8 Prendas» grande a la izquierda del total, con una línea que los separa */
+.pie-pc .pc-prendas-caja{flex:none;display:flex;align-items:baseline;gap:6px;padding:10px 36px 10px 0;margin-right:12px;border-right:1px solid var(--line);align-self:center}
+.pie-pc .pc-prendas-caja b{font-size:32px;font-weight:800;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pie-pc .pc-prendas-caja span{font-size:20px;font-weight:500;color:var(--ink);line-height:1}
+.pie-pc .pc-prendas-caja.cero b{color:var(--muted)}
+/* v2.17 · Tabla del carrito (PC): la foto queda dentro de su recuadro (antes se salía y tapaba el nombre) */
+.tabla-pc .fp-prenda .foto{overflow:hidden;display:grid;place-items:center;background:var(--surface-2)}
+.tabla-pc .fp-prenda .foto img{width:100%!important;height:100%!important;object-fit:cover;display:block}
+.red-uno .red-fila > .red-in{min-width:0!important;width:auto!important;max-width:none!important;margin:0!important}
+.red-uno .red-fila > .red-in input{min-width:0;width:100%}
+/* v2.17 · Calculadora (PC): referencias Binance P2P y BCV, copiadas de la Super Calculadora */
+.calc-refs{--coin:#ca8a04;--badge-bg:#fff6d6;--chip-blue-bg:#f2f8ff;--chip-blue-ink:#1d4ed8;--q-name:#0f4c8a;--up:#2f8a3f;--down:#dc2626;--warn:#92400e;--warn-soft:#fef3c7;--ink-2:#64748b;--ink-3:#7c8798;
+  margin:4px 0 0;padding:14px 16px 16px;border:1px solid var(--line);background:var(--surface-2);display:flex;flex-direction:column;gap:18px;border-radius:14px}
+.calc-refs .usdt-head{display:flex;align-items:center;justify-content:space-between;gap:6px 12px;flex-wrap:wrap}
+.calc-refs .label{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.calc-refs .ref{display:flex;flex-direction:column;gap:10px}
+.calc-refs .link-btn{border:0;background:transparent;padding:4px 6px;margin:-4px -6px;font:700 12px var(--f,inherit);color:var(--g-tx,#15803d);cursor:pointer;border-radius:6px}
+.calc-refs .link-btn:hover{text-decoration:underline}
+.calc-refs .link-btn svg{vertical-align:-2px;margin-right:3px}
+.calc-refs .usdt-actions{display:flex;align-items:center;gap:14px}
+@keyframes ref-giro{to{transform:rotate(360deg)}}
+.calc-refs .link-btn.busy svg{animation:ref-giro .8s linear infinite}
+.calc-refs .quote{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px 10px;display:flex;flex-direction:column;gap:6px}
+.calc-refs .q-main{display:flex;align-items:center;gap:12px}
+.calc-refs .q-badge{flex:none;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:var(--badge-bg);color:var(--coin)}
+.calc-refs .q-badge.bcv{background:var(--chip-blue-bg);color:var(--chip-blue-ink)}
+.calc-refs .q-name{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.calc-refs .q-name strong{font-size:16px;font-weight:700;color:var(--q-name);line-height:1.2}
+.calc-refs .q-name span{font-size:13px;color:var(--ink-2)}
+.calc-refs .q-val{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.calc-refs .q-val b{font-size:22px;font-weight:800;letter-spacing:-.01em;color:var(--ink);line-height:1.15;font-variant-numeric:tabular-nums}
+.calc-refs .q-chg{font-size:13px;font-weight:700;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.calc-refs .q-chg.up{color:var(--up)}.calc-refs .q-chg.down{color:var(--down)}
+.calc-refs .q-date{margin:0;text-align:center;font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums;min-height:14px}
+.calc-refs .usdt-meta{margin:0;font-size:12px;line-height:1.45;color:var(--ink-2)}
+.calc-refs .usdt-meta.stale{color:var(--warn);background:var(--warn-soft);padding:6px 9px;border-radius:8px}
+/* v2.17 · Usuarios (PC): todo en una fila; Eliminar al final, separado y solo como texto */
+@media (min-width:840px){
+  .lista-usuarios .u-cuerpo:not([hidden]){display:flex!important;flex-direction:row!important;align-items:center;gap:16px;flex-wrap:nowrap}
+  .lista-usuarios .u-cuerpo .u-com{flex:none;margin:0!important}
+  .lista-usuarios .u-cuerpo .u-propias{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+  .lista-usuarios .u-acc{display:flex!important;flex:1;align-items:center;gap:8px;flex-wrap:nowrap}
+  .lista-usuarios .u-acc .btn{width:auto!important;flex:none;padding:0 16px}
+  .lista-usuarios .u-acc .u-eliminar{grid-column:auto}
+}
+@media (min-width:840px){
+  .lista-usuarios .u-cuerpo:not([hidden]){justify-content:flex-start!important;text-align:left}
+  .lista-usuarios .u-acc{flex:1 1 auto!important;justify-content:flex-start!important}
+  .lista-usuarios .u-acc .u-desactivar,.lista-usuarios .u-acc #cerrar-sesion{margin-left:auto!important}
+  .lista-usuarios .u-acc .u-eliminar{margin-left:0!important;margin-right:0!important}
+}
+.calc2 .calc{overflow-y:auto}
+/* v2.18 · Calculadora: en el teléfono, solo las esquinas de arriba redondeadas */
+.hoja.abajo .caja.calc2{border-radius:20px 20px 0 0!important;overflow:hidden}
+/* v2.18 · Calculadora PC: panel flotante a la derecha que sale deslizándose desde el borde, con esquinas redondeadas */
+.calc-extra{display:inline-flex;align-items:center;gap:4px}
+@media (min-width:840px){
+  .capa.hoja.derecha:has(.calc2){padding:64px 12px 12px 0;align-items:center}
+  .capa.hoja.derecha .caja.calc2,body:has(.vista.vender.pc .pie-pc-cont:not([hidden])) .capa.hoja.derecha .caja.calc2{height:auto!important;max-height:100%;margin:0!important;border:1px solid var(--line)!important;border-radius:18px!important;overflow:hidden;
+    box-shadow:0 18px 48px rgba(15,23,42,.18),0 2px 8px rgba(15,23,42,.08);animation:calcSale .28s cubic-bezier(.22,.9,.28,1)!important}
+  @keyframes calcSale{from{transform:translateX(calc(100% + 24px))}to{transform:none}}
+}
+/* v2.18 · «1 Prenda» sobre la misma línea base que USD · Bs */
+@media (min-width:840px){
+  .pie-pc .pc-tot{align-items:last baseline!important}
+  .pie-pc .pc-tot > .pc-cobrar{align-self:center}
+  .pie-pc .pc-prendas-caja{align-self:last baseline!important;padding-top:4px;padding-bottom:4px}
+}
+/* v2.18 · Calculadora PC más compacta: entra completa con Binance y BCV a la vista */
+@media (min-width:840px){
+  .calc2 .calc{padding-bottom:12px!important;gap:12px!important}
+  .calc2 .calc-fila{gap:6px!important}
+  .calc2 .calc-caja{min-height:46px!important;height:46px!important}
+  .calc2 .calc-caja .inp{min-height:44px!important}
+  .calc-refs{gap:12px!important;padding:12px!important}
+  .calc-refs .ref{gap:8px}
+  .calc-refs .quote{padding:10px 12px 8px}
+}
+.u-av .u-lapiz,.pf-lapiz,.pf-lapiz:hover{background:#fff!important;color:var(--ink)!important;border-color:var(--line)!important}
+
+/* v2.19 · Aviso de versión nueva animado */
+.toast.version{gap:12px;padding:10px 10px 10px 14px;animation:verEntra .42s cubic-bezier(.22,1.2,.36,1) both}
+@keyframes verEntra{from{transform:translate(-50%,140%);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.toast.version .ver-ico{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb,var(--g-bd) 22%,transparent);color:var(--g-bd);flex:none}
+.toast.version .ver-ico svg.i{width:17px;height:17px;animation:verGiro 3s cubic-bezier(.6,0,.3,1) infinite .6s}
+@keyframes verGiro{0%,62%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+.toast.version .ver-btn{position:relative;background:var(--accent)!important;color:#fff!important;padding:8px 14px}
+.toast.version .ver-btn::after{content:"";position:absolute;inset:-3px;border-radius:11px;border:2px solid var(--accent);opacity:0;animation:verLate 2s ease-out infinite 1s;pointer-events:none}
+@keyframes verLate{0%{opacity:.7;transform:scale(1)}70%,100%{opacity:0;transform:scale(1.18)}}
+.toast.version.actualizando .ver-ico svg.i{animation:verGiroSin .8s linear infinite}
+@keyframes verGiroSin{to{transform:rotate(360deg)}}
+.toast.version.actualizando .ver-btn{opacity:.7}.toast.version.actualizando .ver-btn::after{animation:none}
+@media (prefers-reduced-motion:reduce){.toast.version,.toast.version .ver-ico svg.i,.toast.version .ver-btn::after{animation:none!important}}
+/* v2.22 · Recorte: sin menú de imagen al mantener presionado */
+.rc-marco,.rc-marco *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.rc-img{pointer-events:none}
+/* v2.23 · Ajustes en el teléfono: vuelve el contorno de cada sección (en la PC sigue sin marco) */
+@media (max-width:839px){.ajustes > section.tarjeta{background:var(--surface)!important;border:1px solid var(--line)!important;border-radius:16px!important;box-shadow:none!important}}
+/* v2.24 · Usuarios: la última tarjeta conserva su borde de abajo (una regla vieja de lista lo quitaba) */
+.lista-usuarios .usuario:last-child{border-bottom:1px solid var(--line)}
+/* v2.25 · Reporte de cierre de caja */
+.caja-cerrada[role=button]{cursor:pointer;border-radius:12px}
+@media (hover:hover){.caja-cerrada[role=button]:hover{background:var(--surface-2)}}
+.ventana-cierre .caja{width:min(620px,calc(100vw - 32px))!important}
+.rep-cierre{gap:14px!important}
+.rep-cierre .rc-quien{display:flex;flex-direction:column;gap:2px}
+.rep-cierre .rc-quien b{font-size:16px}
+.rep-cierre .rc-resultado{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:14px 16px;border-radius:12px;border:1px solid}
+.rep-cierre .rc-resultado > span{font-size:14px;font-weight:600}
+.rep-cierre .rc-resultado > b{font-size:24px;font-weight:800;letter-spacing:-.01em}
+.rep-cierre .rc-resultado > small{font-size:12px;color:var(--muted)}
+.rep-cierre .rc-resultado.g{background:var(--g-bg);border-color:var(--g-bd);color:var(--g-tx)}
+.rep-cierre .rc-resultado.y{background:var(--y-bg);border-color:var(--y-bd);color:var(--y-tx)}
+.rep-cierre .rc-resultado.r{background:var(--r-bg);border-color:var(--r-bd);color:var(--r-tx)}
+.rep-cierre .rc-tabla{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.rep-cierre .rc-fila{display:grid;grid-template-columns:minmax(0,1.3fr) repeat(3,minmax(0,1fr));gap:8px;padding:9px 12px;font-size:13px;border-top:1px solid var(--line);align-items:baseline}
+.rep-cierre .rc-fila > span:not(.rc-forma){text-align:right}
+.rep-cierre .rc-fila.cab{border-top:0;background:var(--surface-2);font-size:12px;font-weight:600;color:var(--muted)}
+.rep-cierre .rc-forma{font-weight:600}
+.rep-cierre .rc-dif{font-weight:700}
+.rep-cierre .rc-dif small{font-weight:600;color:var(--muted);font-size:11px}
+.rep-cierre .n-leve .rc-dif{color:var(--y-tx)}.rep-cierre .n-grave .rc-dif{color:var(--r-tx)}
+.rep-cierre .rc-resumen{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rep-cierre .rc-dato{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+.rep-cierre .rc-dato span{font-size:12px;color:var(--muted)}
+.rep-cierre .rc-dato b{font-size:14px;font-weight:700}
+.rep-cierre .rc-nota{padding:10px 12px;border-radius:12px;background:var(--surface-2)}
+.rep-cierre .rc-nota span{font-size:12px;color:var(--muted)}.rep-cierre .rc-nota p{margin:2px 0 0;font-size:14px}
+@media (max-width:420px){.rep-cierre .rc-fila{grid-template-columns:minmax(0,1fr) repeat(3,minmax(0,.9fr));font-size:12px;padding:8px 10px}}
+.rep-cierre .rc-fila.cab > span:first-child{text-align:left}
+/* v2.26 · Conflictos de sincronización */
+.conflictos-aviso{align-items:center}
+.conflictos-aviso > .btn{margin-left:auto;flex:none}
+.lista-conflictos{gap:12px!important}
+.conflicto{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.conflicto.rechazada{border-color:var(--r-bd)}
+.conflicto.inventario{border-color:var(--y-bd)}
+.conflicto .cf-cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.conflicto .cf-cab .nota{margin-left:auto}
+.conflicto .cf-txt{margin:0;font-size:13px;color:var(--muted);line-height:1.45}
+.conflicto .cf-datos{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.conflicto .cf-datos span{display:inline-flex;align-items:center;gap:6px}
+.conflicto .cf-datos svg.i{width:15px;height:15px;color:var(--muted)}
+.conflicto .cf-neg{font-size:12.5px}
+.conflicto .cf-acc{display:flex;gap:8px}
+.conflicto .cf-acc .inp{flex:1;min-width:0;min-height:40px}
+.conflicto .cf-acc .btn{flex:none}
+.conflicto .cf-et{font-size:12px;color:var(--muted);margin-bottom:-4px}
+/* v2.27 · Actividad (registro de auditoría) */
+.ventana-actividad .caja{width:min(760px,calc(100vw - 32px))!important}
+.actividad{gap:10px!important}
+.act-barra{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.act-barra .act-filtros{flex:1 1 auto;min-width:0;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.act-barra .act-persona{flex:0 0 auto;width:auto;min-height:40px;height:40px}
+.act-lista{display:flex;flex-direction:column;gap:0}
+.act-dia{margin:12px 0 4px;font-size:13px;font-weight:600;color:var(--muted)}
+.act-dia:first-child{margin-top:0}
+.act-fila{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 4px;border-top:1px solid var(--line)}
+.act-dia + .act-fila{border-top:0}
+.act-fila.importante{background:color-mix(in srgb,var(--y-bg) 55%,transparent);border-radius:10px}
+.act-fila.grave{background:var(--r-bg)}
+.act-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--surface-2);color:var(--muted)}
+.act-ic svg.i{width:17px;height:17px}
+.act-ic.g-ventas{background:var(--g-bg);color:var(--g-tx)}.act-ic.g-caja{background:#eef2ff;color:#4338ca}
+.act-ic.g-inventario{background:#fff7ed;color:#c2410c}.act-ic.g-conflictos{background:var(--r-bg);color:var(--r-tx)}
+.act-l1{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;font-size:14px}
+.act-l1 b{font-weight:600}
+.act-l1 span{color:var(--ink)}
+.act-motivo{font-size:13px;color:var(--ink);margin-top:2px}
+.act-quien{font-size:12px;margin-top:2px}
+.act-hora{font-size:12px;white-space:nowrap;padding-top:2px}
+.act-cambios{display:flex;flex-direction:column;gap:2px;margin-top:4px;font-size:12.5px}
+.act-cambios div{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.act-cambios span{color:var(--muted)}.act-cambios s{color:var(--muted)}
+.act-cambios svg.i{width:13px;height:13px;color:var(--muted)}
+.act-aparato{display:flex;align-items:center;gap:6px;padding-top:10px;border-top:1px solid var(--line);flex-wrap:wrap}
+.act-aparato svg.i{width:16px;height:16px}
+.act-vacio{text-align:center;padding:24px 0}
+.act-filtros .chip{height:var(--flt-h)!important;min-height:var(--flt-h)!important;border:1px solid var(--flt-bd)!important;border-radius:10px!important;background:var(--surface)!important;color:var(--ink)!important;font:600 14px var(--f,inherit)!important;padding:0 12px!important;box-shadow:none!important;white-space:nowrap;flex:none}
+.act-filtros .chip.activo{background:var(--g-bg)!important;border-color:var(--g-bd)!important;color:var(--g-tx)!important}
+.act-persona{border:1px solid var(--flt-bd)!important;border-radius:10px!important;font:600 14px var(--f,inherit)!important}
+/* v2.29 · PC: íconos de la barra lateral en recuadros de color (como «Más» del teléfono) */
+@media (min-width:840px){
+  .side .nav-cuad{position:relative;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;color:var(--c);
+    background:linear-gradient(135deg,color-mix(in srgb,var(--c) 18%,var(--surface)),color-mix(in srgb,var(--c) 6%,var(--surface)));border:1px solid color-mix(in srgb,var(--c) 25%,var(--line))}
+  .side .nav-cuad svg.i{width:19px;height:19px;color:var(--c)}
+}
+/* v2.29 · Cantidad escribible en las líneas del carrito: se ve como el número de antes; al tocarlo, un recuadro suave */
+.lc-cont input.cant{width:36px;min-width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:8px;background:transparent;font:inherit;font-weight:600;font-size:15px;text-align:center;color:var(--ink);outline:0;-webkit-appearance:none;appearance:none}
+.lc-cont input.cant:hover{border-color:var(--line)}
+.lc-cont input.cant:focus,.lc-cont input.cant:focus-visible{border-color:transparent;background:transparent;box-shadow:none;outline:0}
+.lc-cont input.cant:hover{border-color:transparent}
+/* v2.31 · PC: cambiar o quitar el cliente del carrito */
+.pc-cli-fila{display:flex;align-items:center;gap:6px}
+.pc-cli-fila .pc-cli-acc{width:44px;height:48px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--muted);flex:none;display:grid;place-items:center}
+.pc-cli-fila .pc-cli-acc:hover{color:var(--ink);background:var(--surface-2)}
+.pc-cli-fila #pc-cliente-quitar:hover{color:var(--r-tx);border-color:var(--r-bd);background:var(--r-bg)}
+.pc-cli-fila .pc-cli-acc svg.i{width:18px;height:18px}
