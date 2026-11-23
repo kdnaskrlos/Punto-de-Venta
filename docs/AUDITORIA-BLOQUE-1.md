@@ -32,7 +32,7 @@ contenedor_pos=$(docker run -d --rm -p 127.0.0.1:9849:8080 \
   google/cloud-sdk@sha256:7238e47ca03f43296f380010193eedd7ce7cac69efcae36ff7b0a75e0cd879e8 \
   gcloud beta emulators firestore start --project=demo-pos-bloque1 --host-port=0.0.0.0:8080)
 trap 'docker stop "$contenedor_pos" >/dev/null' EXIT
-curl --fail --retry 30 --retry-connrefused --retry-delay 1 http://127.0.0.1:9849/
+curl --fail --retry 30 --retry-all-errors --max-time 2 --retry-delay 1 http://127.0.0.1:9849/
 NODE_PATH="$lab_pos/node_modules" FIRESTORE_EMULATOR_HOST=127.0.0.1:9849 node --test pruebas/firebase/cobros.cjs
 ```
 
