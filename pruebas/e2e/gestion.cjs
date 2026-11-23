@@ -366,7 +366,7 @@ casos('gestion', [
     });
   }],
   ['Modo demo (teléfono): ver como vendedora quita lo de gestión y «Salir» vuelve', async (env, a) => {
-    const p = await env.pagina({ ancho: 360, alto: 780, ruta: '/mas' });
+    const p = await env.pagina({ ancho: 360, alto: 780, query: '?demo&entrar', ruta: '/mas' });
     await p.click('#modo-demo');
     await p.click('.demo-roles [data-rol="vendedora"]');
     await p.waitForSelector('#aviso-demo:not([hidden])');
