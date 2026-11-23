@@ -1,10 +1,10 @@
 // Cada versión toma todos sus recursos de la misma caché. El worker anterior
 // sigue atendiendo la app hasta que la instalación de la nueva esté completa.
 // scripts/preparar-publicacion.cjs fija una ruta y una huella para el árbol servido.
-const PUBLICACION = {"prefijo":"versiones/v2.37-2e50fb44e3096a44/","cache":"pos-v2.37-2e50fb44e3096a44","huella":"f1ed1a6e01929b0cfbbcec8ad1b9358ec993be2de13fc1f71d0ff860cf09e40f"};
-const CACHE = PUBLICACION?.cache || 'pos-v2.37';
+const PUBLICACION = {"prefijo":"versiones/v2.38-aaf31b8ccb36721b/","cache":"pos-v2.38-aaf31b8ccb36721b","huella":"49d4fb828d84dd921d9e1a772dcb2cf937fca04e40f03035b0d4995939a6d945"};
+const CACHE = PUBLICACION?.cache || 'pos-v2.38';
 // Generada con node pruebas/pwa/huella.cjs al preparar la publicación.
-const HUELLA_APP = '4ce168bbe7ea0c70fbe66ac3a43cd9c42532f314c146b4b8e536f6ee07cc9b30';
+const HUELLA_APP = '76abdb254410ef86ce0c0793614a66d4e95f48a47e5555593204611212e49847';
 const ANTERIOR = 'pos-v2.35';
 const LIBS = 'libs-v1';
 const FOTOS = 'fotos-v1';
