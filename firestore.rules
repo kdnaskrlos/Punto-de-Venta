@@ -21,6 +21,22 @@ service cloud.firestore {
     function sinIniciar() { return !exists(estadoPath()); }
     function seIniciaAhora() { return sinIniciar() && existsAfter(estadoPath()); }
     function soloCambian(campos) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos); }
+    function contadorVentas() { return /databases/$(database)/documents/contadores/ventas; }
+    function ventaPath(id) { return /databases/$(database)/documents/ventas/$(id); }
+    function apartadoPath(id) { return /databases/$(database)/documents/apartados/$(id); }
+    function cobroPath(id) { return /databases/$(database)/documents/usuarios/$(request.auth.uid)/operacionesCobro/$(id); }
+    function numeracionPropia(id) {
+      let contador = getAfter(contadorVentas()).data;
+      let previo = exists(contadorVentas()) ? get(contadorVentas()).data.n : 0;
+      return activo() && resource.data.uid == request.auth.uid && resource.data.usuario == yo()
+        && contador.ventaId == id && contador.numero == request.resource.data.numero && contador.n == previo + 1;
+    }
+    function cambioConMovimiento(sku) {
+      let mov = getAfter(/databases/$(database)/documents/movimientos/$(request.resource.data.ultimoMov)).data;
+      let delta = request.resource.data.existencia - resource.data.existencia;
+      return mov.sku == sku && mov.cantidad == delta
+        && (!(mov.motivo in ['venta', 'apartado']) || (delta < 0 && request.resource.data.existencia >= 0));
+    }
     function cajaAbiertaPath(u) { return /databases/$(database)/documents/cajaAbierta/$(u); }
 
     // Estado del sistema: público (la pantalla de entrada necesita saber si ya hay administrador).
@@ -48,12 +64,12 @@ service cloud.firestore {
     match /productos/{sku} {
       allow read: if activo();
       allow create, delete: if esAdmin();
-      // v2.27: los demás solo cambian la existencia junto con su movimiento de inventario (misma escritura),
-      // y la diferencia tiene que ser exactamente la cantidad del movimiento.
-      allow update: if esAdmin() || (activo() && soloCambian(['existencia', 'ultimoMov'])
-        && getAfter(/databases/$(database)/documents/movimientos/$(request.resource.data.ultimoMov)).data.sku == sku
-        && getAfter(/databases/$(database)/documents/movimientos/$(request.resource.data.ultimoMov)).data.cantidad
-           == request.resource.data.existencia - resource.data.existencia);
+      // Ventas y reservas llevan su movimiento aun para administración. Si el decremento
+      // deja saldo negativo, se rechaza el lote completo. Se preservan los ajustes e importaciones de gestión.
+      allow update: if (esAdmin() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ultimoMov']))
+        || (activo() && soloCambian(['existencia', 'ultimoMov'])
+          && request.resource.data.ultimoMov != resource.data.get('ultimoMov', null)
+          && cambioConMovimiento(sku));
     }
 
     // Costos: solo administrador y encargada los ven; solo el administrador los cambia (importación).
@@ -81,9 +97,11 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.estado == 'ok'
         && get(/databases/$(database)/documents/cajas/$(request.resource.data.cajaId)).data.usuario == yo();
-      allow update: if esGestion() && (
-          (resource.data.estado == 'ok' && request.resource.data.estado == 'anulada' && soloCambian(['estado', 'anulacion']))
-          || (resource.data.numero == null && soloCambian(['numero'])));
+      allow update: if
+        (esGestion() && resource.data.estado == 'ok' && request.resource.data.estado == 'anulada' && soloCambian(['estado', 'anulacion']))
+        || (resource.data.numero == null && request.resource.data.numero is string
+          && request.resource.data.numero.matches('V-[0-9]{4,}') && soloCambian(['numero'])
+          && (esGestion() || numeracionPropia(id)));
       allow delete: if false;
     }
 
@@ -101,12 +119,42 @@ service cloud.firestore {
       allow read: if activo();
       allow create: if activo() && request.resource.data.usuario == yo() && request.resource.data.estado == 'pendiente';
       allow update: if activo() && resource.data.estado == 'pendiente' && (
-          (soloCambian(['abonos', 'saldo']) && request.resource.data.abonos.hasAll(resource.data.abonos)
-            && request.resource.data.saldo <= resource.data.saldo && request.resource.data.saldo >= 0)
+          (soloCambian(['abonos', 'saldo', 'ultimoAbono']) && request.resource.data.abonos.hasAll(resource.data.abonos)
+            && request.resource.data.abonos.size() > resource.data.abonos.size()
+            && request.resource.data.saldo <= resource.data.saldo && request.resource.data.saldo >= 0
+            && (request.resource.data.get('ultimoAbono', null) == resource.data.get('ultimoAbono', null)
+              || abonoMarcado(id)))
           || (soloCambian(['estado', 'ventaId', 'saldo']) && request.resource.data.estado == 'completado'
-            && existsAfter(/databases/$(database)/documents/ventas/$(request.resource.data.ventaId)))
+            && getAfter(ventaPath(request.resource.data.ventaId)).data.desdeApartado == id
+            && getAfter(ventaPath(request.resource.data.ventaId)).data.abonosPrevios == resource.data.total - resource.data.saldo)
           || (esGestion() && soloCambian(['estado', 'cancelacion']) && request.resource.data.estado == 'cancelado'));
       allow delete: if false;
+    }
+
+    function abonoMarcado(apartadoId) {
+      let ruta = cobroPath(request.resource.data.ultimoAbono);
+      let marca = getAfter(ruta).data;
+      return !exists(ruta) && marca.que == 'abono' && marca.apartadoId == apartadoId
+        && marca.estadoSync == 'confirmada_servidor';
+    }
+
+    // Marcas inmutables del resultado, en la misma escritura que el cobro o el conflicto.
+    function documentoCobrado(p, id) {
+      return (p.que in ['venta', 'completar'] && getAfter(ventaPath(p.refId)).data.uid == request.auth.uid)
+        || (p.que == 'apartado' && getAfter(apartadoPath(p.refId)).data.uid == request.auth.uid)
+        || (p.que == 'abono' && getAfter(apartadoPath(p.apartadoId)).data.ultimoAbono == id);
+    }
+    match /usuarios/{uid}/operacionesCobro/{id} {
+      allow get: if activo() && uid == request.auth.uid;
+      allow create: if activo() && uid == request.auth.uid
+        && request.resource.data.que in ['venta', 'apartado', 'abono', 'completar']
+        && id == request.resource.data.que + ':' + request.resource.data.refId
+        && request.resource.data.orden is int && request.resource.data.orden > 0
+        && request.resource.data.dispositivo is string && request.resource.data.fecha is string
+        && (request.resource.data.estadoSync == 'confirmada_servidor' && documentoCobrado(request.resource.data, id)
+          || request.resource.data.estadoSync == 'rechazada_conflicto'
+            && getAfter(/databases/$(database)/documents/conflictos/$(request.resource.data.conflictoId)).data.uid == uid);
+      allow list, update, delete: if false;
     }
 
     // Cajas: cada quien la suya. Gestión puede agregar movimientos (devoluciones) a una caja abierta ajena; el admin reabre.
