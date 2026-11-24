@@ -1,0 +1,18 @@
+    // Solo se carga en la prueba del emulador. No forma parte de firestore.rules.
+    match /usuarios/{uid}/solicitudesVentaQA/{id} {
+      allow get: if request.auth != null && request.auth.uid == uid && activo();
+      allow create: if request.auth != null && request.auth.uid == uid && activo()
+        && solicitudValida(id, request.resource.data);
+      allow list, update, delete: if false;
+    }
+
+    function solicitudValida(id, s) {
+      let v = s.venta;
+      return s.keys().hasOnly(['venta', 'orden', 'dispositivo', 'recibida'])
+        && s.orden is int && s.orden > 0 && s.recibida == request.time
+        && s.dispositivo is string && s.dispositivo.size() > 0 && s.dispositivo.size() <= 120
+        && v is map && v.keys().hasOnly(['id', 'cajaId', 'fecha', 'cliente', 'lineas', 'subtotal',
+          'descuento', 'total', 'pagos', 'vuelto', 'tasas'])
+        && v.id == id && v.fecha is string && v.cajaId is string
+        && v.lineas is list && v.lineas.size() > 0;
+    }

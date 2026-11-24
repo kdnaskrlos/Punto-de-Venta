@@ -23,7 +23,7 @@ const app = initializeApp({ projectId, apiKey: process.env.POS_QA_API_KEY, authD
 const auth = getAuth(app), db = getFirestore(app);
 const fecha = new Date().toISOString();
 const base = 'qa-' + randomUUID().replace(/-/g, '').slice(0, 16);
-const cantidades = [1, 8, 12, 16, 20, 24, 32, 48, 64];
+const cantidades = [1, 8, 12, 16, 17, 18, 19, 20, 21, 24, 32, 48, 64];
 
 async function main() {
   const cred = await signInWithEmailAndPassword(auth, process.env.POS_QA_EMAIL, process.env.POS_QA_PASSWORD);
