@@ -44,9 +44,9 @@ async function cesta({ uid, usuario, idCaja, n, falta }) {
 
   const { calcularCarrito } = await import('../../js/nucleo/tramos.js');
   const { comisionesVenta } = await import('../../js/nucleo/comisiones.js');
-  const productos = Object.fromEntries(skus.map(sku => [sku, { precios: [10000, 10000, 10000, 10000, 10000] }]));
-  const calculo = calcularCarrito(skus.map(sku => ({ sku, cantidad: 1 })), productos);
-  const comisiones = comisionesVenta(calculo.lineas, productos);
+  const catalogo = Object.fromEntries(skus.map(sku => [sku, { precios: [10000, 10000, 10000, 10000, 10000] }]));
+  const calculo = calcularCarrito(skus.map(sku => ({ sku, cantidad: 1 })), catalogo);
+  const comisiones = comisionesVenta(calculo.lineas, catalogo);
   const venta = { id: ventaId, cajaId: idCaja, fecha, creada: fecha, offline: false,
     subtotal: 10000 * n, total: 10000 * n,
     lineas: calculo.lineas.map((l, i) => ({ ...l, descuento: 0, comision: comisiones[i].comision, reducida: false })),
