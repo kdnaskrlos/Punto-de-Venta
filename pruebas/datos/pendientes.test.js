@@ -74,3 +74,26 @@ test('confirmar una venta conserva el abono anotado mientras se esperaba al serv
   await revision;
   assert.deepEqual(leerPendientes('pruebas').map(p => [p.que, p.id, p.apartadoId]), [['abono', 'abono-2', 'ap1']]);
 });
+
+test('la demostración reconcilia su cola sin retirar pendientes reales con el mismo usuario', async t => {
+  const datos = new Map();
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+    getItem: clave => datos.get(clave) ?? null,
+    setItem: (clave, valor) => datos.set(clave, valor),
+    removeItem: clave => datos.delete(clave),
+  } });
+  t.after(() => original ? Object.defineProperty(globalThis, 'localStorage', original) : delete globalThis.localStorage);
+  const sesion = { uid: 'sintetico', usuario: 'admin' };
+  const ctx = { sesion, almacen: {
+    esDemostracion: true,
+    esperarSubidas: async () => true,
+    verificarServidor: async (_col, id) => { assert.equal(id, 'demo'); return { id }; },
+    registrarConflicto: async () => ({ ok: true }),
+  } };
+  anotarPendiente({ sesion }, { que: 'venta', id: 'real-sintetico' });
+  anotarPendiente(ctx, { que: 'venta', id: 'demo' });
+  await revisarPendientes(ctx);
+  assert.deepEqual(leerPendientes('admin').map(p => p.id), ['real-sintetico']);
+  assert.deepEqual(leerPendientes('admin', true), []);
+});

@@ -5,7 +5,7 @@ export const LOCAL_PENDIENTE = 'local_pendiente';
 export const CONFIRMADA_SERVIDOR = 'confirmada_servidor';
 export const RECHAZADA_CONFLICTO = 'rechazada_conflicto';
 
-const clave = usuario => 'pos-pendientes-' + (usuario || '');
+const clave = (usuario, demo) => (demo ? 'pos-demo-pendientes-' : 'pos-pendientes-') + (usuario || '');
 const prefijo = usuario => 'pos-cobro-' + usuario + ':';
 export const claveOperacion = p => p.que + ':' + p.id;
 const claveCobro = (usuario, p) => prefijo(usuario) + claveOperacion(p);
@@ -34,15 +34,16 @@ export function resolverCobro(usuario, p, estadoSync) {
   } catch { /* el comprobante original sigue disponible para la conciliación */ }
 }
 
-function leerLegados(usuario) {
+function leerLegados(usuario, demo) {
   try {
-    const lista = JSON.parse(localStorage.getItem(clave(usuario)) || '[]');
+    const lista = JSON.parse(localStorage.getItem(clave(usuario, demo)) || '[]');
     return Array.isArray(lista) ? lista : [];
   } catch { return []; }
 }
 
-export function leerPendientes(usuario) {
-  const anteriores = leerLegados(usuario);
+export function leerPendientes(usuario, demo = false) {
+  const anteriores = leerLegados(usuario, demo);
+  if (demo) return anteriores;
   const nuevos = [];
   try {
     for (let i = 0; i < localStorage.length; i++) {
@@ -54,16 +55,17 @@ export function leerPendientes(usuario) {
   } catch { /* quedan disponibles los pendientes ya leídos */ }
   return anteriores.concat(nuevos.sort((a, b) => a.orden - b.orden));
 }
-function escribir(usuario, lista) {
-  try { if (lista.length) localStorage.setItem(clave(usuario), JSON.stringify(lista)); else localStorage.removeItem(clave(usuario)); } catch { /* sin almacenamiento */ }
+function escribir(usuario, lista, demo) {
+  try { if (lista.length) localStorage.setItem(clave(usuario, demo), JSON.stringify(lista)); else localStorage.removeItem(clave(usuario, demo)); } catch { /* sin almacenamiento */ }
 }
 
 // p: { que: 'venta'|'apartado'|'abono'|'completar', id, apartadoId?, abonoId?, offline, datos, resumen }
 export function anotarPendiente(ctx, p) {
   const u = ctx.sesion?.usuario; if (!u) return;
-  const lista = leerLegados(u).filter(x => !(x.que === p.que && x.id === p.id));
+  const demo = !!ctx.almacen?.esDemostracion;
+  const lista = leerLegados(u, demo).filter(x => !(x.que === p.que && x.id === p.id));
   lista.push({ ...p, anotado: new Date().toISOString() });
-  escribir(u, lista);
+  escribir(u, lista, demo);
 }
 
 const resumenDe = d => ({
@@ -109,7 +111,8 @@ export async function revisarPendientes(ctx) {
   const u = ctx.sesion?.usuario, uid = ctx.sesion?.uid, almacen = ctx.almacen;
   const mismaSesion = () => ctx.sesion?.usuario === u && ctx.sesion?.uid === uid && ctx.almacen === almacen;
   if (revisando || !u || !almacen?.verificarServidor) return;
-  const lista = leerPendientes(u);
+  const demo = !!almacen.esDemostracion;
+  const lista = leerPendientes(u, demo);
   if (!lista.length) return;
   revisando = true;
   try {
@@ -125,7 +128,7 @@ export async function revisarPendientes(ctx) {
       if (p.orden != null) resolverCobro(u, p, CONFIRMADA_SERVIDOR);
       else {
         const confirmado = JSON.stringify(p);
-        escribir(u, leerLegados(u).filter(actual => JSON.stringify(actual) !== confirmado));
+        escribir(u, leerLegados(u, demo).filter(actual => JSON.stringify(actual) !== confirmado), demo);
       }
     }
   } catch { /* espera o sesión interrumpida: se reintenta con los mismos IDs */ }
@@ -137,6 +140,6 @@ export function vigilarPendientes(ctx) {
   const ir = () => revisarPendientes(ctx).catch(() => {});
   window.addEventListener('online', () => setTimeout(ir, 1500));
   window.addEventListener('pos:cobros-sync', ir);
-  setInterval(() => { if (ctx.sesion && leerPendientes(ctx.sesion.usuario).length) ir(); }, 2 * 60 * 1000);
+  setInterval(() => { if (ctx.sesion && leerPendientes(ctx.sesion.usuario, !!ctx.almacen?.esDemostracion).length) ir(); }, 2 * 60 * 1000);
   return ir;
 }

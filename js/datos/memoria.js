@@ -123,6 +123,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
   const exigir = accion => (!sesion ? 'sesion' : !puede(rol(), accion) ? 'permiso' : null);
 
   const api = {
+    esDemostracion: true,
     nuevoId,
     _estado: nombre => col[nombre],
 
