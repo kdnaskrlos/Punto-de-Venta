@@ -47,3 +47,24 @@ jobs:
           trap 'docker logs --tail 40 "$contenedor_pos"; docker stop "$contenedor_pos" >/dev/null' EXIT
           curl --fail --silent --show-error --retry 45 --retry-all-errors --max-time 2 --retry-delay 1 http://127.0.0.1:9849/
           NODE_PATH="$RUNNER_TEMP/pos-firestore/node_modules" FIRESTORE_EMULATOR_HOST=127.0.0.1:9849 node --test pruebas/firebase/cobros.cjs
+
+  candidato-piloto:
+    if: github.head_ref == 'integracion/pos-auditoria'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Preparar sitios de piloto sin Firebase
+        run: node scripts/preparar-piloto.cjs "$RUNNER_TEMP/pos-piloto"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pos-v2.43-piloto-pc-android
+          path: ${{ runner.temp }}/pos-piloto
+          include-hidden-files: true
+          if-no-files-found: error
