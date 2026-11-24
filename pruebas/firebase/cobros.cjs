@@ -8,7 +8,7 @@ const { before, after, test } = require('node:test');
 const host = process.env.FIRESTORE_EMULATOR_HOST;
 if (!/^127\.0\.0\.1:[1-9]\d{0,4}$/.test(host || '')) throw new Error('BLOQUEADO: requiere Firestore Emulator en 127.0.0.1');
 const { assertFails, initializeTestEnvironment } = require('@firebase/rules-unit-testing');
-const { collection, doc, getDocsFromServer, getDocFromServer, increment, writeBatch, setDoc, disableNetwork, enableNetwork, onSnapshot } = require('firebase/firestore');
+const { collection, doc, getDocsFromServer, getDocFromServer, increment, writeBatch, setDoc, updateDoc, deleteDoc, serverTimestamp, disableNetwork, enableNetwork, onSnapshot } = require('firebase/firestore');
 
 const proyecto = 'demo-pos-bloque1';
 const reglas = readFileSync(path.resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -390,4 +390,118 @@ test('el POS aplica cestas grandes del adaptador completo y el reintento conserv
   const movimientos = await getDocsFromServer(collection(b, 'movimientos'));
   assert.equal(movimientos.size, skus.length);
   assert.deepEqual(new Set(movimientos.docs.map(d => d.data().sku)), new Set(skus));
+});
+
+test('la actividad crítica exige autoría real y una transición atómica del documento referenciado', async t => {
+  await preparar();
+  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+  const registro = (id, tipo, col, refId, rol = 'vendedora') => ({
+    id, tipo, ref: { col, id: refId }, en: serverTimestamp(), uid: 'a', usuario: 'a', rol,
+  });
+  await t.test('rechaza ventas y aprobaciones inventadas por una vendedora', async () => {
+    await assertFails(setDoc(doc(a, 'eventos', 'inventada'), registro('inventada', 'venta.creada', 'ventas', 'ausente')));
+    await assertFails(setDoc(doc(a, 'eventos', 'aprobada'), registro('aprobada', 'descuento.aprobado', 'autorizaciones', 'ausente', 'admin')));
+  });
+  await t.test('admite formato anterior para una venta real, sin suplantación ni repetición', async () => {
+    const venta = { id: 'real', usuario: 'a', uid: 'a', cajaId: 'a', estado: 'ok', fecha };
+    const conVenta = (id, rol) => {
+      const lote = writeBatch(a);
+      lote.set(doc(a, 'ventas', venta.id), venta);
+      lote.set(doc(a, 'eventos', id), registro(id, 'venta.creada', 'ventas', venta.id, rol));
+      return lote.commit();
+    };
+    await assertFails(conVenta('suplantada', 'admin'));
+    await conVenta('real', 'vendedora');
+    await assertFails(setDoc(doc(a, 'eventos', 'repetida'), registro('repetida', 'venta.creada', 'ventas', venta.id)));
+    await assertFails(getDocFromServer(doc(a, 'eventos', 'real')));
+    assert.equal((await getDocFromServer(doc(b, 'eventos', 'real'))).data().rol, 'vendedora');
+    await assertFails(updateDoc(doc(b, 'eventos', 'real'), { rol: 'admin' }));
+    await assertFails(deleteDoc(doc(b, 'eventos', 'real')));
+  });
+});
+
+test('solo el admin puede aprobar con su propia identidad y un estado resolutivo', async () => {
+  await preparar();
+  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+  const solicitud = { uid: 'a', usuario: 'a', solicita: 'a', estado: 'pendiente' };
+  await assertFails(setDoc(doc(a, 'autorizaciones', 'ajena'), { ...solicitud, uid: 'b', solicita: 'b' }));
+  await setDoc(doc(a, 'autorizaciones', 'aut'), solicitud);
+  await assertFails(updateDoc(doc(b, 'autorizaciones', 'aut'), { estado: 'aprobada', aprueba: 'a', respondida: fecha }));
+  await assertFails(updateDoc(doc(b, 'autorizaciones', 'aut'), { estado: 'inventado', aprueba: 'b', respondida: fecha }));
+  await assertFails(updateDoc(doc(a, 'autorizaciones', 'aut'), { estado: 'aprobada', aprueba: 'a', respondida: fecha }));
+  await updateDoc(doc(b, 'autorizaciones', 'aut'), { estado: 'aprobada', aprueba: 'b', respondida: fecha });
+  assert.equal((await getDocFromServer(doc(a, 'autorizaciones', 'aut'))).data().aprueba, 'b');
+});
+
+test('la importación conserva el lote aplicado y reanuda sin sobrescribir existencias cambiadas', { timeout: 45000 }, async t => {
+  await preparar({ skus: ['z'] });
+  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+  const { posB } = await prepararAdaptadores(t, a, b);
+  const plan = {
+    nuevos: ['i1', 'i2'].map(sku => ({ sku, existencia: 2, costo: 1000 })),
+    cambios: [],
+    existencias: [{ sku: 'z', antes: 2, despues: 5 }],
+  };
+  const fallo = await posB.aplicarImportacion(plan, { existencias: true });
+  assert.equal(fallo.ok, false);
+  assert.equal(fallo.error, 'conflicto');
+  assert.equal(fallo.lotesAplicados, 1);
+  const id = fallo.importacionId;
+  assert.equal(typeof id, 'string');
+  const cabecera = doc(b, 'importaciones', id);
+  const lote = doc(b, 'importaciones', id, 'lotes', '0');
+  const detalle = doc(b, 'importaciones', id, 'lotes', '0', 'detalles', 'i1');
+  assert.equal((await getDocFromServer(cabecera)).data().siguiente, 1);
+  assert.equal((await getDocFromServer(lote)).data().uid, 'b');
+  assert.equal((await getDocFromServer(detalle)).data().existenciaAntes, null);
+  const aplicado = (await getDocFromServer(detalle)).data();
+  assert.equal(aplicado.existenciaDespues, 2);
+  const mov = (await getDocFromServer(doc(b, 'movimientos', aplicado.movimientoId))).data();
+  assert.equal(mov.importacionId, id);
+  assert.equal(mov.loteImportacion, '0');
+  assert.equal(mov.cantidad, 2);
+  await assertFails(setDoc(doc(b, 'movimientos', 'importacion-falsa'), { ...mov, id: 'importacion-falsa' }));
+  assert.equal((await getDocFromServer(doc(b, 'productos', 'z'))).data().existencia, 1);
+  await assertFails(updateDoc(detalle, { existenciaDespues: 99 }));
+  await assertFails(deleteDoc(lote));
+  await assertFails(getDocFromServer(doc(a, 'importaciones', id)));
+
+  await updateDoc(doc(b, 'productos', 'z'), { existencia: 2 });
+  await updateDoc(doc(b, 'productos', 'i1'), { existencia: 1 });
+  const recuperada = await posB.aplicarImportacion(plan, { existencias: true });
+  assert.equal(recuperada.ok, true);
+  assert.equal(recuperada.importacionId, id);
+  assert.equal((await getDocFromServer(cabecera)).data().siguiente, 2);
+  assert.equal((await getDocFromServer(doc(b, 'productos', 'i1'))).data().existencia, 1);
+  assert.equal((await getDocFromServer(doc(b, 'productos', 'z'))).data().existencia, 5);
+});
+
+test('caja, descuentos, ajustes y cliente generan sus eventos desde el adaptador', { timeout: 45000 }, async t => {
+  await preparar();
+  await entorno.withSecurityRulesDisabled(contexto => deleteDoc(doc(contexto.firestore(), 'cajas', 'a')));
+  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+  const { posA, posB } = await prepararAdaptadores(t, a, b);
+  const caja = await posA.abrirCaja({ COP: 10000 });
+  assert.equal(caja.ok, true);
+  assert.equal((await posA.movimientoCaja(caja.id, { tipo: 'salida', forma: 'efectivo-cop', monto: 1000, moneda: 'COP' })).ok, true);
+  assert.equal((await posA.cerrarCaja(caja.id, { totalCop: 0 })).ok, true);
+
+  const solicitud = await posA.solicitarAutorizacion({ tipo: 'monto', valor: 1000, subtotal: 22000 });
+  assert.equal(solicitud.ok, true);
+  assert.equal((await posB.responderAutorizacion(solicitud.id, true)).ok, true);
+  assert.equal((await posB.ajustarExistencia('ultimo', 1, 'conteo sintético')).ok, true);
+  assert.equal((await posB.guardarAjustes('tasas', { copPorUsd: 4100 })).ok, true);
+  assert.equal((await posA.guardarCliente({ telefono: '+573001234567', nombre: 'Persona sintética' })).ok, true);
+  assert.equal(await posA.esperarSubidas(), true);
+  assert.equal(await posB.esperarSubidas(), true);
+
+  const eventos = new Map((await getDocsFromServer(collection(b, 'eventos'))).docs.map(s => [s.data().tipo, s.data()]));
+  for (const [tipo, uid] of [
+    ['caja.abierta', 'a'], ['caja.salida', 'a'], ['caja.cerrada', 'a'], ['descuento.pedido', 'a'],
+    ['descuento.aprobado', 'b'], ['inventario.ajuste', 'b'], ['ajustes.cambiados', 'b'], ['cliente.guardado', 'a'],
+  ]) {
+    assert.equal(eventos.get(tipo)?.uid, uid, tipo);
+    assert.ok(eventos.get(tipo).en.toMillis() > 0, tipo);
+  }
+  assert.doesNotMatch(eventos.get('cliente.guardado').resumen, /Persona sintética/);
 });

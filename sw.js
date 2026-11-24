@@ -4,7 +4,7 @@
 const PUBLICACION = null;
 const CACHE = PUBLICACION?.cache || 'pos-v2.43';
 // Generada con node pruebas/pwa/huella.cjs al preparar la publicación.
-const HUELLA_APP = 'c417d3a9f69fb65802d8004cd79992352a207b03cee9e6a62a186bffea695322';
+const HUELLA_APP = 'ee3b61c2429db3968b6c31051d50e6381859a3d0273a921b4cc7613f691c5c66';
 const ANTERIOR = 'pos-v2.35';
 const LIBS = 'libs-v1';
 const FOTOS = 'fotos-v1';

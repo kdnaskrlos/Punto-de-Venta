@@ -18,7 +18,7 @@ if (process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_AUTH_EMULATOR_HO
 }
 const { initializeApp, deleteApp } = require('firebase/app');
 const { getAuth, signInWithEmailAndPassword, signOut } = require('firebase/auth');
-const { getFirestore, doc, writeBatch, getDocFromServer, setDoc, increment } = require('firebase/firestore');
+const { getFirestore, doc, writeBatch, getDocFromServer, increment, serverTimestamp } = require('firebase/firestore');
 const app = initializeApp({ projectId, apiKey: process.env.POS_QA_API_KEY, authDomain: projectId + '.firebaseapp.com' });
 const auth = getAuth(app), db = getFirestore(app);
 const fecha = new Date().toISOString();
@@ -55,6 +55,11 @@ async function main() {
       que:'venta', refId:ventaId, fecha, dispositivo:'qa-remoto', orden:n,
       apartadoId:null, estadoSync:'confirmada_servidor',
     });
+    const eventoId = ventaId + '-evento';
+    lote.set(doc(db, 'eventos', eventoId), {
+      id: eventoId, uid: cred.user.uid, usuario, rol: perfil.data().rol, dispositivo: 'qa-remoto',
+      en: serverTimestamp(), fecha, tipo: 'venta.creada', ref: { col: 'ventas', id: ventaId },
+    });
     const movimientos = skus.map((_, i) => base + '-mov-' + n + '-' + i);
     skus.forEach((sku,i) => {
       const movId = movimientos[i];
@@ -65,10 +70,11 @@ async function main() {
     });
     let aceptado=true, error=null;
     try { await lote.commit(); } catch (e) { aceptado=false; error=e.code || e.message; }
-    const [productoSnap, ventaSnap, marcaSnap, movSnaps] = await Promise.all([
+    const [productoSnap, ventaSnap, marcaSnap, eventoSnap, movSnaps] = await Promise.all([
       Promise.all(skus.map(sku => getDocFromServer(doc(db, 'productos', sku)))),
       getDocFromServer(doc(db, 'ventas', ventaId)),
       getDocFromServer(doc(db, 'usuarios', cred.user.uid, 'operacionesCobro', 'venta:' + ventaId)),
+      getDocFromServer(doc(db, 'eventos', eventoId)),
       Promise.all(movimientos.map(id => getDocFromServer(doc(db, 'movimientos', id)))),
     ]);
     const stockCorrecto = productoSnap.every(x => x.exists() && x.data().existencia === (aceptado ? 0 : 1));
@@ -79,7 +85,8 @@ async function main() {
         && productoSnap[i].data()?.ultimoMov === snap.id;
     });
     const correcto = stockCorrecto && movimientosCorrectos
-      && ventaSnap.exists() === aceptado && marcaSnap.exists() === aceptado;
+      && ventaSnap.exists() === aceptado && marcaSnap.exists() === aceptado
+      && eventoSnap.exists() === aceptado;
     assert.ok(correcto, 'INTEGRIDAD ROTA: cesta ' + n + ' escrituras parciales');
     resultados.push({ sku:n, estado:aceptado?'ACEPTADA':'RECHAZADA ATÓMICAMENTE', error });
     console.log('SKU', n, '=>', aceptado ? 'ACEPTADA' : 'RECHAZADA ATÓMICAMENTE', error || '');

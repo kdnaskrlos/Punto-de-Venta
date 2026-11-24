@@ -139,7 +139,13 @@ async function abrirSincronizar(ctx, costos, alTerminar) {
     aplicar.replaceChildren(icono('check'), 'Aplicando…');
     const conExistencias = conExist.checked;
     const r = await ctx.almacen.aplicarImportacion(plan, { existencias: conExistencias });
-    if (!r.ok) { aplicar.replaceChildren(icono('check'), 'Aplicar cambios'); toast(r.error === 'permiso' ? 'Firebase no dio permiso para guardar' : 'No se pudo sincronizar. No se cambió nada.', { malo: true }); return; }
+    if (!r.ok) {
+      aplicar.replaceChildren(icono('check'), 'Aplicar cambios');
+      const motivo = r.error === 'permiso' ? 'Firebase no dio permiso para guardar'
+        : r.error === 'conflicto' ? 'El inventario cambió después de la vista previa' : 'Se interrumpió la sincronización';
+      const avance = r.lotesAplicados ? ` · ${r.lotesAplicados} lotes confirmados` : '';
+      toast(motivo + avance, { malo: true }); return;
+    }
     const cuando = new Date().toISOString();
     await ctx.almacen.guardarAjustes('general', { ultimaSincronizacion: cuando, archivoSincronizado: json.at || null });
     v.cerrar();

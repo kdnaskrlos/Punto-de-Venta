@@ -43,6 +43,29 @@ function cumpleFiltro(d, f) {
   return true;
 }
 
+function filasImportacion(plan, existencias) {
+  const filas = new Map();
+  for (const p of plan.nuevos || []) {
+    const { sku, costo, existencia, ...campos } = p;
+    filas.set(sku, { sku, nuevo: true, campos: { ...campos, sku, existencia: existencia || 0, activo: true }, valorCosto: costo ?? null });
+  }
+  for (const { sku, campos } of plan.cambios || []) {
+    const { costo, existencia, ...otros } = campos;
+    if (Object.keys(otros).length || costo != null) filas.set(sku, { sku, campos: otros, valorCosto: costo ?? null });
+  }
+  if (existencias) for (const { sku, antes, despues } of plan.existencias || []) {
+    filas.set(sku, { ...(filas.get(sku) || { sku, campos: {} }), stock: { antes, despues } });
+  }
+  return [...filas.values()].sort((a, b) => a.sku < b.sku ? -1 : a.sku > b.sku ? 1 : 0);
+}
+
+async function idImportacion(uid, filas) {
+  const json = JSON.stringify([uid, filas], (_, valor) => valor?.constructor === Object
+    ? Object.fromEntries(Object.keys(valor).sort().map(clave => [clave, valor[clave]])) : valor);
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(json));
+  return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
 export function crearFirebase(config) {
   const app = initializeApp(config);
   const auth = getAuth(app);
@@ -700,36 +723,77 @@ export function crearFirebase(config) {
       anotar(b, 'ajustarExistencia', [sku, cantidad, motivo, nota], { nombre: nombreDeSku(sku) });
       return sinEsperar(b.commit());
     },
-    // Lotes de hasta 450 escrituras. Si se corta, repetir la importación es seguro: lo ya creado sale como "sin cambios".
-    // { existencias: true } aplica también la existencia del archivo a los que ya existen (con su movimiento).
+    // Dos SKU por transacción: cada detalle comprueba producto y costo antes y después en las reglas.
     async aplicarImportacion(plan, { existencias = false } = {}) {
       const e = exigir('importar'); if (e) return NO(e);
-      const fecha = ahora();
-      const ops = [];
-      for (const p of plan.nuevos || []) {
-        const { costo, existencia, ...resto } = p;
-        ops.push(b => b.set(ref('productos', p.sku), { ...resto, existencia: existencia || 0, activo: true }));
-        if (existencia) ops.push(b => b.set(...movimiento(p.sku, existencia, 'importación', null)));
-        if (costo != null) ops.push(b => b.set(ref('costos', p.sku), { sku: p.sku, costo, historial: [{ costo, desde: fecha }] }));
-      }
-      for (const { sku, campos } of plan.cambios || []) {
-        const { costo, existencia, ...resto } = campos;
-        if (Object.keys(resto).length) ops.push(b => b.update(ref('productos', sku), resto));
-        if (costo != null) ops.push(b => b.set(ref('costos', sku), { sku, costo, historial: arrayUnion({ costo, desde: fecha }) }, { merge: true }));
-      }
-      if (existencias) for (const { sku, antes, despues } of plan.existencias || []) {
-        ops.push(b => b.update(ref('productos', sku), { existencia: despues }));
-        ops.push(b => b.set(...movimiento(sku, despues - antes, 'sincronización', null, 'Existencia de la Carga Masiva')));
-      }
+      const { uid, usuario } = sesion;
+      const aparato = dispositivo().id;
+      const filas = filasImportacion(plan, existencias);
+      if (!filas.length) return SI();
+      const importacionId = await idImportacion(uid, filas);
+      const cabeza = ref('importaciones', importacionId);
+      const total = Math.ceil(filas.length / 2);
+      let lotesAplicados = 0;
       try {
-        for (let i = 0; i < ops.length; i += 450) {
-          const b = writeBatch(db);
-          ops.slice(i, i + 450).forEach(op => op(b));
-          await b.commit();
+        while (lotesAplicados < total) {
+          lotesAplicados = await runTransaction(db, async tx => {
+            if (sesion?.uid !== uid) throw new Error('sesion');
+            const anterior = (await tx.get(cabeza)).data();
+            const indice = anterior?.siguiente ?? 0;
+            if (indice === total) return indice;
+            const grupo = filas.slice(indice * 2, indice * 2 + 2);
+            const cambios = await Promise.all(grupo.map(async fila => {
+              const producto = ref('productos', fila.sku), costo = ref('costos', fila.sku);
+              const [prodSnap, costoSnap] = await Promise.all([tx.get(producto), tx.get(costo)]);
+              const antes = prodSnap.data() ?? null;
+              const cambioExistencia = fila.stock && fila.stock.antes !== antes?.existencia;
+              if (fila.nuevo ? antes !== null : antes === null || cambioExistencia) throw new Error('conflicto');
+              return { fila, producto, costo, antes, costoAntes: costoSnap.data()?.costo ?? null };
+            }));
+            if (sesion?.uid !== uid) throw new Error('sesion');
+            const loteId = String(indice);
+            const lote = doc(db, 'importaciones', importacionId, 'lotes', loteId);
+            const fecha = ahora();
+            const actor = { uid, usuario, dispositivo: aparato, en: serverTimestamp() };
+            for (const { fila, producto, costo, antes, costoAntes } of cambios) {
+              const { sku, nuevo, campos, stock, valorCosto } = fila;
+              const despues = { ...antes, ...campos };
+              if (stock) despues.existencia = stock.despues;
+              if (nuevo) tx.set(producto, despues);
+              else if (Object.keys(campos).length || stock) tx.update(producto, {
+                ...campos, ...(stock ? { existencia: stock.despues } : {}),
+              });
+              const delta = despues.existencia - (antes?.existencia ?? 0);
+              let movimientoId = null;
+              if (delta) {
+                const [mr, md] = movimiento(sku, delta, nuevo ? 'importación' : 'sincronización', null,
+                  nuevo ? '' : 'Existencia de la Carga Masiva');
+                movimientoId = md.id;
+                tx.set(mr, { ...md, importacionId, loteImportacion: loteId });
+              }
+              if (valorCosto != null) {
+                tx.set(costo, { sku, costo: valorCosto, historial: arrayUnion({ costo: valorCosto, desde: fecha }) }, { merge: true });
+              }
+              const detalle = doc(db, 'importaciones', importacionId, 'lotes', loteId, 'detalles', sku);
+              tx.set(detalle, { ...actor, sku, productoAntes: antes, productoDespues: despues,
+                existenciaAntes: antes?.existencia ?? null, existenciaDespues: despues.existencia,
+                costoAntes, costoDespues: valorCosto ?? costoAntes, movimientoId });
+            }
+            const siguiente = indice + 1;
+            tx.set(lote, { ...actor, indice, skus: grupo.map(fila => fila.sku) });
+            tx.set(cabeza, { ...actor, total, siguiente, lote: loteId });
+            if (siguiente === total) {
+              const ev = describir('aplicarImportacion', [plan, { existencias }]);
+              tx.set(...evento({ ...ev, ref: { col: 'importaciones', id: importacionId } }));
+            }
+            return siguiente;
+          });
         }
-        conEvento(() => {}, 'aplicarImportacion', [plan, { existencias }]);
-        return SI();
-      } catch (err) { console.warn(err); return NO(err.code === 'permission-denied' ? 'permiso' : 'error'); }
+        return SI({ importacionId, lotesAplicados });
+      } catch (err) {
+        const error = ['conflicto', 'sesion'].includes(err.message) ? err.message : errorFirestore(err);
+        return NO(error, { importacionId, lotesAplicados });
+      }
     },
     async guardarOferta(grupo, oferta) {
       const e = exigir('ofertas'); if (e) return NO(e);
