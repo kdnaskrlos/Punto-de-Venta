@@ -156,6 +156,7 @@ export function abrirCobrar(ctx) {
       if (!res.ok) {
         if (res.faltantes) toast(`Ya no hay existencia de ${res.faltantes.map(s => nombreLinea(ctx, s)).join(', ')}`, { malo: true });
         else if (res.estadoSync === RECHAZADA_CONFLICTO) toast('Cobro en conflicto. Conserva el comprobante y avisa a gestión.', { malo: true });
+        else if (res.error === 'limite-venta') toast('La cesta supera el tamaño admitido para un cobro. Se conservó el carrito.', { malo: true });
         else if (res.error === 'sin-almacenamiento') toast('No se pudo conservar el comprobante en este aparato', { malo: true });
         else if (res.error === 'sin-caja') toast('Abre tu caja para vender', { malo: true });
         else toast('No se pudo guardar la venta', { malo: true });

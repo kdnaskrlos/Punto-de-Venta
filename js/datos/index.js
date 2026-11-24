@@ -13,5 +13,5 @@ export function recordarUsuarioDemo(u) { try { localStorage.setItem(CLAVE_DEMO, 
 export async function crearAlmacen() {
   if (MODO_DEMO) return crearMemoria(semilla(), { guardarEn: 'pos-demo-datos' });
   const { crearFirebase } = await import('./firebase.js');
-  return crearFirebase(firebaseConfig);
+  return crearFirebase(firebaseConfig, { ventasAtomicas: firebaseConfig.ventasAtomicas === true });
 }

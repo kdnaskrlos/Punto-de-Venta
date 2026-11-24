@@ -4,14 +4,22 @@
 export const LOCAL_PENDIENTE = 'local_pendiente';
 export const CONFIRMADA_SERVIDOR = 'confirmada_servidor';
 export const RECHAZADA_CONFLICTO = 'rechazada_conflicto';
+export const VENTA_PROCESADA = 'venta-procesada-v1';
 
 const clave = (usuario, demo) => (demo ? 'pos-demo-pendientes-' : 'pos-pendientes-') + (usuario || '');
-const prefijo = usuario => 'pos-cobro-' + usuario + ':';
+// Una versión anterior no debe interpretar una intención de venta como un lote rechazado.
+const prefijo = (usuario, transporte) => (transporte === VENTA_PROCESADA ? 'pos-venta-procesada-' : 'pos-cobro-') + usuario + ':';
 export const claveOperacion = p => p.que + ':' + p.id;
-const claveCobro = (usuario, p) => prefijo(usuario) + claveOperacion(p);
+const claveCobro = (usuario, p) => prefijo(usuario, p.transporte) + claveOperacion(p);
 
 export function leerCobro(usuario, p) {
-  try { return JSON.parse(localStorage.getItem(claveCobro(usuario, p))); } catch { return null; }
+  try {
+    const directo = localStorage.getItem(claveCobro(usuario, p));
+    const alterno = !p.transporte && p.que === 'venta' && localStorage.getItem(
+      claveCobro(usuario, { ...p, transporte: VENTA_PROCESADA }),
+    );
+    return JSON.parse(directo || alterno || 'null');
+  } catch { return null; }
 }
 
 export function guardarCobro(usuario, p) {
@@ -29,8 +37,9 @@ export function resolverCobro(usuario, p, estadoSync) {
   const anterior = leerCobro(usuario, p);
   if (!anterior) return;
   try {
-    if (estadoSync === CONFIRMADA_SERVIDOR) localStorage.removeItem(claveCobro(usuario, p));
-    else localStorage.setItem(claveCobro(usuario, p), JSON.stringify({ ...anterior, estadoSync }));
+    const k = claveCobro(usuario, anterior);
+    if (estadoSync === CONFIRMADA_SERVIDOR) localStorage.removeItem(k);
+    else localStorage.setItem(k, JSON.stringify({ ...anterior, estadoSync }));
   } catch { /* el comprobante original sigue disponible para la conciliación */ }
 }
 
@@ -48,7 +57,7 @@ export function leerPendientes(usuario, demo = false) {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (!k?.startsWith(prefijo(usuario))) continue;
+      if (!k?.startsWith(prefijo(usuario)) && !k?.startsWith(prefijo(usuario, VENTA_PROCESADA))) continue;
       const p = JSON.parse(localStorage.getItem(k));
       if (p) nuevos.push(p);
     }
@@ -80,6 +89,7 @@ export async function revisarUno(almacen, p, productosPorSku = {}) {
   if (p.orden != null) {
     const estado = await almacen.verificarCobro(p);
     if (estado === CONFIRMADA_SERVIDOR || estado === RECHAZADA_CONFLICTO) return 'ok';
+    if (p.transporte === VENTA_PROCESADA) return 'esperar';
     return { conflicto: conflictoRechazo(p) };
   }
   let existe = false;
@@ -121,6 +131,7 @@ export async function revisarPendientes(ctx) {
       let r;
       try { r = await revisarUno(almacen, p, ctx.productos); } catch { return; } // sin conexión a mitad: se sigue luego
       if (!mismaSesion()) return;
+      if (r === 'esperar') continue;
       if (r !== 'ok') {
         const g = await almacen.registrarConflicto(r.conflicto);
         if (!g.ok || !mismaSesion()) return;

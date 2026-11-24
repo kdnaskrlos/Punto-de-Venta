@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - firestore.rules
+      - firebase.ventas.json
+      - funciones/**
+      - js/datos/index.js
       - js/datos/firebase.js
       - js/datos/pendientes.js
       - pruebas/firebase/**
@@ -41,6 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           npm install --prefix "$RUNNER_TEMP/pos-firestore" --no-audit --no-fund firebase@10.12.2 @firebase/rules-unit-testing@3.0.3
+          npm ci --prefix funciones --no-audit --no-fund
           contenedor_pos=$(docker run -d --rm -p 127.0.0.1:9849:8080 \
             google/cloud-sdk@sha256:7238e47ca03f43296f380010193eedd7ce7cac69efcae36ff7b0a75e0cd879e8 \
             gcloud beta emulators firestore start --project=demo-pos-bloque1 --host-port=0.0.0.0:8080)

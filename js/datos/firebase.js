@@ -10,7 +10,7 @@ import { nuevoId } from './contrato.js';
 import { subirFotoGitHub, CLAVE_TOKEN } from './github-fotos.js';
 import { describir, diferencias } from './eventos.js';
 import { claveOperacion, guardarCobro, leerCobro, leerPendientes, resolverCobro,
-  LOCAL_PENDIENTE, CONFIRMADA_SERVIDOR, RECHAZADA_CONFLICTO } from './pendientes.js';
+  LOCAL_PENDIENTE, CONFIRMADA_SERVIDOR, RECHAZADA_CONFLICTO, VENTA_PROCESADA } from './pendientes.js';
 import { dispositivo } from './dispositivo.js';
 import { APP_VERSION } from '../version.js';
 
@@ -66,12 +66,12 @@ async function idImportacion(uid, filas) {
   return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export function crearFirebase(config) {
+export function crearFirebase(config, { ventasAtomicas = false } = {}) {
   const app = initializeApp(config);
   const auth = getAuth(app);
   const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
   let sesion = null, miCaja = null, pendientes = 0, pendientesVentas = 0, errorSync = null;
-  const enCurso = new Set(), cobrosEnCurso = new Map();
+  const enCurso = new Set(), cobrosEnCurso = new Map(), enviosVentas = new Map();
   // La caja abierta se conoce con el primer dato de su escucha; vender espera ese momento (máx. 4 s).
   let cajaConocida = Promise.resolve(), avisarCajaConocida = () => {};
   const esperarCaja = () => Promise.race([cajaConocida, new Promise(r => setTimeout(r, 4000))]);
@@ -318,6 +318,111 @@ export function crearFirebase(config) {
     return [];
   }
 
+  const mismaCuentaVenta = (p, actor) => actor && sesion?.uid === actor.uid
+    && p.uid === actor.uid && p.proyecto === config.projectId;
+  const solicitudVenta = (uid, id) => doc(db, 'usuarios', uid, 'solicitudesVenta', id);
+
+  async function esperarMarcaVenta(marca) {
+    let quitar = () => {};
+    try {
+      const estado = await conTope(new Promise((resolve, reject) => {
+        quitar = onSnapshot(marca, { includeMetadataChanges: true }, s => {
+          if (s.exists() && !s.metadata.hasPendingWrites) resolve(s.data().estadoSync);
+        }, reject);
+      }), 4000);
+      return estado === demora ? null : estado;
+    } finally { quitar(); }
+  }
+
+  // Solo se entrega la primera venta pendiente de esta cuenta en el mismo almacenamiento.
+  // Un envío sin respuesta se reintenta con el comprobante y el ID originales.
+  function sincronizarVenta(p, actor = sesion) {
+    if (!mismaCuentaVenta(p, actor) || !navigator.onLine) return Promise.resolve(null);
+    const clave = actor.uid + ':' + p.id;
+    if (enviosVentas.has(clave)) return enviosVentas.get(clave);
+    const enviar = async () => {
+      const marca = marcaCobro(actor.uid, p);
+      const anterior = await conTope(getDocFromServer(marca), 2500);
+      if (anterior === demora || !mismaCuentaVenta(p, actor)) return null;
+      if (anterior.exists() && !anterior.metadata.hasPendingWrites) return anterior.data().estadoSync;
+      const primera = leerPendientes(actor.usuario).find(q => q.transporte === VENTA_PROCESADA
+        && q.estadoSync === LOCAL_PENDIENTE && mismaCuentaVenta(q, actor));
+      if (primera?.id !== p.id) return null;
+      if (await conTope(waitForPendingWrites(db), 3500) === demora || !mismaCuentaVenta(p, actor)) return null;
+
+      const solicitud = solicitudVenta(actor.uid, p.id);
+      const existente = await conTope(getDocFromServer(solicitud), 2500);
+      if (existente === demora || !mismaCuentaVenta(p, actor)) return null;
+      if (!existente.exists()) {
+        try {
+          const subida = await conTope(setDoc(solicitud, limpiarIndefinidos({
+            venta: p.datos, orden: p.orden, dispositivo: p.dispositivo, version: p.version, recibida: serverTimestamp(),
+          })), 3500);
+          if (subida === demora) return null;
+        } catch (e) {
+          // Otra pestaña puede haber creado la misma solicitud después de la consulta.
+          const registrada = await conTope(getDocFromServer(solicitud), 2500);
+          if (registrada === demora || !registrada.exists()) throw e;
+        }
+      }
+      return mismaCuentaVenta(p, actor) ? esperarMarcaVenta(marca) : null;
+    };
+    const resultado = enviar().then(estado => {
+      if (estado === CONFIRMADA_SERVIDOR || estado === RECHAZADA_CONFLICTO) {
+        resolverCobro(actor.usuario, p, estado);
+        errorSync = null;
+        return estado;
+      }
+      return null;
+    }, e => {
+      errorSync = e.code || 'error';
+      return null;
+    }).finally(() => {
+      enviosVentas.delete(clave);
+      avisarSync();
+    });
+    enviosVentas.set(clave, resultado);
+    return resultado;
+  }
+
+  async function solicitarVenta(venta, cajaId, actor) {
+    const operacion = { que: 'venta', id: venta.id };
+    try {
+      const previa = await getDocFromCache(marcaCobro(actor.uid, operacion));
+      if (previa.exists()) return resultadoMarca(previa);
+    } catch { /* una ausencia local no decide el estado de la venta */ }
+    const registrar = () => {
+      if (sesion?.uid !== actor.uid) return null;
+      const anterior = leerCobro(actor.usuario, operacion);
+      if (anterior) return anterior;
+      const datos = limpiarIndefinidos({ ...venta, cajaId, offline: !navigator.onLine, creada: ahora() });
+      // Presupuesto del protocolo de ventas. La comprobación se repite en el servidor.
+      if (new Set(datos.lineas.map(l => l.sku)).size > 248 || new TextEncoder().encode(JSON.stringify(datos)).length > 512 * 1024) {
+        return NO('limite-venta');
+      }
+      return guardarCobro(actor.usuario, { ...operacion, transporte: VENTA_PROCESADA, uid: actor.uid,
+        proyecto: config.projectId, dispositivo: dispositivo().id, version: APP_VERSION,
+        datos });
+    };
+    let p;
+    try {
+      p = navigator.locks ? await navigator.locks.request('pos-cobros-' + actor.uid, registrar) : registrar();
+    } catch { return NO('sin-almacenamiento'); }
+    if (!p) return NO('sesion');
+    if (p.error) return p;
+    if (p.estadoSync === RECHAZADA_CONFLICTO) return rechazado('conflicto');
+    avisarSync();
+    if (p.transporte !== VENTA_PROCESADA) return pendienteLocal();
+    if (!mismaCuentaVenta(p, actor)) return NO('sesion');
+    const envio = sincronizarVenta(p, actor);
+    envio.then(r => { if (r) avisarCobros(); });
+    const estado = await conTope(envio, 4000);
+    if (estado === CONFIRMADA_SERVIDOR) return confirmado();
+    if (estado === RECHAZADA_CONFLICTO) return rechazado('conflicto');
+    if (estado === null && navigator.onLine) avisarCobros();
+    return pendienteLocal();
+  }
+
   function guardarConExistencia({ que, col, docu, lineas, motivo, ev }) {
     return enviarCobro({ que, id: docu.id, datos: docu }, b => {
       for (const [sku, n] of Object.entries(porSku(lineas))) mover(b, sku, -n, motivo, docu.id);
@@ -500,14 +605,22 @@ export function crearFirebase(config) {
       const p = { que, id };
       const previo = leerCobro(sesion.usuario, p);
       if (previo) return previo.estadoSync;
+      const actor = sesion, marca = marcaCobro(actor.uid, p);
       try {
-        const s = await getDocFromCache(marcaCobro(sesion.uid, p));
-        return s.exists() ? resultadoMarca(s).estadoSync : null;
-      } catch { return null; }
+        const s = await getDocFromCache(marca);
+        if (s.exists()) return resultadoMarca(s).estadoSync;
+      } catch { /* puede haberse confirmado mientras la PWA estaba cerrada */ }
+      if (que === 'venta' && navigator.onLine) {
+        try {
+          const s = await conTope(getDocFromServer(marca), 2000);
+          if (s !== demora && sesion?.uid === actor.uid && s.exists()) return resultadoMarca(s).estadoSync;
+        } catch { /* la lectura no determina el estado */ }
+      }
+      return null;
     },
     notificarCobros: avisarSync,
     verificarCobro(p) {
-      return comprobarCobro(p, sesion);
+      return p.transporte === VENTA_PROCESADA ? sincronizarVenta(p) : comprobarCobro(p, sesion);
     },
     async esperarSubidas(topeMs = 15000) {
       return await conTope(waitForPendingWrites(db), topeMs) !== demora;
@@ -542,6 +655,7 @@ export function crearFirebase(config) {
       await esperarCaja();
       if (sesion?.uid !== uid) return NO('sesion');
       if (!miCaja) return NO('sin-caja');
+      if (ventasAtomicas) return solicitarVenta(venta, miCaja.id, sesion);
       const docu = { ...venta, numero: null, offline: !navigator.onLine, uid: sesion.uid, usuario: sesion.usuario, cajaId: miCaja.id, estado: 'ok', creada: ahora() };
       return guardarConExistencia({ que: 'venta', col: 'ventas', docu, lineas: venta.lineas, motivo: 'venta', ev: describir('guardarVenta', [venta]) });
     },

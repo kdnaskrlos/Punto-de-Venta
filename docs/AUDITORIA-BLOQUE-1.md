@@ -33,7 +33,9 @@ contenedor_pos=$(docker run -d --rm -p 127.0.0.1:9849:8080 \
   gcloud beta emulators firestore start --project=demo-pos-bloque1 --host-port=0.0.0.0:8080)
 trap 'docker stop "$contenedor_pos" >/dev/null' EXIT
 curl --fail --retry 30 --retry-all-errors --max-time 2 --retry-delay 1 http://127.0.0.1:9849/
-NODE_PATH="$lab_pos/node_modules" FIRESTORE_EMULATOR_HOST=127.0.0.1:9849 node --test pruebas/firebase/cobros.cjs
+npm ci --prefix funciones
+NODE_PATH="$lab_pos/node_modules" FIRESTORE_EMULATOR_HOST=127.0.0.1:9849 \
+  node --test --test-concurrency=1 pruebas/firebase/cobros.cjs pruebas/firebase/cestas-atomicas.cjs
 ```
 
 La suite usa sesiones sintéticas independientes con credenciales de prueba de las reglas. El adaptador del POS usa el SDK real de Firestore contra el emulador con caché en memoria. La persistencia de IndexedDB al cerrar un navegador y la autenticación real de Firebase quedan como verificaciones separadas. Si el emulador no arranca o no puede cargar las reglas, el resultado de la suite es **BLOQUEADO**.
@@ -73,12 +75,24 @@ El comando es para ejecutarse desde un entorno confiable, sin imprimir contrase�
 - Los casos históricos PWA 04 y 05 de pestañas que ya ejecutan v2.35 siguen sujetos a la [migración supervisada](PUBLICACION-V2.42.md). El Bloque 2 y los demás bloques quedan pendientes de revisión.
 
 
-## Cestas grandes · propuesta transaccional en emulador
+## Cestas grandes · procesador de ventas
 
-El lote de venta directa consulta un movimiento distinto por SKU desde `productos/{sku}`. Las demás rutas son compartidas: perfil del actor, caja de la venta y la venta antes/después para validar movimientos, marca y actividad. La numeración posterior va en otra transacción. Una cesta de 64 SKU produjo 64 consultas distintas de movimiento en la cobertura del emulador, aunque este aceptó el lote. Firestore remoto admite 20 accesos por lote y 10 por escritura. El resultado de cobertura establece el mínimo de rutas distintas, no el umbral exacto de aceptación. [Límites oficiales de reglas](https://firebase.google.com/docs/firestore/security/rules-conditions#access_call_limits)
+La venta directa consulta un movimiento distinto por SKU, además de las rutas compartidas de perfil, caja y venta. La prueba RED observó 64 consultas distintas para 64 SKU. El servicio documenta 20 accesos por lote y 10 por operación. La ruta procesada autoriza una solicitud con el perfil y delega la transacción completa a Firebase Functions. Para 64 SKU, el procesador usa una sola transacción de 131 escrituras (productos, movimientos, venta, evento y marca). La numeración posterior es reintentable, como en la versión anterior. [Límites de reglas](https://firebase.google.com/docs/firestore/security/rules-conditions#access_call_limits)
 
-El candidato de prueba encola una solicitud inmutable por UID e ID, con el comprobante original. La regla de entrada solo consulta el perfil (hasta un `exists` y un `get`). La recepción no confirma un cobro. El comprobante conserva su ID y sigue pendiente hasta recibir la marca. Un procesador de confianza vuelve a comprobar perfil, caja e inventario y confirma venta, evento, stock, movimientos y marca juntos en una transacción. Si falta stock, guarda el conflicto y la marca de rechazo, sin aplicar ningún descuento de inventario. La marca resuelve reentregas, y una venta histórica con el mismo ID nunca descuenta otra vez. Las lecturas de stock siguen siendo una por SKU dentro de la transacción del servidor. Confirmar 64 SKU exige 131 escrituras atómicas en esa transacción (dos por SKU, más venta, evento y marca).
+- El cliente guarda el pago, la caja, la fecha y el ID antes de anunciar el pendiente. La cola separada conserva su orden por navegador y cuenta. Al reabrir o reconectar, reintenta la misma solicitud y espera una marca del servidor. Los totales de caja y el stock compartido se actualizan cuando el servidor confirma la venta. Una falta de inventario conserva el comprobante como conflicto y el servidor no descuenta ningún SKU.
+- El procesador vuelve a comprobar rol, caja de origen y existencias. Las reglas conservan el lote de clientes anteriores para IDs sin solicitud. Una vez admitida una solicitud, el cliente no puede confirmar el mismo ID por el camino directo. Las ventas anteriores confirmadas conservan sus IDs, stock y numeración.
+- El protocolo usa un presupuesto inicial explícito de 248 SKU distintos y 512 KiB de comprobante. Un tamaño superior deja el carrito disponible y no se anuncia un cobro local. El presupuesto de diseño queda pendiente de validación en Firebase remoto. El tamaño real de las transacciones y el volumen de índices pueden imponer un límite inferior. Los apartados y las anulaciones de muchos SKU conservan el camino anterior.
 
-El prototipo solo vive en `pruebas/firebase` y no se carga en la PWA ni en las reglas de publicación. Para reproducir RED, ejecuta `cestas-atomicas.cjs` con `POS_CESTAS_REGLAS_ACTUALES=1` y el emulador local. Sin esa variable, GREEN prueba el procesador transaccional. El paso de 64 a 0 consultas de movimientos corresponde a las reglas, no a las lecturas que hace el procesador.
+### Verificación local y QA remoto
 
-Antes de habilitar el cambio, hay que enlazar el procesador con la cola existente, preservar el orden por dispositivo, resolver reintentos y numeración, verificar las validaciones de cobro y cerrar las escrituras directas mediante una migración que conserve los pendientes antiguos. Hace falta Firebase remoto QA para comparar la matriz alrededor del límite, probar el procesador con su identidad real, medir tamaño y duración de transacciones, y verificar roles, dos dispositivos, cierre y reapertura offline y reentrega. Apartados y anulaciones con muchos SKU conservan el camino actual y requieren una verificación equivalente. El emulador no acredita estos puntos.
+1. Para reproducir localmente, instala con `npm ci --prefix funciones` y arranca Firestore y Functions con `firebase emulators:start --config firebase.ventas.json --project demo-pos-bloque1 --only firestore,functions`. Con el SDK de cliente y de reglas en `NODE_PATH`, usa este comando para comprobar el evento real, además de las pruebas habituales del emulador:
+
+   ```sh
+   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 POS_CESTAS_DISPARADOR_LOCAL=1 \
+     node --test --test-concurrency=1 --test-name-pattern='64 SKU offline|guardarVenta conserva 64' \
+     pruebas/firebase/cestas-atomicas.cjs pruebas/firebase/cobros.cjs
+   ```
+
+2. Para validar el servicio real se requiere un proyecto independiente autorizado con ID `pos-qa-…`, Firestore y Auth, capacidad de ejecutar Functions de segunda generación y Eventarc, y una identidad de servicio autorizada para las transacciones de Firestore. Es necesaria una cuenta admin sintética activa para la matriz, más una vendedora sintética para las pruebas de sesión y caja. El operador de QA necesita permiso para cargar estas reglas y desplegar `procesarVentaPos` desde `firebase.ventas.json` en ese proyecto. La región debe corresponder a la configuración de QA. La integración no activa este procesador en el proyecto público.
+3. Con esas reglas y función verificadas en QA, ejecuta la matriz anterior con `POS_QA_VENTAS_PROCESADAS=1`. Comprueba 1–64, 128 y 248 SKU y el rechazo íntegro cuando falta el último SKU. En un origen de pruebas independiente, prepara el artefacto con la configuración pública de ese proyecto y `ventasAtomicas: true` dentro de `firebaseConfig`. Verifica en Chrome Windows y Android instalado los reintentos, la concurrencia, el arqueo con caja de origen, el reinicio offline de la PWA, los pagos pendientes y la convivencia con clientes anteriores.
+4. En una reversión, desactiva la opción para ventas nuevas. Conserva el cliente capaz de recuperar la cola, la función y sus reglas hasta conciliar todos los recibos pendientes. Las versiones anteriores ignoran esa cola y no la pueden despachar por sí mismas. Mantén los recursos PWA versionados siguiendo el procedimiento de recuperación.

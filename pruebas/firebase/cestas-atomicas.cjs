@@ -15,26 +15,25 @@ const {
 
 const proyecto = 'demo-pos-bloque1';
 const reglas = readFileSync(path.join(__dirname, '../../firestore.rules'), 'utf8');
+const { procesar, cerrar } = require('./servicio-ventas.cjs');
 const red = process.env.POS_CESTAS_REGLAS_ACTUALES === '1';
+const disparador = process.env.POS_CESTAS_DISPARADOR_LOCAL === '1';
 const fecha = '2026-11-24T14:00:00.000Z';
 let entorno;
 
 before(async () => {
   const [direccion, puerto] = host.split(':');
-  const reglasQA = red ? reglas : reglas.replace(
-    '    match /sistema/estado {', readFileSync(path.join(__dirname, 'cestas-solicitud.rules'), 'utf8') + '\n    match /sistema/estado {',
-  );
   entorno = await initializeTestEnvironment({
-    projectId: proyecto, firestore: { host: direccion, port: Number(puerto), rules: reglasQA },
+    projectId: proyecto, firestore: { host: direccion, port: Number(puerto), rules: reglas },
   });
 });
-after(() => entorno?.cleanup());
+after(async () => { await entorno?.cleanup(); await cerrar(); });
 
 function cliente(uid) {
   return entorno.authenticatedContext(uid).firestore();
 }
 function rutaSolicitud(db, uid, id) {
-  return doc(db, 'usuarios', uid, 'solicitudesVentaQA', id);
+  return doc(db, 'usuarios', uid, 'solicitudesVenta', id);
 }
 function rutaMarca(db, uid, id) {
   return doc(db, 'usuarios', uid, 'operacionesCobro', 'venta:' + id);
@@ -55,7 +54,7 @@ async function sembrar(skus) {
 
 function venta(id, skus, cajaId = 'a') {
   const total = skus.length * 10000;
-  return { id, cajaId, fecha, subtotal: total, total, lineas: skus.map(sku => ({ sku, cantidad: 1 })),
+  return { id, cajaId, fecha, creada: fecha, offline: true, subtotal: total, total, lineas: skus.map(sku => ({ sku, cantidad: 1 })),
     pagos: [{ forma: 'efectivo-cop', moneda: 'COP', monto: total, equivalenteCop: total }] };
 }
 
@@ -76,14 +75,7 @@ function enviarActual(db, v, marcar = true) {
 
 function enviar(db, uid, v, orden = 1) {
   return setDoc(rutaSolicitud(db, uid, v.id),
-    { venta: v, dispositivo: 'qa-offline', orden, recibida: serverTimestamp() });
-}
-
-async function procesar(uid, id) {
-  const { procesarVenta } = require('./cestas-transaccion.cjs');
-  let resultado;
-  await entorno.withSecurityRulesDisabled(async ctx => { resultado = await procesarVenta(ctx.firestore(), uid, id); });
-  return resultado;
+    { venta: v, dispositivo: 'qa-offline', orden, version: 'v2.43', recibida: serverTimestamp() });
 }
 
 function escrituraLocal(ref) {
@@ -130,13 +122,24 @@ test('64 SKU offline conservan un único cobro con presupuesto constante de regl
   await entorno.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), 'cajas', 'a'), { estado: 'cerrada' }));
   await enableNetwork(a);
   await envio;
-  if (!red) {
+  if (disparador) {
+    // El evento debe salir del emulador de Firestore y llegar al emulador de Functions.
+    let quitar = () => {};
+    let reloj;
+    try {
+      await new Promise((resolve, reject) => {
+        reloj = setTimeout(() => reject(new Error('El disparador local no numeró la venta')), 15000);
+        quitar = onSnapshot(doc(a, 'ventas', id), s => { if (s.data()?.numero) resolve(); }, reject);
+      });
+    } finally { clearTimeout(reloj); quitar(); }
+  } else if (!red) {
     assert.equal((await getDocFromServer(doc(b, 'ventas', id))).exists(), false);
     assert.equal((await getDocFromServer(rutaMarca(a, 'a', id))).exists(), false);
-    assert.equal((await procesar('a', id)).estadoSync, 'confirmada_servidor');
-    assert.equal((await procesar('a', id)).estadoSync, 'confirmada_servidor');
+    assert.equal(await procesar('a', id), 'confirmada_servidor');
+    assert.equal(await procesar('a', id), 'confirmada_servidor');
   }
   const guardada = (await getDocFromServer(doc(a, 'ventas', id))).data();
+  if (!red) assert.equal(guardada.numero, 'V-0001');
   assert.deepEqual([guardada.cajaId, guardada.lineas.length, guardada.pagos, guardada.fecha], ['a', 64, v.pagos, fecha]);
   assert.equal((await getDocFromServer(rutaMarca(a, 'a', id))).data().estadoSync, 'confirmada_servidor');
   const stock = (await getDocsFromServer(collection(b, 'productos'))).docs.map(s => s.data().existencia);
@@ -152,27 +155,28 @@ test('64 SKU offline conservan un único cobro con presupuesto constante de regl
   assert.equal(n, 0, 'la cesta debe dejar de depender de una lectura de reglas por SKU');
 });
 
-test('el último SKU insuficiente deja intacto todo el inventario y conserva el comprobante', { skip: red }, async () => {
+test('el último SKU insuficiente deja intacto todo el inventario y conserva el comprobante', { skip: red || disparador }, async () => {
   const skus = Array.from({ length: 24 }, (_, i) => 's' + i);
   await sembrar(skus);
   const a = cliente('a'), b = cliente('b'), v = venta('rechazada', skus);
   await updateDoc(doc(b, 'productos', skus.at(-1)), { existencia: 0 });
   await enviar(a, 'a', v);
-  assert.deepEqual(await procesar('a', v.id),
-    { estadoSync: 'rechazada_conflicto', motivo: 'existencia', faltantes: [skus.at(-1)] });
+  assert.equal(await procesar('a', v.id), 'rechazada_conflicto');
   const marca = (await getDocFromServer(rutaMarca(a, 'a', v.id))).data();
   assert.equal(marca.estadoSync, 'rechazada_conflicto');
   const conflicto = (await getDocFromServer(doc(b, 'conflictos', marca.conflictoId))).data();
+  assert.deepEqual([conflicto.motivo, conflicto.faltantes], ['existencia', [skus.at(-1)]]);
   assert.deepEqual([conflicto.datos.pagos, conflicto.datos.lineas, conflicto.datos.cajaId], [v.pagos, v.lineas, 'a']);
   assert.equal((await getDocFromServer(doc(b, 'ventas', v.id))).exists(), false);
   assert.equal((await getDocsFromServer(collection(b, 'movimientos'))).size, 0);
-  assert.equal((await getDocsFromServer(collection(b, 'eventos'))).size, 0);
+  const eventos = (await getDocsFromServer(collection(b, 'eventos'))).docs.map(s => s.data().tipo);
+  assert.deepEqual(eventos, ['conflicto.registrado']);
   const stock = new Map((await getDocsFromServer(collection(b, 'productos'))).docs.map(s => [s.id, s.data().existencia]));
   assert.ok(skus.slice(0, -1).every(sku => stock.get(sku) === 1));
   assert.equal(stock.get(skus.at(-1)), 0);
 });
 
-test('dos operadores con cestas grandes compiten sin saldo negativo, incluso con reentrega', { skip: red, timeout: 45000 }, async () => {
+test('dos operadores con cestas grandes compiten sin saldo negativo, incluso con reentrega', { skip: red || disparador, timeout: 45000 }, async () => {
   const skus = Array.from({ length: 32 }, (_, i) => 's' + i);
   await sembrar(skus);
   const a = cliente('a'), b = cliente('b');
@@ -180,19 +184,19 @@ test('dos operadores con cestas grandes compiten sin saldo negativo, incluso con
   const [resultadoA, resultadoB, repetido] = await Promise.all([
     procesar('a', 'va'), procesar('b', 'vb'), procesar('a', 'va'),
   ]);
-  assert.equal(repetido.estadoSync, resultadoA.estadoSync);
+  assert.equal(repetido, resultadoA);
   const resultados = [resultadoA, resultadoB];
-  assert.deepEqual(resultados.map(r => r.estadoSync).sort(), ['confirmada_servidor', 'rechazada_conflicto']);
+  assert.deepEqual([...resultados].sort(), ['confirmada_servidor', 'rechazada_conflicto']);
   assert.equal((await getDocsFromServer(collection(b, 'ventas'))).size, 1);
   assert.equal((await getDocsFromServer(collection(b, 'movimientos'))).size, 32);
-  assert.equal((await getDocsFromServer(collection(b, 'eventos'))).size, 1);
+  assert.equal((await getDocsFromServer(collection(b, 'eventos'))).size, 2);
   const [marcaA, marcaB] = await Promise.all([getDocFromServer(rutaMarca(a, 'a', 'va')), getDocFromServer(rutaMarca(b, 'b', 'vb'))]);
-  assert.deepEqual([marcaA.data().estadoSync, marcaB.data().estadoSync], resultados.map(r => r.estadoSync));
+  assert.deepEqual([marcaA.data().estadoSync, marcaB.data().estadoSync], resultados);
   const stock = (await getDocsFromServer(collection(b, 'productos'))).docs.map(s => s.data().existencia);
   assert.ok(stock.every(n => n === 0));
 });
 
-test('la solicitud es inmutable y el procesador comprueba perfil y caja de origen', { skip: red }, async () => {
+test('la solicitud es inmutable y el procesador comprueba perfil y caja de origen', { skip: red || disparador }, async () => {
   await sembrar(['s']);
   const a = cliente('a'), b = cliente('b'), v = venta('valida', ['s']);
   await assertFails(enviar(a, 'b', v));
@@ -202,34 +206,35 @@ test('la solicitud es inmutable y el procesador comprueba perfil y caja de orige
   await assertFails(deleteDoc(rutaSolicitud(a, 'a', v.id)));
   await assertFails(getDocFromServer(rutaSolicitud(b, 'a', v.id)));
   await enviar(a, 'a', venta('ajena', ['s'], 'b'), 2);
-  assert.equal((await procesar('a', 'ajena')).motivo, 'caja');
+  assert.equal(await procesar('a', 'ajena'), 'rechazada_conflicto');
+  await assertFails(enviarActual(a, v, false));
 
   await updateDoc(doc(b, 'usuarios', 'a'), { activo: false });
-  assert.equal((await procesar('a', v.id)).motivo, 'perfil');
+  assert.equal(await procesar('a', v.id), 'rechazada_conflicto');
   assert.equal((await getDocFromServer(doc(b, 'ventas', v.id))).exists(), false);
   assert.equal((await getDocFromServer(doc(b, 'productos', 's'))).data().existencia, 1);
 });
 
-test('un cobro histórico con el mismo ID no vuelve a descontar existencias', { skip: red }, async () => {
+test('un cobro histórico con el mismo ID no vuelve a descontar existencias', { skip: red || disparador }, async () => {
   await sembrar(['s']);
   const a = cliente('a'), b = cliente('b');
   const v = venta('historica', ['s']);
   await enviarActual(a, v, false);
   await enviar(a, 'a', v);
-  assert.equal((await procesar('a', v.id)).estadoSync, 'confirmada_servidor');
+  assert.equal(await procesar('a', v.id), 'confirmada_servidor');
   await enviar(b, 'b', venta(v.id, ['s'], 'b'));
-  assert.equal((await procesar('b', v.id)).motivo, 'id-ocupado');
+  assert.equal(await procesar('b', v.id), 'rechazada_conflicto');
   assert.equal((await getDocFromServer(doc(b, 'ventas', v.id))).data().uid, 'a');
   assert.equal((await getDocsFromServer(collection(b, 'movimientos'))).size, 1);
   assert.equal((await getDocFromServer(doc(b, 'productos', 's'))).data().existencia, 0);
 });
 
-test('las líneas del mismo SKU comparten un único descuento y movimiento', { skip: red }, async () => {
+test('las líneas del mismo SKU comparten un único descuento y movimiento', { skip: red || disparador }, async () => {
   await sembrar(['s']);
   const a = cliente('a'), b = cliente('b'), v = venta('mismo-sku', ['s', 's']);
   await updateDoc(doc(b, 'productos', 's'), { existencia: 2 });
   await enviar(a, 'a', v);
-  assert.equal((await procesar('a', v.id)).estadoSync, 'confirmada_servidor');
+  assert.equal(await procesar('a', v.id), 'confirmada_servidor');
   assert.equal((await getDocFromServer(doc(b, 'productos', 's'))).data().existencia, 0);
   const movimientos = await getDocsFromServer(collection(b, 'movimientos'));
   assert.equal(movimientos.size, 1);

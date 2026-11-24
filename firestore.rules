@@ -25,6 +25,9 @@ service cloud.firestore {
     function eventoPath(id) { return /databases/$(database)/documents/eventos/$(id); }
     function ventaPath(id) { return /databases/$(database)/documents/ventas/$(id); }
     function apartadoPath(id) { return /databases/$(database)/documents/apartados/$(id); }
+    function solicitudVentaPath(uid, id) {
+      return /databases/$(database)/documents/usuarios/$(uid)/solicitudesVenta/$(id);
+    }
     function cobroPath(id) { return /databases/$(database)/documents/usuarios/$(request.auth.uid)/operacionesCobro/$(id); }
     function numeracionPropia(id) {
       let contador = getAfter(contadorVentas()).data;
@@ -123,6 +126,7 @@ service cloud.firestore {
         && request.resource.data.usuario == yo()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.estado == 'ok'
+        && !existsAfter(solicitudVentaPath(request.auth.uid, id))
         && get(/databases/$(database)/documents/cajas/$(request.resource.data.cajaId)).data.usuario == yo();
       allow update: if
         (esGestion() && resource.data.estado == 'ok' && request.resource.data.estado == 'anulada'
@@ -173,11 +177,30 @@ service cloud.firestore {
         || (p.que == 'apartado' && getAfter(apartadoPath(p.refId)).data.uid == request.auth.uid)
         || (p.que == 'abono' && getAfter(apartadoPath(p.apartadoId)).data.ultimoAbono == id);
     }
+    // El cliente registra la intención. El procesador es el único que confirma esta ruta.
+    function solicitudVentaValida(s, id) {
+      let v = s.venta;
+      return id.size() <= 120 && s.keys().hasOnly(['venta', 'orden', 'dispositivo', 'version', 'recibida'])
+        && s.orden is int && s.orden > 0 && s.recibida == request.time
+        && s.dispositivo is string && s.dispositivo.size() > 0 && s.dispositivo.size() <= 120
+        && s.version is string && s.version.size() <= 32
+        && v is map && v.keys().hasOnly(['id', 'cajaId', 'fecha', 'creada', 'offline', 'cliente',
+          'lineas', 'subtotal', 'descuento', 'total', 'pagos', 'vuelto', 'tasas'])
+        && v.id == id && v.fecha is string && v.creada is string && v.offline is bool && v.cajaId is string
+        && v.lineas is list && v.lineas.size() > 0 && v.pagos is list && v.total is number;
+    }
+    match /usuarios/{uid}/solicitudesVenta/{id} {
+      allow get: if activo() && uid == request.auth.uid;
+      allow create: if activo() && uid == request.auth.uid
+        && me().rol in ['admin', 'encargada', 'vendedora'] && solicitudVentaValida(request.resource.data, id);
+      allow list, update, delete: if false;
+    }
     match /usuarios/{uid}/operacionesCobro/{id} {
       allow get: if activo() && uid == request.auth.uid;
       allow create: if activo() && uid == request.auth.uid
         && request.resource.data.que in ['venta', 'apartado', 'abono', 'completar']
         && id == request.resource.data.que + ':' + request.resource.data.refId
+        && (request.resource.data.que != 'venta' || !existsAfter(solicitudVentaPath(uid, request.resource.data.refId)))
         && request.resource.data.orden is int && request.resource.data.orden > 0
         && request.resource.data.dispositivo is string && request.resource.data.fecha is string
         && (request.resource.data.estadoSync == 'confirmada_servidor' && documentoCobrado(request.resource.data, id)

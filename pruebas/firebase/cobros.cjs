@@ -8,7 +8,7 @@ const { before, after, test } = require('node:test');
 const host = process.env.FIRESTORE_EMULATOR_HOST;
 if (!/^127\.0\.0\.1:[1-9]\d{0,4}$/.test(host || '')) throw new Error('BLOQUEADO: requiere Firestore Emulator en 127.0.0.1');
 const { assertFails, initializeTestEnvironment } = require('@firebase/rules-unit-testing');
-const { collection, doc, getDocsFromServer, getDocFromServer, increment, writeBatch, setDoc, updateDoc, deleteDoc, serverTimestamp, disableNetwork, enableNetwork, onSnapshot } = require('firebase/firestore');
+const { collection, doc, getDocsFromServer, getDocFromServer, increment, writeBatch, setDoc, updateDoc, deleteDoc, serverTimestamp, disableNetwork, enableNetwork, onSnapshot, query, where } = require('firebase/firestore');
 
 const proyecto = 'demo-pos-bloque1';
 const reglas = readFileSync(path.resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -241,7 +241,7 @@ async function adaptadorReal(dbPorUsuario, escuchas) {
   finally { hooks.deregister(); }
 }
 
-async function prepararAdaptadores(t, a, b) {
+async function prepararAdaptadores(t, a, b, opciones) {
   const datos = new Map();
   const globals = {
     addEventListener() {},
@@ -263,9 +263,11 @@ async function prepararAdaptadores(t, a, b) {
   });
   const { crearFirebase } = await adaptadorReal({ a, b }, escuchas);
   const { leerPendientes, revisarPendientes } = await import('../../js/datos/pendientes.js');
-  const posA = crearFirebase({ uid: 'a' }), posB = b && crearFirebase({ uid: 'b' });
-  const [sesionA, sesionB] = await Promise.all([posA, posB].filter(Boolean).map(pos => new Promise(r => pos.alCambiarSesion(s => { if (s) r(s); }))));
-  return { posA, posB, sesionA, sesionB, leerPendientes, revisarPendientes };
+  const abrir = (uid, ajustes = opciones) => crearFirebase({ uid, projectId: proyecto }, ajustes);
+  const posA = abrir('a'), posB = b && abrir('b');
+  const esperarSesion = pos => new Promise(r => pos.alCambiarSesion(s => { if (s) r(s); }));
+  const [sesionA, sesionB] = await Promise.all([posA, posB].filter(Boolean).map(esperarSesion));
+  return { posA, posB, sesionA, sesionB, leerPendientes, revisarPendientes, abrir, esperarSesion };
 }
 
 test('el adaptador del POS conserva caja, pagos y fecha del segundo cobro y registra su conflicto', { timeout: 45000 }, async t => {
@@ -504,4 +506,79 @@ test('caja, descuentos, ajustes y cliente generan sus eventos desde el adaptador
     assert.ok(eventos.get(tipo).en.toMillis() > 0, tipo);
   }
   assert.doesNotMatch(eventos.get('cliente.guardado').resumen, /Persona sintética/);
+});
+
+test('guardarVenta conserva 64 SKU sin red y vacía su cola ordenada al reabrir, incluso con la opción desactivada', { timeout: 45000 }, async t => {
+  const skus = Array.from({ length: 64 }, (_, i) => 'servidor-' + i);
+  await preparar({ skus });
+  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+  const { posA, leerPendientes, revisarPendientes, abrir, esperarSesion } = await prepararAdaptadores(t, a, b, { ventasAtomicas: true });
+  const disparador = process.env.POS_CESTAS_DISPARADOR_LOCAL === '1';
+  const prepararVenta = (id, codigos) => ({
+    id, fecha, total: 11000 * codigos.length, cliente: { nombre: 'Cliente sintético' },
+    pagos: [{ forma: 'efectivo-cop', moneda: 'COP', monto: 11000 * codigos.length }],
+    lineas: codigos.map(sku => ({ sku, cantidad: 1 })),
+  });
+  const v1 = prepararVenta('cola-grande', skus), v2 = prepararVenta('cola-siguiente', ['ultimo']);
+  const solicitud = id => doc(a, 'usuarios', 'a', 'solicitudesVenta', id);
+  const cajas = query(collection(a, 'cajas'), where('usuario', '==', 'a'), where('estado', '==', 'abierta'));
+  assert.equal((await getDocsFromServer(cajas)).size, 1);
+  await disableNetwork(a);
+  navigator.onLine = false;
+  const fueraDePresupuesto = prepararVenta('cesta-fuera-de-presupuesto', Array.from({ length: 249 }, (_, i) => 's' + i));
+  assert.deepEqual(await posA.guardarVenta(fueraDePresupuesto), { ok: false, error: 'limite-venta' });
+  assert.deepEqual(leerPendientes('a'), []);
+  assert.equal((await posA.guardarVenta(v1)).estadoSync, 'local_pendiente');
+  assert.equal((await posA.guardarVenta(v1)).estadoSync, 'local_pendiente');
+  assert.equal((await posA.guardarVenta(v2)).estadoSync, 'local_pendiente');
+  const pendientes = leerPendientes('a');
+  assert.deepEqual(pendientes.map(p => [p.id, p.orden, p.datos.cajaId, p.datos.offline]), [
+    [v1.id, 1, 'a', true], [v2.id, 2, 'a', true],
+  ]);
+  assert.equal(localStorage.getItem('pos-cobro-a:venta:' + v1.id), null);
+  assert.equal((await getDocFromServer(doc(b, 'ventas', v1.id))).exists(), false);
+
+  // Otra sesión cerró la caja; la recuperación conserva la caja y los pagos de origen.
+  await entorno.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), 'cajas', 'a'), { estado: 'cerrada' }));
+  const reabierto = abrir('a', { ventasAtomicas: false }), sesion = await esperarSesion(reabierto);
+  assert.equal(await reabierto.estadoCobro('venta', v1.id), 'local_pendiente');
+  await enableNetwork(a);
+  navigator.onLine = true;
+  const ctx = { sesion, almacen: reabierto };
+  if (disparador) {
+    const tope = Date.now() + 15000;
+    while (leerPendientes('a').length && Date.now() < tope) await revisarPendientes(ctx);
+  } else {
+    const { procesar, cerrar } = require('./servicio-ventas.cjs');
+    t.after(cerrar);
+    await revisarPendientes(ctx); // Primer intento con el procesador aún sin respuesta.
+    assert.equal((await getDocFromServer(solicitud(v1.id))).exists(), true);
+    assert.equal((await getDocFromServer(solicitud(v2.id))).exists(), false);
+    assert.equal((await getDocsFromServer(collection(b, 'conflictos'))).size, 0);
+    assert.equal(leerPendientes('a').length, 2);
+    assert.equal(await procesar('a', v1.id), 'confirmada_servidor');
+    const confirmarSegunda = new Promise((resolve, reject) => {
+      const quitar = onSnapshot(solicitud(v2.id), s => {
+        if (s.exists() && !s.metadata.hasPendingWrites) { quitar(); procesar('a', v2.id).then(resolve, reject); }
+      }, reject);
+      t.after(quitar);
+    });
+    await Promise.all([revisarPendientes(ctx), confirmarSegunda]);
+  }
+  await revisarPendientes(ctx);
+  assert.deepEqual(leerPendientes('a'), []);
+  assert.equal(await reabierto.estadoCobro('venta', v1.id), 'confirmada_servidor');
+  const leerVenta = v => getDocFromServer(doc(b, 'ventas', v.id)).then(s => s.data());
+  let [grande, siguiente] = await Promise.all([v1, v2].map(leerVenta));
+  if (disparador) {
+    const tope = Date.now() + 5000;
+    while ((!grande?.numero || !siguiente?.numero) && Date.now() < tope) {
+      await new Promise(r => setTimeout(r, 100));
+      [grande, siguiente] = await Promise.all([v1, v2].map(leerVenta));
+    }
+  }
+  assert.deepEqual([grande.cajaId, grande.fecha, grande.pagos, grande.lineas.length, grande.numero],
+    ['a', fecha, v1.pagos, 64, 'V-0001']);
+  assert.equal(siguiente.numero, 'V-0002');
+  assert.equal((await getDocsFromServer(collection(b, 'movimientos'))).size, 65);
 });
