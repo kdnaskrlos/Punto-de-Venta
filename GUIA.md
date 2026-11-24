@@ -6,7 +6,7 @@ Esta guía se sigue **una sola vez**. Toma unos 20 minutos. Mientras no la compl
 
 ## 1. Publicar la app en GitHub Pages
 
-Para v2.42, sigue el [procedimiento de preparación, publicación y reversión](docs/PUBLICACION-V2.42.md).
+Para v2.42, sigue el [procedimiento de preparación, publicación y reversión](docs/PUBLICACION-V2.42.md). Si Chrome muestra un 503 del POS, consulta [la recuperación sin borrar datos](docs/RECUPERACION-PWA.md).
 
 La instalación debe conservar el origen y la ruta `/Punto-de-Venta/`. La fuente de Pages debe servir el árbol estático **preparado para publicar**. La raíz de este repositorio es el árbol de desarrollo y contiene módulos nuevos en las URL que todavía usa v2.35. Si Pages publica automáticamente `main`, verifica la fuente de publicación antes de integrar cambios de la PWA.
 

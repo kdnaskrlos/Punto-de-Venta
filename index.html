@@ -16,7 +16,16 @@
 document.documentElement.classList.add("fx");
 window.__ver=()=>document.documentElement.classList.remove("fx");
 window.__fuente=()=>{const f=document.fonts;(f?Promise.race([f.load('700 16px "Plus Jakarta Sans"'),new Promise(r=>setTimeout(r,1200))]):Promise.resolve()).then(()=>requestAnimationFrame(window.__ver));};
-setTimeout(window.__ver,1500);</script>
+setTimeout(window.__ver,1500);
+window.addEventListener('error',e=>{
+  const url=e.target?.src||e.target?.href;
+  if(!url)return;
+  const recurso=new URL(url);
+  if(recurso.origin!==location.origin||!/\.(js|css)$/.test(recurso.pathname))return;
+  const mostrar=()=>{document.getElementById('recuperar-pos').hidden=false};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mostrar,{once:true});
+  else mostrar();
+},true);</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=block" media="print" onload="this.media='all';window.__fuente()" onerror="window.__ver()">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
@@ -25,6 +34,10 @@ setTimeout(window.__ver,1500);</script>
 <link rel="stylesheet" href="css/stock.css">
 </head>
 <body>
+<aside id="recuperar-pos" hidden role="status">
+<p>Faltan recursos para abrir el POS. Conéctate a Internet y vuelve a intentar. Conserva los datos del sitio.</p>
+<button type="button" onclick="location.reload()">Reintentar</button>
+</aside>
 <div id="app"></div>
 <script type="module" src="js/arranque-pwa.js"></script>
 <script type="module" src="js/principal.js"></script>
