@@ -3,16 +3,15 @@ import { titulo } from '../nucleo/producto.js';
 // Si la app se cierra o se sale sin querer, al volver pregunta "¿Continuar venta?" (igual que Pedidos).
 import { h, icono, abrirVentana, despuesDeCerrar } from '../ui.js';
 import { navegar } from '../app.js';
-import { LOCAL_PENDIENTE, RECHAZADA_CONFLICTO } from '../datos/pendientes.js';
+import { LOCAL_PENDIENTE, CONFIRMADA_SERVIDOR, RECHAZADA_CONFLICTO } from '../datos/pendientes.js';
 
-const VIGENCIA = 24 * 60 * 60 * 1000;
 const clave = ctx => 'pos-venta-' + (ctx.sesion?.usuario || '');
 const resguardos = new WeakMap();
 
-function vigente(original) {
+function leerGuardado(original) {
   try {
     const d = JSON.parse(original);
-    return d?.c?.lineas?.length && Date.now() - d.en < VIGENCIA ? d : null;
+    return Array.isArray(d?.c?.lineas) && d.c.lineas.length ? d : null;
   } catch { return null; }
 }
 
@@ -34,7 +33,9 @@ export function resguardoVigente(ctx) {
 }
 
 function escribir(c, k, anterior) {
-  const original = JSON.stringify({ c, en: Math.max(Date.now(), (vigente(anterior)?.en || 0) + 1) });
+  const guardadoEn = leerGuardado(anterior)?.en;
+  const en = Number.isFinite(guardadoEn) ? Math.max(Date.now(), guardadoEn + 1) : Date.now();
+  const original = JSON.stringify({ c, en });
   localStorage.setItem(k, original);
   resguardos.set(c, { clave: k, original });
 }
@@ -58,7 +59,7 @@ export function guardarVentaEnCurso(ctx) {
   try {
     const k = clave(ctx);
     const original = localStorage.getItem(k);
-    const otro = vigente(original);
+    const otro = leerGuardado(original);
     const propio = previo?.clave === k && previo.original === original;
     // Un carrito local sin el resguardo actual no reemplaza el de otra pestaña.
     if (!propio && (otro || previo?.clave === k)) return false;
@@ -71,7 +72,7 @@ function leer(ctx) {
   try {
     const k = clave(ctx);
     const original = localStorage.getItem(k);
-    const d = vigente(original);
+    const d = leerGuardado(original);
     return d && { clave: k, original, c: d.c };
   } catch { return null; }
 }
@@ -91,7 +92,8 @@ export async function ofrecerRetomar(ctx) {
   const d = leer(ctx);
   if (!d || ctx.carrito?.lineas?.length) return;
   const c = d.c;
-  const estado = await ctx.almacen.estadoCobro?.('venta', c.ventaId) || await ctx.almacen.estadoCobro?.('apartado', c.apartadoId);
+  const estadoVenta = await ctx.almacen.estadoCobro?.('venta', c.ventaId);
+  const estado = estadoVenta || await ctx.almacen.estadoCobro?.('apartado', c.apartadoId);
   if (!coincide(ctx, d) || ctx.carrito?.lineas?.length) return;
   if (estado === LOCAL_PENDIENTE || estado === RECHAZADA_CONFLICTO) {
     const ok = h('button', { class: 'btn primary', id: 'ya-guardada' }, 'Entendido');
@@ -102,7 +104,9 @@ export async function ofrecerRetomar(ctx) {
     return;
   }
   // v2.26 · Si la luz se fue justo al cobrar, la venta (o el apartado) pudo quedar guardada: no se ofrece cobrarla otra vez.
-  const ya = (c.ventaId && await ctx.almacen.obtener('ventas', c.ventaId)) ? 'venta' : (c.apartadoId && await ctx.almacen.obtener('apartados', c.apartadoId)) ? 'apartado' : null;
+  let ya = estado === CONFIRMADA_SERVIDOR ? (estadoVenta ? 'venta' : 'apartado') : null;
+  if (!ya && c.ventaId && await ctx.almacen.obtener('ventas', c.ventaId)) ya = 'venta';
+  if (!ya && c.apartadoId && await ctx.almacen.obtener('apartados', c.apartadoId)) ya = 'apartado';
   if (!coincide(ctx, d) || ctx.carrito?.lineas?.length) return;
   if (ya) {
     descartar(ctx, d);

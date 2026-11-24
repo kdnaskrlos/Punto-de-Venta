@@ -820,3 +820,38 @@ if (artefactoAnterior && artefactoCandidato) {
     }, devices['Pixel 7']);
   });
 }
+
+test('un borrador de más de 24 horas conserva los pagos y se ofrece al volver sin red', tiempo, () => escenario(puente, async env => {
+  const p = await pagina(env);
+  await operativo(p, infoPuente.version);
+  const anterior = await borradorActivo(p);
+  // Se simula la marca dejada por una sesión cerrada hace dos días.
+  await p.evaluate(() => { window.__pos.ctx.carrito = null; });
+  await p.evaluate(clave => {
+    const d = JSON.parse(localStorage.getItem(clave));
+    localStorage.setItem(clave, JSON.stringify({ ...d, en: Date.now() - 2 * 864e5 }));
+  }, BORRADOR);
+  await env.contexto.setOffline(true);
+  await p.close();
+
+  const nueva = await pagina(env);
+  await operativo(nueva, infoPuente.version);
+  await nueva.locator('#retomar-si').click();
+  assert.deepEqual(await nueva.evaluate(() => window.__pos.ctx.carrito), anterior);
+}));
+
+test('una confirmación del cobro acreditada en caché evita ofrecer cobrar de nuevo', tiempo, () => escenario(puente, async env => {
+  const p = await pagina(env);
+  await operativo(p, infoPuente.version);
+  const c = await borradorActivo(p);
+  await p.evaluate(async ({ id, modulo }) => {
+    const { ctx } = window.__pos;
+    ctx.carrito = null;
+    ctx.almacen.estadoCobro = async (que, venta) => que === 'venta' && venta === id ? 'confirmada_servidor' : null;
+    ctx.almacen.obtener = async () => null;
+    const { ofrecerRetomar } = await import('./' + modulo);
+    await ofrecerRetomar(ctx);
+  }, { id: c.ventaId, modulo: infoPuente.prefijo + VENTA_EN_CURSO });
+  await p.getByText('La venta ya se guardó', { exact: true }).waitFor();
+  assert.equal(await p.locator('#retomar-si').count(), 0);
+}));
