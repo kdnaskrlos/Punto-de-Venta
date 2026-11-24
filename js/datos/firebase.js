@@ -9,12 +9,24 @@ import { telefonoInternacional } from '../nucleo/recibo.js';
 import { nuevoId } from './contrato.js';
 import { subirFotoGitHub, CLAVE_TOKEN } from './github-fotos.js';
 import { describir, diferencias } from './eventos.js';
+import { claveOperacion, guardarCobro, leerCobro, leerPendientes, resolverCobro,
+  LOCAL_PENDIENTE, CONFIRMADA_SERVIDOR, RECHAZADA_CONFLICTO } from './pendientes.js';
 import { dispositivo } from './dispositivo.js';
 import { APP_VERSION } from '../version.js';
 
 const ahora = () => new Date().toISOString();
 const NO = (error, extra = {}) => ({ ok: false, error, ...extra });
 const SI = (extra = {}) => ({ ok: true, ...extra });
+const confirmado = () => SI({ offline: false, estadoSync: CONFIRMADA_SERVIDOR });
+const pendienteLocal = () => SI({ offline: true, estadoSync: LOCAL_PENDIENTE });
+const rechazado = error => NO(error, { estadoSync: RECHAZADA_CONFLICTO });
+const errorFirestore = e => e?.code === 'permission-denied' ? 'permiso' : 'error';
+const demora = Symbol('demora');
+async function conTope(p, ms) {
+  let reloj;
+  try { return await Promise.race([p, new Promise(r => { reloj = setTimeout(() => r(demora), ms); })]); }
+  finally { clearTimeout(reloj); }
+}
 const pinPass = pin => 'cs-' + pin;
 const correo = u => `${u}.${Math.random().toString(36).slice(2, 6)}@comicshop-pos.app`;
 const limpiarUsuario = s => String(s || '').trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, '.').replace(/[^a-z0-9._-]/g, '');
@@ -36,7 +48,7 @@ export function crearFirebase(config) {
   const auth = getAuth(app);
   const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
   let sesion = null, miCaja = null, pendientes = 0, pendientesVentas = 0, errorSync = null;
-  const enCurso = new Set();
+  const enCurso = new Set(), cobrosEnCurso = new Map();
   // La caja abierta se conoce con el primer dato de su escucha; vender espera ese momento (máx. 4 s).
   let cajaConocida = Promise.resolve(), avisarCajaConocida = () => {};
   const esperarCaja = () => Promise.race([cajaConocida, new Promise(r => setTimeout(r, 4000))]);
@@ -44,18 +56,23 @@ export function crearFirebase(config) {
   const oyentesSesion = new Set(), oyentesSync = new Set();
   let quitarPerfil = null, quitarCaja = null;
 
-  const avisarSync = () => { for (const cb of oyentesSync) cb({ enLinea: navigator.onLine, pendientes: pendientes + pendientesVentas, error: errorSync }); };
+  const estadoActual = () => ({ enLinea: navigator.onLine,
+    pendientes: pendientes + Math.max(pendientesVentas, sesion ? leerPendientes(sesion.usuario).length : 0), error: errorSync });
+  const avisarSync = () => { for (const cb of oyentesSync) cb(estadoActual()); };
   addEventListener('offline', avisarSync);
   addEventListener('online', () => { avisarSync(); if (sesion && puede(sesion.rol, 'verReportesTodos')) completarNumeros().catch(() => {}); });
 
-  // Escritura sin esperar al servidor: queda en el teléfono al instante y sube cuando hay internet.
-  function sinEsperar(p) {
-    pendientes++; avisarSync();
-    let local = false;
-    p.then(() => { errorSync = null; }, e => { console.warn('sincronización', e); errorSync = e.code || 'error'; })
-      .finally(() => { pendientes = Math.max(0, pendientes - 1); avisarSync(); });
-    return Promise.race([p.then(() => 'servidor'), new Promise(r => setTimeout(() => { local = true; r('local'); }, 1200))])
-      .then(() => SI({ offline: local }), e => NO(e.code === 'permission-denied' ? 'permiso' : 'error'));
+  function observarEscritura(p, alTerminar = () => {}, contar = true) {
+    if (contar) pendientes++;
+    avisarSync();
+    return p.then(v => { errorSync = null; return v; }, e => {
+      console.warn('sincronización', e); errorSync = e?.code || 'error'; throw e;
+    }).finally(() => { if (contar) pendientes--; alTerminar(); avisarSync(); });
+  }
+  // Para las demás escrituras se conserva el aviso optimista del SDK.
+  async function sinEsperar(p, alTerminar) {
+    try { return SI({ offline: await conTope(observarEscritura(p, alTerminar), 1200) === demora }); }
+    catch (e) { return NO(errorFirestore(e)); }
   }
   // Firestore no acepta campos «undefined»: se quitan (en cualquier nivel) antes de guardar.
   const limpiarIndefinidos = v => Array.isArray(v) ? v.map(limpiarIndefinidos) : v && typeof v === 'object' && v.constructor === Object ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined).map(([k, x]) => [k, limpiarIndefinidos(x)])) : v;
@@ -126,19 +143,22 @@ export function crearFirebase(config) {
       publicarSesion(nueva);
   }
 
+  async function numerarVenta(id) {
+    await runTransaction(db, async tx => {
+      const actual = await tx.get(ref('ventas', id));
+      if (!actual.exists() || actual.data().numero) return;
+      const c = await tx.get(ref('contadores', 'ventas'));
+      const n = (c.data()?.n || 0) + 1;
+      const numero = 'V-' + String(n).padStart(4, '0');
+      tx.set(ref('contadores', 'ventas'), { n, numero, ventaId: id });
+      tx.update(ref('ventas', id), { numero });
+    });
+  }
+
   async function completarNumeros() {
     const q = await getDocs(query(collection(db, 'ventas'), where('numero', '==', null)));
     const lista = q.docs.map(d => d.data()).sort((a, b) => a.creada.localeCompare(b.creada));
-    for (const v of lista) {
-      await runTransaction(db, async tx => {
-        const actual = await tx.get(ref('ventas', v.id));
-        if (!actual.exists() || actual.data().numero) return;
-        const c = await tx.get(ref('contadores', 'ventas'));
-        const n = (c.data()?.n || 0) + 1;
-        tx.set(ref('contadores', 'ventas'), { n });
-        tx.update(ref('ventas', v.id), { numero: 'V-' + String(n).padStart(4, '0') });
-      });
-    }
+    for (const v of lista) await numerarVenta(v.id);
   }
 
   async function crearCuenta(usuario, pin) {
@@ -151,53 +171,136 @@ export function crearFirebase(config) {
     } finally { deleteApp(sec).catch(() => {}); }
   }
 
-  // ---- venta/apartado con existencia ----
-  async function guardarConExistencia({ col, docu, lineas, motivo, numerar, ev }) {
-    if (enCurso.has(docu.id)) return SI({ offline: false });
-    enCurso.add(docu.id);
-    try {
-      const cant = porSku(lineas);
-      if (navigator.onLine) {
-        try {
-          const tope = new Promise((_, mal) => setTimeout(() => mal({ code: 'unavailable', tope: true }), 4000));
-          const r = await Promise.race([tope, runTransaction(db, async tx => {
-            const previa = await tx.get(ref(col, docu.id));
-            if (previa.exists()) return SI({ offline: false });
-            const prods = await Promise.all(Object.keys(cant).map(sku => tx.get(ref('productos', sku))));
-            const faltan = prods.filter(p => (p.data()?.existencia ?? 0) < cant[p.id]).map(p => p.id);
-            if (faltan.length) return { ok: false, faltantes: faltan };
-            let numero = null;
-            if (numerar) {
-              const c = await tx.get(ref('contadores', 'ventas'));
-              const n = (c.data()?.n || 0) + 1;
-              numero = 'V-' + String(n).padStart(4, '0');
-              tx.set(ref('contadores', 'ventas'), { n });
-            }
-            for (const p of prods) {
-              const [mr, md] = movimiento(p.id, -cant[p.id], motivo, docu.id);
-              tx.update(p.ref, { existencia: p.data().existencia - cant[p.id], ultimoMov: md.id });
-              tx.set(mr, md);
-            }
-            tx.set(ref(col, docu.id), { ...docu, ...(numerar ? { numero } : {}), offline: false });
-            if (ev) tx.set(...evento(ev));
-            return SI({ offline: false });
-          })]);
-          return r;
-        } catch (e) {
-          if (e.code !== 'unavailable') { enCurso.delete(docu.id); return NO(e.code === 'permission-denied' ? 'permiso' : 'error'); }
+  const marcaCobro = (uid, p) => doc(db, 'usuarios', uid, 'operacionesCobro', claveOperacion(p));
+  const resultadoMarca = snap => snap.data()?.estadoSync === RECHAZADA_CONFLICTO ? rechazado('conflicto')
+    : snap.metadata.hasPendingWrites ? pendienteLocal() : confirmado();
+  const listo = resultado => ({ resultado, entrada: Promise.resolve() });
+  const avisarCobros = () => globalThis.dispatchEvent?.(new Event('pos:cobros-sync'));
+
+  // Un solo lote por cobro. Firestore lo conserva y lo envía en orden en este dispositivo.
+  // La marca inmutable y las reglas forman parte del mismo commit que stock, caja y comprobante.
+  function enviarCobro(p, preparar) {
+    const actor = sesion;
+    const clave = actor.uid + ':' + claveOperacion(p);
+    if (cobrosEnCurso.has(clave)) return cobrosEnCurso.get(clave);
+    const enviar = async () => {
+      const marca = marcaCobro(actor.uid, p);
+      try {
+        const previa = await getDocFromCache(marca);
+        if (previa.exists()) return listo(resultadoMarca(previa));
+      } catch { /* una ausencia en caché no decide el resultado del servidor */ }
+      if (sesion?.uid !== actor.uid) return listo(NO('sesion'));
+      const previo = leerCobro(actor.usuario, p);
+      if (previo) return listo(previo.estadoSync === RECHAZADA_CONFLICTO ? rechazado('conflicto') : pendienteLocal());
+
+      const b = writeBatch(db);
+      const error = preparar(b);
+      if (error) return listo(error);
+      let recibo;
+      try { recibo = guardarCobro(actor.usuario, { ...p, dispositivo: dispositivo().id }); }
+      catch { return listo(NO('sin-almacenamiento')); }
+      b.set(marca, { que: p.que, refId: p.id, orden: recibo.orden, dispositivo: recibo.dispositivo,
+        fecha: p.datos.fecha, apartadoId: p.apartadoId || null, estadoSync: CONFIRMADA_SERVIDOR });
+      return seguirCobro({ b, marca, p, actor });
+    };
+    // Compartir el inicio y la respuesta incluso si los dos toques llegaron antes de leer la caché.
+    const iniciar = navigator.locks
+      ? () => new Promise((resolve, reject) => {
+          navigator.locks.request('pos-cobros-' + actor.uid, async () => {
+            const accion = await enviar();
+            resolve(accion.resultado);
+            await accion.entrada;
+          }).catch(reject);
+        })
+      : async () => (await enviar()).resultado;
+    const resultado = iniciar().catch(e => NO(errorFirestore(e)));
+    cobrosEnCurso.set(clave, resultado);
+    resultado.then(() => { if (cobrosEnCurso.get(clave) === resultado) cobrosEnCurso.delete(clave); });
+    return resultado;
+  }
+
+  function seguirCobro({ b, marca, p, actor }) {
+    let encolado;
+    const entrada = new Promise(r => { encolado = r; });
+    let quitar = () => {}, entregadoLocal = false, reloj;
+    const liberar = () => { clearTimeout(reloj); quitar(); encolado(); };
+    quitar = onSnapshot(marca, { includeMetadataChanges: true }, s => { if (s.exists()) liberar(); }, liberar);
+    reloj = setTimeout(liberar, 4000);
+    let envio;
+    try { envio = b.commit(); } catch (e) { envio = Promise.reject(e); }
+    const servidor = observarEscritura(envio, liberar, false).then(() => {
+      resolverCobro(actor.usuario, p, CONFIRMADA_SERVIDOR);
+      if (sesion?.uid === actor.uid && (p.que === 'venta' || p.que === 'completar')) numerarVenta(p.id).catch(() => {});
+      return confirmado();
+    }, async e => {
+      // Si el commit chocó con un ID existente, su marca decide. La ausencia se comprueba en servidor.
+      try {
+        const estado = await conTope(comprobarCobro(p, actor), 4000);
+        if (estado === CONFIRMADA_SERVIDOR || estado === RECHAZADA_CONFLICTO) {
+          resolverCobro(actor.usuario, p, estado);
+          return estado === CONFIRMADA_SERVIDOR ? confirmado() : rechazado('conflicto');
+        }
+      } catch { /* la conciliación reintenta la lectura */ }
+      if (entregadoLocal) {
+        resolverCobro(actor.usuario, p, RECHAZADA_CONFLICTO);
+        return rechazado(errorFirestore(e));
+      }
+      if (e?.code === 'permission-denied' && (p.que === 'venta' || p.que === 'apartado')) {
+        const faltantes = await consultarFaltantes(p.datos.lineas);
+        if (!entregadoLocal && faltantes.length) {
+          resolverCobro(actor.usuario, p, CONFIRMADA_SERVIDOR);
+          return { ok: false, faltantes };
         }
       }
-      // Si ya quedó guardada (otro intento, o la transacción terminó tarde), no se repite.
-      try { if ((await getDocFromCache(ref(col, docu.id))).exists()) return SI({ offline: true }); } catch { /* no está en caché */ }
-      // Sin conexión: se guarda en el teléfono y sube después; la existencia puede quedar negativa.
-      const b = writeBatch(db);
-      for (const [sku, n] of Object.entries(cant)) mover(b, sku, -n, motivo, docu.id);
-      b.set(ref(col, docu.id), { ...docu, ...(numerar ? { numero: null } : {}), offline: true });
-      if (ev) b.set(...evento({ ...ev, resumen: ev.resumen + ' · sin conexión' }));
-      const r = await sinEsperar(b.commit());
-      if (!r.ok) enCurso.delete(docu.id);
-      return r.ok ? SI({ offline: true }) : r;
-    } catch (e) { enCurso.delete(docu.id); throw e; }
+      resolverCobro(actor.usuario, p, entregadoLocal ? RECHAZADA_CONFLICTO : CONFIRMADA_SERVIDOR);
+      return entregadoLocal ? rechazado(errorFirestore(e)) : NO(errorFirestore(e));
+    });
+    const resultado = conTope(servidor, 4000).then(r => {
+      if (r !== demora) return r;
+      entregadoLocal = true;
+      return pendienteLocal();
+    });
+    const terminado = () => {
+      avisarSync();
+      if (entregadoLocal) avisarCobros();
+    };
+    servidor.then(terminado, terminado);
+    return { resultado, entrada };
+  }
+
+  async function comprobarCobro(p, actor) {
+    const comprobar = async r => {
+      const s = await getDocFromServer(r);
+      if (s.metadata.hasPendingWrites) throw new Error('Cobro aún sin respuesta del servidor');
+      return s.data();
+    };
+    const marca = await comprobar(marcaCobro(actor.uid, p));
+    if (marca) return marca.estadoSync;
+    // Un intento anterior de v2.42 puede haber confirmado el documento sin escribir una marca.
+    const apartado = p.que === 'abono' || p.que === 'apartado';
+    const docu = await comprobar(ref(apartado ? 'apartados' : 'ventas', p.apartadoId && p.que === 'abono' ? p.apartadoId : p.id));
+    if (!docu) return null;
+    if (p.que === 'abono') {
+      return docu.abonos?.some(a => a.id === p.id && a.usuario === actor.usuario) ? CONFIRMADA_SERVIDOR : null;
+    }
+    return docu.uid === actor.uid && (p.que !== 'completar' || docu.desdeApartado === p.apartadoId) ? CONFIRMADA_SERVIDOR : null;
+  }
+
+  async function consultarFaltantes(lineas) {
+    const cantidades = porSku(lineas);
+    try {
+      const datos = await conTope(Promise.all(Object.keys(cantidades).map(sku => getDocFromServer(ref('productos', sku)))), 1500);
+      if (datos !== demora) return datos.filter(p => !p.metadata.hasPendingWrites && (p.data()?.existencia ?? 0) < cantidades[p.id]).map(p => p.id);
+    } catch { /* el error del lote sigue siendo la respuesta disponible */ }
+    return [];
+  }
+
+  function guardarConExistencia({ que, col, docu, lineas, motivo, ev }) {
+    return enviarCobro({ que, id: docu.id, datos: docu }, b => {
+      for (const [sku, n] of Object.entries(porSku(lineas))) mover(b, sku, -n, motivo, docu.id);
+      b.set(ref(col, docu.id), limpiarIndefinidos(docu));
+      if (ev) b.set(...evento(ev));
+    });
   }
 
   const api = {
@@ -366,10 +469,25 @@ export function crearFirebase(config) {
     // espera a que suba lo pendiente, y registro / revisión de conflictos.
     async verificarServidor(nombre, id) {
       const s = await getDocFromServer(ref(nombre, id));
+      if (s.metadata.hasPendingWrites) throw new Error('Escritura aún sin respuesta del servidor');
       return s.exists() ? { id: s.id, ...s.data() } : null;
     },
+    async estadoCobro(que, id) {
+      if (!sesion || !id) return null;
+      const p = { que, id };
+      const previo = leerCobro(sesion.usuario, p);
+      if (previo) return previo.estadoSync;
+      try {
+        const s = await getDocFromCache(marcaCobro(sesion.uid, p));
+        return s.exists() ? resultadoMarca(s).estadoSync : null;
+      } catch { return null; }
+    },
+    notificarCobros: avisarSync,
+    verificarCobro(p) {
+      return comprobarCobro(p, sesion);
+    },
     async esperarSubidas(topeMs = 15000) {
-      return Promise.race([waitForPendingWrites(db).then(() => true), new Promise(r => setTimeout(() => r(false), topeMs))]);
+      return await conTope(waitForPendingWrites(db), topeMs) !== demora;
     },
     async registrarConflicto(c) {
       if (!sesion) return NO('sesion');
@@ -377,7 +495,11 @@ export function crearFirebase(config) {
         const b = writeBatch(db);
         b.set(ref('conflictos', c.id), limpiarIndefinidos({ ...c, usuario: sesion.usuario, uid: sesion.uid, estado: 'pendiente', detectado: ahora() }));
         anotar(b, 'registrarConflicto', [c]);
-        await b.commit();
+        if (c.orden != null) b.set(marcaCobro(sesion.uid, { que: c.que, id: c.refId }), {
+          que: c.que, refId: c.refId, orden: c.orden, dispositivo: c.dispositivo,
+          fecha: c.fecha, conflictoId: c.id, estadoSync: RECHAZADA_CONFLICTO,
+        });
+        if (await conTope(b.commit(), 4000) === demora) return NO('red');
         return SI();
       } catch (e) {
         // Ya registrado (la regla no deja reescribirlo): cuenta como hecho.
@@ -393,10 +515,12 @@ export function crearFirebase(config) {
     // ---- ventas ----
     async guardarVenta(venta) {
       const e = exigir('vender'); if (e) return NO(e);
+      const uid = sesion.uid;
       await esperarCaja();
+      if (sesion?.uid !== uid) return NO('sesion');
       if (!miCaja) return NO('sin-caja');
-      const docu = { ...venta, uid: sesion.uid, usuario: sesion.usuario, cajaId: miCaja.id, estado: 'ok', creada: ahora() };
-      return guardarConExistencia({ col: 'ventas', docu, lineas: venta.lineas, motivo: 'venta', numerar: true, ev: describir('guardarVenta', [venta]) });
+      const docu = { ...venta, numero: null, offline: !navigator.onLine, uid: sesion.uid, usuario: sesion.usuario, cajaId: miCaja.id, estado: 'ok', creada: ahora() };
+      return guardarConExistencia({ que: 'venta', col: 'ventas', docu, lineas: venta.lineas, motivo: 'venta', ev: describir('guardarVenta', [venta]) });
     },
     async anularVenta(id, motivo) {
       const e = exigir('anularVenta'); if (e) return NO(e);
@@ -422,47 +546,66 @@ export function crearFirebase(config) {
       if (movs.length) b.update(ref('cajas', caja.id), { movimientos: arrayUnion(...movs) });
       b.update(ref('ventas', id), { estado: 'anulada', anulacion: { por: sesion.usuario, motivo, fecha: ahora() } });
       anotar(b, 'anularVenta', [id, motivo], { venta: v });
-      const r = await sinEsperar(b.commit());
-      if (!r.ok) enCurso.delete(clave);
-      return r;
+      return sinEsperar(b.commit(), () => enCurso.delete(clave));
     },
 
     // ---- apartados ----
     async guardarApartado(ap) {
       const e = exigir('vender'); if (e) return NO(e);
+      const uid = sesion.uid;
       await esperarCaja();
+      if (sesion?.uid !== uid) return NO('sesion');
       if (!miCaja) return NO('sin-caja');
-      const abonos = (ap.abonos || []).map(a => ({ ...a, cajaId: miCaja.id, usuario: sesion.usuario, fecha: ahora() }));
+      const abonos = (ap.abonos || []).map(a => ({ ...a, cajaId: miCaja.id, usuario: sesion.usuario, fecha: ap.fecha }));
       const abonado = abonos.reduce((s, a) => s + (a.equivalenteCop || 0), 0);
-      const docu = { ...ap, abonos, saldo: Math.max(0, ap.total - abonado), uid: sesion.uid, usuario: sesion.usuario, estado: 'pendiente', creada: ahora() };
-      return guardarConExistencia({ col: 'apartados', docu, lineas: ap.lineas, motivo: 'apartado', numerar: false, ev: describir('guardarApartado', [ap]) });
+      const docu = { ...ap, abonos, saldo: Math.max(0, ap.total - abonado), uid, usuario: sesion.usuario, estado: 'pendiente', creada: ahora() };
+      return guardarConExistencia({ que: 'apartado', col: 'apartados', docu, lineas: ap.lineas, motivo: 'apartado', ev: describir('guardarApartado', [ap]) });
     },
     async abonarApartado(id, pago) {
       const e = exigir('vender'); if (e) return NO(e);
+      const uid = sesion.uid;
       await esperarCaja();
+      if (sesion?.uid !== uid) return NO('sesion');
       if (!miCaja) return NO('sin-caja');
-      const ap = await api.obtener('apartados', id); if (!ap) return NO('no-existe');
-      if (ap.estado !== 'pendiente') return NO('estado');
-      if (pago.id && (ap.abonos || []).some(x => x.id === pago.id)) return SI();
-      if ((pago.equivalenteCop || 0) > ap.saldo + 50) return NO('excede');
-      const abono = { ...pago, cajaId: miCaja.id, usuario: sesion.usuario, fecha: ahora() };
-      // increment: dos abonos a la vez (dos teléfonos, o uno sin conexión) restan los dos.
-      return conEvento(b => b.update(ref('apartados', id), { abonos: arrayUnion(abono), saldo: increment(-(pago.equivalenteCop || 0)) }), 'abonarApartado', [id, pago], { ap });
+      const snap = await getDocFromCache(ref('apartados', id)).catch(() => null);
+      const consulta = snap?.exists() ? snap : await conTope(getDoc(ref('apartados', id)), 4000).catch(() => null);
+      if (sesion?.uid !== uid) return NO('sesion');
+      if (!consulta || consulta === demora) return NO('red');
+      const ap = consulta.data();
+      if (!ap) return NO('no-existe');
+      const abono = { ...pago, id: pago.id || nuevoId(), cajaId: miCaja.id, usuario: sesion.usuario, fecha: pago.fecha || ahora() };
+      const p = { que: 'abono', id: abono.id, apartadoId: id, datos: { ...abono, cliente: ap.cliente } };
+      if (ap.abonos?.some(a => a.id === abono.id) && !consulta.metadata.hasPendingWrites && !leerCobro(sesion.usuario, p)) return confirmado();
+      return enviarCobro(p, b => {
+        if (ap.estado !== 'pendiente') return NO('estado');
+        if ((pago.equivalenteCop || 0) > ap.saldo + 50) return NO('excede');
+        b.update(ref('apartados', id), { abonos: arrayUnion(abono), saldo: increment(-(pago.equivalenteCop || 0)), ultimoAbono: claveOperacion(p) });
+        anotar(b, 'abonarApartado', [id, pago], { ap });
+      });
     },
     async completarApartado(id, venta) {
       const e = exigir('vender'); if (e) return NO(e);
+      const uid = sesion.uid;
       await esperarCaja();
+      if (sesion?.uid !== uid) return NO('sesion');
       if (!miCaja) return NO('sin-caja');
-      const ap = await api.obtener('apartados', id); if (!ap) return NO('no-existe');
-      if (ap.estado === 'completado' && ap.ventaId === venta.id) return SI({ offline: false });
-      if (ap.estado !== 'pendiente') return NO('estado');
-      const b = writeBatch(db);
-      b.set(ref('ventas', venta.id), { ...venta, desdeApartado: id, uid: sesion.uid, usuario: sesion.usuario, cajaId: miCaja.id, numero: null, offline: !navigator.onLine, estado: 'ok', creada: ahora() });
-      b.update(ref('apartados', id), { estado: 'completado', ventaId: venta.id, saldo: 0 });
-      anotar(b, 'completarApartado', [id, venta]);
-      const r = await sinEsperar(b.commit());
-      if (r.ok && navigator.onLine && puede(sesion.rol, 'verReportesTodos')) completarNumeros().catch(() => {});
-      return r;
+      const snap = await getDocFromCache(ref('apartados', id)).catch(() => null);
+      const consulta = snap?.exists() ? snap : await conTope(getDoc(ref('apartados', id)), 4000).catch(() => null);
+      if (sesion?.uid !== uid) return NO('sesion');
+      if (!consulta || consulta === demora) return NO('red');
+      const ap = consulta.data();
+      if (!ap) return NO('no-existe');
+      const docu = { ...venta, desdeApartado: id, uid, usuario: sesion.usuario, cajaId: miCaja.id, numero: null,
+        offline: !navigator.onLine, estado: 'ok', creada: ahora() };
+      const p = { que: 'completar', id: venta.id, apartadoId: id, datos: docu };
+      if (ap.estado === 'completado' && ap.ventaId === venta.id && !consulta.metadata.hasPendingWrites && !leerCobro(sesion.usuario, p)) return confirmado();
+      return enviarCobro(p, b => {
+        if (ap.estado !== 'pendiente') return NO('estado');
+        if (venta.abonosPrevios !== ap.total - ap.saldo) return NO('saldo-cambio');
+        b.set(ref('ventas', venta.id), limpiarIndefinidos(docu));
+        b.update(ref('apartados', id), { estado: 'completado', ventaId: venta.id, saldo: 0 });
+        anotar(b, 'completarApartado', [id, venta]);
+      });
     },
     async cancelarApartado(id, motivo) {
       const e = exigir('cancelarApartado'); if (e) return NO(e);
@@ -674,7 +817,7 @@ export function crearFirebase(config) {
       if (await api.obtener('costosVenta', ventaId)) return SI();
       return sinEsperar(setDoc(ref('costosVenta', ventaId), { id: ventaId, ...costo }));
     },
-    estadoSync(cb) { oyentesSync.add(cb); cb({ enLinea: navigator.onLine, pendientes, error: errorSync }); return () => oyentesSync.delete(cb); },
+    estadoSync(cb) { oyentesSync.add(cb); cb(estadoActual()); return () => oyentesSync.delete(cb); },
   };
   return api;
 }

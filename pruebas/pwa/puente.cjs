@@ -585,8 +585,8 @@ if (artefactoAnterior && artefactoCandidato) {
     });
   });
 
-  test('v2.41 actualiza al candidato exacto y revierte con los mismos datos, fotos y cachés', tiempo, async () => {
-    const previo = path.resolve(artefactoAnterior);
+  const previo = path.resolve(artefactoAnterior);
+  test(`${publicacion(previo).version} actualiza al candidato exacto y revierte con los mismos datos, fotos y cachés`, tiempo, async () => {
     const candidato = path.resolve(artefactoCandidato);
     const versiones = [publicacion(previo), publicacion(candidato)];
     const reversion = path.join(temporal, 'reversion-artefacto');
