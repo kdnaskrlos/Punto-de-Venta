@@ -644,3 +644,33 @@ test('el restablecimiento administrativo de PIN conserva el UID mientras quede u
   assert.deepEqual(await admin.cambiarPin('a', '9876'), { ok: false, error: 'caja-abierta' });
   assert.equal((await getDocFromServer(doc(b, 'usuarios', 'a'))).data().activo, true);
 });
+
+test('el lote histórico de liquidación sin marca conserva el monto reservado y crea ambos documentos juntos', async () => {
+  await preparar();
+  const a = entorno.authenticatedContext('a').firestore();
+  await disableNetwork(a);
+  const venta = doc(a, 'ventas', 'historica-ap');
+  const apartado = doc(a, 'apartados', 'ap');
+  const lote = writeBatch(a);
+  lote.set(venta, { id: venta.id, uid: 'a', usuario: 'a', estado: 'ok', cajaId: 'a',
+    desdeApartado: 'ap', total: 22000, abonosPrevios: 0, fecha, pagos: [{ forma: 'efectivo-cop', monto: 22000 }] });
+  lote.update(apartado, { estado: 'completado', ventaId: venta.id, saldo: 0 });
+  const guardadaLocal = esperarLocal(venta);
+  const enviada = lote.commit();
+  assert.equal((await guardadaLocal).id, venta.id);
+  await enableNetwork(a);
+  await enviada;
+  assert.equal((await getDocFromServer(venta)).data().total, 22000);
+  assert.equal((await getDocFromServer(apartado)).data().ventaId, venta.id);
+});
+
+test('una liquidación histórica de comisiones conserva el formato e identifica a su gestora', async () => {
+  await preparar();
+  const g = entorno.authenticatedContext('g').firestore();
+  const b = entorno.authenticatedContext('b').firestore();
+  const id = 'comision-historica';
+  const registro = { id, por: 'g', vendedor: 'a', desde: '2026-11-21', hasta: '2026-11-21', monto: 4000, fecha };
+  await setDoc(doc(g, 'comisiones', id), registro);
+  assert.deepEqual((await getDocFromServer(doc(b, 'comisiones', id))).data(), registro);
+  await assertFails(updateDoc(doc(g, 'comisiones', id), { por: 'b' }));
+});

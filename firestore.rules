@@ -121,6 +121,15 @@ service cloud.firestore {
       allow delete: if esAdmin() && id.matches('demo-.*');
     }
 
+    // Los clientes históricos ya escriben la venta y el cierre del apartado juntos.
+    function liquidacionVinculada(v, id) {
+      let ruta = apartadoPath(v.desdeApartado);
+      let previo = get(ruta).data;
+      let siguiente = getAfter(ruta).data;
+      return previo.estado == 'pendiente' && siguiente.estado == 'completado'
+        && siguiente.ventaId == id && siguiente.saldo == 0 && v.total == previo.total;
+    }
+
     // Ventas: solo se crean (nunca se reescriben ni se borran). Gestión puede anular o poner el número.
     match /ventas/{id} {
       allow create: if ejemploNuevo();
@@ -132,6 +141,7 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.estado == 'ok'
         && !existsAfter(solicitudVentaPath(request.auth.uid, id))
+        && (request.resource.data.get('desdeApartado', null) == null || liquidacionVinculada(request.resource.data, id))
         && get(/databases/$(database)/documents/cajas/$(request.resource.data.cajaId)).data.usuario == yo();
       allow update: if
         (esGestion() && resource.data.estado == 'ok' && request.resource.data.estado == 'anulada'
@@ -162,6 +172,7 @@ service cloud.firestore {
             && (request.resource.data.get('ultimoAbono', null) == resource.data.get('ultimoAbono', null)
               || abonoMarcado(id)))
           || (soloCambian(['estado', 'ventaId', 'saldo']) && request.resource.data.estado == 'completado'
+            && !exists(ventaPath(request.resource.data.ventaId))
             && getAfter(ventaPath(request.resource.data.ventaId)).data.desdeApartado == id
             && getAfter(ventaPath(request.resource.data.ventaId)).data.abonosPrevios == resource.data.total - resource.data.saldo)
           || (esGestion() && soloCambian(['estado', 'cancelacion']) && request.resource.data.estado == 'cancelado'
@@ -485,7 +496,9 @@ service cloud.firestore {
 
     // Pagos de comisiones: solo gestión.
     match /comisiones/{id} {
-      allow read, create: if esGestion();
+      allow read: if esGestion();
+      allow create: if ejemploNuevo() || (esGestion() && request.resource.data.id == id
+        && request.resource.data.por == yo());
       allow update: if false;
       allow delete: if ejemploExistente(); // v2.31: Modo prueba
     }

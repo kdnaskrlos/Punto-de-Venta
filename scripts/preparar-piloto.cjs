@@ -1,12 +1,26 @@
 // Genera dos sitios estáticos de demostración para ensayar la transición en el mismo origen.
 const { execFileSync } = require('node:child_process');
-const { mkdirSync, mkdtempSync, rmSync, writeFileSync } = require('node:fs');
+const { mkdirSync, mkdtempSync, rmSync, readFileSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const path = require('node:path');
 const { preparar } = require('./preparar-publicacion.cjs');
 
-if (!process.argv[2]) throw new Error('Indica un directorio nuevo para el piloto');
-const salida = path.resolve(process.argv[2]);
+const [, , directorio, opcion, archivo] = process.argv;
+if (!directorio || (opcion && (opcion !== '--firebase-qa' || !archivo || process.argv.length !== 5))) {
+  throw new Error('Uso: node scripts/preparar-piloto.cjs DIRECTORIO_NUEVO [--firebase-qa CONFIG_PUBLICA.json]');
+}
+const salida = path.resolve(directorio);
+let configQA = null;
+if (archivo) {
+  const campos = ['projectId', 'authDomain', 'apiKey', 'appId'];
+  const config = JSON.parse(readFileSync(archivo, 'utf8'));
+  if (!campos.every(k => typeof config?.[k] === 'string' && config[k].trim())
+    || !/^pos-qa-[a-z0-9-]{4,}$/.test(config.projectId)
+    || config.authDomain !== config.projectId + '.firebaseapp.com') {
+    throw new Error('BLOQUEADO: se requiere la configuración pública de la app web del proyecto pos-qa-*');
+  }
+  configQA = Object.fromEntries(campos.map(k => [k, config[k]]));
+}
 const raiz = path.resolve(__dirname, '..');
 const temporal = mkdtempSync(path.join(tmpdir(), 'pos-piloto-'));
 const BASE_V242 = 'aa7633976a409f6c9613101898a7d0739cf1df61';
@@ -17,7 +31,8 @@ function fuente(revision, nombre) {
   execFileSync('tar', ['-x', '-C', dir], {
     input: execFileSync('git', ['archive', revision], { cwd: raiz, maxBuffer: 16 * 1024 * 1024 }),
   });
-  writeFileSync(path.join(dir, 'config.js'), 'export const firebaseConfig = null;\n');
+  const config = configQA && { ...configQA, ...(nombre === 'candidata' ? { ventasAtomicas: true } : {}) };
+  writeFileSync(path.join(dir, 'config.js'), 'export const firebaseConfig = ' + JSON.stringify(config) + ';\n');
   return dir;
 }
 
@@ -29,8 +44,9 @@ try {
   const anterior = preparar(base, { fuente: fuente(BASE_V242, 'base') });
   const actual = preparar(candidata, { fuente: fuente('HEAD', 'candidata'), conservar: base });
   const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: raiz, encoding: 'utf8' }).trim();
-  writeFileSync(path.join(salida, 'versiones.json'), JSON.stringify({ commit, anterior, actual }, null, 2) + '\n');
-  writeFileSync(path.join(salida, 'LEEME.txt'), `POS · piloto de demostración para PC y Android
+  writeFileSync(path.join(salida, 'versiones.json'), JSON.stringify({ commit, ...(configQA ? { proyectoQA: configQA.projectId } : {}), anterior, actual }, null, 2) + '\n');
+  const instruccionesQA = 'Configuración Firebase QA. Sigue docs/VALIDACION-FINAL-V243.md del repositorio para servir ambos árboles en un único origen HTTPS aislado.\n';
+  writeFileSync(path.join(salida, 'LEEME.txt'), configQA ? instruccionesQA : `POS · piloto de demostración para PC y Android
 
 1. Sirve el contenido de base/ con HTTPS en un origen de pruebas accesible por el dispositivo.
 2. Abre /Punto-de-Venta/ en Chrome e instala la app si el navegador lo ofrece.
