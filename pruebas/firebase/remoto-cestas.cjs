@@ -39,13 +39,18 @@ async function cesta({ uid, usuario, idCaja, n, falta }) {
   const skus = Array.from({ length: n }, (_, i) => ventaId + '-s-' + i);
   const preparar = writeBatch(db);
   for (const [i, sku] of skus.entries()) preparar.set(doc(db, 'productos', sku),
-    { sku, existencia: falta && i === n - 1 ? 0 : 1, activo: true, nombre: 'QA prueba de capacidad' });
+    { sku, existencia: falta && i === n - 1 ? 0 : 1, activo: true, nombre: 'QA prueba de capacidad', precios: [10000, 10000, 10000, 10000, 10000] });
   await preparar.commit();
 
+  const { calcularCarrito } = await import('../../js/nucleo/tramos.js');
+  const { comisionesVenta } = await import('../../js/nucleo/comisiones.js');
+  const productos = Object.fromEntries(skus.map(sku => [sku, { precios: [10000, 10000, 10000, 10000, 10000] }]));
+  const calculo = calcularCarrito(skus.map(sku => ({ sku, cantidad: 1 })), productos);
+  const comisiones = comisionesVenta(calculo.lineas, productos);
   const venta = { id: ventaId, cajaId: idCaja, fecha, creada: fecha, offline: false,
     subtotal: 10000 * n, total: 10000 * n,
-    lineas: skus.map(sku => ({ sku, cantidad: 1, precioUnit: 10000, subtotal: 10000 })),
-    pagos: [{ forma: 'efectivo-cop', moneda: 'COP', monto: 10000 * n, equivalenteCop: 10000 * n }] };
+    lineas: calculo.lineas.map((l, i) => ({ ...l, descuento: 0, comision: comisiones[i].comision, reducida: false })),
+    pagos: [{ forma: 'efectivo-cop', nombre: 'Efectivo pesos', moneda: 'COP', monto: 10000 * n, equivalenteCop: 10000 * n }] };
   const marca = doc(db, 'usuarios', uid, 'operacionesCobro', 'venta:' + ventaId);
   const eventoId = procesadas ? firma(uid, ventaId, 'venta.creada') : ventaId + '-evento';
   const movimientos = skus.map((sku, i) => procesadas ? firma(ventaId, sku) : ventaId + '-mov-' + i);

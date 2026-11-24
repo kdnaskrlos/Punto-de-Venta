@@ -64,7 +64,7 @@ service cloud.firestore {
       return existencia is int && mov.sku == sku && mov.cantidad == existencia - resource.data.existencia
         && movimientoValido(mov)
         && (mov.motivo in ['venta', 'apartado'] ? existencia >= 0
-          : (mov.motivo in ['anulación', 'cancelación'] || (mov.motivo == 'ajuste' && !exists(ruta))));
+          : (mov.motivo in ['anulación', 'cancelación'] || (mov.motivo == 'ajuste' && existencia >= 0 && !exists(ruta))));
     }
     function cajaAbiertaPath(u) { return /databases/$(database)/documents/cajaAbierta/$(u); }
 
@@ -86,16 +86,21 @@ service cloud.firestore {
     match /usuarios/{uid} {
       allow read: if signed() && (request.auth.uid == uid || activo());
       allow create: if esAdmin() || (request.auth.uid == uid && seIniciaAhora() && request.resource.data.rol == 'admin');
-      allow update, delete: if esAdmin();
+      allow update: if esAdmin() && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['reemplazadoPor'])
+        || !existsAfter(cajaAbiertaPath(resource.data.usuario)));
+      allow delete: if esAdmin();
     }
 
     // Productos: todos los leen. Solo el admin los crea o cambia; los demás solo la existencia (ventas, apartados, anulaciones).
     match /productos/{sku} {
       allow read: if activo();
-      allow create, delete: if esAdmin();
+      allow create: if esAdmin() && request.resource.data.existencia is int && request.resource.data.existencia >= 0;
+      allow delete: if esAdmin();
       // Ventas y reservas llevan su movimiento aun para administración. Si el decremento
       // deja saldo negativo, se rechaza el lote completo. Se preservan los ajustes e importaciones de gestión.
-      allow update: if (esAdmin() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ultimoMov']))
+      allow update: if (esAdmin() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ultimoMov'])
+          && (request.resource.data.existencia == resource.data.existencia
+            || (request.resource.data.existencia is int && request.resource.data.existencia >= 0)))
         || (activo() && soloCambian(['existencia', 'ultimoMov'])
           && request.resource.data.ultimoMov is string && request.resource.data.ultimoMov.size() > 0
           && request.resource.data.ultimoMov != resource.data.get('ultimoMov', null)
@@ -220,8 +225,8 @@ service cloud.firestore {
         && (request.resource.data.get('tipo', 'tienda') != 'personal' || esGestion());
       allow update: if
           (activo() && resource.data.usuario == yo() && resource.data.estado == 'abierta'
-            && ((soloCambian(['movimientos']) && request.resource.data.movimientos.hasAll(resource.data.movimientos)) || (soloCambian(['estado', 'cierre']) && request.resource.data.estado == 'cerrada' && !existsAfter(cajaAbiertaPath(yo())))))
-          || (esGestion() && resource.data.estado == 'abierta' && soloCambian(['movimientos']) && request.resource.data.movimientos.hasAll(resource.data.movimientos))
+            && ((soloCambian(['movimientos']) && request.resource.data.movimientos.hasAll(resource.data.get('movimientos', []))) || (soloCambian(['estado', 'cierre']) && request.resource.data.estado == 'cerrada' && !existsAfter(cajaAbiertaPath(yo())))))
+          || (esGestion() && resource.data.estado == 'abierta' && soloCambian(['movimientos']) && request.resource.data.movimientos.hasAll(resource.data.get('movimientos', [])))
           || (esAdmin() && resource.data.estado == 'cerrada' && request.resource.data.estado == 'abierta' && soloCambian(['estado', 'reaperturas']))
           // Cierre automático de medianoche hecho por la app de la encargada o del administrador
           || (esGestion() && resource.data.estado == 'abierta' && soloCambian(['estado', 'cierre']) && request.resource.data.estado == 'cerrada'
@@ -468,6 +473,14 @@ service cloud.firestore {
         && soloCambian(['estado', 'aprueba', 'respondida'])
         && request.resource.data.estado in ['aprobada', 'rechazada'] && request.resource.data.aprueba == yo();
       allow delete: if false;
+    }
+
+    match /comisionesPorVenta/{ventaId} {
+      allow get: if esGestion();
+      allow create: if esGestion() && request.resource.data.keys().hasOnly(['pagoId'])
+        && request.resource.data.pagoId is string
+        && ventaId in getAfter(/databases/$(database)/documents/comisiones/$(request.resource.data.pagoId)).data.ventas;
+      allow list, update, delete: if false;
     }
 
     // Pagos de comisiones: solo gestión.

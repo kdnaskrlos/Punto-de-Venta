@@ -30,7 +30,7 @@ async function preparar({ skus = [] } = {}) {
       lote.set(doc(db, 'usuarios', usuario), { uid: usuario, usuario, activo: true, rol });
       lote.set(doc(db, 'cajas', usuario), { id: usuario, uid: usuario, usuario, estado: 'abierta' });
     }
-    for (const sku of ['ultimo', ...skus]) lote.set(doc(db, 'productos', sku), { existencia: 1 });
+    for (const sku of ['ultimo', ...skus]) lote.set(doc(db, 'productos', sku), { existencia: 1, precios: [11000, 11000, 11000, 11000, 11000] });
     lote.set(doc(db, 'apartados', 'ap'), { usuario: 'a', estado: 'pendiente', total: 22000, saldo: 22000, abonos: [] });
     await lote.commit();
   });
@@ -156,8 +156,11 @@ test('venta, reserva, anulación, cancelación y ajuste de administración autor
   assert.equal((await getDocFromServer(doc(admin, 'productos', 'aparte'))).data().existencia, 1);
   const ajuste = writeBatch(admin);
   mover(ajuste, admin, 'b', { id: 'ajuste-admin', sku: 'ultimo', cantidad: -2, motivo: 'ajuste' });
-  await ajuste.commit();
-  assert.equal((await getDocFromServer(doc(admin, 'productos', 'ultimo'))).data().existencia, -1);
+  await assertFails(ajuste.commit());
+  const valido = writeBatch(admin);
+  mover(valido, admin, 'b', { id: 'ajuste-admin-valido', sku: 'ultimo', cantidad: -1, motivo: 'ajuste' });
+  await valido.commit();
+  assert.equal((await getDocFromServer(doc(admin, 'productos', 'ultimo'))).data().existencia, 0);
 });
 
 test('una cesta de 24 SKU es atómica en el emulador incluso si falla el último SKU', { timeout: 30000 }, async () => {
@@ -515,9 +518,10 @@ test('guardarVenta conserva 64 SKU sin red y vacía su cola ordenada al reabrir,
   const { posA, leerPendientes, revisarPendientes, abrir, esperarSesion } = await prepararAdaptadores(t, a, b, { ventasAtomicas: true });
   const disparador = process.env.POS_CESTAS_DISPARADOR_LOCAL === '1';
   const prepararVenta = (id, codigos) => ({
-    id, fecha, total: 11000 * codigos.length, cliente: { nombre: 'Cliente sintético' },
-    pagos: [{ forma: 'efectivo-cop', moneda: 'COP', monto: 11000 * codigos.length }],
-    lineas: codigos.map(sku => ({ sku, cantidad: 1 })),
+    id, fecha, subtotal: 11000 * codigos.length, total: 11000 * codigos.length, cliente: { nombre: 'Cliente sintético' },
+    pagos: [{ forma: 'efectivo-cop', nombre: 'Efectivo pesos', moneda: 'COP', monto: 11000 * codigos.length, equivalenteCop: 11000 * codigos.length }],
+    lineas: codigos.map(sku => ({ sku, cantidad: 1, tramo: codigos.length >= 48 ? 4 : 0,
+      precioUnit: 11000, subtotal: 11000, descuento: 0, oferta: false, comision: codigos.length >= 48 ? 1000 : 4000, reducida: false })),
   });
   const v1 = prepararVenta('cola-grande', skus), v2 = prepararVenta('cola-siguiente', ['ultimo']);
   const solicitud = id => doc(a, 'usuarios', 'a', 'solicitudesVenta', id);
@@ -581,4 +585,62 @@ test('guardarVenta conserva 64 SKU sin red y vacía su cola ordenada al reabrir,
     ['a', fecha, v1.pagos, 64, 'V-0001']);
   assert.equal(siguiente.numero, 'V-0002');
   assert.equal((await getDocsFromServer(collection(b, 'movimientos'))).size, 65);
+});
+
+test('anular una venta de apartado devuelve abono y saldo por sus formas originales', { timeout: 30000 }, async t => {
+  await preparar();
+  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+  const { posA, posB } = await prepararAdaptadores(t, a, b);
+  const id = 'anular-apartado-pos';
+  const v = { id: 'venta-de-apartado-pos', fecha, lineas: [{ sku: 'ultimo', cantidad: 1 }], total: 22000 };
+  assert.equal((await posA.guardarApartado({ ...v, id, abonos: [{ forma: 'efectivo-cop', moneda: 'COP', monto: 10000, equivalenteCop: 10000 }] })).ok, true);
+  assert.equal(await posA.esperarSubidas(), true);
+  assert.equal((await posA.completarApartado(id, { ...v, abonosPrevios: 10000,
+    pagos: [{ forma: 'transferencia-cop', moneda: 'COP', monto: 12000 }] })).ok, true);
+  assert.equal(await posA.esperarSubidas(), true);
+  assert.equal((await posB.anularVenta(v.id, 'Anulación total de control')).ok, true);
+  assert.equal(await posB.esperarSubidas(), true);
+  const caja = (await getDocFromServer(doc(b, 'cajas', 'a'))).data();
+  assert.deepEqual(caja.movimientos.map(m => [m.tipo, m.forma, m.monto]), [
+    ['salida', 'efectivo-cop', 10000], ['salida', 'transferencia-cop', 12000],
+  ]);
+  assert.equal((await getDocFromServer(doc(b, 'productos', 'ultimo'))).data().existencia, 1);
+});
+
+test('dos ajustes administrativos concurrentes preservan la última unidad sin saldo negativo', { timeout: 30000 }, async t => {
+  await preparar();
+  await entorno.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), 'usuarios', 'a'), { rol: 'admin' }));
+  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+  const { posA, posB } = await prepararAdaptadores(t, a, b);
+  assert.deepEqual((await Promise.all([posA.obtener('productos', 'ultimo'), posB.obtener('productos', 'ultimo')])).map(p => p.existencia), [1, 1]);
+  await Promise.all([posA.ajustarExistencia('ultimo', -1, 'Conteo', 'A'), posB.ajustarExistencia('ultimo', -1, 'Conteo', 'B')]);
+  await Promise.all([posA.esperarSubidas(), posB.esperarSubidas()]);
+  assert.equal((await getDocFromServer(doc(b, 'productos', 'ultimo'))).data().existencia, 0);
+  assert.equal((await getDocsFromServer(collection(b, 'movimientos'))).size, 1);
+});
+
+test('gestión no puede registrar dos liquidaciones simultáneas de la misma comisión', { timeout: 30000 }, async t => {
+  await preparar();
+  await entorno.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore();
+    await updateDoc(doc(db, 'usuarios', 'a'), { rol: 'encargada' });
+    await setDoc(doc(db, 'ventas', 'comision-compartida'), { id: 'comision-compartida', estado: 'ok',
+      uid: 'g', usuario: 'g', fecha, lineas: [{ comision: 4000 }] });
+  });
+  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+  const { posA, posB } = await prepararAdaptadores(t, a, b);
+  const reg = { ventas: ['comision-compartida'], vendedor: 'g', desde: '2026-11-21', hasta: '2026-11-21', monto: 4000 };
+  const respuestas = await Promise.all([posA.pagarComisiones(reg), posB.pagarComisiones(reg)]);
+  assert.equal(respuestas.filter(r => r.ok).length, 1);
+  assert.deepEqual((await getDocsFromServer(collection(b, 'comisiones'))).docs.map(s => s.data().monto), [4000]);
+});
+
+test('el restablecimiento administrativo de PIN conserva el UID mientras quede una caja abierta', async t => {
+  await preparar();
+  await entorno.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), 'cajaAbierta', 'a'), { cajaId: 'a', desde: fecha }));
+  const b = entorno.authenticatedContext('b').firestore();
+  const a = entorno.authenticatedContext('a').firestore();
+  const { posB: admin } = await prepararAdaptadores(t, a, b);
+  assert.deepEqual(await admin.cambiarPin('a', '9876'), { ok: false, error: 'caja-abierta' });
+  assert.equal((await getDocFromServer(doc(b, 'usuarios', 'a'))).data().activo, true);
 });

@@ -1,4 +1,6 @@
 // Comisión de la vendedora por prenda vendida, según el tramo (§14).
+import { redondear } from './dinero.js';
+import { precioDeTramo } from './tramos.js';
 import { diaLocal } from './fechas.js';
 
 export const COMISIONES_DEFECTO = [
@@ -25,7 +27,7 @@ export function comisionLinea({ tramo, cantidad, subtotal }, producto, defectos 
 // La comisión del grupo (mix o producto «separado») no debe caer cuando
 // alcanza un tramo nuevo. El piso es el máximo de los cierres de tramos
 // anteriores para la MISMA combinación proporcional de prendas actual.
-export function comisionesVenta(lineasCalculadas, productosPorSku, defectos, hayDescuento, limites = [1, 6, 12, 24, 48]) {
+export function comisionesVenta(lineasCalculadas, productosPorSku, defectos, hayDescuento, limites = [1, 6, 12, 24, 48], redondeo = 100) {
   const reduccion = l => l.tramo === 0 && !!((hayDescuento && !l.separado) || l.oferta);
   const resultado = lineasCalculadas.map(l => {
     const reducida = reduccion(l); // Una promoción mayorista nunca reduce la comisión.
@@ -49,9 +51,9 @@ export function comisionesVenta(lineasCalculadas, productosPorSku, defectos, hay
       let media = 0;
       for (const i of indices) {
         const l = lineasCalculadas[i], p = productosPorSku[l.sku] || {};
-        const precioBase = (p.precios?.[t] > 0 ? p.precios[t] : l.precioUnit) || l.subtotal / l.cantidad;
+        const precioBase = precioDeTramo(p.precios, t) ?? l.precioUnit ?? l.subtotal / l.cantidad;
         const precio = l.oferta && p.oferta?.pct > 0
-          ? Math.round(precioBase * (1 - p.oferta.pct / 100)) : precioBase;
+          ? redondear(precioBase * (1 - Math.min(p.oferta.pct, 100) / 100), redondeo) : precioBase;
         // El descuento manual no alcanza los artículos «separado».
         const reducida = t === 0 && !!((hayDescuento && !l.separado) || l.oferta);
         const unitaria = comisionLinea({ tramo: t, cantidad: 1, subtotal: precio }, p, defectos, reducida);

@@ -47,15 +47,18 @@ async function sembrar(skus) {
       b.set(doc(db, 'usuarios', uid), { uid, usuario: uid, activo: true, rol });
       b.set(doc(db, 'cajas', uid), { uid, usuario: uid, estado: 'abierta' });
     }
-    for (const sku of skus) b.set(doc(db, 'productos', sku), { sku, existencia: 1 });
+    for (const sku of skus) b.set(doc(db, 'productos', sku), { sku, existencia: 1, precios: [10000, 10000, 10000, 10000, 10000] });
     await b.commit();
   });
 }
 
 function venta(id, skus, cajaId = 'a') {
+  const n = skus.length;
+  const importe = n >= 24 ? n * 1000 : Math.max(n * (n >= 12 ? 1000 : n >= 6 ? 2000 : 4000), n >= 12 ? 22000 : n >= 6 ? 20000 : 0);
+  const comisiones = skus.map((_, i) => i === n - 1 ? importe - Math.floor(importe / n) * (n - 1) : Math.floor(importe / n));
   const total = skus.length * 10000;
-  return { id, cajaId, fecha, creada: fecha, offline: true, subtotal: total, total, lineas: skus.map(sku => ({ sku, cantidad: 1 })),
-    pagos: [{ forma: 'efectivo-cop', moneda: 'COP', monto: total, equivalenteCop: total }] };
+  return { id, cajaId, fecha, creada: fecha, offline: true, subtotal: total, total, lineas: skus.map((sku, i) => ({ sku, cantidad: 1, tramo: [1, 6, 12, 24, 48].filter(n => skus.length >= n).length - 1, precioUnit: 10000, subtotal: 10000, oferta: false, descuento: 0, comision: comisiones[i], reducida: false })),
+    pagos: [{ forma: 'efectivo-cop', nombre: 'Efectivo pesos', moneda: 'COP', monto: total, equivalenteCop: total }] };
 }
 
 function enviarActual(db, v, marcar = true) {
@@ -239,4 +242,26 @@ test('las líneas del mismo SKU comparten un único descuento y movimiento', { s
   const movimientos = await getDocsFromServer(collection(b, 'movimientos'));
   assert.equal(movimientos.size, 1);
   assert.equal(movimientos.docs[0].data().cantidad, -2);
+});
+
+test('el procesador acredita una autorización vinculada y conserva su identificador', { skip: red || disparador }, async () => {
+  await sembrar(['s']);
+  const a = cliente('a'), b = cliente('b');
+  const v = venta('venta-aprobada', ['s']);
+  const autorizacionId = 'autorizacion-procesador';
+  const rebaja = 1000;
+  v.descuento = { autorizacionId, autorizadoPor: 'b', tipo: 'monto', valor: rebaja, monto: rebaja };
+  v.lineas[0] = { ...v.lineas[0], descuento: rebaja, comision: 2000, reducida: true };
+  v.total -= rebaja;
+  v.pagos[0] = { ...v.pagos[0], monto: v.total, equivalenteCop: v.total };
+  const firmaCarrito = JSON.stringify([JSON.stringify([v.id, [['s', 1]]]), [['s', 1, 10000, false]]]);
+  const autorizacion = doc(a, 'autorizaciones', autorizacionId);
+  await setDoc(autorizacion, { uid: 'a', usuario: 'a', solicita: 'a', estado: 'pendiente', ventaId: v.id,
+    firmaCarrito, subtotal: 10000, tipo: 'monto', valor: rebaja });
+  await updateDoc(doc(b, 'autorizaciones', autorizacionId), { estado: 'aprobada', aprueba: 'b', respondida: fecha });
+  await enviar(a, 'a', v);
+  assert.equal(await procesar('a', v.id), 'confirmada_servidor');
+  const queda = (await getDocFromServer(doc(b, 'ventas', v.id))).data();
+  assert.equal(queda.descuento.autorizacionId, autorizacionId);
+  assert.equal(queda.total, 9000);
 });

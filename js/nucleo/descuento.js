@@ -11,13 +11,12 @@ export function aplicarDescuento(subtotal, desc) {
 export function repartirDescuento(lineas, descuento) {
   const total = lineas.reduce((s, l) => s + l.subtotal, 0);
   if (!lineas.length || !total) return lineas.map(() => 0);
-  const partes = lineas.map(l => Math.round(descuento * l.subtotal / total));
+  const cuotas = lineas.map(l => descuento * l.subtotal / total);
+  const partes = cuotas.map(Math.floor);
   const resto = descuento - partes.reduce((s, x) => s + x, 0);
-  if (resto) {
-    let mayor = 0;
-    lineas.forEach((l, i) => { if (l.subtotal > lineas[mayor].subtotal) mayor = i; });
-    partes[mayor] += resto;
-  }
+  const orden = cuotas.map((n, i) => ({ i, resto: n - partes[i] }))
+    .sort((a, b) => b.resto - a.resto || lineas[b.i].subtotal - lineas[a.i].subtotal || a.i - b.i);
+  for (const { i } of orden.slice(0, resto)) partes[i]++;
   return partes;
 }
 

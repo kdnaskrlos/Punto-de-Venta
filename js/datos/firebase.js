@@ -2,7 +2,8 @@
 // Cumple el contrato de contrato.js. Las reglas de firestore.rules repiten estos permisos en el servidor.
 import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocFromServer, getDocs, waitForPendingWrites, serverTimestamp, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, query, where, onSnapshot, getDoc, getDocFromCache, getDocFromServer, getDocs, waitForPendingWrites, serverTimestamp, getDocsFromServer, setDoc, updateDoc, writeBatch, runTransaction, increment, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { devolucionNeta } from '../nucleo/caja.js';
 import { puede } from '../nucleo/permisos.js';
 import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
@@ -528,6 +529,8 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
         if (sesion.rol !== 'admin') return NO('permiso');
         const viejo = (await getDoc(ref('usuarios', uid))).data();
         if (!viejo) return NO('no-existe');
+        const abierta = await getDocFromServer(ref('cajaAbierta', viejo.usuario));
+        if (abierta.exists()) return NO('caja-abierta');
         const { uid: nuevo, email } = await crearCuenta(viejo.usuario, pinNuevo);
         const b = writeBatch(db);
         b.set(ref('usuarios', nuevo), { ...viejo, uid: nuevo, pinCambiado: ahora() });
@@ -671,13 +674,12 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
       const original = v.cajaId ? await api.obtener('cajas', v.cajaId) : null;
       const caja = original?.estado === 'abierta' ? original : miCaja;
       if (!caja) return fallo('sin-caja');
-      const neto = {};
-      for (const p of v.pagos || []) neto[p.forma] = (neto[p.forma] || 0) + p.monto;
-      if (v.vuelto?.partes) {
-        for (const p of v.vuelto.partes) neto[p.forma] = (neto[p.forma] || 0) - p.monto;
-      } else if (v.vuelto?.monto) neto[v.vuelto.forma] = (neto[v.vuelto.forma] || 0) - v.vuelto.monto;
-      const movs = Object.entries(neto).map(([forma, m]) => [forma, Math.round(m * 100) / 100]).filter(([, m]) => m)
-        .map(([forma, m]) => ({ tipo: m > 0 ? 'salida' : 'entrada', forma, monto: Math.abs(m), motivo: `anulación ${v.numero || ''}`.trim(), usuario: sesion.usuario, fecha: ahora() }));
+      const apartado = v.desdeApartado ? await api.obtener('apartados', v.desdeApartado) : null;
+      if (v.desdeApartado && (!apartado || apartado.ventaId !== id)) return fallo('apartado');
+      const movs = devolucionNeta(v, apartado).map(([forma, monto]) => ({
+        tipo: monto > 0 ? 'salida' : 'entrada', forma, monto: Math.abs(monto),
+        motivo: `anulación ${v.numero || ''}`.trim(), usuario: sesion.usuario, fecha: ahora(),
+      }));
       const b = writeBatch(db);
       for (const [sku, n] of Object.entries(porSku(v.lineas))) mover(b, sku, n, 'anulación', id, motivo);
       if (movs.length) b.update(ref('cajas', caja.id), { movimientos: arrayUnion(...movs) });
@@ -983,9 +985,36 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
     },
     async pagarComisiones(reg) {
       const e = exigir('pagarComisiones'); if (e) return NO(e);
+      const ventas = [...new Set(reg.ventas || [])];
+      if (!ventas.length || ventas.length > 249 || ventas.length !== reg.ventas.length) return NO('datos');
+      const actor = sesion;
       const id = nuevoId();
-      const r = await conEvento(b => b.set(ref('comisiones', id), { ...reg, id, por: sesion.usuario, fecha: ahora() }), 'pagarComisiones', [reg], { id });
-      return r.ok ? SI({ id }) : r;
+      try {
+        const pasados = await getDocsFromServer(query(collection(db, 'comisiones'), where('vendedor', '==', reg.vendedor)));
+        const registros = pasados.docs.map(s => s.data());
+        return await runTransaction(db, async tx => {
+          if (sesion?.uid !== actor.uid) return NO('sesion');
+          const marcas = ventas.map(idVenta => ref('comisionesPorVenta', idVenta));
+          const [pagadas, documentos] = await Promise.all([
+            Promise.all(marcas.map(m => tx.get(m))),
+            Promise.all(ventas.map(idVenta => tx.get(ref('ventas', idVenta)))),
+          ]);
+          if (pagadas.some(s => s.exists())) return NO('ya-pagada');
+          let monto = 0;
+          for (const v of documentos.map(s => s.data())) {
+            if (!v || v.usuario !== reg.vendedor || v.estado !== 'ok') return NO('datos');
+            const dia = diaLocal(v.fecha);
+            if (dia < reg.desde || dia > reg.hasta) return NO('datos');
+            if (registros.some(r => Array.isArray(r.ventas) ? r.ventas.includes(v.id) : dia >= r.desde && dia <= r.hasta)) return NO('ya-pagada');
+            monto += (v.lineas || []).reduce((n, l) => n + (l.comision || 0), 0);
+          }
+          if (!Number.isSafeInteger(monto) || monto <= 0 || monto !== reg.monto) return NO('datos');
+          for (const marca of marcas) tx.set(marca, { pagoId: id });
+          tx.set(ref('comisiones', id), { ...reg, ventas, monto, id, por: actor.usuario, fecha: ahora() });
+          anotar(tx, 'pagarComisiones', [reg], { id });
+          return SI({ id });
+        });
+      } catch (err) { return NO(errorFirestore(err)); }
     },
     // Una vista de v2.35 en caché aún puede llamar a estas operaciones retiradas.
     async cargarEjemplos() { return NO('retirado'); },

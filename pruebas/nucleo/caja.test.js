@@ -87,3 +87,14 @@ test('bloque 3 · caja descuenta ambas monedas del vuelto mixto', () => {
   assert.equal(e['efectivo-usd'], 8);
   assert.equal(e['efectivo-cop'], -1800);
 });
+
+test('el arqueo conserva el contado e incorpora la venta que llegó después del cierre', async () => {
+  const { conciliarCierre } = await import('../../js/nucleo/caja.js');
+  const formas = [{ id: 'efectivo-cop', moneda: 'COP', efectivo: true }];
+  const caja = { cierre: { contado: { 'efectivo-cop': 22000 }, totalCop: 22000 } };
+  const ventas = [{ pagos: [{ forma: 'efectivo-cop', monto: 22000 }] }];
+  const resultado = conciliarCierre(caja, ventas, [], formas, {});
+  assert.equal(resultado.totalCop, 0);
+  assert.equal(resultado.filas[0].esperado, 22000);
+  assert.equal(caja.cierre.totalCop, 22000);
+});

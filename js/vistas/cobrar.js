@@ -24,7 +24,7 @@ function nombreLinea(ctx, sku) {
 export function lineasParaGuardar(ctx, r) {
   const aj = ctx.ajustes;
   // v2.09: el descuento se reparte solo entre las prendas normales; las «separado» no lo llevan (ni la comisión reducida por él).
-  const coms = comisionesVenta(r.lineas, ctx.productos, aj.comisiones, r.descuento > 0, aj.tramos);
+  const coms = comisionesVenta(r.lineas, ctx.productos, aj.comisiones, r.descuento > 0, aj.tramos, aj.redondeo);
   const descLinea = repartirDescuento(r.lineas.map(l => (l.separado ? { ...l, subtotal: 0 } : l)), r.descuento);
   return r.lineas.map((l, i) => {
     const p = ctx.productos[l.sku];
@@ -148,7 +148,7 @@ export function abrirCobrar(ctx) {
         cliente: { ...carrito(ctx).cliente },
         lineas: lineasParaGuardar(ctx, r),
         subtotal: r.subtotal,
-        descuento: r.descuento ? { tipo: c.descuento.tipo, valor: c.descuento.valor, monto: r.descuento, autorizadoPor: c.autorizacion?.por || null } : null,
+        descuento: r.descuento ? { tipo: c.descuento.tipo, valor: c.descuento.valor, monto: r.descuento, autorizadoPor: c.autorizacion?.por || null, autorizacionId: c.autorizacion?.id || null } : null,
         total: r.total, pagos, vuelto,
         tasas: { copPorUsd: ctx.tasas.copPorUsd, bsPorUsd: ctx.tasas.bsPorUsd, fuenteBs: ctx.tasas.fuenteBs },
       };

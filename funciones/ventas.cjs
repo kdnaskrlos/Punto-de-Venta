@@ -29,7 +29,8 @@ function cantidadesDe(v, id) {
   return cantidades;
 }
 
-async function procesarVenta(db, uid, id) {
+async function procesarVenta(db, uid, id, leerTasa) {
+  const { verificarFinanzas } = await import('./finanzas.mjs');
   const operador = db.collection('usuarios').doc(uid);
   const solicitud = operador.collection('solicitudesVenta').doc(id);
   const marca = operador.collection('operacionesCobro').doc('venta:' + id);
@@ -80,6 +81,17 @@ async function procesarVenta(db, uid, id) {
     }).map(p => p.id);
     if (faltantes.length) return rechazar('existencia', faltantes);
 
+    const [general, tasas] = await tx.getAll(db.doc('ajustes/general'), db.doc('ajustes/tasas'));
+    const ajustesTasas = tasas.data() || {};
+    const conBs = v.pagos.some(p => p.moneda === 'BS') || (Array.isArray(v.vuelto?.partes)
+      && v.vuelto.partes.some(p => p?.moneda === 'BS'));
+    const tasaRemota = conBs && ajustesTasas.bsModo !== 'manual' ? await leerTasa() : null;
+    const idAutorizacion = v.descuento?.autorizacionId;
+    const autorizacion = idValido(idAutorizacion) ? (await tx.get(db.doc('autorizaciones/' + idAutorizacion))).data() : null;
+    const resultado = verificarFinanzas(v, Object.fromEntries(productos.map(p => [p.id, p.data()])),
+      general.data() || {}, ajustesTasas, tasaRemota, { ...perfil, uid }, autorizacion);
+    if (resultado) return rechazar('finanzas-' + resultado);
+
     for (const p of productos) {
       const sku = p.id, cantidad = cantidades.get(sku), mov = clave(id, sku);
       tx.update(p.ref, { existencia: p.data().existencia - cantidad, ultimoMov: mov });
@@ -109,7 +121,11 @@ async function numerarVenta(db, uid, id) {
 }
 
 async function atenderVenta(db, { uid, id }) {
-  const estado = await procesarVenta(db, uid, id);
+  let tasa;
+  const leerTasa = () => tasa ||= fetch('https://kdnaskrlos.github.io/Calculadora-de-Tasas/tasa.json', {
+    signal: AbortSignal.timeout(4000), redirect: 'error',
+  }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const estado = await procesarVenta(db, uid, id, leerTasa);
   if (estado === CONFIRMADA) await numerarVenta(db, uid, id);
   return estado;
 }

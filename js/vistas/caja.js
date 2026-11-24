@@ -1,7 +1,7 @@
 // Caja (§11): abrir con fondo, entradas y salidas, esperado por forma de pago, cierre con diferencias y reabrir (admin).
 import { h, icono, abrirVentana, toast, unaVez, esTelefono } from '../ui.js';
 import { registrarVista } from '../app.js';
-import { esperadoCaja, diferenciasCierre } from '../nucleo/caja.js';
+import { esperadoCaja, diferenciasCierre, conciliarCierre } from '../nucleo/caja.js';
 import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
 import { NOMBRE_MONEDA } from '../nucleo/formas.js';
 import { fechaHora } from '../nucleo/fechas.js';
@@ -173,7 +173,7 @@ function ventanaConteo(ctx, esperado, op) {
     const hayDif = calc.filas.some(f => f.nivel !== 'ok');
     if (op.notaObligatoria && hayDif && !nota.value.trim()) { err.textContent = 'Escribe una nota sobre la diferencia'; if (!esTelefono()) nota.focus(); return; }
     b.disabled = true;
-    const datos = { contado: Object.fromEntries(calc.filas.map(f => [f.forma, f.contado])), filas: calc.filas, totalEsperadoCop: calc.totalEsperadoCop, totalContadoCop: calc.totalContadoCop, totalCop: calc.totalCop, nota: nota.value.trim() };
+    const datos = { tasasArqueo: { ...ctx.tasas }, formasArqueo: formasCaja(ctx), contado: Object.fromEntries(calc.filas.map(f => [f.forma, f.contado])), filas: calc.filas, totalEsperadoCop: calc.totalEsperadoCop, totalContadoCop: calc.totalContadoCop, totalCop: calc.totalCop, nota: nota.value.trim() };
     const fallo = await op.alConfirmar(datos);
     b.disabled = false;
     if (fallo) { err.textContent = fallo; return; }
@@ -229,14 +229,20 @@ function vistaDueno(ctx, cont, mia, ventas, apartados, cajas) {
         : h('p', { class: 'nota' }, 'No hay cajas abiertas.')));
 }
 
-function historial(ctx, cajas) {
-  const cerradas = cajas.filter(c => c.estado === 'cerrada' && c.tipo !== 'personal' && !c.cierre?.porArquear).sort((a, b) => b.abierta.localeCompare(a.abierta)).slice(0, 15);
+const cajasCerradas = cajas => cajas.filter(c => c.estado === 'cerrada' && c.tipo !== 'personal' && !c.cierre?.porArquear)
+  .sort((a, b) => b.abierta.localeCompare(a.abierta)).slice(0, 15);
+
+function historial(ctx, cerradas, ventasPorCaja, apartados) {
   if (!cerradas.length) return null;
   return h('div', { class: 'tarjeta' }, h('h2', { class: 'sec-t' }, icono('historial'), 'Cajas cerradas'),
     ...cerradas.map(c => {
-      const peor = (c.cierre?.filas || []).reduce((m, f) => (f.nivel === 'grave' ? 'grave' : m === 'grave' ? m : f.nivel === 'leve' ? 'leve' : m), 'ok');
+      const ventas = ventasPorCaja.get(c.id)?.ventas;
+      const abonos = (apartados || []).flatMap(a => (a.abonos || []).filter(x => x.cajaId === c.id));
+      const cierre = ventas && apartados
+        ? conciliarCierre(c, ventas, abonos, formasCaja(ctx), ctx.tasas) : c.cierre;
+      const peor = (cierre?.filas || []).reduce((m, f) => (f.nivel === 'grave' ? 'grave' : m === 'grave' ? m : f.nivel === 'leve' ? 'leve' : m), 'ok');
       // v2.25: tocar la caja abre su reporte de cierre; la etiqueta dice Sobrante / Faltante / Cuadró.
-      const res = resultadoCierre(c.cierre?.totalCop);
+      const res = resultadoCierre(cierre?.totalCop);
       const ver = () => abrirReporteCierre(ctx, c);
       return h('div', { class: 'caja-cerrada', role: 'button', tabindex: '0', 'data-caja': c.id, onclick: ver, onkeydown: e => { if (e.key === 'Enter') ver(); } },
         h('div', {}, h('b', {}, `@${c.usuario}`), h('div', { class: 'nota' }, `${fechaHora(c.abierta)}${c.cierre?.nota ? ' · ' + c.cierre.nota : ''}`)),
@@ -247,13 +253,14 @@ function historial(ctx, cajas) {
 
 registrarVista('/caja', {
   montar(cont, ctx) {
-    let ventas = [], apartados = [], cajas = [];
+    let ventas = [], apartados = null, cajas = [];
     const principal = h('div', { class: 'pila' });
     const abajo = h('div');
+    const ventasPorCaja = new Map();
     const pintar = () => {
       const mia = ctx.miCaja;
-      if (ctx.puedeVer('cajaPersonal')) vistaDueno(ctx, principal, mia && (cajas.find(c => c.id === mia.id) || mia), ventas, apartados, cajas);
-      else if (mia) vistaAbierta(ctx, principal, cajas.find(c => c.id === mia.id) || mia, ventas, apartados);
+      if (ctx.puedeVer('cajaPersonal')) vistaDueno(ctx, principal, mia && (cajas.find(c => c.id === mia.id) || mia), ventas, apartados || [], cajas);
+      else if (mia) vistaAbierta(ctx, principal, cajas.find(c => c.id === mia.id) || mia, ventas, apartados || []);
       else if ((ctx.porArquear || []).some(c => c.usuario === ctx.sesion.usuario)) {
         principal.replaceChildren(h('div', { class: 'aviso' }, icono('alerta'), h('div', {}, h('b', {}, 'Tu caja de ayer se cerró sola a medianoche.'), h('div', { class: 'nota' }, 'Cuenta el dinero una vez: cierra la de ayer y abre la de hoy.'))),
           h('button', { class: 'btn primary grande', onclick: () => abrirCajaVentana(ctx) }, icono('cartera'), 'Contar y abrir caja'));
@@ -261,7 +268,7 @@ registrarVista('/caja', {
         abrirFormulario(ctx, principal);
         if (cajas.some(c => c.usuario === ctx.sesion.usuario && c.estado === 'cerrada')) principal.prepend(h('div', { class: 'aviso ok-aviso' }, icono('check'), 'Caja cerrada'));
       }
-      abajo.replaceChildren(historial(ctx, cajas) || '');
+      abajo.replaceChildren(historial(ctx, cajasCerradas(cajas), ventasPorCaja, apartados) || '');
     };
     // Ventas de MI caja abierta, por cajaId (aunque lleve varios días abierta).
     let cajaVentas = null, quitarVentas = null;
@@ -274,12 +281,31 @@ registrarVista('/caja', {
     seguirCaja();
     const q = [
       ctx.almacen.escuchar('apartados', l => { apartados = l; pintar(); }),
-      ctx.almacen.escuchar('cajas', l => { cajas = l; pintar(); }),
+      ctx.almacen.escuchar('cajas', l => {
+        cajas = l;
+        const ids = new Set(cajasCerradas(cajas).map(c => c.id));
+        for (const [id, datos] of ventasPorCaja) {
+          if (!ids.has(id)) { datos.quitar(); ventasPorCaja.delete(id); }
+        }
+        for (const id of ids) {
+          if (!ventasPorCaja.has(id)) {
+            const datos = {};
+            ventasPorCaja.set(id, datos);
+            datos.quitar = ctx.almacen.escuchar('ventas', lista => { datos.ventas = lista; pintar(); }, { cajaId: id });
+          }
+        }
+        pintar();
+      }),
     ];
     const alDatos = e => { if (e.detail.que === 'caja') seguirCaja(); if (['caja', 'ajustes', 'tasas'].includes(e.detail.que)) pintar(); };
     window.addEventListener('pos:datos', alDatos);
     cont.append(principal, abajo);
     pintar();
-    return () => { q.forEach(x => x()); quitarVentas && quitarVentas(); window.removeEventListener('pos:datos', alDatos); };
+    return () => {
+      q.forEach(x => x());
+      quitarVentas?.();
+      for (const datos of ventasPorCaja.values()) datos.quitar();
+      window.removeEventListener('pos:datos', alDatos);
+    };
   },
 });

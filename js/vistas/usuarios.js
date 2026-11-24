@@ -8,7 +8,8 @@ import { DEMO_DIRECTO } from '../datos/index.js';
 import { ganaComision } from '../nucleo/comisiones.js';
 
 const seccion = (titulo, ic, ...hijos) => h('section', { class: 'tarjeta pila' }, h('h2', { class: 'sec-t' }, icono(ic), titulo), ...hijos);
-const guardado = r => toast(r.ok ? 'Guardado' : 'No se pudo guardar', { malo: !r.ok });
+const guardado = r => toast(r.ok ? 'Guardado' : r.error === 'caja-abierta'
+  ? 'Sincroniza los cobros y cierra la caja de esa cuenta antes de cambiar su PIN' : 'No se pudo guardar', { malo: !r.ok });
 
 function pedirPin(titulo) {
   return new Promise(res => {

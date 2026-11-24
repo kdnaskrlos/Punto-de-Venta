@@ -7,6 +7,8 @@ import { LOCAL_PENDIENTE, CONFIRMADA_SERVIDOR, RECHAZADA_CONFLICTO } from '../da
 
 const clave = ctx => 'pos-venta-' + (ctx.sesion?.usuario || '');
 const resguardos = new WeakMap();
+const prefijo = ctx => 'pos-borrador:' + encodeURIComponent(ctx.sesion?.uid || ctx.sesion?.usuario || '') + ':';
+const pertenece = (ctx, k) => k === clave(ctx) || k.startsWith(prefijo(ctx));
 
 function leerGuardado(original) {
   try {
@@ -17,7 +19,7 @@ function leerGuardado(original) {
 
 function coincide(ctx, guardado) {
   try {
-    return guardado && ctx.sesion && guardado.clave === clave(ctx) &&
+    return guardado && ctx.sesion && pertenece(ctx, guardado.clave) &&
       localStorage.getItem(guardado.clave) === guardado.original;
   } catch { return false; }
 }
@@ -57,24 +59,29 @@ export function guardarVentaEnCurso(ctx) {
     return false;
   }
   try {
-    const k = clave(ctx);
-    const original = localStorage.getItem(k);
-    const otro = leerGuardado(original);
-    const propio = previo?.clave === k && previo.original === original;
-    // Un carrito local sin el resguardo actual no reemplaza el de otra pestaña.
-    if (!propio && (otro || previo?.clave === k)) return false;
-    escribir(c, k, original);
+    const principal = clave(ctx);
+    if (previo && !coincide(ctx, previo)) return false;
+    const k = previo?.clave || (leerGuardado(localStorage.getItem(principal))
+      ? prefijo(ctx) + ctx.almacen.nuevoId() : principal);
+    escribir(c, k, localStorage.getItem(k));
     return true;
   } catch { return false; }
 }
 
 function leer(ctx) {
+  if (!ctx.sesion) return [];
   try {
-    const k = clave(ctx);
-    const original = localStorage.getItem(k);
-    const d = leerGuardado(original);
-    return d && { clave: k, original, c: d.c };
-  } catch { return null; }
+    const claves = [clave(ctx)];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(prefijo(ctx))) claves.push(k);
+    }
+    return claves.flatMap(k => {
+      const original = localStorage.getItem(k);
+      const d = leerGuardado(original);
+      return d ? [{ clave: k, original, c: d.c, en: d.en }] : [];
+    }).sort((a, b) => b.en - a.en);
+  } catch { return []; }
 }
 
 export function vigilarVentaEnCurso(ctx) {
@@ -88,8 +95,9 @@ export function vigilarVentaEnCurso(ctx) {
   window.addEventListener('pagehide', guardarAlSalir);
 }
 
-export async function ofrecerRetomar(ctx) {
-  const d = leer(ctx);
+export async function ofrecerRetomar(ctx, omitir = new Set()) {
+  const disponibles = leer(ctx).filter(d => !omitir.has(d.clave));
+  const [d] = disponibles;
   if (!d || ctx.carrito?.lineas?.length) return;
   const c = d.c;
   const estadoVenta = await ctx.almacen.estadoCobro?.('venta', c.ventaId);
@@ -119,6 +127,7 @@ export async function ofrecerRetomar(ctx) {
   }
   const prendas = c.lineas.reduce((s, l) => s + l.cantidad, 0);
   const nombres = [...new Set(c.lineas.map(l => (ctx.productos?.[l.sku] ? titulo(ctx.productos[l.sku]) : l.sku)))];
+  const siguiente = disponibles.length > 1 ? h('button', { class: 'btn', id: 'retomar-otro' }, 'Otro borrador') : null;
   const continuar = h('button', { class: 'btn primary', id: 'retomar-si' }, icono('check'), 'Continuar');
   const cancelar = h('button', { class: 'btn', id: 'retomar-no' }, 'Cancelar');
   const v = abrirVentana({ titulo: '¿Continuar venta?', contenido: h('div', { class: 'pila' },
@@ -126,12 +135,19 @@ export async function ofrecerRetomar(ctx) {
     h('div', { class: 'venta-curso' }, h('span', { class: 'chip-ic' }, icono('carrito')),
       h('div', {}, h('b', {}, c.cliente?.nombre || 'Sin cliente todavía'),
         h('small', {}, `${prendas} ${prendas === 1 ? 'prenda' : 'prendas'} · ${nombres.slice(0, 2).join(', ')}${nombres.length > 2 ? '…' : ''}`)))),
-    acciones: h('div', { class: 'acciones' }, cancelar, continuar) });
-  cancelar.onclick = () => { descartar(ctx, d); v.cerrar(); };
+    acciones: h('div', { class: 'acciones' }, cancelar, siguiente, continuar) });
+  if (siguiente) siguiente.onclick = () => {
+    v.cerrar();
+    despuesDeCerrar(() => ofrecerRetomar(ctx, new Set([...omitir, d.clave])));
+  };
+  cancelar.onclick = () => {
+    descartar(ctx, d);
+    v.cerrar();
+    despuesDeCerrar(() => ofrecerRetomar(ctx));
+  };
   continuar.onclick = () => {
     if (!coincide(ctx, d) || ctx.carrito?.lineas?.length) { v.cerrar(); return; }
-    const existe = sku => !ctx.productos || !Object.keys(ctx.productos).length || ctx.productos[sku];
-    ctx.carrito = { lineas: c.lineas.filter(l => existe(l.sku)), descuento: c.descuento || null, autorizacion: c.autorizacion || null, ...(c.cliente ? { cliente: c.cliente } : {}),
+    ctx.carrito = { lineas: c.lineas, descuento: c.descuento || null, autorizacion: c.autorizacion || null, ...(c.cliente ? { cliente: c.cliente } : {}),
       ...(c.solicitudDescuento ? { solicitudDescuento: c.solicitudDescuento } : {}),
       ...(c.ventaId ? { ventaId: c.ventaId } : {}), ...(c.apartadoId ? { apartadoId: c.apartadoId } : {}),
       ...(c.pagos?.length ? { pagos: c.pagos } : {}) }; // v2.26: mismos ids y pagos escritos
