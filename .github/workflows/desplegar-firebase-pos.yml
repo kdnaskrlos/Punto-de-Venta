@@ -166,23 +166,19 @@ jobs:
           ready = [b for b in backups.get("backups", []) if b.get("database") == expected
                    and b.get("state") == "READY" and b.get("expireTime")
                    and datetime.fromisoformat(b["expireTime"].replace("Z", "+00:00")) > datetime.now(timezone.utc)]
-          if not ready:
-              candidates = backups.get("backups", [])
-              states = sorted({b.get("state", "SIN_ESTADO") for b in candidates})
-              matches = sum(b.get("database") == expected for b in candidates)
-              token = bool(backups.get("nextPageToken"))
-              print(f"Diagnóstico de backups: recibidos={len(candidates)}, base_correcta={matches}, estados={states}, pagina_adicional={token}")
-              print("No se imprimen datos de documentos ni credenciales.")
-              raise SystemExit("BLOQUEADO: no se encontró copia READY vigente para (default); revisar diagnóstico anterior")
-          latest = max(ready, key=lambda b: b.get("snapshotTime", ""))
           location = database.get("locationId", "desconocida")
           with open(sys.argv[3], "a") as out:
               out.write("### Preflight Firestore (solo lectura)\n\n")
               out.write(f"- Base: `(default)` / `{location}` (FIRESTORE_NATIVE).\n")
-              out.write(f"- Respaldo vigente READY: `{latest['name']}`.\n")
-              out.write(f"- Fecha del respaldo: `{latest.get('snapshotTime', 'sin fecha')}`.\n")
+              if ready:
+                  latest = max(ready, key=lambda b: b.get("snapshotTime", ""))
+                  out.write(f"- Respaldo vigente READY: `{latest['name']}`.\n")
+                  out.write(f"- Fecha del respaldo: `{latest.get('snapshotTime', 'sin fecha')}`.\n")
+              else:
+                  out.write("- Respaldo: **ninguna copia READY detectada**. El propietario acepta pruebas sintéticas sin respaldo en un POS todavía no operativo.\n")
+                  print("AVISO: no se encontró copia READY. No se bloquea este chequeo de solo lectura.")
               out.write("- Sin escrituras ni despliegue; no valida las reglas publicadas ni los datos de las colecciones.\n")
-          print("Preflight de base y copia READY vigente: correcto (solo metadatos)")
+          print("Preflight de base Firestore: correcto (solo metadatos)")
           PY
 
       - name: Desplegar solamente el componente autorizado
