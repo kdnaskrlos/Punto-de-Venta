@@ -167,7 +167,13 @@ jobs:
                    and b.get("state") == "READY" and b.get("expireTime")
                    and datetime.fromisoformat(b["expireTime"].replace("Z", "+00:00")) > datetime.now(timezone.utc)]
           if not ready:
-              raise SystemExit("BLOQUEADO: no se encontró copia READY vigente para (default)")
+              candidates = backups.get("backups", [])
+              states = sorted({b.get("state", "SIN_ESTADO") for b in candidates})
+              matches = sum(b.get("database") == expected for b in candidates)
+              token = bool(backups.get("nextPageToken"))
+              print(f"Diagnóstico de backups: recibidos={len(candidates)}, base_correcta={matches}, estados={states}, pagina_adicional={token}")
+              print("No se imprimen datos de documentos ni credenciales.")
+              raise SystemExit("BLOQUEADO: no se encontró copia READY vigente para (default); revisar diagnóstico anterior")
           latest = max(ready, key=lambda b: b.get("snapshotTime", ""))
           location = database.get("locationId", "desconocida")
           with open(sys.argv[3], "a") as out:
