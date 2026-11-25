@@ -674,3 +674,40 @@ test('una liquidación histórica de comisiones conserva el formato e identifica
   assert.deepEqual((await getDocFromServer(doc(b, 'comisiones', id))).data(), registro);
   await assertFails(updateDoc(doc(g, 'comisiones', id), { por: 'b' }));
 });
+
+test('admin abre y cierra caja personal automática; vendedora no puede crear caja personal', async () => {
+  await preparar();
+  const admin = entorno.authenticatedContext('b').firestore();
+  const vendedora = entorno.authenticatedContext('a').firestore();
+
+  const cajaAdmin = doc(admin, 'cajas', 'qa-admin-personal');
+  const punteroAdmin = doc(admin, 'cajaAbierta', 'b');
+  const apertura = writeBatch(admin);
+  apertura.set(punteroAdmin, { cajaId: 'qa-admin-personal', desde: fecha });
+  apertura.set(cajaAdmin, {
+    id: 'qa-admin-personal', uid: 'b', usuario: 'b', tipo: 'personal',
+    estado: 'abierta', abierta: fecha, fondo: { COP: 0, USD: 0, BS: 0 }, movimientos: [],
+  });
+  await apertura.commit();
+  assert.equal((await getDocFromServer(cajaAdmin)).data().tipo, 'personal');
+  assert.equal((await getDocFromServer(punteroAdmin)).data().cajaId, 'qa-admin-personal');
+
+  const intentoVendedora = writeBatch(vendedora);
+  intentoVendedora.set(doc(vendedora, 'cajaAbierta', 'a'), {
+    cajaId: 'qa-vendedora-personal', desde: fecha,
+  });
+  intentoVendedora.set(doc(vendedora, 'cajas', 'qa-vendedora-personal'), {
+    id: 'qa-vendedora-personal', uid: 'a', usuario: 'a', tipo: 'personal',
+    estado: 'abierta', abierta: fecha, fondo: { COP: 0, USD: 0, BS: 0 }, movimientos: [],
+  });
+  await assertFails(intentoVendedora.commit());
+  assert.equal((await getDocFromServer(doc(admin, 'cajaAbierta', 'a'))).exists(), false);
+
+  const cierre = writeBatch(admin);
+  cierre.update(cajaAdmin, { estado: 'cerrada', cierre: { fecha, porArquear: false } });
+  cierre.delete(punteroAdmin);
+  await cierre.commit();
+  assert.equal((await getDocFromServer(cajaAdmin)).data().estado, 'cerrada');
+  assert.equal((await getDocFromServer(punteroAdmin)).exists(), false);
+});
+
