@@ -5,8 +5,15 @@ const { createHash, randomUUID } = require('node:crypto');
 const { setTimeout: esperar } = require('node:timers/promises');
 
 const projectId = process.env.POS_QA_PROJECT_ID || '';
-if (!/^pos-qa-[a-z0-9-]{4,}$/.test(projectId)) {
-  throw new Error('BLOQUEADO: exige POS_QA_PROJECT_ID independiente, con prefijo pos-qa-; no usar producción.');
+// Proyecto nuevo de QA o Firebase existente expresamente autorizado por el propietario.
+// La segunda ruta exige confirmación exacta para impedir que una variable mal escrita
+// ejecute lotes sintéticos contra cualquier otro proyecto.
+const proyectoQA = /^pos-qa-[a-z0-9-]{4,}$/.test(projectId);
+const proyectoExistenteAutorizado = projectId === 'punto-de-venta-comic-shop'
+  && process.env.POS_QA_ALLOW_EXISTING_PROJECT === projectId
+  && process.env.POS_QA_CONFIRM_NONOPERATIVE === 'SI_POS_NO_OPERATIVO';
+if (!proyectoQA && !proyectoExistenteAutorizado) {
+  throw new Error('BLOQUEADO: proyecto no autorizado para pruebas remotas; exige confirmación explícita del Firebase existente.');
 }
 for (const key of ['POS_QA_API_KEY', 'POS_QA_EMAIL', 'POS_QA_PASSWORD']) {
   if (!process.env[key]) throw new Error('BLOQUEADO: falta ' + key);
@@ -106,6 +113,12 @@ async function main() {
     'Se requiere una cuenta admin de QA con perfil activo.');
   const { usuario } = perfil, idCaja = base + '-caja';
   const caja = doc(db, 'cajas', idCaja), puntero = doc(db, 'cajaAbierta', usuario);
+  // No reemplazar una caja abierta de una cuenta existente, aunque no haya
+  // empezado a operar el negocio. Usar una cuenta administrativa EXCLUSIVA de QA.
+  const punteroPrevio = await getDocFromServer(puntero);
+  if (punteroPrevio.exists()) {
+    throw new Error('BLOQUEADO: la cuenta de pruebas ya tiene caja abierta. No se sobrescribe.');
+  }
   const abrir = writeBatch(db);
   abrir.set(puntero, { cajaId: idCaja, desde: fecha });
   abrir.set(caja, { id: idCaja, uid, usuario, estado: 'abierta', tipo: 'tienda', abierta: fecha, fondo: {}, movimientos: [] });
