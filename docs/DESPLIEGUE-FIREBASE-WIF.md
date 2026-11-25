@@ -1,5 +1,13 @@
 # Despliegue manual del backend Firebase del POS
 
+## Verificar la identidad sin desplegar
+
+El workflow admite el componente `verificar`, que **solo comprueba** el intercambio OIDC y la suplantación autorizada de la cuenta de servicio. No instala herramientas de despliegue, no modifica Functions ni reglas y no exige configurar `POS_FIREBASE_FUNCION_SHA` ni `POS_FIREBASE_REGLAS_SHA`. Requiere las variables de entorno `POS_FIREBASE_PROJECT_NUMBER` y `POS_FIREBASE_WIF_PROVIDER`, la vinculación IAM `roles/iam.workloadIdentityUser` y una aprobación del entorno si está configurada.
+
+Una vez que el workflow y la revisión aprobada estén en `main`, abre GitHub Actions → **Desplegar backend Firebase del POS** → **Run workflow**, elige rama `main`, componente `verificar` y pega el SHA completo de HEAD de `main`. Si el paso «Verificar intercambio OIDC sin desplegar» termina correctamente, la autenticación está confirmada. Si falla, revisar el mensaje sin repetir permisos a ciegas.
+
+**Esta prueba no valida permisos de despliegue, Firestore ni Eventarc**: esos permisos se comprueban después y exclusivamente para el componente autorizado. La prueba tampoco supone que la aplicación esté lista para producción. No fusionar el PR solo para poder ejecutar la prueba si aún hay controles de calidad pendientes.
+
 El workflow **Desplegar backend Firebase del POS** se ejecuta desde Actions mediante **Run workflow**. Su único destino es `punto-de-venta-comic-shop`. Cada ejecución autoriza un solo componente y un SHA completo de `main`, después de pasar las pruebas de ese commit. Las reglas se cargan mediante `firestore:rules` y la única función admitida es `procesarVentaPos`. La PWA, Firebase Hosting y los datos del negocio se gestionan aparte.
 
 ## Configuración manual inicial
