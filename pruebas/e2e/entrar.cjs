@@ -36,9 +36,23 @@ casos('entrar', [
   }],
   ['PC: Mi cuenta → Cerrar sesión', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', query: '?demo&entrar' });
+    await p.evaluate(() => {
+      window.focoAlCerrarSesion = new Promise(resolve => {
+        const observar = new MutationObserver(() => {
+          const pin = document.querySelector('#entrar-pin');
+          if (!pin) return;
+          observar.disconnect();
+          pin.focus();
+          // El foco elegido al aparecer el formulario debe sobrevivir al foco automático anterior.
+          setTimeout(() => resolve(document.activeElement?.id), 100);
+        });
+        observar.observe(document.getElementById('app'), { childList: true, subtree: true });
+      });
+    });
     await p.click('.side [aria-label="Mi cuenta"]');
     await p.click('text=Cerrar sesión');
     await p.waitForSelector('#entrar-usuario');
+    a.strictEqual(await p.evaluate(() => window.focoAlCerrarSesion), 'entrar-pin');
     await entrarComo(p, 'admin');
     a.ok(await p.$('.side .nav[aria-label="Ajustes"]'));
   }],
