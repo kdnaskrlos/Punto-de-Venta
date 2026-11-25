@@ -85,7 +85,8 @@ casos('comisiones-demo', [
   ['Una venta histórica @demo se liquida por separado y conserva su atribución', async (env, a) => {
     const p = await env.pagina({ ruta: '/inicio' });
     await p.waitForFunction(() => localStorage.getItem('pos-demo-datos'));
-    await p.evaluate(() => {
+    // Si se escribe en la página anterior, un guardado pendiente de la demo puede reemplazar la semilla.
+    await p.addInitScript(() => {
       const clave = 'pos-demo-datos';
       const datos = JSON.parse(localStorage.getItem(clave));
       const fecha = new Date().toISOString();
