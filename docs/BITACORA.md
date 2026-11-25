@@ -1,27 +1,63 @@
-# Bitácora compacta — POS Comic Shop
+# Bitácora del Punto de Venta Comic Shop
 
-Registra cada ronda en **3–5 líneas**, con fecha, cambios, pruebas, bloqueos y siguiente paso. Este archivo no sustituye el código, los logs ni los PR. Máximo 200 líneas; consolidar entradas antiguas cuando corresponda.
+Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
-## 2026-11-25 — Estado candidato v2.43
-- La v2.42 sigue publicada; desarrollo de v2.43 concentrado en PR #21, sin fusionar.
-- Se integraron mejoras en cobros, inventario transaccional, caja personal e idempotencia.
-- CI #45657887101 aprobó emulador Firestore, navegador PWA y piloto.
-- Persisten limitaciones históricas de borradores en clientes v2.35.
+## 2026-11-25 — Incorporación de la memoria permanente
 
-## 2026-11-25 — Firebase y pruebas remotas
-- GitHub–Google Cloud WIF verificado; no equivale a backend v2.43 desplegado.
-- Usuario aprobó probar con Firebase existente `punto-de-venta-comic-shop` y su admin habitual.
-- Script remoto incorpora precheck sin escrituras, controles de proyecto e identificador de ejecución.
-- Pendiente: acceso Auth real, auditoría de reglas/Function desplegadas y ejecución de cestas remotas.
+- Se integraron los adjuntos con la memoria iniciada en la rama. Se conservaron las instrucciones originales y la habilidad `pos-contexto`.
+- Se contrastaron el código, los adjuntos y la evidencia de GitHub. Pasaron las comprobaciones de rutas, anclas, longitud y alcance documental.
+- Sigue pendiente validar Firebase real. La próxima acción es el precheck con el administrador habitual. [Plan de validación](VALIDACION-FINAL-V243.md#firebase-remoto-existente) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21)
+
+## 2026-11-25 — Decisión de mantener memoria permanente
+
+- Se acordaron `AGENTS.md`, `docs/ESTADO_ACTUAL.md` y `docs/BITACORA.md`, con las instrucciones compatibles del archivo que ya existía.
+- La rama añadió `pos-contexto` para recuperar y mantener la memoria. Las fuentes de etapas anteriores permanecen en `docs/memoria/`. [Habilidad](../.agents/skills/pos-contexto/SKILL.md) · [Índice](memoria/README.md)
+- Cada tarea debe actualizar estado y bitácora antes de cerrarse. [Protocolo](../AGENTS.md#flujo-permanente-chatgpt--codex)
+
+## 2026-11-25 — Prioridad de Firebase real
+
+- El propietario decidió pasar a validar el Firebase existente con datos sintéticos en el servicio real.
+- La CI conserva valor como evidencia local. Pendientes la sesión real del administrador, las revisiones de reglas y Function activas, y la matriz de ventas.
+- La decisión mantiene separada la autorización para despliegues y borrados. Primero va el precheck en solo lectura. [Instrucción y próximos pasos](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
 
 ## 2026-11-25 — Alcance pospuesto
-- El propietario quiere reinicio total del POS antes de empezar operación comercial: issue #26.
-- Se pospone hasta terminar las validaciones; no hay autorización para borrar ahora.
-- Lotes mayoristas por goteo, vencimientos/«cliente fantasma» y tasa paralela requieren especificación.
-- No tocar el proyecto externo Pedidos Personalizados.
 
-## 2026-11-25 — Sistema de memoria
-- Se incorpora `.agents/skills/pos-contexto/SKILL.md` para lectura y actualización guiada.
-- `AGENTS.md` conserva reglas permanentes; `ESTADO_ACTUAL.md` resume el próximo paso.
-- En cada ronda con cambios Codex actualizará ESTADO_ACTUAL y añadirá 3–5 líneas a BITACORA.
-- No atribuir pruebas remotas realizadas a ejecuciones locales del emulador.
+- El reinicio total de fábrica se pospuso hasta terminar las validaciones y requiere autorización independiente para borrar. [Issue #26](https://github.com/kdnaskrlos/Punto-de-Venta/issues/26)
+- Pedidos Personalizados conserva su propio Firebase. La integración de Pedidos en el POS corresponde a una fase posterior. [Notas de Pedidos](superpowers/specs/2026-11-14-pedidos-en-pos-notas.md)
+- Lotes por goteo, apartados vencidos, «cliente fantasma» y tasa paralela requieren especificación comercial. [Reglas por confirmar](ESTADO_ACTUAL.md#reglas-comerciales-por-confirmar)
+
+## 2026-11-25 — Revisión de la candidata
+
+- La CI de `70ffba8` aprobó núcleo, Firestore Emulator, Chromium y generación del piloto.
+- Se corrigió el foco de la entrada en escritorio y se estabilizó la prueba de comisiones históricas. El script remoto admite la cuenta habitual del POS.
+- Las ventas de prueba contra Firebase real quedaron pendientes. [Resultados en PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21#issuecomment-7171416036) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101)
+
+## 2026-11-25 — Seguridad de la matriz remota
+
+- Se añadió un ID estable por ejecución y una confirmación explícita de escrituras sintéticas. Los productos preexistentes quedan protegidos frente a colisiones.
+- El emulador comprobó que un ID usado impide repetir la matriz y que el precheck solo lee Firestore. El procesador local fue probado con reentregas de cestas de hasta 248 SKU.
+- Falta medir el mismo comportamiento en el servicio real. [Script](../pruebas/firebase/remoto-cestas.cjs) · [Evidencia](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21#issuecomment-7171416036)
+
+## 2026-11-25 — Caja personal del administrador
+
+- Se verificó la caja personal automática con fondo cero y cierre sin arqueo. La matriz usa una caja sintética personal.
+- Se reforzaron la apertura y el cierre transaccionales y se validaron los permisos de encargada y vendedora en el emulador.
+- Una caja preexistente bloquea la matriz. Su estado puede consultarse primero en solo lectura. [Pruebas](../pruebas/firebase/cobros.cjs) · [CI de caja personal](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45653138434)
+
+## 2026-11-25 — Datos de prueba y respaldo
+
+- El propietario autorizó el proyecto existente `punto-de-venta-comic-shop` y el administrador habitual para las pruebas sintéticas.
+- Se aceptó la ausencia de respaldo para el POS todavía no operativo. Los documentos `qa-` pueden figurar en informes.
+- Inventariar recursos, verificar caja y conciliar operaciones antes de escribir. [Decisión](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22) · [Condiciones](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
+
+## 2026-11-25 — Autenticación y despliegue
+
+- El workflow separó la verificación de identidad y las autorizaciones para Functions y reglas.
+- El intercambio OIDC por WIF pasó en la ejecución 45610821324. El paso de respaldo falló y el despliegue quedó omitido.
+- El estado del backend v2.43 sigue pendiente de comprobación en Firebase. [Ejecución WIF](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45610821324) · [Procedimiento](DESPLIEGUE-FIREBASE-WIF.md)
+
+## 2026-11-25 — Preparación del piloto v2.43
+
+- La publicación registrada sigue en v2.42 y la candidata v2.43 está en el PR #21 en borrador.
+- Aprobaron núcleo, navegador y emulador. Los casos 04 y 05 de pérdida de borradores en pestañas v2.35 siguen reproduciéndose.
+- Para publicar quedan Firebase real, Windows y Android físicos y la conciliación previa al retiro de las rutas históricas. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Criterios](VALIDACION-FINAL-V243.md#decisión-de-publicación)

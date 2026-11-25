@@ -1,60 +1,49 @@
-# Estado actual — POS Comic Shop
+# Estado actual del Punto de Venta Comic Shop
 
-**Actualizado:** 2026-11-25. **Repositorio:** `kdnaskrlos/Punto-de-Venta`.  
-**Publicada:** v2.42. **Candidata:** v2.43, PR #21 (`integracion/pos-auditoria`), sin fusionar.
-**Regla de uso:** comprobar con GitHub y código antes de dar cualquier dato de este archivo por vigente.
+- **Actualizado el 25-11-2026.** Se consolidó la memoria de `kdnaskrlos/Punto-de-Venta`, se contrastó el estado de la candidata y se validaron los enlaces y el formato de los tres documentos. [Bitácora](BITACORA.md)
+- **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
+- **Prioridad** validar Firebase real con datos sintéticos en el proyecto existente. La publicación de v2.43 sigue bloqueada por esta validación y por las pruebas en dispositivos físicos. [Decisión del propietario](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
 
-## Objetivo inmediato
-Ejecutar validación **contra Firebase real**, no más simulaciones como sustituto, antes de publicar v2.43. El propietario autorizó pruebas sintéticas en el proyecto actual y el uso de su administrador habitual; no autorizó un despliegue/borrado automático.
+## Funcionalidades implementadas
 
-## Evidencia y avances verificados
-- CI #45657887101 del candidato: aprobó `firestore-emulador`, `navegador-pwa` y `candidato-piloto`. Son verificaciones locales, **no** validación remota.
-- Cambios de Codex en PR #21: caja personal de administración, protección de aperturas concurrentes e identificadores de pruebas, script remoto con usuario/PIN, registros y documentación.
-- El script `pruebas/firebase/remoto-cestas.cjs` tiene `POS_QA_SOLO_PRECHECK=1`, confirmación de escrituras y `POS_QA_RUN_ID`; no divulgar PIN.
-- WIF GitHub–Google Cloud funcionó para consulta de metadatos. Esto no verifica que `procesarVentaPos` ni las reglas candidatas estén activos.
-- Riesgo heredado: v2.35 puede perder borradores al cerrar pestañas (casos históricos 04/05); se exige migración supervisada.
-
-## Estado por área
-| Área | Situación |
+| Área | Qué hay en el código |
 | --- | --- |
-| Catálogo, inventario, tramos y mix/separado | Implementado; confirmar en remoto |
-| Comisiones con piso por grupo, reducción al detal | Código candidato y pruebas locales |
-| Pagos combinados y vuelto mixto USD/COP | Código candidato y pruebas locales |
-| Caja personal admin/encargada y física vendedora | Verificado en código y CI |
-| Offline, carritos, idempotencia y PWA | Validado localmente, pendientes dispositivos reales |
-| Firestore real (reglas/Function, ventas 1–248 SKU) | **No validado** |
-| Publicación v2.43 | **Bloqueada** |
-| Reinicio total de fábrica | Futuro, issue #26; no ejecutar ahora |
+| Ventas y cobros | Carrito, cinco tramos configurables, mix y artículos `separado`, ofertas y descuentos, registro de clientes, pagos multimoneda, vuelto mixto y recibo opcional por WhatsApp. [Tramos](../js/nucleo/tramos.js) · [Cobro](../js/vistas/cobrar.js) · [Reglas vigentes](../AGENTS.md#reglas-comerciales-vigentes) |
+| Inventario | Inventario único, movimientos por venta, apartado y ajuste, importación por SKU desde Carga Masiva con vista previa, consulta y escaneo, fotos compartidas por código de imagen. [Inventario](../js/vistas/inventario.js) · [Importador](../js/nucleo/importar.js) |
+| Gestión | Roles admin, encargada y vendedora, permisos de descuento, caja personal automática para gestión y caja física con arqueo para vendedora, reportes, comisiones, ajustes y tasas. [Permisos](../js/nucleo/permisos.js) · [Caja](../js/vistas/caja.js) · [Reportes](../js/vistas/reportes.js) |
+| Apartados | Reserva de existencias, abonos, liquidación en una venta y cancelación con devolución de stock según el flujo. [Apartados](../js/vistas/apartados.js) · [Almacén Firebase](../js/datos/firebase.js) |
+| PWA y sincronización | Caché de recursos versionados, persistencia local, recuperación de carritos, cola de operaciones, IDs estables y conflictos conciliables. [Service worker](../sw.js) · [Recuperación](RECUPERACION-PWA.md) · [Guía](../GUIA.md) |
 
-## Decisiones de negocio confirmadas por código
-- Tramos: 1–5, 6–11, 12–23, 24–47, 48+; el mix comparte tramo. Productos `separado` calculan por tipo/marca/género/modelo y no reciben descuento general.
-- Comisiones: reducción por descuento/oferta solo en tramo de detal, piso por grupo contra cierres anteriores; evita doble pago mediante identificadores en el flujo nuevo.
-- Cobros: COP contable, efectivo COP/USD, Nequi, Zelle, USDT y pago móvil Bs; vuelto mixto físico USD y COP con remanente explícito.
-- Tasas: COP/USD manual; Bs/USD Binance+recargo, BCV o manual. Preservar tasa efectivamente usada en una operación; nunca sustituir histórico por tasa vigente.
-- Apartados: reservan unidades, admiten abonos, completan/cancelan; verificar conciliación.
-- Admin y encargada: caja personal automática sin arqueo físico. Vendedora: caja física y arqueo.
+## Qué agrega la candidata v2.43
 
-## Reglas o funcionalidades por especificar (no afirmar implementadas)
-- Tasa paralela del día de pago: definición exacta, qué fecha manda y cómo se conserva.
-- Apartados vencidos y «cliente fantasma»: vencimiento, deuda, recuperación de stock y registro.
-- Pedidos/lotes mayoristas abiertos por goteo: entrega parcial, precio, stock, abonos y liquidación.
-- Ventas fragmentadas y preventas: criterios comerciales de agrupación; no inventar umbrales.
-- Comisiones de apartados o liquidaciones parciales: destinatario y reversión.
-- Integración de Pedidos (otra app) en el POS: fase posterior, sin tocar su Firebase ahora.
+- La ruta procesada se habilita con `firebaseConfig.ventasAtomicas`. `procesarVentaPos` valida el comprobante con los datos de servidor y confirma venta, movimientos e inventario en una transacción. El rechazo por stock conserva el comprobante y la reentrega conserva el ID. El código mantiene la ruta directa para clientes históricos. [Procesador](../funciones/ventas.cjs) · [Auditoría](AUDITORIA-BLOQUE-1.md)
+- El precheck del administrador comprueba su perfil y el estado de su caja mediante lecturas de Firestore. La matriz exige confirmación de escrituras e ID estable de ejecución. Protege cajas y productos preexistentes y permite conciliar reintentos. [Script remoto](../pruebas/firebase/remoto-cestas.cjs) · [Procedimiento](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
+- La candidata mejora la recuperación del shell ante un 503 y de borradores de varias pestañas. Continúa la limitación de v2.35 cuando una pestaña aún ejecuta el JavaScript antiguo. [Recuperación PWA](RECUPERACION-PWA.md) · [Migración supervisada](VALIDACION-FINAL-V243.md#puerta-de-migración-supervisada-desde-v235)
 
-## Firebase / autorizaciones
-- Único destino autorizado de QA: `punto-de-venta-comic-shop` (Blaze), no un proyecto nuevo.
-- El propietario confirmó que no hay respaldo y acepta usar datos de prueba en POS aún no operativo; **no** borrar indiscriminadamente.
-- El propietario quiere usar su admin existente. No pedir su PIN en chat ni guardarlo en GitHub.
-- Confirmar reglas y Function efectivamente desplegadas; aprobar cualquier modificación por separado.
-- La versión v2.42 publicada y el proyecto Pedidos Personalizados quedan intactos.
+## Evidencia de validación
 
-## Siguiente paso exacto
-**Conectar un acceso autorizado a Firebase real (o ejecutar el precheck seguro local con credenciales introducidas allí), verificar reglas, Function y caja personal sin escribir.** Si faltan reglas/Function, presentar cambio concreto y pedir autorización específica; luego ejecutar pruebas remotas de ventas, stock, pagos y repetición con `POS_QA_RUN_ID` único. Registrar resultados verificables.
+- En la revisión funcional `70ffba8` aprobaron 174/174 unitarias, 37/37 de Firestore Emulator, 181/181 funcionales de Chromium, 5/5 de actualización PWA y 25/25 del puente. Pasó la generación del piloto de demostración. [GitHub Actions](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101) · [Artefacto](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101/artifacts/15042164279)
+- La suite histórica obtuvo 6/8. Los casos 04 y 05 de pérdida de borrador en pestañas v2.35 siguen reproduciéndose. El ensayo del procesador en el emulador cubrió 18 tamaños hasta 248 SKU, reentregas y el rechazo íntegro con el último SKU agotado. [Resultados del PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21#issuecomment-7171416036)
 
-## Referencias
-- PR #21: candidato v2.43.
-- Issue #22: gate de publicación y resultados.
-- Issue #26: reinicio total posterior.
-- `docs/VALIDACION-FINAL-V243.md`: procedimiento de validación.
-- `docs/memoria/`: contexto histórico; confirmar antes de convertir en reglas.
+## Firebase real y publicación pendientes
+
+- El propietario autorizó datos sintéticos en `punto-de-venta-comic-shop` (Blaze) y el uso de su administrador habitual. Aceptó la ausencia de respaldo solo para esta fase no operativa. La matriz requiere verificar el proyecto, la caja, las colas y el efecto de los registros `qa-` en reportes. [Condiciones de la prueba](VALIDACION-FINAL-V243.md#firebase-remoto-existente) · [Decisión](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
+- La cuenta de despliegue y el workflow WIF están configurados. En la ejecución 45610821324 aprobaron el intercambio OIDC y la obtención de identidad, falló el paso de respaldo y se omitió el despliegue. El workflow en `main` contempla `verificar` y exige revisiones y autorizaciones separadas para reglas y Functions. [Ejecución WIF](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45610821324) · [Flujo de despliegue](DESPLIEGUE-FIREBASE-WIF.md)
+- Queda por confirmar el estado de las reglas, `procesarVentaPos` y Eventarc desplegados. La sesión del administrador habitual y las ventas sintéticas reales siguen sin resultados registrados. [Plan remoto](VALIDACION-FINAL-V243.md#firebase-remoto-existente) · [Seguimiento](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
+- Antes de publicar, valida en Firebase real pagos y descuentos, caja, anulaciones, ventas y existencias, rechazo atómico, reintentos y conciliación. Prueba la PWA instalada en Windows y Android físicos y aplica la migración supervisada de v2.35. Concilia las colas, incluidas cuentas con UID sustituido, antes de acordar el retiro de ventas directas, abonos y liquidaciones de comisiones históricas. Conserva un plan de reversión y obtén la aprobación del propietario para publicar. [Criterios de publicación](VALIDACION-FINAL-V243.md#decisión-de-publicación)
+
+**Siguiente acción.** Ejecutar `POS_QA_SOLO_PRECHECK=1` en una terminal de confianza con el administrador habitual, usando el PIN de forma local y oculta. Inventariar las reglas y funciones activas en modo de lectura. Si hay caja abierta o colas por conciliar, resolverlas primero. Obtener autorización separada para cualquier despliegue necesario y confirmar de forma explícita las escrituras sintéticas antes de ejecutar la matriz. [Instrucciones exactas](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
+
+## Reglas comerciales por confirmar
+
+- Criterio para la tasa paralela en saldos diferidos, con la fecha aplicable y cómo se registra la tasa utilizada.
+- Vencimiento de apartados, reposición y tratamiento de pagos vencidos. Significado y tratamiento de «cliente fantasma».
+- Lotes mayoristas abiertos por goteo, preventas, entregas parciales y agrupación de ventas para impedir fragmentación indebida.
+- Precios, reservas, anticipos, saldos y liquidación de operaciones parciales. Atribución y reversión de comisiones cuando distintas personas reciben el abono y el saldo del apartado.
+
+Las reglas vigentes están en [AGENTS.md](../AGENTS.md#reglas-comerciales-vigentes). Las fuentes históricas describen etapas anteriores y se contrastan con el código y las pruebas de la candidata. [Memoria histórica](memoria/README.md) · [Notas de Pedidos](superpowers/specs/2026-11-14-pedidos-en-pos-notas.md)
+
+## Fuera de la fase actual
+
+- Integrar Pedidos en el POS, implementar lotes mayoristas, añadir flujos comerciales sin criterios aprobados y hacer rediseños ajenos a fallos actuales. [Fases futuras](memoria/PENDIENTES.md#fases-futuras-documentadas)
+- El reinicio total de fábrica sigue pospuesto. Su ejecución requiere autorización explícita independiente. [Issue #26](https://github.com/kdnaskrlos/Punto-de-Venta/issues/26)

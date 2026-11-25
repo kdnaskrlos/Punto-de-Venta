@@ -1,15 +1,36 @@
 # Instrucciones para Punto-de-Venta
 
+El propietario decide las reglas comerciales, ChatGPT revisa la arquitectura y los riesgos, y Codex implementa, prueba y documenta. Prioriza la integridad financiera y del inventario, la prevención de cobros duplicados o pérdida de datos, la continuidad sin conexión y una interfaz clara con código mantenible.
+
 ## Arquitectura y datos
 
 - Mantén la aplicación como PWA estática con HTML, CSS y módulos ES de JavaScript. `index.html` carga `js/principal.js` y `js/app.js` gestiona las rutas por hash. Conserva el despliegue desde la raíz según la guía. [Entrada](index.html) · [Arranque](js/principal.js) · [Rutas](js/app.js) · [Guía](GUIA.md)
 - Ubica la lógica de negocio en `js/nucleo/` y la interfaz en `js/vistas/`. Las vistas acceden a los datos a través del almacén. Si cambia su contrato, revisa tanto el almacén en memoria como el de Firebase. [Núcleo](js/nucleo/) · [Vistas](js/vistas/) · [Contrato](js/datos/contrato.js) · [Memoria](js/datos/memoria.js) · [Firebase](js/datos/firebase.js)
 - Para cambios de permisos, revisa la matriz `puede(rol, accion)` y las reglas de Firestore. Mantén los tres roles existentes (`admin`, `encargada` y `vendedora`) y verifica los controles del servidor. Reserva `config.js` para la configuración pública de Firebase y mantén tokens y PIN fuera del repositorio. [Permisos](js/nucleo/permisos.js) · [Reglas de Firestore](firestore.rules) · [Guía](GUIA.md)
+- Conserva la separación entre lógica, presentación y persistencia, con cambios pequeños y verificables. Una modificación visual por sí sola no justifica cambiar la lógica comercial. Cualquier cambio de arquitectura requiere una justificación técnica comprobable.
+
+## Firebase e integridad operativa
+
+- El proyecto del POS es `punto-de-venta-comic-shop`. Mantén aislados los demás proyectos, incluido Pedidos Personalizados. Las credenciales privadas se introducen en un entorno de confianza y quedan fuera del código, GitHub, conversaciones y registros.
+- Despliega Functions o reglas únicamente con autorización explícita para el componente y la revisión. El borrado de registros requiere autorización específica. Conserva la versión pública hasta aprobar su reemplazo. [Procedimiento de despliegue](docs/DESPLIEGUE-FIREBASE-WIF.md)
+- Las operaciones financieras deben conservar IDs estables, importes y tasas originales. Exige validación de identidad, permisos, existencias e importes en servidor y verifica el vínculo entre venta, pago, caja y movimientos. Los cambios entre documentos deben ser atómicos e idempotentes ante reintentos. Mantén cada venta íntegra ante límites de Firestore. [Auditoría](docs/AUDITORIA-BLOQUE-1.md)
+- Al reconectar conserva los IDs de las operaciones y concilia sus colas antes de retirarlas o cortar rutas históricas. Comprueba la recuperación de carritos y pendientes, la compatibilidad de los módulos de cada versión y la PWA instalada en Windows y Android. [Recuperación PWA](docs/RECUPERACION-PWA.md)
+
+## Reglas comerciales vigentes
+
+- **Roles y cajas.** Administración y encargada usan caja personal automática con fondo cero y sin arqueo físico. Vendedora usa caja física con apertura, movimientos, cierre y arqueo. Administración controla ajustes, importaciones e inventario. La vendedora pide autorización para descuentos manuales y el permiso de aprobación corresponde a administración. [Permisos](js/nucleo/permisos.js) · [Caja](js/vistas/caja.js) · [Descuentos](js/vistas/vender.js)
+- **Precios.** Los tramos predeterminados son 1–5, 6–11, 12–23, 24–47 y 48 o más. El mix comparte tramo por cantidad total. Cada producto `separado` agrupa sus tallas y colores por tipo, marca, género y modelo y queda fuera del descuento general. Respeta los tramos personalizados. [Tramos](js/nucleo/tramos.js)
+- **Comisiones.** Usa el tramo y la configuración del producto o los valores predeterminados. La reducción por descuento u oferta aplica al detal. El piso por grupo (`mix` o producto `separado`) es el mayor valor calculado en los cierres de tramos anteriores para la misma composición proporcional. Evita liquidaciones repetidas y verifica ventas anuladas, saldos y pagos previos. Una nueva atribución de comisiones exige una regla aprobada. [Comisiones](js/nucleo/comisiones.js)
+- **Cobro.** Usa COP como moneda contable y admite pagos combinados que cubran lo exigible. Conserva forma, moneda, monto y tasa histórica. La tasa COP/USD es manual y la de Bs/USD admite Binance con recargo, BCV o entrada manual. Las formas predeterminadas son efectivo COP, Nequi, efectivo USD, Zelle, USDT y pago móvil en Bs. [Cobro](js/nucleo/cobro.js) · [Tasas](js/nucleo/tasas.js) · [Formas](js/nucleo/formas.js)
+- **Vuelto.** En modo mixto se entregan primero USD físicos y luego COP. El billete mínimo predeterminado es 1 USD y el redondeo predeterminado es 100 COP. Muestra el remanente sin entregar y trata Zelle y USDT como pagos electrónicos. [Cálculo del vuelto](js/nucleo/cobro.js) · [Vista de pagos](js/vistas/pagos.js)
+- **Apartados.** Conserva la reserva de stock y las referencias entre los abonos, la venta de liquidación y los movimientos. Aplica los permisos vigentes para completar, cancelar o anular. [Apartados](js/vistas/apartados.js) · [Almacén Firebase](js/datos/firebase.js)
+- **Decisiones pendientes.** Exige criterios aprobados antes de programar reglas comerciales nuevas. Conserva por separado los acuerdos de fases futuras y los comportamientos implementados. Mantén el reinicio de fábrica pospuesto hasta que se retome explícitamente. [Reglas por confirmar](docs/ESTADO_ACTUAL.md#reglas-comerciales-por-confirmar) · [Planes de Pedidos](docs/superpowers/specs/2026-11-14-pedidos-en-pos-notas.md) · [Issue #26](https://github.com/kdnaskrlos/Punto-de-Venta/issues/26)
 
 ## Interfaz
 
 - Escribe textos de interfaz breves en español. Incluye descripciones cuando aporten información necesaria para entender un estado o completar una acción. [Textos de interfaz](docs/superpowers/plans/2026-11-12-punto-de-venta-fase1.md#global-constraints) · [Preferencias originales](docs/memoria/README.md#preferencias-originales)
 - Usa Plus Jakarta Sans, el tema claro y los tokens del POS para tipografía, colores de moneda y estados. Conserva la jerarquía visual entre títulos, cifras y detalles, y reutiliza los componentes compartidos para mantener consistencia entre tarjetas, botones, filtros y vistas de detalle. Respeta el alcance de los estilos de inventario bajo `.stk`. [Componentes](js/ui.js) · [Tokens](css/tokens.css) · [Tema](index.html) · [Inventario](css/stock.css)
+- Usa el color para comunicar estados, monedas y jerarquía. Mantén un espaciado coherente con los tokens, preferiblemente en múltiplos de 4 y 8 cuando encajen con los componentes existentes.
 - Mantén la navegación lateral en PC y la barra inferior en móvil. Para el selector de fechas en Reportes, reutiliza el calendario de la aplicación. Consulta las medidas históricas de espaciado y tipografía como referencias de diseño pendientes de confirmación. [Navegación](js/app.js) · [Estilos adaptables](css/base.css) · [Calendario de Reportes](js/vistas/calendario.js) · [Referencias por confirmar](docs/memoria/PENDIENTES.md#referencias-y-decisiones-por-confirmar)
 - En Vender, «Tarjetas listado» se refiere a los productos que se pueden agregar y «Tarjetas cobrar» a las prendas ya agregadas al carrito. Identifica cuál de esos flujos afecta el cambio. Inventario y «Todos los productos» comparten `tarjetaPrenda`. [Vista Vender](js/vistas/vender.js) · [Inventario](js/vistas/inventario.js) · [POS Comic Shop, mensajes 5 y 135](docs/memoria/README.md#pos-comic-shop)
 
@@ -17,6 +38,7 @@
 
 - Ejecuta `npm test` para verificar cambios en el núcleo y los datos. Para flujos de navegador, usa `npm run e2e` en un entorno con Python 3 y Playwright con Chromium. Consulta en `package.json` la ruta de módulos que usa el script. El servidor de pruebas abre la demostración por defecto. [Comandos](package.json) · [Servidor de pruebas](pruebas/e2e/_servidor.cjs)
 - Cuando se publique una versión de la aplicación, actualiza juntos `APP_VERSION` y `CACHE`. [Versión](js/version.js) · [Service worker](sw.js)
+- Actualiza `SHELL` cuando cambien sus recursos y regenera `HUELLA_APP` con `node pruebas/pwa/huella.cjs`. Verifica los cambios de permisos y datos en el emulador cuando corresponda. Para publicar, valida operaciones financieras críticas contra Firebase real y registra por separado la evidencia local, de CI y remota. [Huella](pruebas/pwa/huella.cjs) · [Validación v2.43](docs/VALIDACION-FINAL-V243.md)
 
 ## Memoria del proyecto
 
@@ -24,9 +46,7 @@
 
 ## Flujo permanente ChatGPT ↔ Codex
 
-- Al iniciar una tarea, consulta `docs/ESTADO_ACTUAL.md`, las últimas entradas de `docs/BITACORA.md` y esta guía. Si se necesita recuperar contexto, usa la skill `pos-contexto` situada en `.agents/skills/pos-contexto/SKILL.md`.
-- No pidas volver a adjuntar esos tres archivos cuando estés dentro de este repositorio. Lee siempre su versión actual del checkout; verifica con GitHub la rama y el estado real de CI.
-- Tras **cada tarea que modifique código o decisiones**, actualiza `docs/ESTADO_ACTUAL.md` y agrega una entrada de 3–5 líneas a `docs/BITACORA.md` **en el mismo commit o PR**. Para tareas de solo lectura, evita commits artificiales.
-- Mantén cada archivo de memoria con **máximo 200 líneas**; compacta entradas antiguas y conserva las decisiones verificadas, sin borrar reglas existentes.
-- Al cerrar, informa brevemente archivos cambiados, pruebas realizadas, bloqueos y un único siguiente paso concreto.
-- La v2.43 se trabaja en la rama `integracion/pos-auditoria`; la v2.42 publicada no debe alterarse sin autorización. No desplegar funciones/reglas, borrar datos ni tocar otros proyectos Firebase automáticamente.
+- **Al empezar cada tarea**, lee este archivo, el estado actual y las últimas entradas de la bitácora desde el checkout. Recupera el contexto con `pos-contexto` sin pedir que se adjunten de nuevo estos archivos. Contrasta la rama, el PR y la CI con GitHub y verifica las afirmaciones con el código y las pruebas. [Estado actual](docs/ESTADO_ACTUAL.md) · [Bitácora](docs/BITACORA.md) · [Habilidad `pos-contexto`](.agents/skills/pos-contexto/SKILL.md)
+- **Al terminar cada tarea**, ejecuta las comprobaciones pertinentes, actualiza `docs/ESTADO_ACTUAL.md` y añade a `docs/BITACORA.md` una entrada fechada de 3–5 líneas con cambios, pruebas y resultado, riesgos o bloqueos y siguiente acción cuando corresponda. Completa ambos archivos antes de cerrar, inclúyelos en el mismo commit o PR y aplica el protocolo también a rondas documentales, bloqueadas o de solo lectura. En las rondas de solo lectura, limita los cambios al mantenimiento de la memoria.
+- Mantén cada uno de los tres documentos por debajo de 200 líneas. Al superar las 150 líneas en la bitácora, resume las entradas más antiguas, conserva las referencias a PR e incidencias y recoge aquí las decisiones permanentes verificadas. Conserva las fuentes históricas en `docs/memoria/`.
+- Informa los archivos modificados, las comprobaciones, los bloqueos y un único siguiente paso concreto. Trabaja la v2.43 en `integracion/pos-auditoria` mientras se conserve la publicación v2.42. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21)
