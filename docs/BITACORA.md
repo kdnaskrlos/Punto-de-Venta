@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-25 — Alta de la función sin Policy Troubleshooter
+
+- El propietario confirmó permisos propios del llamante, cuenta de Compute Engine válida, backend compatible, Node.js 22 gen 2 disponible y cero solicitudes. El 403 de Troubleshooter persiste.
+- Se cambió el preflight a IAM Credentials y `testIamPermissions` bajo la identidad real. El alta comprobada conserva la compilación, revisión privada y Eventarc como evidencias, sin cambios de IAM. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
+- Pasaron sintaxis y siete escenarios simulados, incluido fallo de la credencial antes del alta. Sigue pendiente ejecutar en Firebase real con el SHA autorizado.
+- Siguiente acción. Ejecutar el bloque único de Cloud Shell y compartir su resultado.
+
 ## 2026-11-25 — Diagnóstico del HTTP 403 de Policy Troubleshooter
 
 - El propietario informó que se aceptó la cuenta de Compute Engine y que las consultas v3 se detuvieron con HTTP 403. Los permisos efectivos de despliegue siguen pendientes.

@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 25-11-2026.** Se registró el HTTP 403 de Policy Troubleshooter y se preparó el diagnóstico de IAM de solo lectura. [Bitácora](BITACORA.md)
+- **Actualizado el 25-11-2026.** Se registró el diagnóstico real y se preparó una vía de alta sin Policy Troubleshooter. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - **Prioridad** validar Firebase real con datos sintéticos en el proyecto existente. La publicación de v2.43 sigue bloqueada por esta validación y por las pruebas en dispositivos físicos. [Decisión del propietario](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
 
@@ -42,7 +42,9 @@
 
 - **Segundo intento en Cloud Shell.** El propietario informó que la cuenta de Compute Engine pasó la validación inicial y que `v3/iam:troubleshoot` devolvió HTTP 403. El 403 afecta a la consulta del llamante y deja indeterminados los permisos de los principales evaluados. Con la API habilitada, falta distinguir permiso de uso del proyecto de cuota, visibilidad de políticas y otras restricciones aplicables. Se preparó un diagnóstico de solo lectura, validado con cinco escenarios simulados. La autorización continúa limitada a `procesarVentaPos` de `fa521e9`. [Diagnóstico](../scripts/diagnosticar-iam-funcion-v243.py) · [Requisitos oficiales](https://docs.cloud.google.com/policy-intelligence/docs/troubleshoot-access)
 
-**Siguiente acción.** Ejecutar el bloque de diagnóstico IAM en Cloud Shell y compartir su salida para determinar los ajustes estrictamente necesarios.
+- **Diagnóstico real posterior.** El propietario confirmó permisos propios del llamante, cuenta de Compute Engine activa y del proyecto, Firestore y reglas compatibles, APIs y regiones comprobadas, Node.js 22 gen 2 disponible y cero solicitudes pendientes. Policy Troubleshooter v3 sigue devolviendo HTTP 403. El bloque actualizado usa credenciales efímeras de IAM Credentials y `testIamPermissions` bajo cada identidad seleccionada. La compilación real y Cloud Run/Eventarc comprueban los recursos creados. Pasaron sintaxis y siete escenarios simulados. El alta real y el permiso de obtener el token efímero siguen por verificar en Cloud Shell. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
+
+**Siguiente acción.** Ejecutar el bloque actualizado de Cloud Shell para comprobar las identidades y, si aprueban las condiciones de seguridad, crear exclusivamente `procesarVentaPos` del SHA `fa521e9`. Compartir el resultado estructural o el bloqueo.
 
 ## Reglas comerciales por confirmar
 

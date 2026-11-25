@@ -11,7 +11,6 @@ git -C "$repo" archive --format=zip --output="$tmp/funcion.zip" "$sha:funciones"
 
 python3 - "$tmp/funcion.zip" "$sha" "$@" <<'PY'
 import hashlib, json, re, subprocess, sys, time, zipfile
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
@@ -42,13 +41,18 @@ def token():
         ["gcloud", "auth", "print-access-token", "--account", account], text=True
     ).strip()
 
+impersonation = subprocess.check_output(
+    ["gcloud", "config", "get-value", "auth/impersonate_service_account", "--quiet"], text=True
+).strip()
+require(impersonation in {"", "(unset)"},
+        "usa una sesión sin impersonación configurada para conservar la identidad del despliegue.")
 access_token = token()
 class ApiError(Exception):
     pass
 
-def api(host, path, body=None, absent=False):
-    headers = {"Authorization": "Bearer " + access_token, "Content-Type": "application/json"}
-    if host == "policytroubleshooter":
+def api(host, path, body=None, absent=False, credential=None):
+    headers = {"Authorization": "Bearer " + (credential or access_token), "Content-Type": "application/json"}
+    if host == "iamcredentials":
         headers["x-goog-user-project"] = project
     req = Request(f"https://{host}.googleapis.com/{path}",
                   data=None if body is None else json.dumps(body).encode(), headers=headers)
@@ -74,15 +78,27 @@ def report_error(kind, error, traceback):
 
 sys.excepthook = report_error
 
-def access_state(principal, resource, permission):
-    state = api("policytroubleshooter", "v3/iam:troubleshoot",
-                {"accessTuple": {"principal": principal, "fullResourceName": resource,
-                                 "permission": permission}}).get("overallAccessState")
-    return state
+def missing_permissions(host, path, permissions, credential=None):
+    result = api(host, path, {"permissions": list(permissions)}, credential=credential)
+    return sorted(set(permissions) - set(result.get("permissions", [])))
 
-def access(principal, resource, permission):
-    state = access_state(principal, resource, permission)
-    require(state == "CAN_ACCESS", f"IAM {principal} / {permission} / {resource}: {state}")
+def project_permissions(permissions, credential=None):
+    return missing_permissions("cloudresourcemanager", f"v3/{p}:testIamPermissions",
+                               permissions, credential)
+
+def service_token(sa):
+    if sa == account:
+        return token()
+    try:
+        result = api("iamcredentials", "v1/projects/-/serviceAccounts/" + quote(sa, safe="@")
+                     + ":generateAccessToken",
+                     {"scope": ["https://www.googleapis.com/auth/cloud-platform"], "lifetime": "600s"})
+    except ApiError as error:
+        raise ApiError(f"no se obtuvo una credencial efímera para {sa}. "
+                       "Verifica IAM Credentials y el permiso existente iam.serviceAccounts.getAccessToken "
+                       f"sobre esa cuenta. {error}") from None
+    require(bool(result.get("accessToken")), f"IAM Credentials no devolvió un token para {sa}.")
+    return result["accessToken"]
 
 def firestore_state():
     state = api("firestore", f"v1/{db}/documents/sistema/estado"
@@ -119,9 +135,10 @@ def check_trigger_absent():
 meta = api("firebase", "v1beta1/" + p)
 require(meta.get("projectId") == project and meta.get("state") == "ACTIVE", "proyecto inesperado o inactivo.")
 number = meta["projectNumber"]
-project_resource = f"//cloudresourcemanager.googleapis.com/projects/{number}"
 apis = ["cloudfunctions", "run", "eventarc", "pubsub", "firestore", "firebaserules",
-        "cloudbuild", "artifactregistry", "storage", "logging", "policytroubleshooter"]
+        "cloudbuild", "artifactregistry", "storage", "logging"]
+if any(sa != account for sa in identities) or not identities:
+    apis.append("iamcredentials")
 api_problems = []
 for service in apis:
     try:
@@ -193,34 +210,69 @@ for sa in dict.fromkeys(identities):
 require(not problems, "identidades pendientes:\n- " + "\n- ".join(problems))
 runtime, trigger, builder = identities
 agent = f"service-{number}@gcf-admin-robot.iam.gserviceaccount.com"
-checks = [(account, "//iam.googleapis.com/" + p + "/serviceAccounts/" + sa,
-           "iam.serviceAccounts.actAs") for sa in dict.fromkeys(identities)]
-checks += [(account, project_resource, permission) for permission in
-           ("cloudfunctions.functions.create", "cloudfunctions.functions.sourceCodeSet", "serviceusage.services.use")]
-checks += [(runtime, "//firestore.googleapis.com/" + db, permission) for permission in
-           ("datastore.entities.get", "datastore.entities.create", "datastore.entities.update")]
-checks += [(agent, project_resource, permission) for permission in
-           ("run.services.create", "eventarc.triggers.create")]
-# El destino aún no existe. Comprobar los permisos conocidos antes del alta y los del destino tras su creación.
-checks += [(trigger, project_resource, permission) for permission in
-           ("eventarc.events.receiveEvent", "run.routes.invoke")]
-checks += [(builder, project_resource, permission) for permission in
-           ("logging.logEntries.create", "storage.objects.get", "artifactregistry.repositories.uploadArtifacts")]
-
-def diagnose(check):
-    principal, resource, permission = check
+def record_missing(label, check):
     try:
-        state = access_state(*check)
+        missing = check()
     except ApiError as error:
-        state = str(error)
-    if state != "CAN_ACCESS":
-        return f"{principal} / {permission} / {resource}: {state}"
-    return None
+        problems.append(f"{label}: {error}")
+        return
+    if missing:
+        problems.append(f"{label}: {', '.join(missing)}")
 
-with ThreadPoolExecutor(max_workers=5) as pool:
-    problems = [problem for problem in pool.map(diagnose, checks) if problem]
+record_missing("proyecto / llamante", lambda: project_permissions(
+    ("cloudfunctions.functions.create", "cloudfunctions.functions.sourceCodeSet", "serviceusage.services.use")))
+for sa in dict.fromkeys(identities):
+    endpoint = f"v1/{p}/serviceAccounts/{quote(sa, safe='@')}:testIamPermissions"
+    record_missing(f"actAs del llamante sobre {sa}", lambda: missing_permissions(
+        "iam", endpoint, ("iam.serviceAccounts.actAs",)))
+
+policy = api("cloudresourcemanager", f"v3/{p}:getIamPolicy", {"options": {"requestedPolicyVersion": 3}})
+if not any(b.get("role") == "roles/cloudfunctions.serviceAgent"
+           and "serviceAccount:" + agent in b.get("members", []) and not b.get("condition")
+           for b in policy.get("bindings", [])):
+    problems.append(f"no consta el enlace administrado roles/cloudfunctions.serviceAgent de {agent}. "
+                    "Verifica su aprovisionamiento en Cloud Functions antes del alta.")
+
+credentials = {}
+for sa in dict.fromkeys(identities):
+    try:
+        credentials[sa] = service_token(sa)
+    except ApiError as error:
+        problems.append(str(error))
+if runtime in credentials:
+    record_missing(f"permisos Firestore de {runtime}", lambda: project_permissions(
+        ("datastore.databases.get", "datastore.entities.get", "datastore.entities.create", "datastore.entities.update"),
+        credentials[runtime]))
+    try:
+        rows = api("firestore", f"v1/{db}/documents:batchGet", {
+            "documents": [f"{db}/documents/sistema/estado"],
+            "mask": {"fieldPaths": ["soloVentasProcesadas"]}
+        }, credential=credentials[runtime])
+        if not rows or not any("found" in row or "missing" in row for row in rows):
+            problems.append("Firestore no confirmó la lectura con la identidad de ejecución.")
+    except ApiError as error:
+        problems.append(f"lectura Firestore con {runtime}: {error}")
+if trigger in credentials:
+    # Al crear el servicio aún no hay una política propia que evaluar. Revisar también el destino real al final.
+    record_missing(f"Eventarc e invocación previa de {trigger}", lambda: project_permissions(
+        ("eventarc.events.receiveEvent", "run.routes.invoke"), credentials[trigger]))
+if builder in credentials:
+    record_missing(f"logs de compilación de {builder}", lambda: project_permissions(
+        ("logging.logEntries.create",), credentials[builder]))
+    repository = f"v1/{parent}/repositories/gcf-artifacts"
+    try:
+        artifacts = api("artifactregistry", repository, absent=True)
+        if artifacts is not None:
+            record_missing(f"publicación de artefactos de {builder}", lambda: missing_permissions(
+                "artifactregistry", repository + ":testIamPermissions",
+                ("artifactregistry.repositories.uploadArtifacts",), credentials[builder]))
+    except ApiError as error:
+        print(f"El repositorio de compilación aún no es comprobable: {error}", flush=True)
+    # El objeto de fuentes aún no existe. Cloud Build autoriza su lectura y la publicación efectiva.
 require(not problems, "IAM pendiente:\n- " + "\n- ".join(problems))
-print("IAM verificado para las identidades seleccionadas.", flush=True)
+del credentials
+print("IAM comprobado con las credenciales de las identidades seleccionadas. El alta verificará la compilación real.",
+      flush=True)
 with open("/dev/tty") as tty:
     print("Con clientes y piloto cerrados y sin procesos que creen solicitudes, escribe CLIENTES_CERRADOS: ",
           end="", file=sys.stderr, flush=True)
@@ -306,10 +358,13 @@ require(destination.get("service") == target and destination.get("region") == "u
 policy = api("run", "v2/" + svc["service"] + ":getIamPolicy")
 require(not any({"allUsers", "allAuthenticatedUsers"} & set(b.get("members", []))
                 for b in policy.get("bindings", [])), "el servicio tiene un principal público en IAM.")
-access(trigger, "//run.googleapis.com/" + svc["service"], "run.routes.invoke")
+missing = missing_permissions("run", "v2/" + svc["service"] + ":testIamPermissions",
+                              ("run.routes.invoke",), service_token(trigger))
+require(not missing, f"la identidad de Eventarc carece de invocación efectiva sobre {svc['service']}; revisa {op}.")
+require(bool(build.get("build")), f"no se encontró el ID de compilación de la función; revisa {op}.")
 require(ruleset() == baseline, "el ruleset activo cambió externamente durante el despliegue.")
 firestore_state()
 print(json.dumps({"estado": "VERIFICADO_ESTRUCTURALMENTE", "proyecto": project, "commit": sha,
-                  "funcion": fn, "revision": revision, "eventarc": tr["trigger"],
+                  "funcion": fn, "compilacion": build["build"], "revision": revision, "eventarc": tr["trigger"],
                   "ruleset": baseline, "solicitudes": 0, "ventasDePrueba": 0}, ensure_ascii=False))
 PY
