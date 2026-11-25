@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-25 — Iteración 03 de v2.43 · Precheck aprobado e inventario pendiente
+
+- El propietario aportó el resultado de Cloud Shell en `punto-de-venta-comic-shop`. Precheck de solo lectura aprobado, administrador activo, sin caja personal ni física, sin puntero para esa cuenta y cero ventas ejecutadas.
+- Se cotejaron las reglas y la Function gen 2 de la candidata, con Node.js 22, reintentos y creación de solicitudes en `(default)`. [Reglas](../firestore.rules) · [Función](../funciones/index.cjs)
+- La API de reglas devolvió HTTP 403 desde Codex y no se dispuso de acceso administrativo a Google Cloud. Quedaron pendientes el inventario, las reglas activas y la revisión y el disparador en servicio.
+- Siguiente acción. Ejecutar el inventario de solo lectura desde Cloud Shell y compartir su salida. [Plan remoto](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
+
 ## 2026-11-25 — Precheck real v2.43 bloqueado
 
 - Se verificaron el HEAD `8f98a6d`, el PR #21 en borrador y el ID y la clave web pública de `punto-de-venta-comic-shop` en `config.js`. La CI de reglas de ese HEAD figura como aprobada. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45684703207)
