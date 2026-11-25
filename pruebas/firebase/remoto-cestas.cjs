@@ -113,11 +113,22 @@ async function main() {
     'Se requiere una cuenta admin de QA con perfil activo.');
   const { usuario } = perfil, idCaja = base + '-caja';
   const caja = doc(db, 'cajas', idCaja), puntero = doc(db, 'cajaAbierta', usuario);
-  // No reemplazar una caja abierta de una cuenta existente, aunque no haya
-  // empezado a operar el negocio. Usar una cuenta administrativa EXCLUSIVA de QA.
+  // No reemplazar una caja abierta del administrador existente ni alterar una caja comercial.
   const punteroPrevio = await getDocFromServer(puntero);
   if (punteroPrevio.exists()) {
-    throw new Error('BLOQUEADO: la cuenta de pruebas ya tiene caja abierta. No se sobrescribe.');
+    throw new Error('BLOQUEADO: el administrador tiene una caja abierta. Ciérrala antes de probar; no se sobrescribe.');
+  }
+  // Diagnóstico sin escrituras: comprueba autenticación, perfil y caja.
+  // La contraseña no aparece en la salida, y no se consultan datos personales.
+  if (process.env.POS_QA_SOLO_PRECHECK === '1') {
+    console.log(JSON.stringify({
+      modo: 'solo-lectura', proyecto: projectId, adminActivo: true,
+      cajaAbierta: false, ventasEjecutadas: 0, listoParaPrepararMatriz: true,
+    }));
+    return;
+  }
+  if (process.env.POS_QA_CONFIRM_WRITES !== 'SI_DATOS_SINTETICOS') {
+    throw new Error('BLOQUEADO: falta POS_QA_CONFIRM_WRITES=SI_DATOS_SINTETICOS para autorizar escrituras sintéticas.');
   }
   const abrir = writeBatch(db);
   abrir.set(puntero, { cajaId: idCaja, desde: fecha });
