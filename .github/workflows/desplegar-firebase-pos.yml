@@ -126,6 +126,59 @@ jobs:
           [[ -n "$TOKEN" ]]
           echo 'Autenticación WIF de GitHub a Google Cloud confirmada. Ningún recurso fue desplegado.' >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Inventario de Firestore y respaldo remoto (solo lectura)
+        if: inputs.componente == 'verificar'
+        shell: bash
+        env:
+          TOKEN: ${{ steps.autenticar.outputs.access_token }}
+        run: |
+          set -euo pipefail
+          proyecto='punto-de-venta-comic-shop'
+          [[ "$FIREBASE_PROJECT" == "$proyecto" && -n "$TOKEN" ]]
+          carpeta=$(mktemp -d)
+          trap 'rm -rf "$carpeta"' EXIT
+          # Solicitudes GET: no modifica datos, reglas, backups ni servicios.
+          for intento in database backups; do
+            if [[ "$intento" == database ]]; then
+              url="https://firestore.googleapis.com/v1/projects/$proyecto/databases/%28default%29"
+            else
+              url="https://firestore.googleapis.com/v1/projects/$proyecto/locations/-/backups"
+            fi
+            codigo=$(curl --silent --show-error --max-time 30 --retry 2 --retry-delay 2 \
+              --output "$carpeta/$intento.json" --write-out '%{http_code}' \
+              --header "Authorization: Bearer $TOKEN" --header "Accept: application/json" "$url")
+            if [[ "$codigo" != 200 ]]; then
+              echo "::error::Consulta de metadatos $intento falló (HTTP $codigo). Verificar permisos de lectura, sin otorgar privilegios de escritura."
+              exit 1
+            fi
+          done
+          python3 - "$carpeta/database.json" "$carpeta/backups.json" "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json, sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+          database = json.loads(Path(sys.argv[1]).read_text())
+          backups = json.loads(Path(sys.argv[2]).read_text())
+          expected = "projects/punto-de-venta-comic-shop/databases/(default)"
+          if database.get("name") != expected or database.get("type") != "FIRESTORE_NATIVE":
+              raise SystemExit("BLOQUEADO: ubicación/proyecto/tipo de base de datos inesperado")
+          if backups.get("unreachable"):
+              raise SystemExit("BLOQUEADO: algunas ubicaciones de respaldos no pudieron consultarse")
+          ready = [b for b in backups.get("backups", []) if b.get("database") == expected
+                   and b.get("state") == "READY" and b.get("expireTime")
+                   and datetime.fromisoformat(b["expireTime"].replace("Z", "+00:00")) > datetime.now(timezone.utc)]
+          if not ready:
+              raise SystemExit("BLOQUEADO: no se encontró copia READY vigente para (default)")
+          latest = max(ready, key=lambda b: b.get("snapshotTime", ""))
+          location = database.get("locationId", "desconocida")
+          with open(sys.argv[3], "a") as out:
+              out.write("### Preflight Firestore (solo lectura)\\n\\n")
+              out.write(f"- Base: `(default)` / `{location}` (FIRESTORE_NATIVE).\\n")
+              out.write(f"- Respaldo vigente READY: `{latest['name']}`.\\n")
+              out.write(f"- Fecha del respaldo: `{latest.get('snapshotTime', 'sin fecha')}`.\\n")
+              out.write("- Sin escrituras ni despliegue; no valida las reglas publicadas ni los datos de las colecciones.\\n")
+          print("Preflight de base y copia READY vigente: correcto (solo metadatos)")
+          PY
+
       - name: Desplegar solamente el componente autorizado
         if: inputs.componente != 'verificar'
         shell: bash
