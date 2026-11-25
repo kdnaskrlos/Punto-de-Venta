@@ -15,9 +15,12 @@ if (archivo) {
   const campos = ['projectId', 'authDomain', 'apiKey', 'appId'];
   const config = JSON.parse(readFileSync(archivo, 'utf8'));
   if (!campos.every(k => typeof config?.[k] === 'string' && config[k].trim())
-    || !/^pos-qa-[a-z0-9-]{4,}$/.test(config.projectId)
+    || !(/^pos-qa-[a-z0-9-]{4,}$/.test(config.projectId)
+      || (config.projectId === 'punto-de-venta-comic-shop'
+        && process.env.POS_QA_ALLOW_EXISTING_PROJECT === config.projectId
+        && process.env.POS_QA_CONFIRM_NONOPERATIVE === 'SI_POS_NO_OPERATIVO'))
     || config.authDomain !== config.projectId + '.firebaseapp.com') {
-    throw new Error('BLOQUEADO: se requiere la configuración pública de la app web del proyecto pos-qa-*');
+    throw new Error('BLOQUEADO: configuración pública inválida o proyecto Firebase existente sin autorización explícita');
   }
   configQA = Object.fromEntries(campos.map(k => [k, config[k]]));
 }
