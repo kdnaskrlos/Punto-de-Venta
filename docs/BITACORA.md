@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-25 — Iteración 04 de v2.43 · Inventario real y plan de despliegue
+
+- Cloud Shell confirmó `punto-de-venta-comic-shop`, Firestore Native `nam5`, Hosting y 14 colecciones raíz. Las reglas activas del 16-11-2026 difieren por SHA-256 de las candidatas. Functions v1 y v2 están vacías y no hay `procesarVentaPos`.
+- Se verificó la combinación de función gen 2 Node.js 22 en `us-central1` y Eventarc en `nam5`. El WIF exige el SHA de `main` y no puede desplegar la candidata del PR #21 desde su rama. [Workflow](https://github.com/kdnaskrlos/Punto-de-Venta/blob/main/.github/workflows/desplegar-firebase-pos.yml) · [Eventarc](https://docs.cloud.google.com/eventarc/docs/locations)
+- Se fijó `fa521e9` para un despliegue escalonado vía Cloud Shell. Quedan por comprobar IAM efectivo, compatibilidad de las colecciones y reglas activas, solicitudes y reversión. La ronda se limitó a revisión y documentación.
+- Siguiente acción. Obtener autorización explícita por componente para la función y las reglas de `fa521e9`. [CI del SHA](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45687488832)
+
 ## 2026-11-25 — Iteración 03 de v2.43 · Precheck aprobado e inventario pendiente
 
 - El propietario aportó el resultado de Cloud Shell en `punto-de-venta-comic-shop`. Precheck de solo lectura aprobado, administrador activo, sin caja personal ni física, sin puntero para esa cuenta y cero ventas ejecutadas.
