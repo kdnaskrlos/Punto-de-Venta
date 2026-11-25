@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-25 — Diagnóstico del HTTP 403 de Policy Troubleshooter
+
+- El propietario informó que se aceptó la cuenta de Compute Engine y que las consultas v3 se detuvieron con HTTP 403. Los permisos efectivos de despliegue siguen pendientes.
+- Se contrastaron los requisitos de cuota y visibilidad de Google. El diagnóstico prueba los permisos propios del llamante por separado, informa la evidencia disponible de los otros principales y propone ajustes acotados cuando corresponde. [Diagnóstico](../scripts/diagnosticar-iam-funcion-v243.py)
+- Pasaron sintaxis y cinco escenarios con APIs simuladas. La iteración se limitó a documentación y preparación del diagnóstico.
+- Siguiente acción. Ejecutar el bloque de diagnóstico en Cloud Shell y compartir su salida.
+
 ## 2026-11-25 — Corrección de la validación IAM del alta de la función
 
 - El propietario informó que la comprobación de formato rechazó la cuenta predeterminada de Compute Engine antes del alta. Confirmó que Policy Troubleshooter está habilitada.

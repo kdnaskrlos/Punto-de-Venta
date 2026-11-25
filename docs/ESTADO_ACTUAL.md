@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 25-11-2026.** Se corrigió el preflight del despliegue autorizado de la función en Cloud Shell. [Bitácora](BITACORA.md)
+- **Actualizado el 25-11-2026.** Se registró el HTTP 403 de Policy Troubleshooter y se preparó el diagnóstico de IAM de solo lectura. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - **Prioridad** validar Firebase real con datos sintéticos en el proyecto existente. La publicación de v2.43 sigue bloqueada por esta validación y por las pruebas en dispositivos físicos. [Decisión del propietario](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
 
@@ -40,7 +40,9 @@
 
 - **Primer intento en Cloud Shell.** El propietario informó que el preflight se detuvo antes del alta al rechazar por formato la cuenta predeterminada de Compute Engine y confirmó que Policy Troubleshooter está habilitada. El script corregido verifica el propietario y estado de la cuenta mediante IAM y reúne permisos pendientes por identidad y recurso. La comprobación de sintaxis y seis escenarios simulados pasaron. Pendiente comprobar la cuenta y Eventarc en Firebase real. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
 
-**Siguiente acción.** Ejecutar el bloque corregido en Cloud Shell con la cuenta de Compute Engine ya indicada y compartir el resultado estructural o el diagnóstico de bloqueo.
+- **Segundo intento en Cloud Shell.** El propietario informó que la cuenta de Compute Engine pasó la validación inicial y que `v3/iam:troubleshoot` devolvió HTTP 403. El 403 afecta a la consulta del llamante y deja indeterminados los permisos de los principales evaluados. Con la API habilitada, falta distinguir permiso de uso del proyecto de cuota, visibilidad de políticas y otras restricciones aplicables. Se preparó un diagnóstico de solo lectura, validado con cinco escenarios simulados. La autorización continúa limitada a `procesarVentaPos` de `fa521e9`. [Diagnóstico](../scripts/diagnosticar-iam-funcion-v243.py) · [Requisitos oficiales](https://docs.cloud.google.com/policy-intelligence/docs/troubleshoot-access)
+
+**Siguiente acción.** Ejecutar el bloque de diagnóstico IAM en Cloud Shell y compartir su salida para determinar los ajustes estrictamente necesarios.
 
 ## Reglas comerciales por confirmar
 
