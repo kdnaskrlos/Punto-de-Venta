@@ -21,3 +21,12 @@
 ## Memoria del proyecto
 
 - Consulta el estado de una decisión en la memoria del proyecto y verifica su evidencia en el repositorio antes de aplicarla. Las preferencias históricas de trabajo requieren confirmación antes de convertirse en reglas permanentes. [Índice y fuentes](docs/memoria/README.md) · [Decisiones pendientes de confirmación](docs/memoria/DECISIONES.md#pendientes-de-confirmación)
+
+## Flujo permanente ChatGPT ↔ Codex
+
+- Al iniciar una tarea, consulta `docs/ESTADO_ACTUAL.md`, las últimas entradas de `docs/BITACORA.md` y esta guía. Si se necesita recuperar contexto, usa la skill `pos-contexto` situada en `.agents/skills/pos-contexto/SKILL.md`.
+- No pidas volver a adjuntar esos tres archivos cuando estés dentro de este repositorio. Lee siempre su versión actual del checkout; verifica con GitHub la rama y el estado real de CI.
+- Tras **cada tarea que modifique código o decisiones**, actualiza `docs/ESTADO_ACTUAL.md` y agrega una entrada de 3–5 líneas a `docs/BITACORA.md` **en el mismo commit o PR**. Para tareas de solo lectura, evita commits artificiales.
+- Mantén cada archivo de memoria con **máximo 200 líneas**; compacta entradas antiguas y conserva las decisiones verificadas, sin borrar reglas existentes.
+- Al cerrar, informa brevemente archivos cambiados, pruebas realizadas, bloqueos y un único siguiente paso concreto.
+- La v2.43 se trabaja en la rama `integracion/pos-auditoria`; la v2.42 publicada no debe alterarse sin autorización. No desplegar funciones/reglas, borrar datos ni tocar otros proyectos Firebase automáticamente.
