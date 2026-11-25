@@ -171,11 +171,11 @@ jobs:
           latest = max(ready, key=lambda b: b.get("snapshotTime", ""))
           location = database.get("locationId", "desconocida")
           with open(sys.argv[3], "a") as out:
-              out.write("### Preflight Firestore (solo lectura)\\n\\n")
-              out.write(f"- Base: `(default)` / `{location}` (FIRESTORE_NATIVE).\\n")
-              out.write(f"- Respaldo vigente READY: `{latest['name']}`.\\n")
-              out.write(f"- Fecha del respaldo: `{latest.get('snapshotTime', 'sin fecha')}`.\\n")
-              out.write("- Sin escrituras ni despliegue; no valida las reglas publicadas ni los datos de las colecciones.\\n")
+              out.write("### Preflight Firestore (solo lectura)\n\n")
+              out.write(f"- Base: `(default)` / `{location}` (FIRESTORE_NATIVE).\n")
+              out.write(f"- Respaldo vigente READY: `{latest['name']}`.\n")
+              out.write(f"- Fecha del respaldo: `{latest.get('snapshotTime', 'sin fecha')}`.\n")
+              out.write("- Sin escrituras ni despliegue; no valida las reglas publicadas ni los datos de las colecciones.\n")
           print("Preflight de base y copia READY vigente: correcto (solo metadatos)")
           PY
 
