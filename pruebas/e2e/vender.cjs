@@ -265,6 +265,8 @@ casos('vender', [
     a.strictEqual(await p.isVisible('#escanear-vender'), false);
     await agregar(p, 'Jogger Texcol Caballero Negro', 'M', 1);
     a.ok(await p.isVisible('.tabla-pc .fila-pc[data-sku="J-M"]'));
+    // Al cerrar la búsqueda la zona vuelve a entrar con un desplazamiento.
+    await p.locator('.zona-carrito').evaluate(zona => Promise.all(zona.getAnimations().map(animacion => animacion.finished)));
     const r = await p.evaluate(() => { const t = document.querySelector('.tabla-pc').getBoundingClientRect(), pie = document.querySelector('.pie-pc').getBoundingClientRect(); return [pie.top >= t.bottom - 1, Math.round(innerHeight - pie.bottom)]; });
     a.ok(r[0] && r[1] >= 0 && r[1] <= 40, 'la barra de cobro va abajo: ' + r);
     a.strictEqual(await texto(p, '.pie-pc .total-cop'), '42.000');
