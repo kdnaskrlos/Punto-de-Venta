@@ -15,12 +15,17 @@
 
    Comprueba que el disparador observa `usuarios/{uid}/solicitudesVenta/{id}` en la base `(default)` y que escribe marcas terminales al procesar. No se requiere Hosting ni Storage de Firebase para este piloto. Las fotos de ejemplo van en el sitio estático.
 
-5. Con la cuenta admin existente autorizada, siempre que tenga caja cerrada y no existan cobros reales pendientes, sin personalizar precios, tramos, comisiones ni formas de pago, instala Firebase SDK en un directorio temporal y ejecuta ambos modos. Usa exclusivamente la clave pública del proyecto QA y credenciales sintéticas en variables de entorno. Conserva el resultado JSON por tamaño.
+5. **Primero ejecutar solo la precomprobación remota de lectura**, usando la cuenta admin existente (sin pedir contraseñas en chats ni guardarlas en GitHub). Ejecutar con `POS_QA_SOLO_PRECHECK=1`; comprueba Firebase Authentication, el perfil `usuarios/{uid}` (admin activo) y que no exista `cajaAbierta/{usuario}`. No crea colecciones, caja ni ventas. Si hay caja abierta, detener las pruebas; no cerrarla automáticamente. Para la matriz real se requiere además `POS_QA_CONFIRM_WRITES=SI_DATOS_SINTETICOS`, la Function y las reglas compatibles ya autorizadas y desplegadas, y comprobar que no existan cobros comerciales pendientes.
+
+6. Con la cuenta admin existente autorizada, siempre que tenga caja cerrada y no existan cobros reales pendientes, sin personalizar precios, tramos, comisiones ni formas de pago, instala Firebase SDK en un directorio temporal y ejecuta ambos modos. Usa exclusivamente la clave pública del proyecto QA y credenciales sintéticas en variables de entorno. Conserva el resultado JSON por tamaño.
 
    ```sh
    npm install --prefix "$POS_QA_HERRAMIENTAS" firebase@10.12.2
-   NODE_PATH="$POS_QA_HERRAMIENTAS/node_modules" POS_QA_VENTAS_PROCESADAS=1 node pruebas/firebase/remoto-cestas.cjs
-   NODE_PATH="$POS_QA_HERRAMIENTAS/node_modules" POS_QA_VENTAS_PROCESADAS=0 node pruebas/firebase/remoto-cestas.cjs
+   NODE_PATH="$POS_QA_HERRAMIENTAS/node_modules" POS_QA_SOLO_PRECHECK=1 node pruebas/firebase/remoto-cestas.cjs
+
+   # Solo después de autorizar expresamente las escrituras sintéticas y desplegar el backend:
+   NODE_PATH="$POS_QA_HERRAMIENTAS/node_modules" POS_QA_CONFIRM_WRITES=SI_DATOS_SINTETICOS POS_QA_VENTAS_PROCESADAS=1 node pruebas/firebase/remoto-cestas.cjs
+   NODE_PATH="$POS_QA_HERRAMIENTAS/node_modules" POS_QA_CONFIRM_WRITES=SI_DATOS_SINTETICOS POS_QA_VENTAS_PROCESADAS=0 node pruebas/firebase/remoto-cestas.cjs
    ```
 
    Variables requeridas: `POS_QA_PROJECT_ID`, `POS_QA_API_KEY`, `POS_QA_EMAIL`, `POS_QA_PASSWORD` y la ruta temporal `POS_QA_HERRAMIENTAS`. En la ruta procesada deben confirmarse 1–248 SKU de la matriz, con coincidencia de caja, pagos, movimientos, existencias, marca y evento. Con el último SKU agotado se exige un conflicto con el comprobante original y cero escrituras parciales. En la ruta histórica registra el primer tamaño rechazado con código de salida 2. Un lote rechazado debe dejar el inventario y los comprobantes intactos. La medición debe hacerse antes de decidir qué clientes antiguos podrán seguir operando.
