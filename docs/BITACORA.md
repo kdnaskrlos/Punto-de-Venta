@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-25 — Verificación estructural aprobada y reglas autorizadas
+
+- El propietario confirmó cero fallos y pendientes, transporte Pub/Sub verificado y ruleset anterior identificado. Sigue pendiente una prueba activa de entrega de eventos.
+- Autorizó solo `firestore.rules` de `fa521e96c86e4052934ec9dcd080aceba06e7443` en `punto-de-venta-comic-shop`. Se corroboró la huella candidata y se prepararon respaldo, simulaciones de v2.42, publicación y reversión. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
+- Pasaron seis escenarios simulados. La ejecución real de las reglas sigue pendiente.
+- Siguiente acción. Ejecutar el bloque de reglas en Cloud Shell y compartir el resultado.
+
 ## 2026-11-25 — Función real desplegada y corrección de la verificación
 
 - El propietario confirmó `procesarVentaPos` activa, revisión `procesarventapos-00001-mem` lista con 100 % del tráfico y Eventarc `procesarventapos-790966` en `nam5` con destino `cloudFunction`, filtros y cuenta correctos.
