@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 25-11-2026.** Se registró la autorización exclusiva de la función y se preparó la ejecución controlada en Cloud Shell. [Bitácora](BITACORA.md)
+- **Actualizado el 25-11-2026.** Se corrigió el preflight del despliegue autorizado de la función en Cloud Shell. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - **Prioridad** validar Firebase real con datos sintéticos en el proyecto existente. La publicación de v2.43 sigue bloqueada por esta validación y por las pruebas en dispositivos físicos. [Decisión del propietario](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
 
@@ -38,7 +38,9 @@
 
 - **Autorización vigente.** El propietario autorizó exclusivamente el alta de `procesarVentaPos` en `punto-de-venta-comic-shop` con el SHA `fa521e96c86e4052934ec9dcd080aceba06e7443`. Las reglas de Firestore quedan pendientes de autorización. Se preparó el comando de Cloud Shell y se comprobó su sintaxis y su control de flujo con APIs simuladas, incluidos el rechazo por solicitudes existentes y por IAM. La ejecución real, los permisos efectivos y Eventarc siguen pendientes de evidencia. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
 
-**Siguiente acción.** Ejecutar el bloque entregado en Cloud Shell con la cuenta autorizada y compartir su salida final o el bloqueo. El alta solo procede tras el preflight y requiere las cuentas de servicio existentes de ejecución, Eventarc y compilación. [Validación remota](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
+- **Primer intento en Cloud Shell.** El propietario informó que el preflight se detuvo antes del alta al rechazar por formato la cuenta predeterminada de Compute Engine y confirmó que Policy Troubleshooter está habilitada. El script corregido verifica el propietario y estado de la cuenta mediante IAM y reúne permisos pendientes por identidad y recurso. La comprobación de sintaxis y seis escenarios simulados pasaron. Pendiente comprobar la cuenta y Eventarc en Firebase real. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
+
+**Siguiente acción.** Ejecutar el bloque corregido en Cloud Shell con la cuenta de Compute Engine ya indicada y compartir el resultado estructural o el diagnóstico de bloqueo.
 
 ## Reglas comerciales por confirmar
 

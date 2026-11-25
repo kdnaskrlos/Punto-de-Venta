@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-25 — Corrección de la validación IAM del alta de la función
+
+- El propietario informó que la comprobación de formato rechazó la cuenta predeterminada de Compute Engine antes del alta. Confirmó que Policy Troubleshooter está habilitada.
+- Se sustituyó la restricción de dominio por la verificación de pertenencia y estado en IAM y se agruparon los bloqueos de permisos antes del alta.
+- Pasaron sintaxis y seis escenarios con APIs simuladas. El despliegue autorizado y los permisos efectivos siguen pendientes de comprobación desde Cloud Shell.
+- Siguiente acción. Ejecutar el bloque corregido y compartir la salida. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
+
 ## 2026-11-25 — Autorización exclusiva de procesarVentaPos v2.43
 
 - El propietario autorizó solo `procesarVentaPos` en `punto-de-venta-comic-shop` para `fa521e96c86e4052934ec9dcd080aceba06e7443`. Las reglas siguen pendientes de autorización.

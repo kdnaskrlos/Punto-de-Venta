@@ -6,10 +6,12 @@ tmp=$(mktemp -d)
 trap 'rm -rf -- "$tmp"' EXIT
 sha=fa521e96c86e4052934ec9dcd080aceba06e7443
 repo=${1:?Indica la copia local del repositorio Punto-de-Venta.}
+shift
 git -C "$repo" archive --format=zip --output="$tmp/funcion.zip" "$sha:funciones"
 
-python3 - "$tmp/funcion.zip" "$sha" <<'PY'
+python3 - "$tmp/funcion.zip" "$sha" "$@" <<'PY'
 import hashlib, json, re, subprocess, sys, time, zipfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
@@ -24,7 +26,7 @@ db = f"{p}/databases/(default)"
 release = f"{p}/releases/cloud.firestore"
 event = "google.cloud.firestore.document.v1.created"
 pattern = "usuarios/{uid}/solicitudesVenta/{id}"
-archive, sha = sys.argv[1:]
+archive, sha, *identities = sys.argv[1:]
 account = subprocess.check_output(
     ["gcloud", "auth", "list", "--filter=status:ACTIVE", "--format=value(account)"], text=True
 ).strip()
@@ -41,11 +43,15 @@ def token():
     ).strip()
 
 access_token = token()
+class ApiError(Exception):
+    pass
+
 def api(host, path, body=None, absent=False):
+    headers = {"Authorization": "Bearer " + access_token, "Content-Type": "application/json"}
+    if host == "policytroubleshooter":
+        headers["x-goog-user-project"] = project
     req = Request(f"https://{host}.googleapis.com/{path}",
-                  data=None if body is None else json.dumps(body).encode(),
-                  headers={"Authorization": "Bearer " + access_token,
-                           "Content-Type": "application/json"})
+                  data=None if body is None else json.dumps(body).encode(), headers=headers)
     try:
         with urlopen(req, timeout=45) as response:
             return json.load(response)
@@ -56,14 +62,26 @@ def api(host, path, body=None, absent=False):
             detail = json.loads(error.read() or b"{}").get("error", {}).get("message", "")
         except ValueError:
             detail = ""
-        sys.exit(f"BLOQUEADO: {host}/{path} HTTP {error.code}. {detail}")
+        raise ApiError(f"{host}/{path} HTTP {error.code}. {detail}")
     except (URLError, TimeoutError):
-        sys.exit(f"BLOQUEADO: sin respuesta de {host}/{path}.")
+        raise ApiError(f"sin respuesta de {host}/{path}.")
 
-def access(principal, resource, permission):
+def report_error(kind, error, traceback):
+    if isinstance(error, ApiError):
+        sys.stderr.write(f"BLOQUEADO: {error}\n")
+    else:
+        sys.__excepthook__(kind, error, traceback)
+
+sys.excepthook = report_error
+
+def access_state(principal, resource, permission):
     state = api("policytroubleshooter", "v3/iam:troubleshoot",
                 {"accessTuple": {"principal": principal, "fullResourceName": resource,
                                  "permission": permission}}).get("overallAccessState")
+    return state
+
+def access(principal, resource, permission):
+    state = access_state(principal, resource, permission)
     require(state == "CAN_ACCESS", f"IAM {principal} / {permission} / {resource}: {state}")
 
 def firestore_state():
@@ -104,9 +122,15 @@ number = meta["projectNumber"]
 project_resource = f"//cloudresourcemanager.googleapis.com/projects/{number}"
 apis = ["cloudfunctions", "run", "eventarc", "pubsub", "firestore", "firebaserules",
         "cloudbuild", "artifactregistry", "storage", "logging", "policytroubleshooter"]
+api_problems = []
 for service in apis:
-    info = api("serviceusage", f"v1/projects/{number}/services/{service}.googleapis.com")
-    require(info.get("state") == "ENABLED", f"API deshabilitada: {service}")
+    try:
+        info = api("serviceusage", f"v1/projects/{number}/services/{service}.googleapis.com")
+        if info.get("state") != "ENABLED":
+            api_problems.append(f"API deshabilitada: {service}.googleapis.com")
+    except ApiError as error:
+        api_problems.append(str(error))
+require(not api_problems, "API pendientes:\n- " + "\n- ".join(api_problems))
 database = api("firestore", "v1/" + db)
 require(database.get("name") == db and database.get("locationId") == "nam5"
         and database.get("type") == "FIRESTORE_NATIVE", "Firestore no coincide con (default), Native, nam5.")
@@ -143,34 +167,65 @@ with zipfile.ZipFile(archive) as package:
             and "package-lock.json" in package.namelist(), "paquete de la candidata incompatible.")
 
 print(f"Proyecto: {project} | SHA: {sha} | Cuenta: {account} | Ruleset: {baseline}", flush=True)
+if not identities:
+    with open("/dev/tty") as tty:
+        print("Cuenta compartida o tres cuentas (ejecución Eventarc compilación): ",
+              end="", file=sys.stderr, flush=True)
+        identities = tty.readline().split()
+if len(identities) == 1:
+    identities *= 3
+require(len(identities) == 3 and all(
+    re.fullmatch(r"[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9-]+", sa) for sa in identities),
+    "indica un correo compartido o tres correos de cuentas de servicio.")
+
+problems = []
+for sa in dict.fromkeys(identities):
+    try:
+        details = api("iam", f"v1/{p}/serviceAccounts/" + quote(sa, safe="@"))
+    except ApiError as error:
+        problems.append(f"no se pudo verificar {sa}: {error}")
+        continue
+    if details.get("email") != sa or str(details.get("projectId")) not in {project, str(number)}:
+        problems.append(f"IAM no confirma que {sa} pertenezca a {project}.")
+    elif details.get("disabled", False):
+        problems.append(f"cuenta deshabilitada: {sa}")
+
+require(not problems, "identidades pendientes:\n- " + "\n- ".join(problems))
+runtime, trigger, builder = identities
+agent = f"service-{number}@gcf-admin-robot.iam.gserviceaccount.com"
+checks = [(account, "//iam.googleapis.com/" + p + "/serviceAccounts/" + sa,
+           "iam.serviceAccounts.actAs") for sa in dict.fromkeys(identities)]
+checks += [(account, project_resource, permission) for permission in
+           ("cloudfunctions.functions.create", "cloudfunctions.functions.sourceCodeSet", "serviceusage.services.use")]
+checks += [(runtime, "//firestore.googleapis.com/" + db, permission) for permission in
+           ("datastore.entities.get", "datastore.entities.create", "datastore.entities.update")]
+checks += [(agent, project_resource, permission) for permission in
+           ("run.services.create", "eventarc.triggers.create")]
+# El destino aún no existe. Comprobar los permisos conocidos antes del alta y los del destino tras su creación.
+checks += [(trigger, project_resource, permission) for permission in
+           ("eventarc.events.receiveEvent", "run.routes.invoke")]
+checks += [(builder, project_resource, permission) for permission in
+           ("logging.logEntries.create", "storage.objects.get", "artifactregistry.repositories.uploadArtifacts")]
+
+def diagnose(check):
+    principal, resource, permission = check
+    try:
+        state = access_state(*check)
+    except ApiError as error:
+        state = str(error)
+    if state != "CAN_ACCESS":
+        return f"{principal} / {permission} / {resource}: {state}"
+    return None
+
+with ThreadPoolExecutor(max_workers=5) as pool:
+    problems = [problem for problem in pool.map(diagnose, checks) if problem]
+require(not problems, "IAM pendiente:\n- " + "\n- ".join(problems))
+print("IAM verificado para las identidades seleccionadas.", flush=True)
 with open("/dev/tty") as tty:
-    print("Tres cuentas de servicio existentes del proyecto (ejecución Eventarc compilación), separadas por espacios: ",
-          end="", file=sys.stderr, flush=True)
-    identities = tty.readline().split()
     print("Con clientes y piloto cerrados y sin procesos que creen solicitudes, escribe CLIENTES_CERRADOS: ",
           end="", file=sys.stderr, flush=True)
     confirmation = tty.readline().strip()
-require(len(identities) == 3 and all(re.fullmatch(
-    r"[a-z][a-z0-9-]+@" + re.escape(project) + r"\.iam\.gserviceaccount\.com", sa) for sa in identities),
-    "se requieren tres correos de cuentas de servicio del proyecto.")
 require(confirmation == "CLIENTES_CERRADOS", "no se confirmó el cierre de clientes y piloto.")
-runtime, trigger, builder = identities
-for sa in dict.fromkeys(identities):
-    sa_path = f"{p}/serviceAccounts/{quote(sa, safe='@')}"
-    require(not api("iam", "v1/" + sa_path).get("disabled", False), f"cuenta deshabilitada: {sa}")
-    access(account, "//iam.googleapis.com/" + sa_path, "iam.serviceAccounts.actAs")
-for permission in ("cloudfunctions.functions.create", "cloudfunctions.functions.sourceCodeSet", "serviceusage.services.use"):
-    access(account, project_resource, permission)
-for permission in ("datastore.entities.get", "datastore.entities.create", "datastore.entities.update"):
-    access(runtime, "//firestore.googleapis.com/" + db, permission)
-agent = f"service-{number}@gcf-admin-robot.iam.gserviceaccount.com"
-for permission in ("run.services.create", "eventarc.triggers.create"):
-    access(agent, project_resource, permission)
-access(trigger, project_resource, "eventarc.events.receiveEvent")
-# El servicio todavía no existe. Para esta alta, verificar la invocación ya concedida antes de crear.
-access(trigger, project_resource, "run.routes.invoke")
-for permission in ("logging.logEntries.create", "storage.objects.get", "artifactregistry.repositories.uploadArtifacts"):
-    access(builder, project_resource, permission)
 
 require(ruleset() == baseline, "el ruleset activo cambió durante el preflight.")
 firestore_state()
