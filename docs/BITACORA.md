@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-25 — Autorización exclusiva de procesarVentaPos v2.43
+
+- El propietario autorizó solo `procesarVentaPos` en `punto-de-venta-comic-shop` para `fa521e96c86e4052934ec9dcd080aceba06e7443`. Las reglas siguen pendientes de autorización.
+- Se preparó el bloque de Cloud Shell para comprobar IAM, solicitudes, compatibilidad y estado, crear solo la función y verificar Cloud Run y Eventarc por metadatos. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
+- Pasaron sintaxis y tres escenarios con APIs simuladas. La ejecución y el resultado de Firebase real quedan pendientes.
+- Siguiente acción. Ejecutar el bloque en Cloud Shell y compartir la salida estructural o el bloqueo.
+
 ## 2026-11-25 — Iteración 04 de v2.43 · Inventario real y plan de despliegue
 
 - Cloud Shell confirmó `punto-de-venta-comic-shop`, Firestore Native `nam5`, Hosting y 14 colecciones raíz. Las reglas activas del 16-11-2026 difieren por SHA-256 de las candidatas. Functions v1 y v2 están vacías y no hay `procesarVentaPos`.
