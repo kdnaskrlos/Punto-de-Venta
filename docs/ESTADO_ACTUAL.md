@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 25-11-2026.** Se registró el diagnóstico real y se preparó una vía de alta sin Policy Troubleshooter. [Bitácora](BITACORA.md)
+- **Actualizado el 25-11-2026.** Se registraron los bloqueos del agente y se preparó su aprovisionamiento oficial junto con el alta de la función. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - **Prioridad** validar Firebase real con datos sintéticos en el proyecto existente. La publicación de v2.43 sigue bloqueada por esta validación y por las pruebas en dispositivos físicos. [Decisión del propietario](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
 
@@ -44,7 +44,9 @@
 
 - **Diagnóstico real posterior.** El propietario confirmó permisos propios del llamante, cuenta de Compute Engine activa y del proyecto, Firestore y reglas compatibles, APIs y regiones comprobadas, Node.js 22 gen 2 disponible y cero solicitudes pendientes. Policy Troubleshooter v3 sigue devolviendo HTTP 403. El bloque actualizado usa credenciales efímeras de IAM Credentials y `testIamPermissions` bajo cada identidad seleccionada. La compilación real y Cloud Run/Eventarc comprueban los recursos creados. Pasaron sintaxis y siete escenarios simulados. El alta real y el permiso de obtener el token efímero siguen por verificar en Cloud Shell. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
 
-**Siguiente acción.** Ejecutar el bloque actualizado de Cloud Shell para comprobar las identidades y, si aprueban las condiciones de seguridad, crear exclusivamente `procesarVentaPos` del SHA `fa521e9`. Compartir el resultado estructural o el bloqueo.
+- **Intento posterior.** El propietario informó que falta `roles/cloudfunctions.serviceAgent` en el agente administrado y que la obtención del token de Compute devolvió HTTP 403 por `iam.serviceAccounts.getAccessToken`. El bloque actualizado usa Service Usage para aprovisionar la identidad y restaura su propio rol solo después de confirmación explícita. Usa la API oficial de Cloud Functions v2 con la identidad del llamante y el `actAs` existente. La invocación se limita al servicio Cloud Run privado si se requiere. Se verificaron sintaxis y nueve escenarios simulados. Aprovisionamiento, cambios IAM y alta real pendientes de ejecutar en Cloud Shell. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh) · [Agente de Cloud Functions](https://docs.cloud.google.com/functions/docs/concepts/iam)
+
+**Siguiente acción.** Ejecutar el bloque integral de Cloud Shell y confirmar el plan exacto que muestra tras revisar IAM. Compartir el resultado estructural o el bloqueo con el ID de operación, si existe.
 
 ## Reglas comerciales por confirmar
 

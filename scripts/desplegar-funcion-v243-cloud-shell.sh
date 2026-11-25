@@ -13,7 +13,7 @@ python3 - "$tmp/funcion.zip" "$sha" "$@" <<'PY'
 import hashlib, json, re, subprocess, sys, time, zipfile
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 project = "punto-de-venta-comic-shop"
@@ -50,10 +50,8 @@ access_token = token()
 class ApiError(Exception):
     pass
 
-def api(host, path, body=None, absent=False, credential=None):
-    headers = {"Authorization": "Bearer " + (credential or access_token), "Content-Type": "application/json"}
-    if host == "iamcredentials":
-        headers["x-goog-user-project"] = project
+def api(host, path, body=None, absent=False):
+    headers = {"Authorization": "Bearer " + access_token, "Content-Type": "application/json"}
     req = Request(f"https://{host}.googleapis.com/{path}",
                   data=None if body is None else json.dumps(body).encode(), headers=headers)
     try:
@@ -78,27 +76,69 @@ def report_error(kind, error, traceback):
 
 sys.excepthook = report_error
 
-def missing_permissions(host, path, permissions, credential=None):
-    result = api(host, path, {"permissions": list(permissions)}, credential=credential)
+def missing_permissions(host, path, permissions):
+    result = api(host, path, {"permissions": list(permissions)})
     return sorted(set(permissions) - set(result.get("permissions", [])))
 
-def project_permissions(permissions, credential=None):
-    return missing_permissions("cloudresourcemanager", f"v3/{p}:testIamPermissions",
-                               permissions, credential)
+def project_permissions(permissions):
+    return missing_permissions("cloudresourcemanager", f"v3/{p}:testIamPermissions", permissions)
 
-def service_token(sa):
-    if sa == account:
-        return token()
+def project_policy():
+    return api("cloudresourcemanager", f"v3/{p}:getIamPolicy",
+               {"options": {"requestedPolicyVersion": 3}})
+
+def has_binding(policy, role, member):
+    return any(b.get("role") == role and member in b.get("members", []) and not b.get("condition")
+               for b in policy.get("bindings", []))
+
+def gcloud(*args, capture=False):
     try:
-        result = api("iamcredentials", "v1/projects/-/serviceAccounts/" + quote(sa, safe="@")
-                     + ":generateAccessToken",
-                     {"scope": ["https://www.googleapis.com/auth/cloud-platform"], "lifetime": "600s"})
-    except ApiError as error:
-        raise ApiError(f"no se obtuvo una credencial efímera para {sa}. "
-                       "Verifica IAM Credentials y el permiso existente iam.serviceAccounts.getAccessToken "
-                       f"sobre esa cuenta. {error}") from None
-    require(bool(result.get("accessToken")), f"IAM Credentials no devolvió un token para {sa}.")
-    return result["accessToken"]
+        result = subprocess.run(
+            ["gcloud", *args, "--project=" + project, "--account=" + account, "--quiet"],
+            check=True, text=True, capture_output=capture)
+        return (result.stdout or "") + "\n" + (result.stderr or "")
+    except subprocess.CalledProcessError as error:
+        detail = (error.stderr or "").strip()
+        raise ApiError(f"gcloud {' '.join(args[:3])} terminó con código {error.returncode}. {detail}") from None
+
+def project_binding(role, member):
+    if not has_binding(project_policy(), role, member):
+        gcloud("projects", "add-iam-policy-binding", project, "--role=" + role,
+               "--member=" + member, "--condition=None")
+    require(has_binding(project_policy(), role, member), f"no se comprobó la concesión {role} para {member}.")
+
+def direct_permission(policy, member, permission):
+    for binding in policy.get("bindings", []):
+        if member not in binding.get("members", []) or binding.get("condition"):
+            continue
+        try:
+            role = api("iam", "v1/" + binding["role"])
+        except ApiError:
+            continue
+        if permission in role.get("includedPermissions", []):
+            return True
+    return False
+
+def allow_evidence(resource, member, permission, policy):
+    if direct_permission(policy, member, permission):
+        return True
+    query = urlencode({
+        "analysisQuery.resourceSelector.fullResourceName": resource,
+        "analysisQuery.identitySelector.identity": member,
+        "analysisQuery.accessSelector.permissions": permission,
+        "executionTimeout": "5s"
+    })
+    try:
+        result = api("cloudasset", f"v1/{p}:analyzeIamPolicy?" + query)
+    except ApiError:
+        return None
+    analysis = result.get("mainAnalysis", {})
+    if not result.get("fullyExplored") or analysis.get("nonCriticalErrors"):
+        return None
+    matches = analysis.get("analysisResults", [])
+    if any(not match.get("iamBinding", {}).get("condition") for match in matches):
+        return True
+    return False if not matches and project_root else None
 
 def firestore_state():
     state = api("firestore", f"v1/{db}/documents/sistema/estado"
@@ -134,11 +174,15 @@ def check_trigger_absent():
 
 meta = api("firebase", "v1beta1/" + p)
 require(meta.get("projectId") == project and meta.get("state") == "ACTIVE", "proyecto inesperado o inactivo.")
-number = meta["projectNumber"]
+number = str(meta["projectNumber"])
+require(number == "570684941224", "el número del proyecto no coincide con el inventario autorizado.")
+try:
+    hierarchy = api("cloudresourcemanager", "v3/" + p)
+    project_root = hierarchy.get("projectId") == project and not hierarchy.get("parent")
+except ApiError:
+    project_root = False
 apis = ["cloudfunctions", "run", "eventarc", "pubsub", "firestore", "firebaserules",
         "cloudbuild", "artifactregistry", "storage", "logging"]
-if any(sa != account for sa in identities) or not identities:
-    apis.append("iamcredentials")
 api_problems = []
 for service in apis:
     try:
@@ -210,75 +254,89 @@ for sa in dict.fromkeys(identities):
 require(not problems, "identidades pendientes:\n- " + "\n- ".join(problems))
 runtime, trigger, builder = identities
 agent = f"service-{number}@gcf-admin-robot.iam.gserviceaccount.com"
-def record_missing(label, check):
-    try:
-        missing = check()
-    except ApiError as error:
-        problems.append(f"{label}: {error}")
-        return
-    if missing:
-        problems.append(f"{label}: {', '.join(missing)}")
-
-record_missing("proyecto / llamante", lambda: project_permissions(
-    ("cloudfunctions.functions.create", "cloudfunctions.functions.sourceCodeSet", "serviceusage.services.use")))
+agent_member = "serviceAccount:" + agent
+agent_role = "roles/cloudfunctions.serviceAgent"
+trigger_member = "serviceAccount:" + trigger
+receiver_role = "roles/eventarc.eventReceiver"
+invoker_role = "roles/run.invoker"
+policy = project_policy()
+restore_agent = not has_binding(policy, agent_role, agent_member)
+agent_path = f"v1/{p}/serviceAccounts/{quote(agent, safe='@')}"
+try:
+    managed_identity = api("iam", agent_path, absent=True)
+except ApiError as error:
+    if "HTTP 403" not in str(error):
+        raise
+    managed_identity = None
+provision_agent = managed_identity is None
+if managed_identity is not None:
+    require(managed_identity.get("email") == agent and not managed_identity.get("disabled", False),
+            "la identidad administrada no coincide o está deshabilitada.")
+receive = True if has_binding(policy, receiver_role, trigger_member) else allow_evidence(
+    f"//cloudresourcemanager.googleapis.com/projects/{number}",
+    trigger_member, "eventarc.events.receiveEvent", policy)
+grant_receiver = receive is False
+project_checks = ["cloudfunctions.functions.create", "cloudfunctions.functions.sourceCodeSet",
+                  "serviceusage.services.use"]
+if restore_agent or grant_receiver:
+    project_checks.append("resourcemanager.projects.setIamPolicy")
+if provision_agent:
+    project_checks.append("serviceusage.services.generateServiceIdentity")
+missing = project_permissions(project_checks)
+if missing:
+    problems.append("permisos del llamante para este plan: " + ", ".join(missing))
 for sa in dict.fromkeys(identities):
     endpoint = f"v1/{p}/serviceAccounts/{quote(sa, safe='@')}:testIamPermissions"
-    record_missing(f"actAs del llamante sobre {sa}", lambda: missing_permissions(
-        "iam", endpoint, ("iam.serviceAccounts.actAs",)))
-
-policy = api("cloudresourcemanager", f"v3/{p}:getIamPolicy", {"options": {"requestedPolicyVersion": 3}})
-if not any(b.get("role") == "roles/cloudfunctions.serviceAgent"
-           and "serviceAccount:" + agent in b.get("members", []) and not b.get("condition")
-           for b in policy.get("bindings", [])):
-    problems.append(f"no consta el enlace administrado roles/cloudfunctions.serviceAgent de {agent}. "
-                    "Verifica su aprovisionamiento en Cloud Functions antes del alta.")
-
-credentials = {}
-for sa in dict.fromkeys(identities):
-    try:
-        credentials[sa] = service_token(sa)
-    except ApiError as error:
-        problems.append(str(error))
-if runtime in credentials:
-    record_missing(f"permisos Firestore de {runtime}", lambda: project_permissions(
-        ("datastore.databases.get", "datastore.entities.get", "datastore.entities.create", "datastore.entities.update"),
-        credentials[runtime]))
-    try:
-        rows = api("firestore", f"v1/{db}/documents:batchGet", {
-            "documents": [f"{db}/documents/sistema/estado"],
-            "mask": {"fieldPaths": ["soloVentasProcesadas"]}
-        }, credential=credentials[runtime])
-        if not rows or not any("found" in row or "missing" in row for row in rows):
-            problems.append("Firestore no confirmó la lectura con la identidad de ejecución.")
-    except ApiError as error:
-        problems.append(f"lectura Firestore con {runtime}: {error}")
-if trigger in credentials:
-    # Al crear el servicio aún no hay una política propia que evaluar. Revisar también el destino real al final.
-    record_missing(f"Eventarc e invocación previa de {trigger}", lambda: project_permissions(
-        ("eventarc.events.receiveEvent", "run.routes.invoke"), credentials[trigger]))
-if builder in credentials:
-    record_missing(f"logs de compilación de {builder}", lambda: project_permissions(
-        ("logging.logEntries.create",), credentials[builder]))
-    repository = f"v1/{parent}/repositories/gcf-artifacts"
-    try:
-        artifacts = api("artifactregistry", repository, absent=True)
-        if artifacts is not None:
-            record_missing(f"publicación de artefactos de {builder}", lambda: missing_permissions(
-                "artifactregistry", repository + ":testIamPermissions",
-                ("artifactregistry.repositories.uploadArtifacts",), credentials[builder]))
-    except ApiError as error:
-        print(f"El repositorio de compilación aún no es comprobable: {error}", flush=True)
-    # El objeto de fuentes aún no existe. Cloud Build autoriza su lectura y la publicación efectiva.
+    if missing_permissions("iam", endpoint, ("iam.serviceAccounts.actAs",)):
+        problems.append(f"falta iam.serviceAccounts.actAs sobre {sa}.")
 require(not problems, "IAM pendiente:\n- " + "\n- ".join(problems))
-del credentials
-print("IAM comprobado con las credenciales de las identidades seleccionadas. El alta verificará la compilación real.",
-      flush=True)
+
+print("Plan para confirmar con el POS y sus clientes cerrados:", flush=True)
+if provision_agent:
+    print(f"- Aprovisionar o recuperar la identidad administrada {agent} con Service Usage.")
+if restore_agent:
+    print(f"- Restaurar {agent_role} a {agent} exclusivamente en {project}.")
+if grant_receiver:
+    print(f"- Conceder {receiver_role} a {trigger} en {project}; el análisis de Allow no encontró concesión.")
+elif receive is None:
+    print("- La API de despliegue validará Eventarc; la visibilidad de concesiones del disparador es parcial.")
+print(f"- Crear exclusivamente {name} gen 2 del SHA {sha}.")
+print(f"- Si no consta una concesión de invocación aplicable, añadir {invoker_role} a {trigger} "
+      f"solo en el servicio privado {name.lower()}.", flush=True)
 with open("/dev/tty") as tty:
-    print("Con clientes y piloto cerrados y sin procesos que creen solicitudes, escribe CLIENTES_CERRADOS: ",
+    print("Si autorizas este plan y los clientes y el piloto están cerrados, escribe AUTORIZO_POS_V243: ",
           end="", file=sys.stderr, flush=True)
     confirmation = tty.readline().strip()
-require(confirmation == "CLIENTES_CERRADOS", "no se confirmó el cierre de clientes y piloto.")
-
+require(confirmation == "AUTORIZO_POS_V243", "el plan y el cierre de clientes no fueron confirmados.")
+require(ruleset() == baseline, "el ruleset cambió mientras se esperaba la confirmación.")
+firestore_state()
+check_trigger_absent()
+if provision_agent:
+    generated = gcloud("beta", "services", "identity", "create", "--service=cloudfunctions.googleapis.com",
+                       capture=True)
+    issued = agent in re.findall(r"[\w.-]+@[\w.-]+", generated)
+    for attempt in range(12):
+        try:
+            managed_identity = api("iam", agent_path, absent=True)
+        except ApiError as error:
+            if "HTTP 403" not in str(error):
+                raise
+            break
+        if managed_identity is not None or issued:
+            break
+        time.sleep(5)
+    require((issued if managed_identity is None else
+             managed_identity.get("email") == agent and not managed_identity.get("disabled", False)),
+            f"Service Usage no confirmó la identidad administrada esperada {agent}.")
+if restore_agent:
+    project_binding(agent_role, agent_member)
+    print(f"Restaurado {agent_role} para {agent}.", flush=True)
+if grant_receiver:
+    project_binding(receiver_role, trigger_member)
+    print(f"Concedido {receiver_role} a {trigger}.", flush=True)
+if provision_agent or restore_agent or grant_receiver:
+    # Espera breve antes de consumir nuevas concesiones. La API de despliegue valida su aplicación efectiva.
+    time.sleep(30)
 require(ruleset() == baseline, "el ruleset activo cambió durante el preflight.")
 firestore_state()
 print("Preflight aprobado. Iniciando exclusivamente el alta de la función.", flush=True)
@@ -331,6 +389,9 @@ require(function.get("state") == "ACTIVE" and function.get("environment") == "GE
         and tr.get("eventType") == event,
         f"el alta existe pero sus metadatos no coinciden; revisa {op}.")
 target = svc["service"].split("/")[-1]
+require(svc["service"] in {f"{parent}/services/{name.lower()}",
+        f"projects/{number}/locations/us-central1/services/{name.lower()}"},
+        "el destino Cloud Run no coincide con el servicio autorizado.")
 require(tr["trigger"].split("/")[3] == "nam5", "ubicación inesperada del disparador creado.")
 for _ in range(24):
     ev = api("eventarc", "v1/" + tr["trigger"])
@@ -355,16 +416,35 @@ require(destination.get("service") == target and destination.get("region") == "u
         and sum(t.get("percent", 0) for t in run.get("trafficStatuses", [])
                 if t.get("revision", "").split("/")[-1] == revision) == 100,
         f"el alta existe, pero el destino, los filtros o la revisión no coinciden; revisa {op}.")
-policy = api("run", "v2/" + svc["service"] + ":getIamPolicy")
-require(not any({"allUsers", "allAuthenticatedUsers"} & set(b.get("members", []))
-                for b in policy.get("bindings", [])), "el servicio tiene un principal público en IAM.")
-missing = missing_permissions("run", "v2/" + svc["service"] + ":testIamPermissions",
-                              ("run.routes.invoke",), service_token(trigger))
-require(not missing, f"la identidad de Eventarc carece de invocación efectiva sobre {svc['service']}; revisa {op}.")
+def run_policy():
+    return api("run", "v2/" + svc["service"] + ":getIamPolicy?options.requestedPolicyVersion=3")
+
+def require_private(iam_policy):
+    require(not any({"allUsers", "allAuthenticatedUsers"} & set(b.get("members", []))
+                    for b in iam_policy.get("bindings", [])), "el servicio tiene un principal público en IAM.")
+
+policy = run_policy()
+require_private(policy)
+svc_resource = "//run.googleapis.com/" + svc["service"]
+invoke = (has_binding(policy, invoker_role, trigger_member)
+          or has_binding(project_policy(), invoker_role, trigger_member)
+          or direct_permission(project_policy(), trigger_member, "run.routes.invoke")
+          or allow_evidence(svc_resource, trigger_member, "run.routes.invoke", policy))
+if not invoke:
+    lack = missing_permissions("run", "v2/" + svc["service"] + ":testIamPermissions",
+                               ("run.services.setIamPolicy",))
+    require(not lack, f"el alta existe, pero falta autorización para configurar la invocación privada de {svc['service']}; revisa {op}.")
+    gcloud("run", "services", "add-iam-policy-binding", target, "--region=us-central1",
+           "--role=" + invoker_role, "--member=" + trigger_member, "--condition=None")
+    policy = run_policy()
+    require_private(policy)
+    require(has_binding(policy, invoker_role, trigger_member),
+            f"el alta existe, pero no se verificó la concesión privada a Eventarc; revisa {op}.")
 require(bool(build.get("build")), f"no se encontró el ID de compilación de la función; revisa {op}.")
 require(ruleset() == baseline, "el ruleset activo cambió externamente durante el despliegue.")
 firestore_state()
 print(json.dumps({"estado": "VERIFICADO_ESTRUCTURALMENTE", "proyecto": project, "commit": sha,
                   "funcion": fn, "compilacion": build["build"], "revision": revision, "eventarc": tr["trigger"],
+                  "verificacionInvocacion": "politica Allow; entrega de eventos pendiente de una prueba autorizada",
                   "ruleset": baseline, "solicitudes": 0, "ventasDePrueba": 0}, ensure_ascii=False))
 PY

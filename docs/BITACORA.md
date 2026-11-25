@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-25 — Aprovisionamiento del agente y alta oficial de la función
+
+- El propietario informó que falta el rol del agente de Cloud Functions y que el token de Compute devolvió HTTP 403. El alta sigue pendiente.
+- Se preparó un bloque con confirmación explícita, aprovisionamiento por Service Usage, restauración del rol exclusivo del agente y alta de la función por la API v2 sin obtener un token de Compute. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
+- Pasaron sintaxis y nueve escenarios simulados. La verificación real sigue pendiente y su alcance es estructural, sin eventos de venta.
+- Siguiente acción. Ejecutar el bloque integral y compartir el resultado.
+
 ## 2026-11-25 — Alta de la función sin Policy Troubleshooter
 
 - El propietario confirmó permisos propios del llamante, cuenta de Compute Engine válida, backend compatible, Node.js 22 gen 2 disponible y cero solicitudes. El 403 de Troubleshooter persiste.
