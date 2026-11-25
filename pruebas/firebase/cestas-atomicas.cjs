@@ -269,8 +269,15 @@ test('el procesador acredita una autorización vinculada y conserva su identific
 test('la activación explícita conserva el cobro procesado y cierra la ruta de venta ordinaria anterior', { skip: red || disparador }, async () => {
   await sembrar(['s']);
   const a = cliente('a'), b = cliente('b');
-  await entorno.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), 'sistema', 'estado'),
-    { iniciado: true, soloVentasProcesadas: true }));
+  const estado = doc(b, 'sistema', 'estado');
+  await entorno.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), 'sistema', 'estado'), { iniciado: true }));
+  await assertFails(updateDoc(estado, { soloVentasProcesadas: true }));
+  await entorno.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), 'sistema', 'estado'),
+    { soloVentasProcesadas: true }));
+  await assertFails(updateDoc(estado, { soloVentasProcesadas: false }));
+  await assertFails(deleteDoc(estado));
+  await updateDoc(estado, { iniciado: true });
+  assert.equal((await getDocFromServer(estado)).data().soloVentasProcesadas, true);
   const v = venta('venta-luego-del-corte', ['s']);
   await assertFails(enviarActual(a, v));
   assert.equal((await getDocFromServer(doc(b, 'ventas', v.id))).exists(), false);

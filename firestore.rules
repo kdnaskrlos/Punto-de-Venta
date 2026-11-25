@@ -75,8 +75,12 @@ service cloud.firestore {
     // Estado del sistema: público (la pantalla de entrada necesita saber si ya hay administrador).
     match /sistema/estado {
       allow read: if true;
-      allow create: if signed() && sinIniciar() && getAfter(uPath()).data.rol == 'admin';
-      allow update, delete: if esAdmin();
+      allow create: if signed() && sinIniciar() && getAfter(uPath()).data.rol == 'admin'
+        && !request.resource.data.keys().hasAny(['soloVentasProcesadas']);
+      // Una sesión del POS, incluso de administración, no puede cambiar el modo
+      // ni borrar el documento para volver a abrir la ruta directa.
+      allow update: if esAdmin() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['soloVentasProcesadas']);
+      allow delete: if esAdmin() && !resource.data.keys().hasAny(['soloVentasProcesadas']);
     }
 
     // Usuario → correo interno para entrar (no contiene datos del negocio).
