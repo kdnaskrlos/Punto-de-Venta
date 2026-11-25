@@ -1,43 +1,36 @@
 // Prueba exclusivamente contra Firebase remoto de QA. No imprime credenciales.
 'use strict';
 const assert = require('node:assert/strict');
-const { createHash, randomUUID } = require('node:crypto');
+const { createHash } = require('node:crypto');
 const { setTimeout: esperar } = require('node:timers/promises');
 
-const projectId = process.env.POS_QA_PROJECT_ID || '';
-// Proyecto nuevo de QA o Firebase existente expresamente autorizado por el propietario.
-// La segunda ruta exige confirmación exacta para impedir que una variable mal escrita
-// ejecute lotes sintéticos contra cualquier otro proyecto.
-const proyectoQA = /^pos-qa-[a-z0-9-]{4,}$/.test(projectId);
-const proyectoExistenteAutorizado = projectId === 'punto-de-venta-comic-shop'
-  && process.env.POS_QA_ALLOW_EXISTING_PROJECT === projectId
-  && process.env.POS_QA_CONFIRM_NONOPERATIVE === 'SI_POS_NO_OPERATIVO';
-if (!proyectoQA && !proyectoExistenteAutorizado) {
-  throw new Error('BLOQUEADO: proyecto no autorizado para pruebas remotas; exige confirmación explícita del Firebase existente.');
-}
-if (!process.env.POS_QA_API_KEY) throw new Error('BLOQUEADO: falta POS_QA_API_KEY');
-const credencialesPos = !!(process.env.POS_QA_USUARIO && process.env.POS_QA_PIN);
-const credencialesFirebase = !!(process.env.POS_QA_EMAIL && process.env.POS_QA_PASSWORD);
-if (!credencialesPos && !credencialesFirebase) {
-  throw new Error('BLOQUEADO: se requieren POS_QA_USUARIO y POS_QA_PIN, o POS_QA_EMAIL y POS_QA_PASSWORD.');
-}
-if (credencialesPos && !/^\d{4}$/.test(process.env.POS_QA_PIN)) {
-  throw new Error('BLOQUEADO: POS_QA_PIN debe tener 4 dígitos.');
-}
-if (process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-  throw new Error('BLOQUEADO: esta prueba requiere Firestore y Auth remotos.');
-}
-const { initializeApp, deleteApp } = require('firebase/app');
-const { getAuth, signInWithEmailAndPassword, signOut } = require('firebase/auth');
-const { getFirestore, doc, writeBatch, getDocFromServer, setDoc, increment, serverTimestamp, runTransaction } = require('firebase/firestore');
-const app = initializeApp({ projectId, apiKey: process.env.POS_QA_API_KEY, authDomain: projectId + '.firebaseapp.com' });
-const auth = getAuth(app), db = getFirestore(app);
-const fecha = new Date().toISOString();
-const base = 'qa-' + randomUUID().replace(/-/g, '').slice(0, 16);
-const procesadas = process.env.POS_QA_VENTAS_PROCESADAS === '1';
 const firma = (...partes) => createHash('sha256').update(JSON.stringify(partes)).digest('hex');
 
-async function confirmar(marca) {
+function configuracion(env) {
+  const projectId = env.POS_QA_PROJECT_ID || '';
+  const proyectoQA = /^pos-qa-[a-z0-9-]{4,}$/.test(projectId);
+  const proyectoExistenteAutorizado = projectId === 'punto-de-venta-comic-shop'
+    && env.POS_QA_ALLOW_EXISTING_PROJECT === projectId
+    && env.POS_QA_CONFIRM_NONOPERATIVE === 'SI_POS_NO_OPERATIVO';
+  assert.ok(proyectoQA || proyectoExistenteAutorizado, 'Proyecto no autorizado para pruebas remotas.');
+  assert.ok(env.POS_QA_API_KEY, 'Falta POS_QA_API_KEY.');
+  assert.ok(!env.FIRESTORE_EMULATOR_HOST && !env.FIREBASE_AUTH_EMULATOR_HOST, 'Se requieren Firestore y Auth remotos.');
+  assert.ok([undefined, '0', '1'].includes(env.POS_QA_SOLO_PRECHECK), 'POS_QA_SOLO_PRECHECK debe ser 0 o 1.');
+  const soloPrecheck = env.POS_QA_SOLO_PRECHECK === '1';
+  if (!soloPrecheck) {
+    assert.equal(env.POS_QA_CONFIRM_WRITES === 'SI_DATOS_SINTETICOS', true, 'Falta confirmar las escrituras sintéticas.');
+    assert.ok(/^[01]$/.test(env.POS_QA_VENTAS_PROCESADAS || ''), 'Indica la ruta con POS_QA_VENTAS_PROCESADAS=0 o 1.');
+    assert.ok(/^[a-z0-9][a-z0-9-]{7,39}$/.test(env.POS_QA_RUN_ID || ''), 'Falta un POS_QA_RUN_ID válido para identificar la ejecución.');
+  }
+  const credencialesPos = Boolean(env.POS_QA_USUARIO || env.POS_QA_PIN);
+  const credencialesFirebase = Boolean(env.POS_QA_EMAIL || env.POS_QA_PASSWORD);
+  assert.ok(credencialesPos !== credencialesFirebase, 'Usa un solo método de acceso, con las dos variables correspondientes.');
+  assert.ok(credencialesPos ? env.POS_QA_USUARIO && /^\d{4}$/.test(env.POS_QA_PIN || '')
+    : env.POS_QA_EMAIL && env.POS_QA_PASSWORD, 'Faltan credenciales válidas para el método elegido.');
+  return { projectId, soloPrecheck, credencialesPos };
+}
+
+async function confirmar(marca, getDocFromServer) {
   const tope = Date.now() + 45000;
   while (Date.now() < tope) {
     const s = await getDocFromServer(marca);
@@ -47,13 +40,26 @@ async function confirmar(marca) {
   throw new Error('Estado indeterminado. El procesador no escribió una marca a tiempo para ' + marca.id);
 }
 
-async function cesta({ uid, usuario, idCaja, n, falta }) {
+async function cesta({ db, sdk, uid, usuario, idCaja, base, fecha, procesadas, n, falta }) {
+  const { doc, writeBatch, getDocFromServer, setDoc, increment, serverTimestamp, runTransaction } = sdk;
   const ventaId = base + '-v-' + n + (falta ? '-faltante' : '');
   const skus = Array.from({ length: n }, (_, i) => ventaId + '-s-' + i);
-  const preparar = writeBatch(db);
-  for (const [i, sku] of skus.entries()) preparar.set(doc(db, 'productos', sku),
-    { sku, existencia: falta && i === n - 1 ? 0 : 1, activo: true, nombre: 'QA prueba de capacidad', precios: [10000, 10000, 10000, 10000, 10000] });
-  await preparar.commit();
+  const refsProductos = skus.map(sku => doc(db, 'productos', sku));
+  const marca = doc(db, 'usuarios', uid, 'operacionesCobro', 'venta:' + ventaId);
+  const solicitud = doc(db, 'usuarios', uid, 'solicitudesVenta', ventaId);
+  const refVenta = doc(db, 'ventas', ventaId);
+  const eventoId = procesadas ? firma(uid, ventaId, 'venta.creada') : ventaId + '-evento';
+  const movimientos = skus.map((sku, i) => procesadas ? firma(ventaId, sku) : ventaId + '-mov-' + i);
+  const refEvento = doc(db, 'eventos', eventoId);
+  const refsMovimientos = movimientos.map(id => doc(db, 'movimientos', id));
+  await runTransaction(db, async tx => {
+    const previos = await Promise.all([refVenta, marca, solicitud, refEvento, ...refsProductos].map(ref => tx.get(ref)));
+    assert.ok(previos.every(s => !s.exists()), 'Ya hay documentos para la cesta ' + ventaId);
+    for (const [i, ref] of refsProductos.entries()) {
+      tx.set(ref, { sku: ref.id, existencia: falta && i === n - 1 ? 0 : 1, activo: true,
+        nombre: 'QA prueba de capacidad', precios: [10000, 10000, 10000, 10000, 10000] });
+    }
+  });
 
   const { calcularCarrito } = await import('../../js/nucleo/tramos.js');
   const { comisionesVenta } = await import('../../js/nucleo/comisiones.js');
@@ -64,14 +70,11 @@ async function cesta({ uid, usuario, idCaja, n, falta }) {
     subtotal: 10000 * n, total: 10000 * n,
     lineas: calculo.lineas.map((l, i) => ({ ...l, descuento: 0, comision: comisiones[i].comision, reducida: false })),
     pagos: [{ forma: 'efectivo-cop', nombre: 'Efectivo pesos', moneda: 'COP', monto: 10000 * n, equivalenteCop: 10000 * n }] };
-  const marca = doc(db, 'usuarios', uid, 'operacionesCobro', 'venta:' + ventaId);
-  const eventoId = procesadas ? firma(uid, ventaId, 'venta.creada') : ventaId + '-evento';
-  const movimientos = skus.map((sku, i) => procesadas ? firma(ventaId, sku) : ventaId + '-mov-' + i);
   let aceptada = true, error = null;
   if (procesadas) {
-    await setDoc(doc(db, 'usuarios', uid, 'solicitudesVenta', ventaId),
+    await setDoc(solicitud,
       { venta, dispositivo: 'qa-remoto', orden: n, version: 'v2.43', recibida: serverTimestamp() });
-    const res = await confirmar(marca);
+    const res = await confirmar(marca, getDocFromServer);
     aceptada = res.estadoSync === 'confirmada_servidor';
     if (!aceptada) {
       assert.equal(res.estadoSync, 'rechazada_conflicto');
@@ -81,26 +84,34 @@ async function cesta({ uid, usuario, idCaja, n, falta }) {
     }
   } else {
     const lote = writeBatch(db);
-    lote.set(doc(db, 'ventas', ventaId), { ...venta, usuario, uid, estado: 'ok', numero: null });
+    lote.set(refVenta, { ...venta, usuario, uid, estado: 'ok', numero: null });
     lote.set(marca, { que: 'venta', refId: ventaId, fecha, dispositivo: 'qa-remoto', orden: n,
       apartadoId: null, estadoSync: 'confirmada_servidor' });
-    lote.set(doc(db, 'eventos', eventoId), { id: eventoId, uid, usuario, rol: 'admin', dispositivo: 'qa-remoto',
+    lote.set(refEvento, { id: eventoId, uid, usuario, rol: 'admin', dispositivo: 'qa-remoto',
       en: serverTimestamp(), fecha, tipo: 'venta.creada', ref: { col: 'ventas', id: ventaId } });
     for (const [i, sku] of skus.entries()) {
       const movId = movimientos[i];
-      lote.update(doc(db, 'productos', sku), { existencia: increment(-1), ultimoMov: movId });
-      lote.set(doc(db, 'movimientos', movId), { id: movId, sku, cantidad: -1, motivo: 'venta', ref: ventaId, nota: '', usuario, fecha });
+      lote.update(refsProductos[i], { existencia: increment(-1), ultimoMov: movId });
+      lote.set(refsMovimientos[i], { id: movId, sku, cantidad: -1, motivo: 'venta', ref: ventaId, nota: '', usuario, fecha });
     }
-    try { await lote.commit(); } catch (e) { aceptada = false; error = e.code || e.message; }
+    try { await lote.commit(); } catch (e) {
+      if (e.code !== 'permission-denied') throw e;
+      aceptada = false;
+      error = e.code;
+    }
   }
   const [productos, guardada, resultado, evento, movs] = await Promise.all([
-    Promise.all(skus.map(sku => getDocFromServer(doc(db, 'productos', sku)))),
-    getDocFromServer(doc(db, 'ventas', ventaId)), getDocFromServer(marca), getDocFromServer(doc(db, 'eventos', eventoId)),
-    Promise.all(movimientos.map(id => getDocFromServer(doc(db, 'movimientos', id)))),
+    Promise.all(refsProductos.map(getDocFromServer)),
+    getDocFromServer(refVenta), getDocFromServer(marca), getDocFromServer(refEvento),
+    Promise.all(refsMovimientos.map(getDocFromServer)),
   ]);
   assert.equal(guardada.exists(), aceptada);
   assert.equal(evento.exists(), aceptada);
   assert.equal(resultado.exists(), procesadas || aceptada);
+  if (resultado.exists()) {
+    const { refId, estadoSync } = resultado.data();
+    assert.deepEqual([refId, estadoSync], [ventaId, aceptada ? 'confirmada_servidor' : 'rechazada_conflicto']);
+  }
   for (const [i, p] of productos.entries()) {
     assert.equal(p.data()?.existencia, aceptada || (falta && i === n - 1) ? 0 : 1);
     if (aceptada) {
@@ -108,92 +119,137 @@ async function cesta({ uid, usuario, idCaja, n, falta }) {
       assert.deepEqual([mov?.ref, mov?.sku, mov?.cantidad, p.data().ultimoMov], [ventaId, skus[i], -1, movs[i].id]);
     } else assert.equal(movs[i].exists(), false);
   }
-  if (aceptada) assert.deepEqual([guardada.data().cajaId, guardada.data().pagos], [idCaja, venta.pagos]);
+  if (aceptada) {
+    const { cajaId, id, pagos, total } = guardada.data();
+    assert.deepEqual([id, cajaId, total, pagos], [ventaId, idCaja, venta.total, venta.pagos]);
+    assert.deepEqual(evento.data().ref, { col: 'ventas', id: ventaId });
+  }
   return { sku: n, falta, aceptada, error };
 }
 
-async function main() {
+async function entrarAdmin({ env, credencialesPos, projectId, auth, db, sdk, signInWithEmailAndPassword }) {
+  const { doc, getDocFromServer } = sdk;
   let correo, clave;
+  let usuarioLimpio, uidEsperado;
   if (credencialesPos) {
-    const usuarioLimpio = String(process.env.POS_QA_USUARIO).trim().toLowerCase()
+    usuarioLimpio = env.POS_QA_USUARIO.trim().toLowerCase()
       .normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, '.')
       .replace(/[^a-z0-9._-]/g, '');
-    if (!usuarioLimpio) throw new Error('BLOQUEADO: POS_QA_USUARIO inválido.');
-    const acceso = await getDocFromServer(doc(db, 'logins', usuarioLimpio));
-    if (!acceso.exists() || typeof acceso.data().email !== 'string') {
-      throw new Error('BLOQUEADO: el usuario del POS no tiene registro de acceso válido.');
-    }
-    correo = acceso.data().email;
-    clave = 'cs-' + process.env.POS_QA_PIN;
+    assert.ok(usuarioLimpio, 'POS_QA_USUARIO inválido.');
+    const acceso = (await getDocFromServer(doc(db, 'logins', usuarioLimpio))).data();
+    assert.ok(typeof acceso?.email === 'string' && acceso.email, 'El usuario del POS no tiene un registro de acceso válido.');
+    correo = acceso.email;
+    uidEsperado = acceso.uid;
+    clave = 'cs-' + env.POS_QA_PIN;
   } else {
-    correo = process.env.POS_QA_EMAIL;
-    clave = process.env.POS_QA_PASSWORD;
+    correo = env.POS_QA_EMAIL;
+    clave = env.POS_QA_PASSWORD;
   }
-  const { user: { uid } } = await signInWithEmailAndPassword(auth, correo, clave);
+  const { user } = await signInWithEmailAndPassword(auth, correo, clave);
+  const { uid } = user;
+  assert.ok((await user.getIdTokenResult()).claims.aud === projectId, 'La sesión de Auth pertenece a otro proyecto.');
+  assert.ok(!uidEsperado || uidEsperado === uid, 'El registro de acceso apunta a otra cuenta.');
   const perfil = (await getDocFromServer(doc(db, 'usuarios', uid))).data();
-  assert.ok(perfil?.activo === true && perfil.rol === 'admin' && typeof perfil.usuario === 'string',
+  assert.ok(perfil?.activo === true && perfil.rol === 'admin' && typeof perfil.usuario === 'string' && perfil.usuario,
     'Se requiere una cuenta admin existente con perfil activo.');
-  const { usuario } = perfil, idCaja = base + '-caja';
-  const caja = doc(db, 'cajas', idCaja), puntero = doc(db, 'cajaAbierta', usuario);
-  // Admin/encargada usan caja personal automática. Nunca modificar una caja ya abierta.
-  const punteroPrevio = await getDocFromServer(puntero);
-  let cajaAnterior = null;
-  if (punteroPrevio.exists()) {
-    const cajaIdAnterior = punteroPrevio.data()?.cajaId;
-    if (typeof cajaIdAnterior !== 'string' || !cajaIdAnterior) {
-      throw new Error('BLOQUEADO: puntero de caja existente inválido. No se sobrescribe.');
-    }
-    const existente = await getDocFromServer(doc(db, 'cajas', cajaIdAnterior));
-    if (!existente.exists()) throw new Error('BLOQUEADO: existe puntero de caja sin documento. Requiere revisión.');
-    cajaAnterior = existente.data();
+  assert.ok(!credencialesPos || perfil.usuario === usuarioLimpio, 'El perfil no coincide con el usuario del POS.');
+  return { uid, usuario: perfil.usuario };
+}
+
+async function precheck({ projectId, db, sdk, puntero }) {
+  const { doc, getDocFromServer } = sdk;
+  const previo = await getDocFromServer(puntero);
+  let cajaAnterior;
+  if (previo.exists()) {
+    const { cajaId } = previo.data();
+    assert.ok(typeof cajaId === 'string' && cajaId && !cajaId.includes('/'), 'Puntero de caja inválido.');
+    cajaAnterior = (await getDocFromServer(doc(db, 'cajas', cajaId))).data();
+    assert.ok(cajaAnterior?.estado === 'abierta', 'El puntero no corresponde a una caja abierta. Requiere revisión.');
   }
-  // Preflight estrictamente sin escrituras: no confundir caja personal automática con caja física.
-  if (process.env.POS_QA_SOLO_PRECHECK === '1') {
-    console.log(JSON.stringify({
-      modo: 'solo-lectura', proyecto: projectId, adminActivo: true,
-      cajaPersonalExistente: !!cajaAnterior && cajaAnterior.tipo === 'personal',
-      cajaFisicaExistente: !!cajaAnterior && cajaAnterior.tipo !== 'personal',
-      ventasEjecutadas: 0, listoParaMatrizAislada: !cajaAnterior,
-    }));
-    return;
-  }
-  if (cajaAnterior) {
-    throw new Error('BLOQUEADO: el administrador ya tiene caja personal/física activa. La matriz no la modifica ni la cierra; ejecutar después de resolverla.');
-  }
-  if (process.env.POS_QA_CONFIRM_WRITES !== 'SI_DATOS_SINTETICOS') {
-    throw new Error('BLOQUEADO: falta POS_QA_CONFIRM_WRITES=SI_DATOS_SINTETICOS para autorizar escrituras sintéticas.');
-  }
-  const abrir = writeBatch(db);
-  abrir.set(puntero, { cajaId: idCaja, desde: fecha });
-  abrir.set(caja, { id: idCaja, uid, usuario, estado: 'abierta', tipo: 'personal', abierta: fecha,
-    fondo: { COP: 0, USD: 0, BS: 0 }, movimientos: [] });
-  await abrir.commit();
+  return {
+    modo: 'solo-lectura', proyecto: projectId, adminActivo: true,
+    cajaPersonalExistente: cajaAnterior?.tipo === 'personal',
+    cajaFisicaExistente: !!cajaAnterior && cajaAnterior.tipo !== 'personal',
+    ventasEjecutadas: 0, sinPunteroDeCaja: !previo.exists(),
+  };
+}
+
+async function matriz({ projectId, db, sdk, puntero, uid, usuario, base, procesadas }) {
+  const { doc, runTransaction } = sdk;
+  const fecha = new Date().toISOString();
+  const idCaja = base + '-caja';
+  const caja = doc(db, 'cajas', idCaja);
+  console.log('Proyecto QA y prefijo sintético', projectId, base);
+  await runTransaction(db, async tx => {
+    const [actual, anterior] = await Promise.all([tx.get(puntero), tx.get(caja)]);
+    assert.ok(!anterior.exists(), 'El identificador de ejecución ya se usó: ' + base);
+    assert.ok(!actual.exists(), 'El administrador ya tiene un puntero de caja. Revisa su estado antes de ejecutar la matriz.');
+    tx.set(puntero, { cajaId: idCaja, desde: fecha });
+    tx.set(caja, { id: idCaja, uid, usuario, estado: 'abierta', tipo: 'personal', abierta: fecha,
+      fondo: { COP: 0, USD: 0, BS: 0 }, movimientos: [] });
+  });
   try {
     const cantidades = [1, 8, 10, 12, 15, 16, 17, 18, 19, 20, 21, 24, 30, 32, 48, 64];
     if (procesadas) cantidades.push(128, 248);
     const resultados = [];
     for (const n of cantidades) {
-      const resultado = await cesta({ uid, usuario, idCaja, n, falta: false });
+      const resultado = await cesta({ db, sdk, uid, usuario, idCaja, base, fecha, procesadas, n, falta: false });
       resultados.push(resultado);
       console.log(JSON.stringify(resultado));
+      if (n === 1) assert.equal(resultado.aceptada, true, 'Ni siquiera 1 SKU se confirmó');
+      if (procesadas) assert.equal(resultado.aceptada, true, 'La ruta procesada rechazó ' + n + ' SKU');
     }
-    if (procesadas) assert.equal((await cesta({ uid, usuario, idCaja, n: 64, falta: true })).aceptada, false);
-    assert.equal(resultados[0].aceptada, true, 'Ni siquiera 1 SKU se confirmó');
-    if (resultados.some(r => !r.aceptada)) process.exitCode = 2;
-    console.log('Proyecto QA y prefijo sintético', projectId, base);
+    if (procesadas) {
+      const faltante = await cesta({ db, sdk, uid, usuario, idCaja, base, fecha, procesadas, n: 64, falta: true });
+      console.log(JSON.stringify(faltante));
+      assert.equal(faltante.aceptada, false);
+    }
+    return resultados.some(r => !r.aceptada) ? 2 : 0;
   } finally {
     await runTransaction(db, async tx => {
-      const [actual, origen] = await Promise.all([tx.get(puntero), tx.get(caja)]);
-      if (origen.data()?.estado === 'cerrada' && actual.data()?.cajaId !== idCaja) return;
-      if (actual.data()?.cajaId !== idCaja || origen.data()?.uid !== uid || origen.data()?.estado !== 'abierta') {
-        throw new Error('BLOQUEADO: cambió la caja de la prueba. Revisa solo la caja sintética ' + idCaja);
-      }
+      const [p, c] = await Promise.all([tx.get(puntero), tx.get(caja)]);
+      const actual = p.data(), origen = c.data();
+      const propia = origen?.uid === uid && origen.usuario === usuario && origen.tipo === 'personal' && origen.abierta === fecha;
+      if (propia && origen.estado === 'cerrada' && actual?.cajaId !== idCaja) return;
+      assert.ok(propia && origen.estado === 'abierta' && actual?.cajaId === idCaja && actual.desde === fecha
+        && Array.isArray(origen.movimientos) && origen.movimientos.length === 0,
+      'Cambió la caja de la prueba. Revisa la caja sintética ' + idCaja);
       tx.delete(puntero);
-      tx.update(caja, { estado: 'cerrada', cierre: { fecha: new Date().toISOString() } });
+      tx.update(caja, { estado: 'cerrada', cierre: { fecha: new Date().toISOString(), porArquear: false } });
     });
   }
 }
 
-main().catch(e => { process.exitCode = 1; console.error('BLOQUEADO/FALLO', e.code || e.message); }).finally(async () => {
-  try { await signOut(auth); } finally { await deleteApp(app); }
-});
+async function ejecutar(env = process.env, cargar = require) {
+  const { projectId, soloPrecheck, credencialesPos } = configuracion(env);
+  const { initializeApp, deleteApp } = cargar('firebase/app');
+  const { initializeAuth, inMemoryPersistence, signInWithEmailAndPassword, signOut } = cargar('firebase/auth');
+  const sdk = cargar('firebase/firestore');
+  const app = initializeApp({ projectId, apiKey: env.POS_QA_API_KEY, authDomain: projectId + '.firebaseapp.com' });
+  try {
+    const auth = initializeAuth(app, { persistence: inMemoryPersistence });
+    try {
+      const db = sdk.getFirestore(app);
+      const { uid, usuario } = await entrarAdmin({ env, credencialesPos, projectId, auth, db, sdk, signInWithEmailAndPassword });
+      const puntero = sdk.doc(db, 'cajaAbierta', usuario);
+      if (soloPrecheck) return await precheck({ projectId, db, sdk, puntero });
+      return await matriz({ projectId, db, sdk, puntero, uid, usuario,
+        base: 'qa-' + env.POS_QA_RUN_ID, procesadas: env.POS_QA_VENTAS_PROCESADAS === '1' });
+    } finally {
+      await signOut(auth);
+    }
+  } finally {
+    await deleteApp(app);
+  }
+}
+
+module.exports = { ejecutar };
+if (require.main === module) {
+  ejecutar().then(resultado => {
+    if (typeof resultado === 'number') process.exitCode = resultado;
+    else console.log(JSON.stringify(resultado));
+  }).catch(e => {
+    process.exitCode = 1;
+    console.error('BLOQUEADO/FALLO', e.code === 'ERR_ASSERTION' ? e.message : e.code || e.message);
+  });
+}

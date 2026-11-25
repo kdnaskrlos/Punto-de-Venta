@@ -40,29 +40,16 @@ NODE_PATH="$lab_pos/node_modules" FIRESTORE_EMULATOR_HOST=127.0.0.1:9849 \
 
 La suite usa sesiones sintéticas independientes con credenciales de prueba de las reglas. El adaptador del POS usa el SDK real de Firestore contra el emulador con caché en memoria. La persistencia de IndexedDB al cerrar un navegador y la autenticación real de Firebase quedan como verificaciones separadas. Si el emulador no arranca o no puede cargar las reglas, el resultado de la suite es **BLOQUEADO**.
 
-## Prueba remota de capacidad (solo proyecto QA independiente)
+## Prueba remota de capacidad
 
-Existe `pruebas/firebase/remoto-cestas.cjs`: prueba la regla **realmente publicada en un proyecto remoto aislado** con cestas de 1, 8, 12, 16 a 21, 24, 32, 48 y 64 SKU. Si el lote se rechaza, verifica que el stock quede intacto y que no existan venta, marca, evento ni movimientos. Si se acepta, contrasta los movimientos con los SKU, la venta y el último movimiento de cada producto. **No divide ventas.** La prueba deja datos sintéticos identificados por un prefijo `qa-` en ese proyecto QA, nunca en el POS operativo.
+`pruebas/firebase/remoto-cestas.cjs` comprueba las reglas publicadas en Firebase. Si el lote directo se rechaza, verifica que el stock quede intacto y que no existan venta, marca, evento ni movimientos. Si se acepta, contrasta el movimiento de cada SKU con la venta y el producto. La prueba conserva las ventas atómicas y deja los datos sintéticos bajo un prefijo `qa-`.
 
-**Seguridad:** el script se niega a ejecutarse a menos que el `projectId` comience por `pos-qa-`, exige una cuenta Firebase Auth de QA previamente asociada a un perfil admin activo en `usuarios/{uid}` y bloquea el proyecto `punto-de-venta-comic-shop`. No almacena secretos en el repositorio y tampoco conecta al emulador. Debe usarse en un proyecto **creado exclusivamente para pruebas**, con reglas correspondientes a esta PR y una cuenta sintética. No utilizar credenciales del negocio real.
-
-Con `firebase@10.12.2` instalado en una carpeta temporal y `NODE_PATH` apuntando a sus `node_modules`:
-
-```bash
-POS_QA_PROJECT_ID=pos-qa-<proyecto> \
-POS_QA_API_KEY=<clave-publica-del-proyecto-qa> \
-POS_QA_EMAIL=<usuario-de-qa> \
-POS_QA_PASSWORD=<clave-del-usuario-qa> \
-NODE_PATH=<carpeta-temporal>/node_modules \
-node pruebas/firebase/remoto-cestas.cjs
-```
-
-El comando es para ejecutarse desde un entorno confiable, sin imprimir contraseñas ni publicarlas en archivos, logs o conversaciones. Antes de dar por cerrado el Bloque 1, comprobar el resultado contra Firestore remoto y corregir cualquier tamaño de cesta que sea válido para el negocio pero sea rechazado por los límites del backend. **No afirmar que un resultado del emulador sustituye esta comprobación**.
+Para el proyecto existente autorizado, sigue el procedimiento de v2.43 con la cuenta administradora habitual, primero en modo de solo lectura. La matriz exige que el POS siga fuera de operación, confirmación explícita de las escrituras y un identificador de ejecución. La validación remota sigue pendiente aunque el emulador apruebe el mismo tamaño de cesta. [Configuración y comandos](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
 
 ## Cobertura funcional y criterios de cierre
 
 - **Pruebas del adaptador real contra el emulador.** Las cestas de 24, 32, 48 y 64 SKU pasan por `guardarVenta`, incluido el evento que acompaña al lote. Se comprueba el comprobante, la caja, la fecha, el stock y un solo movimiento por SKU tras repetir el ID. También se cubren reserva, abono y liquidación offline en orden, y dos sesiones que liquidan la misma reserva con un solo cobro confirmado y un conflicto conciliable.
-- **BLOQUEADO · capacidad en Firestore remoto.** Hace falta acceso a un proyecto QA autorizado y separado, una cuenta Auth sintética y el archivo de reglas de la revisión cargado y verificado en QA. Se debe ejecutar la matriz de tamaños remota antes de cerrar el Bloque 1. Si una cesta legítima falla, se necesita una solución que conserve el cobro atómico o una decisión comercial explícita sobre el tamaño admitido.
+- **Pendiente · capacidad en Firestore remoto.** Se debe ejecutar la matriz en el proyecto existente autorizado, con el backend revisado y desplegado con aprobación explícita. Si una cesta legítima falla, se necesita una solución que conserve el cobro atómico o una decisión comercial explícita sobre el tamaño admitido.
 - **Presupuesto de reglas.** Firestore remoto admite [20 accesos a documentos por lote y 10 por escritura](https://firebase.google.com/docs/firestore/security/rules-conditions#access_call_limits). La validación de stock consulta un movimiento distinto con `getAfter` por SKU. Una cesta de más de 20 SKU supera ese presupuesto incluso antes de contar las consultas compartidas. La cifra efectiva puede ser inferior. El evento de venta añade una comprobación de la venta por lote, sin lecturas adicionales por SKU.
 - **Revisión separada para Daybreak.** Revisar la equivalencia de permisos si cambia el esquema para reducir lecturas o se introduce un servicio transaccional. Validar la separación de proyectos QA y producción, la asignación de roles, la vinculación entre venta, stock, movimientos y conflicto, y la vigencia de las garantías de idempotencia y atomicidad. Usar únicamente reglas y datos sintéticos en un entorno aprobado. Esta revisión queda pendiente.
 
@@ -93,7 +80,7 @@ La venta directa consulta un movimiento distinto por SKU, además de las rutas c
      pruebas/firebase/cestas-atomicas.cjs pruebas/firebase/cobros.cjs
    ```
 
-2. Para validar el servicio real se requiere un proyecto independiente autorizado con ID `pos-qa-…`, Firestore y Auth, capacidad de ejecutar Functions de segunda generación y Eventarc, y una identidad de servicio autorizada para las transacciones de Firestore. Es necesaria una cuenta admin sintética activa para la matriz, más una vendedora sintética para las pruebas de sesión y caja. El operador de QA necesita permiso para cargar estas reglas y desplegar `procesarVentaPos` desde `firebase.ventas.json` en ese proyecto. La región debe corresponder a la configuración de QA. La integración no activa este procesador en el proyecto público.
+2. Para validar el servicio real usa Firestore y Auth del proyecto existente autorizado, con Functions de segunda generación, Eventarc y una identidad de servicio autorizada para las transacciones de Firestore. Usa la cuenta administradora habitual para la matriz. Las pruebas de los demás roles requieren sus propias cuentas de prueba. El operador necesita autorización explícita para desplegar las reglas y `procesarVentaPos`. [Procedimiento de v2.43](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
 3. Con esas reglas y función verificadas en QA, ejecuta la matriz anterior con `POS_QA_VENTAS_PROCESADAS=1`. Comprueba 1–64, 128 y 248 SKU y el rechazo íntegro cuando falta el último SKU. En un origen de pruebas independiente, prepara el artefacto con la configuración pública de ese proyecto y `ventasAtomicas: true` dentro de `firebaseConfig`. Verifica en Chrome Windows y Android instalado los reintentos, la concurrencia, el arqueo con caja de origen, el reinicio offline de la PWA, los pagos pendientes y la convivencia con clientes anteriores.
 4. En una reversión, desactiva la opción para ventas nuevas. Conserva el cliente capaz de recuperar la cola, la función y sus reglas hasta conciliar todos los recibos pendientes. Las versiones anteriores ignoran esa cola y no la pueden despachar por sí mismas. Mantén los recursos PWA versionados siguiendo el procedimiento de recuperación.
 

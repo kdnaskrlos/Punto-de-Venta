@@ -9,6 +9,7 @@ const host = process.env.FIRESTORE_EMULATOR_HOST;
 if (!/^127\.0\.0\.1:[1-9]\d{0,4}$/.test(host || '')) throw new Error('BLOQUEADO: requiere Firestore Emulator en 127.0.0.1');
 const { assertFails, initializeTestEnvironment } = require('@firebase/rules-unit-testing');
 const { collection, doc, getDocsFromServer, getDocFromServer, increment, writeBatch, setDoc, updateDoc, deleteDoc, serverTimestamp, disableNetwork, enableNetwork, onSnapshot, query, where } = require('firebase/firestore');
+const { ejecutar: ejecutarMatrizRemota } = require('./remoto-cestas.cjs');
 
 const proyecto = 'demo-pos-bloque1';
 const reglas = readFileSync(path.resolve(__dirname, '../../firestore.rules'), 'utf8');
@@ -689,6 +690,7 @@ test('admin abre y cierra caja personal automática; vendedora no puede crear ca
     estado: 'abierta', abierta: fecha, fondo: { COP: 0, USD: 0, BS: 0 }, movimientos: [],
   });
   await apertura.commit();
+  assert.deepEqual((await getDocFromServer(cajaAdmin)).data().fondo, { COP: 0, USD: 0, BS: 0 });
   assert.equal((await getDocFromServer(cajaAdmin)).data().tipo, 'personal');
   assert.equal((await getDocFromServer(punteroAdmin)).data().cajaId, 'qa-admin-personal');
 
@@ -702,12 +704,119 @@ test('admin abre y cierra caja personal automática; vendedora no puede crear ca
   });
   await assertFails(intentoVendedora.commit());
   assert.equal((await getDocFromServer(doc(admin, 'cajaAbierta', 'a'))).exists(), false);
+  assert.equal((await getDocFromServer(doc(admin, 'cajas', 'qa-vendedora-personal'))).exists(), false);
 
   const cierre = writeBatch(admin);
   cierre.update(cajaAdmin, { estado: 'cerrada', cierre: { fecha, porArquear: false } });
   cierre.delete(punteroAdmin);
   await cierre.commit();
-  assert.equal((await getDocFromServer(cajaAdmin)).data().estado, 'cerrada');
+  const cerrada = (await getDocFromServer(cajaAdmin)).data();
+  assert.equal(cerrada.estado, 'cerrada');
+  assert.deepEqual(cerrada.cierre, { fecha, porArquear: false });
   assert.equal((await getDocFromServer(punteroAdmin)).exists(), false);
+});
+
+test('encargada abre caja personal y vendedora conserva apertura y arqueo de caja física', async () => {
+  await preparar();
+  for (const [usuario, tipo, fondo] of [['g', 'personal', 0], ['a', 'tienda', 20000]]) {
+    const db = entorno.authenticatedContext(usuario).firestore();
+    const caja = doc(db, 'cajas', 'qa-caja-' + usuario), puntero = doc(db, 'cajaAbierta', usuario);
+    const apertura = writeBatch(db);
+    apertura.set(caja, { id: caja.id, uid: usuario, usuario, tipo, estado: 'abierta', abierta: fecha,
+      fondo: { COP: fondo, USD: 0, BS: 0 }, movimientos: [] });
+    apertura.set(puntero, { cajaId: caja.id, desde: fecha });
+    await apertura.commit();
+    assert.equal((await getDocFromServer(puntero)).data().cajaId, caja.id);
+    assert.equal((await getDocFromServer(caja)).data().fondo.COP, fondo);
+    const cierre = writeBatch(db);
+    const arqueo = tipo === 'tienda' ? { contado: { COP: fondo, USD: 0, BS: 0 } } : {};
+    cierre.update(caja, { estado: 'cerrada', cierre: { fecha, ...arqueo, porArquear: false } });
+    cierre.delete(puntero);
+    await cierre.commit();
+    assert.deepEqual((await getDocFromServer(caja)).data().cierre, { fecha, ...arqueo, porArquear: false });
+    assert.equal((await getDocFromServer(puntero)).exists(), false);
+  }
+});
+
+const envMatriz = {
+  POS_QA_PROJECT_ID: 'punto-de-venta-comic-shop', POS_QA_ALLOW_EXISTING_PROJECT: 'punto-de-venta-comic-shop',
+  POS_QA_CONFIRM_NONOPERATIVE: 'SI_POS_NO_OPERATIVO', POS_QA_API_KEY: 'sintetica',
+  POS_QA_USUARIO: ' B ', POS_QA_PIN: '0000', POS_QA_CONFIRM_WRITES: 'SI_DATOS_SINTETICOS',
+  POS_QA_VENTAS_PROCESADAS: '0', POS_QA_RUN_ID: 'control-sintetico',
+};
+
+async function prepararMatriz() {
+  await preparar();
+  await entorno.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), 'logins', 'b'), { email: 'b@example.test', uid: 'b' }));
+  const db = entorno.authenticatedContext('b').firestore();
+  const sdk = { ...require('firebase/firestore'), getFirestore: () => db };
+  const auth = {
+    initializeAuth() {}, signOut() {},
+    async signInWithEmailAndPassword(_, correo, clave) {
+      assert.deepEqual([correo, clave], ['b@example.test', 'cs-0000']);
+      return { user: { uid: 'b', getIdTokenResult: async () => ({ claims: { aud: envMatriz.POS_QA_PROJECT_ID } }) } };
+    },
+  };
+  const modulos = { 'firebase/app': { initializeApp() {}, deleteApp() {} }, 'firebase/auth': auth, 'firebase/firestore': sdk };
+  return { db, sdk, auth, cargar: nombre => modulos[nombre] };
+}
+
+test('precheck usa el acceso del POS y solo lee con cualquier estado de caja, aun con escrituras confirmadas', async () => {
+  const { db, sdk, cargar } = await prepararMatriz();
+  const env = { ...envMatriz, POS_QA_SOLO_PRECHECK: '1' };
+  for (const metodo of ['runTransaction', 'writeBatch', 'setDoc', 'updateDoc', 'deleteDoc', 'addDoc']) {
+    sdk[metodo] = () => assert.fail('El precheck intentó escribir con ' + metodo);
+  }
+  const puntero = doc(db, 'cajaAbierta', 'b');
+  const referencia = await ejecutarMatrizRemota(env, cargar);
+  assert.deepEqual(referencia, { modo: 'solo-lectura', proyecto: env.POS_QA_PROJECT_ID, adminActivo: true,
+    cajaPersonalExistente: false, cajaFisicaExistente: false, ventasEjecutadas: 0, sinPunteroDeCaja: true });
+  for (const tipo of ['personal', 'tienda']) {
+    await entorno.withSecurityRulesDisabled(async ctx => {
+      const dbSinReglas = ctx.firestore();
+      await setDoc(doc(dbSinReglas, 'cajas', 'b'), { usuario: 'b', uid: 'b', estado: 'abierta', tipo });
+      await setDoc(doc(dbSinReglas, 'cajaAbierta', 'b'), { cajaId: 'b', desde: fecha });
+    });
+    assert.deepEqual(await ejecutarMatrizRemota(env, cargar), { ...referencia, cajaPersonalExistente: tipo === 'personal',
+      cajaFisicaExistente: tipo === 'tienda', sinPunteroDeCaja: false });
+    assert.deepEqual((await getDocFromServer(puntero)).data(), { cajaId: 'b', desde: fecha });
+  }
+});
+
+test('matriz bloquea falta de confirmación y una sesión Auth de otro proyecto', async () => {
+  await assert.rejects(ejecutarMatrizRemota({ ...envMatriz, POS_QA_CONFIRM_WRITES: undefined },
+    () => assert.fail('La matriz abrió Firebase')), /confirmar las escrituras/);
+  await assert.rejects(ejecutarMatrizRemota({ ...envMatriz, POS_QA_RUN_ID: undefined },
+    () => assert.fail('La matriz abrió Firebase')), /POS_QA_RUN_ID/);
+  const { auth, cargar } = await prepararMatriz();
+  auth.signInWithEmailAndPassword = async () => ({ user: { uid: 'b', getIdTokenResult: async () => ({ claims: { aud: 'otro-proyecto' } }) } });
+  await assert.rejects(ejecutarMatrizRemota({ ...envMatriz, POS_QA_SOLO_PRECHECK: '1' }, cargar), /pertenece a otro proyecto/);
+});
+
+test('matriz conserva cajas existentes y no duplica la venta de una ejecución interrumpida', async () => {
+  const { db, cargar } = await prepararMatriz();
+  const puntero = doc(db, 'cajaAbierta', 'b'), cajaPrevia = doc(db, 'cajas', 'b');
+  const cajaSintetica = doc(db, 'cajas', 'qa-control-sintetico-caja');
+  const previa = (await getDocFromServer(cajaPrevia)).data();
+  const abierto = { cajaId: 'b', desde: fecha };
+  await setDoc(puntero, abierto);
+  await assert.rejects(ejecutarMatrizRemota(envMatriz, cargar), /ya tiene un puntero/);
+  assert.deepEqual((await getDocFromServer(cajaPrevia)).data(), previa);
+  assert.deepEqual((await getDocFromServer(puntero)).data(), abierto);
+  assert.equal((await getDocFromServer(cajaSintetica)).exists(), false);
+  await deleteDoc(puntero);
+
+  const productoPrevio = doc(db, 'productos', 'qa-control-sintetico-v-8-s-7');
+  await setDoc(productoPrevio, { existencia: 4 });
+  await assert.rejects(ejecutarMatrizRemota(envMatriz, cargar), /Ya hay documentos para la cesta/);
+  const venta = doc(db, 'ventas', 'qa-control-sintetico-v-1');
+  const guardada = (await getDocFromServer(venta)).data();
+  assert.equal(guardada.cajaId, cajaSintetica.id);
+  assert.equal((await getDocFromServer(cajaSintetica)).data().cierre.porArquear, false);
+  assert.equal((await getDocFromServer(puntero)).exists(), false);
+  assert.deepEqual((await getDocFromServer(productoPrevio)).data(), { existencia: 4 });
+  assert.equal((await getDocFromServer(doc(db, 'productos', 'qa-control-sintetico-v-8-s-0'))).exists(), false);
+  await assert.rejects(ejecutarMatrizRemota(envMatriz, cargar), /identificador de ejecución ya se usó/);
+  assert.deepEqual((await getDocFromServer(venta)).data(), guardada);
 });
 

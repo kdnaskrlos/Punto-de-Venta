@@ -2,33 +2,38 @@
 
 > **Decisión del propietario, 24-11-2026:** el POS aún no está operativo. Se autorizó probar usando el proyecto Firebase **existente** `punto-de-venta-comic-shop`, ya actualizado a Blaze. Las referencias siguientes a un proyecto `pos-qa-*` describen la vía alternativa, no una obligación de crear otro proyecto. Ninguna prueba debe ejecutarse sobre datos de negocio: el propietario autoriza usar su cuenta administradora existente para el piloto, siempre que el perfil esté activo, no tenga caja abierta, no existan operaciones comerciales pendientes y se compruebe el impacto de los datos sintéticos `qa-` en reportes. Inventariar el contenido antes de probar y conservar las reglas y la configuración para reversión; el propietario confirmó que no existe respaldo y acepta ese riesgo en su POS todavía no operativo. No ejecutar el modo histórico sin una revisión explícita de sus límites y efectos. El proyecto existente solo supera las barreras de los scripts con `POS_QA_ALLOW_EXISTING_PROJECT=punto-de-venta-comic-shop` y `POS_QA_CONFIRM_NONOPERATIVE=SI_POS_NO_OPERATIVO`; mantener estas variables **fuera del repositorio** y comprobar el ID real antes de usarlas. Estos controles no sustituyen una revisión de permisos y de datos.
 
-## Firebase remoto aislado
+## Firebase remoto existente
 
-1. Para el Firebase existente autorizado, primero identifica proyecto, servicios, reglas y documentos existentes; genera respaldo y configura alertas de presupuesto en Blaze. Si se usa la alternativa de QA independiente, crea proyecto `pos-qa-…`. Usa exclusivamente datos sintéticos. En Firestore crea la base `(default)` en modo Native. Elige una región de Functions gen 2 compatible con la ubicación del origen del evento de Firestore y configura `POS_REGION_FUNCIONES` si difiere de `us-central1`.
-2. Habilita Firebase Authentication con correo y contraseña. Registra una app web, guarda su configuración **pública** como `config-publica-qa.json` fuera del repositorio y autoriza el dominio HTTPS de pruebas en Authentication. Para la matriz inicial se utilizará la cuenta administradora existente, por autorización expresa del propietario. Debe tener perfil `usuarios/{uid}` activo con rol `admin`. El administrador tiene **caja personal automática** (no la caja física de una vendedora). El preflight detecta si hay un puntero a una caja personal o física, sin modificarlo. Para garantizar que la matriz no mezcle importes, exige **que no haya ninguna caja activa** en el servidor y crea/cierra exclusivamente una caja sintética de tipo `personal` con fondo cero. Si hay una caja personal persistente del administrador, **no cerrarla automáticamente**: resolver su estado por separado antes de ejecutar la matriz. Los productos, ventas y movimientos `qa-` quedan en el proyecto y podrían aparecer en reportes o afectar contadores: esta prueba no es aislada por usuario y **no debe ejecutarse si se retoma la operación comercial**. Las pruebas posteriores de roles distintos requieren cuentas de prueba para dichos roles, no se dan por cubiertas usando admin.
-3. Usa una cuenta de despliegue con permisos en QA para actualizar reglas de Firestore y desplegar Functions gen 2, incluida la capacidad de utilizar la cuenta de servicio de ejecución. Verifica los servicios utilizados por Functions gen 2 y el disparador: Cloud Functions, Cloud Run, Cloud Build, Artifact Registry, Eventarc y Pub/Sub. La identidad de ejecución necesita acceso de lectura y escritura a Firestore (`roles/datastore.user`). La identidad del disparador necesita recibir eventos (`roles/eventarc.eventReceiver`) y permiso de invocación en el servicio Cloud Run correspondiente. Verifica las vinculaciones que crea Firebase CLI antes de modificar IAM.
-4. En un checkout del commit candidato, revisa explícitamente el ID y la ubicación. Con Firebase CLI y Node 22, carga solo las reglas y la función **en QA**. Si la región elegida no es la predeterminada, define `POS_REGION_FUNCIONES` en `funciones/.env.<ID_QA>` de la copia local antes del despliegue.
+1. **Ejecuta primero el precheck de solo lectura**, desde el commit candidato y antes de cualquier despliegue. Usa `punto-de-venta-comic-shop`, su clave web pública (`POS_QA_API_KEY`) y tu usuario y PIN habituales (`POS_QA_USUARIO` y `POS_QA_PIN`). El PIN se introduce en una terminal de confianza con entrada oculta, fuera de GitHub, chats y archivos. El script resuelve el correo interno en `logins/{usuario}`, comprueba el proyecto de la sesión Auth y lee el perfil y el puntero de caja. El resultado informa si hay caja personal o física, sin escribir en Firestore. `sinPunteroDeCaja: true` solo describe el puntero de esa cuenta. Si el puntero existe o está roto, revisa el estado antes de cualquier matriz.
 
    ```sh
-   firebase deploy --config firebase.ventas.json --project "$POS_QA_PROJECT_ID" --only firestore:rules,functions:procesarVentaPos
-   ```
-
-   Comprueba que el disparador observa `usuarios/{uid}/solicitudesVenta/{id}` en la base `(default)` y que escribe marcas terminales al procesar. No se requiere Hosting ni Storage de Firebase para este piloto. Las fotos de ejemplo van en el sitio estático.
-
-5. **Primero ejecutar solo la precomprobación remota de lectura**, usando la cuenta admin existente **con usuario y PIN del propio POS** (`POS_QA_USUARIO` y `POS_QA_PIN`), o credenciales Firebase Auth solo si se trata de una cuenta externa (`POS_QA_EMAIL` y `POS_QA_PASSWORD`). El script resuelve el correo interno a través de `logins/{usuario}` y autentica igual que el POS. Nunca enviar el PIN ni la API key por chat, capturas, variables del repositorio o archivos versionados; introducirlos únicamente en el equipo donde se ejecute la prueba. Ejecutar con `POS_QA_SOLO_PRECHECK=1`; comprueba Firebase Authentication, el perfil `usuarios/{uid}` (admin activo) e informa si existe una caja personal o física en `cajaAbierta/{usuario}`, sin cambiarla. No crea colecciones, caja ni ventas. Si hay caja abierta, detener las pruebas; no cerrarla automáticamente. Para la matriz real se requiere además `POS_QA_CONFIRM_WRITES=SI_DATOS_SINTETICOS`, la Function y las reglas compatibles ya autorizadas y desplegadas, y comprobar que no existan cobros comerciales pendientes.
-
-6. Con la cuenta admin existente autorizada, siempre que tenga caja cerrada y no existan cobros reales pendientes, sin personalizar precios, tramos, comisiones ni formas de pago, instala Firebase SDK en un directorio temporal y ejecuta ambos modos. Usa exclusivamente la clave pública del proyecto QA y credenciales sintéticas en variables de entorno. Conserva el resultado JSON por tamaño.
-
-   ```sh
+   export POS_QA_PROJECT_ID=punto-de-venta-comic-shop
+   export POS_QA_ALLOW_EXISTING_PROJECT="$POS_QA_PROJECT_ID"
+   export POS_QA_CONFIRM_NONOPERATIVE=SI_POS_NO_OPERATIVO
+   POS_QA_HERRAMIENTAS=$(mktemp -d)
    npm install --prefix "$POS_QA_HERRAMIENTAS" firebase@10.12.2
-   NODE_PATH="$POS_QA_HERRAMIENTAS/node_modules" POS_QA_SOLO_PRECHECK=1 node pruebas/firebase/remoto-cestas.cjs
-
-   # Solo después de autorizar expresamente las escrituras sintéticas y desplegar el backend:
-   NODE_PATH="$POS_QA_HERRAMIENTAS/node_modules" POS_QA_CONFIRM_WRITES=SI_DATOS_SINTETICOS POS_QA_VENTAS_PROCESADAS=1 node pruebas/firebase/remoto-cestas.cjs
-   NODE_PATH="$POS_QA_HERRAMIENTAS/node_modules" POS_QA_CONFIRM_WRITES=SI_DATOS_SINTETICOS POS_QA_VENTAS_PROCESADAS=0 node pruebas/firebase/remoto-cestas.cjs
+   read -r -p 'Usuario del POS: ' POS_QA_USUARIO
+   read -rs -p 'PIN del POS: ' POS_QA_PIN
+   printf '\n'
+   POS_QA_USUARIO="$POS_QA_USUARIO" POS_QA_PIN="$POS_QA_PIN" \
+     NODE_PATH="$POS_QA_HERRAMIENTAS/node_modules" POS_QA_SOLO_PRECHECK=1 node pruebas/firebase/remoto-cestas.cjs
+   unset POS_QA_PIN
    ```
 
-   Variables requeridas: `POS_QA_PROJECT_ID`, `POS_QA_API_KEY`, `POS_QA_EMAIL`, `POS_QA_PASSWORD` y la ruta temporal `POS_QA_HERRAMIENTAS`. En la ruta procesada deben confirmarse 1–248 SKU de la matriz, con coincidencia de caja, pagos, movimientos, existencias, marca y evento. Con el último SKU agotado se exige un conflicto con el comprobante original y cero escrituras parciales. En la ruta histórica registra el primer tamaño rechazado con código de salida 2. Un lote rechazado debe dejar el inventario y los comprobantes intactos. La medición debe hacerse antes de decidir qué clientes antiguos podrán seguir operando.
+2. Inventaría los servicios, las reglas, los datos de `(default)` y las versiones activas antes de escribir. Conserva la configuración de reversión. Confirma que el POS sigue fuera de operación, que los clientes están cerrados y que se conciliaron las colas locales. Los productos, ventas y movimientos `qa-` se conservan y pueden aparecer en reportes o afectar contadores.
+3. Pide autorización explícita para desplegar las reglas y `procesarVentaPos` en **ese mismo proyecto**. Con autorización, revisa la ubicación de Firestore y configura `POS_REGION_FUNCIONES` si difiere de `us-central1`. Verifica Functions gen 2, Eventarc y las identidades de ejecución y del disparador. Comprueba que observa `usuarios/{uid}/solicitudesVenta/{id}` en `(default)` y escribe una marca terminal por solicitud. Usa un origen HTTPS de piloto separado de la publicación v2.42.
+4. Con el backend autorizado y verificado y la cuenta administradora sin caja activa, ejecuta primero la ruta procesada. Genera y anota **una vez** `POS_QA_RUN_ID=$(node -p "require('node:crypto').randomUUID()")`. Conserva ese ID si el resultado es incierto y concilia sus documentos antes de iniciar otra ejecución. La apertura y el cierre de la caja personal sintética usan transacciones. Un puntero ocupado o un ID de ejecución usado bloquean la apertura. La caja sintética usa fondo cero y se cierra sin arqueo. La matriz deja intactos los productos ya presentes y comprueba que venta, pago, caja, marca, evento, stock y movimientos correspondan al mismo ID.
+
+   ```sh
+   read -rs -p 'PIN del POS: ' POS_QA_PIN
+   printf '\n'
+   POS_QA_USUARIO="$POS_QA_USUARIO" POS_QA_PIN="$POS_QA_PIN" NODE_PATH="$POS_QA_HERRAMIENTAS/node_modules" \
+     POS_QA_SOLO_PRECHECK=0 POS_QA_CONFIRM_WRITES=SI_DATOS_SINTETICOS POS_QA_RUN_ID="$POS_QA_RUN_ID" \
+     POS_QA_VENTAS_PROCESADAS=1 node pruebas/firebase/remoto-cestas.cjs
+   unset POS_QA_PIN
+   ```
+
+   Deben confirmarse todos los tamaños previstos hasta 248 SKU. Con el último SKU agotado se exige un conflicto con el comprobante original y cero escrituras parciales. Un resultado indeterminado exige revisar la solicitud, la venta y la marca con ese ID. La ruta histórica (`POS_QA_VENTAS_PROCESADAS=0`) requiere una revisión explícita de sus efectos y un ID distinto para esa ejecución. Registra el primer tamaño rechazado con código de salida 2 y verifica que el lote dejara el inventario y los comprobantes intactos. La medición precede a la decisión de qué clientes antiguos pueden seguir operando.
 
 ## PC y Android físicos
 
