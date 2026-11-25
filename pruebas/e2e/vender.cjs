@@ -267,8 +267,20 @@ casos('vender', [
     a.ok(await p.isVisible('.tabla-pc .fila-pc[data-sku="J-M"]'));
     // Al cerrar la búsqueda la zona vuelve a entrar con un desplazamiento.
     await p.locator('.zona-carrito').evaluate(zona => Promise.all(zona.getAnimations().map(animacion => animacion.finished)));
-    const r = await p.evaluate(() => { const t = document.querySelector('.tabla-pc').getBoundingClientRect(), pie = document.querySelector('.pie-pc').getBoundingClientRect(); return [pie.top >= t.bottom - 1, Math.round(innerHeight - pie.bottom)]; });
-    a.ok(r[0] && r[1] >= 0 && r[1] <= 40, 'la barra de cobro va abajo: ' + r);
+    const { margenFijo, debajoDeTabla, margenFinal } = await p.evaluate(() => {
+      const tabla = document.querySelector('.tabla-pc');
+      const pie = document.querySelector('.pie-pc');
+      const margen = () => Math.round(innerHeight - pie.getBoundingClientRect().bottom);
+      // Arriba la barra sticky puede superponerse a la parte desplazable de la tabla.
+      scrollTo({ top: 0, behavior: 'instant' });
+      const margenFijo = margen();
+      scrollTo({ top: document.scrollingElement.scrollHeight, behavior: 'instant' });
+      return { margenFijo, debajoDeTabla: pie.getBoundingClientRect().top >= tabla.getBoundingClientRect().bottom - 1,
+        margenFinal: margen() };
+    });
+    a.ok(margenFijo >= 0 && margenFijo <= 40, 'la barra queda fija en la parte inferior: ' + margenFijo);
+    a.ok(debajoDeTabla && margenFinal >= 0 && margenFinal <= 40,
+      'al final la barra de cobro queda debajo de la tabla: ' + [debajoDeTabla, margenFinal]);
     a.strictEqual(await texto(p, '.pie-pc .total-cop'), '42.000');
     await p.keyboard.press('F1'); await p.waitForSelector('#cli-guardar');
     a.match(await p.innerText('#cli-guardar'), /Guardar cliente/);
