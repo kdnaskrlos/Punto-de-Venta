@@ -398,15 +398,19 @@ for _ in range(24):
     run = api("run", "v2/" + svc["service"])
     conditions = ev.get("conditions", {})
     revision = run.get("latestReadyRevision", "").split("/")[-1]
-    if (conditions and all(c.get("code", "OK") == "OK" for c in conditions.values())
+    if (all(c.get("code", "OK") in ("OK", 0) for c in conditions.values())
         and run.get("terminalCondition", {}).get("state") == "CONDITION_SUCCEEDED" and revision):
         break
     time.sleep(10)
 else:
     sys.exit(f"BLOQUEADO: el alta existe, pero Eventarc o Cloud Run aún no se verifican. Revisa {op}.")
-destination = ev.get("destination", {}).get("cloudRun", {})
+destination = ev.get("destination", {})
+run_destination = destination.get("cloudRun", {})
+function_destination = destination.get("cloudFunction")
+expected_functions = {fn, f"projects/{number}/locations/us-central1/functions/{name}"}
 actual = {x["attribute"]: (x["value"], x.get("operator", "")) for x in ev["eventFilters"]}
-require(destination.get("service") == target and destination.get("region") == "us-central1"
+require((function_destination in expected_functions or (
+        run_destination.get("service") == target and run_destination.get("region") == "us-central1"))
         and ev.get("serviceAccount") == trigger and ev.get("transport", {}).get("pubsub", {}).get("subscription")
         and actual.get("type") == (event, "") and actual.get("database") == ("(default)", "")
         and actual.get("document") == (pattern, "match-path-pattern")

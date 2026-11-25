@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-25 — Función real desplegada y corrección de la verificación
+
+- El propietario confirmó `procesarVentaPos` activa, revisión `procesarventapos-00001-mem` lista con 100 % del tráfico y Eventarc `procesarventapos-790966` en `nam5` con destino `cloudFunction`, filtros y cuenta correctos.
+- Se registró la restauración de los agentes administrados de Cloud Functions y Eventarc informada por el propietario. Sus enlaces, la invocación y el transporte se comprueban mediante el verificador de solo lectura. [Verificador](../scripts/verificar-funcion-v243-cloud-shell.py)
+- Se corrigió el verificador para aceptar `destination.cloudFunction` y la ausencia de `conditions`. Pasaron siete escenarios simulados. La ronda se limitó a documentación y verificación local. [Referencia de Eventarc](https://docs.cloud.google.com/eventarc/docs/reference/rest/v1/projects.locations.triggers)
+- Siguiente acción. Ejecutar el verificador en Cloud Shell. Las reglas de `fa521e9` requieren autorización separada.
+
 ## 2026-11-25 — Aprovisionamiento del agente y alta oficial de la función
 
 - El propietario informó que falta el rol del agente de Cloud Functions y que el token de Compute devolvió HTTP 403. El alta sigue pendiente.
