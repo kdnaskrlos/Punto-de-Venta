@@ -80,7 +80,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install --prefix "$RUNNER_TEMP/pos-navegador" --no-audit --no-fund playwright@1.56.1 sharp@0.34.5
+          npm install --prefix "$RUNNER_TEMP/pos-navegador" --no-audit --no-fund playwright@1.63.0 sharp@0.34.5
           node "$RUNNER_TEMP/pos-navegador/node_modules/playwright/cli.js" install --with-deps chromium
       - name: Ejecutar todas las suites de navegador
         shell: bash

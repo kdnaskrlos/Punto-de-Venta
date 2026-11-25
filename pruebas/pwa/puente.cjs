@@ -77,8 +77,9 @@ after(async () => {
 });
 
 async function escenario(inicial, probar, opciones = {}) {
-  const estado = { raiz: inicial, fallos: new Map(), peticiones: [] };
+  const estado = { raiz: inicial, fallos: new Map(), peticiones: [], sinRed: false };
   const server = https.createServer(tls, (req, res) => {
+    if (estado.sinRed) return res.destroy();
     const url = new URL(req.url, 'https://localhost');
     if (!url.pathname.startsWith(ALCANCE)) return res.writeHead(404).end();
     const ruta = url.pathname.slice(ALCANCE.length) || 'index.html';
@@ -111,7 +112,14 @@ async function escenario(inicial, probar, opciones = {}) {
   try {
     contexto = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1530, height: 900 }, ...opciones });
     const ruta = `https://localhost:${server.address().port}${ALCANCE}?demo#/ajustes`;
-    await probar({ contexto, estado, ruta });
+    const cambiarConexion = async enLinea => {
+      // Fuerza el corte también para peticiones del worker. El modo offline
+      // de Playwright puede afectar solo a la página según el Chromium usado.
+      estado.sinRed = !enLinea;
+      if (!enLinea) server.closeAllConnections();
+      await contexto.setOffline(!enLinea);
+    };
+    await probar({ contexto, estado, ruta, cambiarConexion });
   } finally {
     try { await contexto?.close(); }
     finally {
@@ -190,7 +198,7 @@ test('El artefacto instala el puente con recursos versionados y abre sin conexi�
   assert.ok(!env.estado.peticiones.some(r => /^js\//.test(r.ruta)), 'El puente no carga módulos del grafo histórico');
   await p.waitForSelector('#modo-demo');
   assert.equal(await p.locator('#modo-prueba').count(), 0);
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   await p.reload();
   await operativo(p, infoPuente.version);
   assert.equal(await p.evaluate(() => new URL(location).searchParams.has('demo')), true);
@@ -203,7 +211,7 @@ test('v2.35 incompleta recupera el módulo histórico al reconectar, aunque el c
   await operativo(p, 'v2.35');
   await p.waitForFunction(async ruta => Boolean(await (await caches.open('pos-v2.35')).match(ruta)), EJEMPLOS);
   assert.equal(await p.evaluate(async ruta => (await caches.open('pos-v2.35')).delete(ruta), EJEMPLOS), true);
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   const fallida = p.waitForResponse(r => r.url().endsWith('/' + EJEMPLOS));
   const [sinModulo] = await Promise.all([fallida, p.reload({ waitUntil: 'domcontentloaded' })]);
   assert.doesNotMatch(sinModulo.headers()['content-type'] || '', /javascript|ecmascript/);
@@ -211,19 +219,19 @@ test('v2.35 incompleta recupera el módulo histórico al reconectar, aunque el c
 
   env.estado.raiz = puente;
   env.estado.fallos.set(infoPuente.prefijo + AJUSTES, 503);
-  await env.contexto.setOffline(false);
+  await env.cambiarConexion(true);
   const respuesta = p.waitForResponse(r => r.url().endsWith('/' + EJEMPLOS) && r.status() === 200);
   await Promise.all([respuesta, p.reload({ waitUntil: 'domcontentloaded' })]);
   await operativo(p, 'v2.35');
   await actualizar(p);
   assert.ok(env.estado.peticiones.some(r => r.codigo === 503 && r.ruta === infoPuente.prefijo + AJUSTES));
   await rechazo(p, infoPuente.cache);
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   await p.reload();
   await operativo(p, 'v2.35');
 
   env.estado.fallos.clear();
-  await env.contexto.setOffline(false);
+  await env.cambiarConexion(true);
   await actualizar(p);
   await esperando(p);
   await p.close();
@@ -239,7 +247,7 @@ test('El candidato rechaza bytes antiguos con HTTP 200 y v2.35 completa sigue ut
   await actualizar(p);
   assert.ok(env.estado.peticiones.some(r => r.ruta === ruta && r.codigo === 200 && r.obsoleta));
   await rechazo(p, infoPuente.cache);
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   await p.reload();
   await operativo(p, 'v2.35');
 }));
@@ -257,9 +265,9 @@ test('El arranque PWA reintenta al volver Internet aunque falte el módulo princ
   assert.equal(await p.locator('#app[data-listo="1"]').count(), 0);
 
   const peticiones = env.estado.peticiones.length;
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   env.estado.fallos.clear();
-  await env.contexto.setOffline(false);
+  await env.cambiarConexion(true);
   await p.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   assert.ok(env.estado.peticiones.slice(peticiones).some(r => r.ruta === 'sw.js' && r.codigo === 200));
   await p.reload();
@@ -280,7 +288,7 @@ test('El puente conserva el borrador al cerrar pestañas vacías y protege un di
   await otra.close();
   assert.deepEqual((await leerBorrador(principal)).c, c);
 
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   await principal.reload();
   await principal.waitForSelector('#retomar-si');
   const dialogoAnterior = await pagina(env);
@@ -324,7 +332,7 @@ test('El puente espera con trabajo y varias pestañas; la siguiente versión con
   assert.equal(respuesta, 'actualizacion-aplazada');
   await esperando(p);
   await operativo(p, infoPuente.version);
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   const pendientes = [{ que: 'abono', id: 'abono-sintetico', apartadoId: c.apartadoId }, { que: 'venta', id: c.ventaId }];
   await p.evaluate(({ clave, pendientes }) => localStorage.setItem(clave, JSON.stringify(pendientes)), { clave: PENDIENTES, pendientes });
   await p.close();
@@ -423,7 +431,7 @@ async function esperarActualizacionDesdeV235(env, p) {
 }
 
 async function comprobarBorradorTrasCerrar(env, p, carrito) {
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   await p.close();
   const nueva = await pagina(env);
   await operativo(nueva, infoPuente.version);
@@ -474,6 +482,13 @@ test('La vista antigua en caché puede llamar al almacén compatible sin errores
   await operativo(p, 'v2.35');
   const errores = [];
   p.on('pageerror', error => errores.push(error.message));
+  // El inicio de sesión registra un evento y difiere su escritura.
+  const entrada = await p.evaluate(() => {
+    const eventos = window.__pos.ctx.almacen._estado('eventos');
+    return [...eventos.values()].filter(evento => evento.tipo === 'sesion.entrada').at(-1).id;
+  });
+  await p.waitForFunction(id => JSON.parse(localStorage.getItem('pos-demo-datos'))?.col.eventos
+    .some(([clave]) => clave === id), entrada);
   const antes = await p.evaluate(() => localStorage.getItem('pos-demo-datos'));
   await p.click('#modo-prueba');
   await p.getByText('No se pudieron cargar. Revisa la conexión', { exact: true }).waitFor();
@@ -489,7 +504,7 @@ test('La reversión local conserva los dos grafos y el borrador sin red', tiempo
   assert.ok(readFileSync(path.join(posterior, infoFutura.prefijo + PRINCIPAL)).length > 0);
   await actualizar(p);
   await esperando(p);
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   await p.close();
 
   const nueva = await pagina(env);
@@ -576,7 +591,7 @@ if (artefactoAnterior && artefactoCandidato) {
       await operativo(p, 'v2.35');
       await p.click('#retomar-si');
       assert.deepEqual(await p.evaluate(() => window.__pos.ctx.carrito), carrito);
-      await env.contexto.setOffline(true);
+      await env.cambiarConexion(false);
       const pendientes = await guardarPendientes(p, carrito);
       await p.close();
 
@@ -608,18 +623,18 @@ if (artefactoAnterior && artefactoCandidato) {
       await actualizar(p);
       await esperando(p);
       await operativo(p, versiones[0].version);
-      await env.contexto.setOffline(true);
+      await env.cambiarConexion(false);
       const pendientes = await guardarPendientes(p, carrito);
       await p.close();
 
       const nueva = await pagina(env);
       await operativo(nueva, versiones[1].version);
       await comprobarDatosMigrados(nueva, inicial, carrito, pendientes);
-      await env.contexto.setOffline(false);
+      await env.cambiarConexion(true);
       env.estado.raiz = reversion;
       await actualizar(nueva);
       await esperando(nueva);
-      await env.contexto.setOffline(true);
+      await env.cambiarConexion(false);
       await nueva.close();
 
       const restaurada = await pagina(env);
@@ -640,7 +655,7 @@ for (const [nombre, opciones] of [['escritorio', {}], ['Android simulado', devic
     const respuesta = await p.reload({ waitUntil: 'domcontentloaded' });
     assert.equal(respuesta.status(), 200);
     await operativo(p, infoPuente.version);
-    await env.contexto.setOffline(true);
+    await env.cambiarConexion(false);
     await p.reload({ waitUntil: 'domcontentloaded' });
     await operativo(p, infoPuente.version);
   }, opciones));
@@ -658,7 +673,7 @@ test('repara un módulo ausente con una sola descarga compartida por ambas pesta
   }, url)));
   assert.deepEqual(resultados, [[200, 'text/javascript'], [200, 'text/javascript']]);
   assert.equal(env.estado.peticiones.slice(inicio).filter(r => r.ruta === url).length, 1);
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   await p.reload({ waitUntil: 'domcontentloaded' });
   await operativo(p, infoPuente.version);
 }));
@@ -691,11 +706,11 @@ test('sin caché y sin red muestra un 503 recuperable y conserva los datos', tie
     localStorage.setItem('pos-cobro-qa', 'recibo offline');
     return caches.delete(nombre);
   }, infoPuente.cache);
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   assert.equal((await p.reload({ waitUntil: 'domcontentloaded' })).status(), 503);
   await p.getByRole('heading', { name: 'Recursos de la aplicación no disponibles.' }).waitFor();
   assert.equal(await p.evaluate(() => localStorage.getItem('pos-cobro-qa')), 'recibo offline');
-  await env.contexto.setOffline(false);
+  await env.cambiarConexion(true);
   await p.getByRole('button', { name: 'Reintentar' }).click();
   await operativo(p, infoPuente.version);
 }));
@@ -831,7 +846,7 @@ test('un borrador de más de 24 horas conserva los pagos y se ofrece al volver s
     const d = JSON.parse(localStorage.getItem(clave));
     localStorage.setItem(clave, JSON.stringify({ ...d, en: Date.now() - 2 * 864e5 }));
   }, BORRADOR);
-  await env.contexto.setOffline(true);
+  await env.cambiarConexion(false);
   await p.close();
 
   const nueva = await pagina(env);
