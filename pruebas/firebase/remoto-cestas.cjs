@@ -110,29 +110,41 @@ async function main() {
   const { user: { uid } } = await signInWithEmailAndPassword(auth, process.env.POS_QA_EMAIL, process.env.POS_QA_PASSWORD);
   const perfil = (await getDocFromServer(doc(db, 'usuarios', uid))).data();
   assert.ok(perfil?.activo === true && perfil.rol === 'admin' && typeof perfil.usuario === 'string',
-    'Se requiere una cuenta admin de QA con perfil activo.');
+    'Se requiere una cuenta admin existente con perfil activo.');
   const { usuario } = perfil, idCaja = base + '-caja';
   const caja = doc(db, 'cajas', idCaja), puntero = doc(db, 'cajaAbierta', usuario);
-  // No reemplazar una caja abierta del administrador existente ni alterar una caja comercial.
+  // Admin/encargada usan caja personal automática. Nunca modificar una caja ya abierta.
   const punteroPrevio = await getDocFromServer(puntero);
+  let cajaAnterior = null;
   if (punteroPrevio.exists()) {
-    throw new Error('BLOQUEADO: el administrador tiene una caja abierta. Ciérrala antes de probar; no se sobrescribe.');
+    const cajaIdAnterior = punteroPrevio.data()?.cajaId;
+    if (typeof cajaIdAnterior !== 'string' || !cajaIdAnterior) {
+      throw new Error('BLOQUEADO: puntero de caja existente inválido. No se sobrescribe.');
+    }
+    const existente = await getDocFromServer(doc(db, 'cajas', cajaIdAnterior));
+    if (!existente.exists()) throw new Error('BLOQUEADO: existe puntero de caja sin documento. Requiere revisión.');
+    cajaAnterior = existente.data();
   }
-  // Diagnóstico sin escrituras: comprueba autenticación, perfil y caja.
-  // La contraseña no aparece en la salida, y no se consultan datos personales.
+  // Preflight estrictamente sin escrituras: no confundir caja personal automática con caja física.
   if (process.env.POS_QA_SOLO_PRECHECK === '1') {
     console.log(JSON.stringify({
       modo: 'solo-lectura', proyecto: projectId, adminActivo: true,
-      cajaAbierta: false, ventasEjecutadas: 0, listoParaPrepararMatriz: true,
+      cajaPersonalExistente: !!cajaAnterior && cajaAnterior.tipo === 'personal',
+      cajaFisicaExistente: !!cajaAnterior && cajaAnterior.tipo !== 'personal',
+      ventasEjecutadas: 0, listoParaMatrizAislada: !cajaAnterior,
     }));
     return;
+  }
+  if (cajaAnterior) {
+    throw new Error('BLOQUEADO: el administrador ya tiene caja personal/física activa. La matriz no la modifica ni la cierra; ejecutar después de resolverla.');
   }
   if (process.env.POS_QA_CONFIRM_WRITES !== 'SI_DATOS_SINTETICOS') {
     throw new Error('BLOQUEADO: falta POS_QA_CONFIRM_WRITES=SI_DATOS_SINTETICOS para autorizar escrituras sintéticas.');
   }
   const abrir = writeBatch(db);
   abrir.set(puntero, { cajaId: idCaja, desde: fecha });
-  abrir.set(caja, { id: idCaja, uid, usuario, estado: 'abierta', tipo: 'tienda', abierta: fecha, fondo: {}, movimientos: [] });
+  abrir.set(caja, { id: idCaja, uid, usuario, estado: 'abierta', tipo: 'personal', abierta: fecha,
+    fondo: { COP: 0, USD: 0, BS: 0 }, movimientos: [] });
   await abrir.commit();
   try {
     const cantidades = [1, 8, 10, 12, 15, 16, 17, 18, 19, 20, 21, 24, 30, 32, 48, 64];
