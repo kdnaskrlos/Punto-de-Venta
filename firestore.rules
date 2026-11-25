@@ -18,6 +18,10 @@ service cloud.firestore {
     function esGestion() { return activo() && (me().rol == 'admin' || me().rol == 'encargada'); }
     function yo() { return me().usuario; }
     function estadoPath() { return /databases/$(database)/documents/sistema/estado; }
+    // Activación explícita tras conciliar las colas anteriores y verificar el candidato.
+    function ventasProcesadasObligatorias() {
+      return exists(estadoPath()) && get(estadoPath()).data.get('soloVentasProcesadas', false) == true;
+    }
     function sinIniciar() { return !exists(estadoPath()); }
     function seIniciaAhora() { return sinIniciar() && existsAfter(estadoPath()); }
     function soloCambian(campos) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos); }
@@ -132,7 +136,7 @@ service cloud.firestore {
 
     // Ventas: solo se crean (nunca se reescriben ni se borran). Gestión puede anular o poner el número.
     match /ventas/{id} {
-      allow create: if ejemploNuevo();
+      allow create: if ejemploNuevo() && !ventasProcesadasObligatorias();
       allow delete: if ejemploExistente();
       allow get: if esGestion() || (activo() && (resource == null || resource.data.usuario == yo()));
       allow list: if esGestion() || (activo() && resource.data.usuario == yo());
@@ -141,7 +145,8 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.estado == 'ok'
         && !existsAfter(solicitudVentaPath(request.auth.uid, id))
-        && (request.resource.data.get('desdeApartado', null) == null || liquidacionVinculada(request.resource.data, id))
+        && (request.resource.data.get('desdeApartado', null) == null
+          ? !ventasProcesadasObligatorias() : liquidacionVinculada(request.resource.data, id))
         && get(/databases/$(database)/documents/cajas/$(request.resource.data.cajaId)).data.usuario == yo();
       allow update: if
         (esGestion() && resource.data.estado == 'ok' && request.resource.data.estado == 'anulada'

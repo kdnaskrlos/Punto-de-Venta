@@ -23,7 +23,7 @@ if (process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_AUTH_EMULATOR_HO
 }
 const { initializeApp, deleteApp } = require('firebase/app');
 const { getAuth, signInWithEmailAndPassword, signOut } = require('firebase/auth');
-const { getFirestore, doc, writeBatch, getDocFromServer, setDoc, increment, serverTimestamp } = require('firebase/firestore');
+const { getFirestore, doc, writeBatch, getDocFromServer, setDoc, increment, serverTimestamp, runTransaction } = require('firebase/firestore');
 const app = initializeApp({ projectId, apiKey: process.env.POS_QA_API_KEY, authDomain: projectId + '.firebaseapp.com' });
 const auth = getAuth(app), db = getFirestore(app);
 const fecha = new Date().toISOString();
@@ -124,7 +124,7 @@ async function main() {
   abrir.set(caja, { id: idCaja, uid, usuario, estado: 'abierta', tipo: 'tienda', abierta: fecha, fondo: {}, movimientos: [] });
   await abrir.commit();
   try {
-    const cantidades = [1, 8, 12, 16, 17, 18, 19, 20, 21, 24, 32, 48, 64];
+    const cantidades = [1, 8, 10, 12, 15, 16, 17, 18, 19, 20, 21, 24, 30, 32, 48, 64];
     if (procesadas) cantidades.push(128, 248);
     const resultados = [];
     for (const n of cantidades) {
@@ -137,10 +137,15 @@ async function main() {
     if (resultados.some(r => !r.aceptada)) process.exitCode = 2;
     console.log('Proyecto QA y prefijo sintético', projectId, base);
   } finally {
-    const cerrar = writeBatch(db);
-    cerrar.delete(puntero);
-    cerrar.update(caja, { estado: 'cerrada', cierre: { fecha: new Date().toISOString() } });
-    await cerrar.commit();
+    await runTransaction(db, async tx => {
+      const [actual, origen] = await Promise.all([tx.get(puntero), tx.get(caja)]);
+      if (origen.data()?.estado === 'cerrada' && actual.data()?.cajaId !== idCaja) return;
+      if (actual.data()?.cajaId !== idCaja || origen.data()?.uid !== uid || origen.data()?.estado !== 'abierta') {
+        throw new Error('BLOQUEADO: cambió la caja de la prueba. Revisa solo la caja sintética ' + idCaja);
+      }
+      tx.delete(puntero);
+      tx.update(caja, { estado: 'cerrada', cierre: { fecha: new Date().toISOString() } });
+    });
   }
 }
 

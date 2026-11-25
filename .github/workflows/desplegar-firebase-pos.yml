@@ -1,0 +1,116 @@
+name: Desplegar backend Firebase del POS
+
+on:
+  workflow_dispatch:
+    inputs:
+      componente:
+        description: Componente para el que existe autorización explícita
+        required: true
+        type: choice
+        options:
+          - funcion
+          - reglas
+      commit:
+        description: SHA completo de main revisado para este despliegue
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-punto-de-venta-comic-shop-produccion
+  cancel-in-progress: false
+
+jobs:
+  verificar-revision:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Exigir el commit exacto de la rama protegida
+        shell: bash
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == kdnaskrlos/Punto-de-Venta ]]
+          [[ "$GITHUB_REF" == refs/heads/main ]]
+          [[ "$COMMIT" =~ ^[a-f0-9]{40}$ && "$COMMIT" == "$GITHUB_SHA" ]]
+
+  pruebas:
+    needs: verificar-revision
+    uses: ./.github/workflows/verificar-reglas-firestore.yml
+
+  desplegar:
+    needs: [verificar-revision, pruebas]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: firebase-produccion
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      CI: 'true'
+      FIREBASE_PROJECT: punto-de-venta-comic-shop
+    steps:
+      - name: Verificar autorización del entorno y parámetros de identidad
+        id: objetivo
+        shell: bash
+        env:
+          COMPONENTE: ${{ inputs.componente }}
+          FUNCION_APROBADA: ${{ vars.POS_FIREBASE_FUNCION_SHA }}
+          REGLAS_APROBADAS: ${{ vars.POS_FIREBASE_REGLAS_SHA }}
+          PROVEEDOR: ${{ vars.POS_FIREBASE_WIF_PROVIDER }}
+          NUMERO_PROYECTO: ${{ vars.POS_FIREBASE_PROJECT_NUMBER }}
+        run: |
+          set -euo pipefail
+          case "$COMPONENTE" in
+            funcion)
+              aprobado="$FUNCION_APROBADA"
+              objetivo='functions:procesarVentaPos'
+              ;;
+            reglas)
+              aprobado="$REGLAS_APROBADAS"
+              objetivo='firestore:rules'
+              ;;
+            *) exit 1 ;;
+          esac
+          [[ "$aprobado" == "$GITHUB_SHA" ]]
+          [[ "$NUMERO_PROYECTO" =~ ^[0-9]+$ ]]
+          [[ "$PROVEEDOR" == "projects/$NUMERO_PROYECTO/locations/global/workloadIdentityPools/pos-github/providers/github" ]]
+          printf 'selector=%s\n' "$objetivo" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Preparar el CLI y revisar el código antes de autenticar
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          node scripts/copiar-nucleo-ventas.cjs --comprobar
+          npm install --prefix "$RUNNER_TEMP/pos-firebase-cli" --no-audit --no-fund --ignore-scripts firebase-tools@15.37.0
+          npm ci --prefix funciones --no-audit --no-fund --ignore-scripts
+
+      - name: Identidad temporal de Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          project_id: punto-de-venta-comic-shop
+          workload_identity_provider: ${{ vars.POS_FIREBASE_WIF_PROVIDER }}
+          service_account: pos-github-deploy@punto-de-venta-comic-shop.iam.gserviceaccount.com
+          create_credentials_file: true
+
+      - name: Desplegar solamente el componente autorizado
+        shell: bash
+        env:
+          OBJETIVO: ${{ steps.objetivo.outputs.selector }}
+        run: |
+          set -euo pipefail
+          [[ "$FIREBASE_PROJECT" == punto-de-venta-comic-shop ]]
+          case "$OBJETIVO" in functions:procesarVentaPos|firestore:rules) ;; *) exit 1 ;; esac
+          "$RUNNER_TEMP/pos-firebase-cli/node_modules/.bin/firebase" deploy \
+            --project "$FIREBASE_PROJECT" --config firebase.ventas.json --only "$OBJETIVO" --non-interactive

@@ -3,15 +3,7 @@ name: Verificar reglas de Firestore
 on:
   pull_request:
     branches: [main]
-    paths:
-      - firestore.rules
-      - firebase.ventas.json
-      - funciones/**
-      - js/datos/index.js
-      - js/datos/firebase.js
-      - js/datos/pendientes.js
-      - pruebas/firebase/**
-      - .github/workflows/verificar-reglas-firestore.yml
+  workflow_call:
 
 permissions:
   contents: read
@@ -53,7 +45,7 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/pos-firestore/node_modules" FIRESTORE_EMULATOR_HOST=127.0.0.1:9849 node --test --test-concurrency=1 pruebas/firebase/cobros.cjs pruebas/firebase/cestas-atomicas.cjs
 
   candidato-piloto:
-    if: github.head_ref == 'integracion/pos-auditoria'
+    if: github.event_name == 'pull_request' && github.head_ref == 'integracion/pos-auditoria'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -72,3 +64,45 @@ jobs:
           path: ${{ runner.temp }}/pos-piloto
           include-hidden-files: true
           if-no-files-found: error
+
+  navegador-pwa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Instalar herramientas temporales de navegador
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/pos-navegador" --no-audit --no-fund playwright@1.56.1 sharp@0.34.5
+          node "$RUNNER_TEMP/pos-navegador/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Ejecutar todas las suites de navegador
+        shell: bash
+        env:
+          NODE_PATH: ${{ runner.temp }}/pos-navegador/node_modules
+        run: |
+          set -uo pipefail
+          fallo=0
+          for suite in pruebas/e2e/[!_]*.cjs; do node "$suite" || fallo=1; done
+          exit "$fallo"
+      - name: Verificar actualización, puente y huella de la PWA
+        if: success() || failure()
+        shell: bash
+        env:
+          NODE_PATH: ${{ runner.temp }}/pos-navegador/node_modules
+        run: |
+          set -euo pipefail
+          huella=$(node pruebas/pwa/huella.cjs)
+          grep -Fx "const HUELLA_APP = '$huella';" sw.js
+          node scripts/preparar-piloto.cjs "$RUNNER_TEMP/pos-prueba-pwa"
+          export POS_PWA_PREVIO_DIR="$RUNNER_TEMP/pos-prueba-pwa/base/Punto-de-Venta"
+          export POS_PWA_CANDIDATO_DIR="$RUNNER_TEMP/pos-prueba-pwa/candidata/Punto-de-Venta"
+          node pruebas/pwa/actualizacion.cjs
+          node --test pruebas/pwa/puente.cjs
+          node pruebas/pwa/verificar-historica.cjs
