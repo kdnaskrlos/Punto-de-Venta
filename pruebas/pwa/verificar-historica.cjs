@@ -11,13 +11,18 @@ if (resultado.status === 0) process.exit(0);
 
 const pruebas = salida.match(/^ℹ tests (\d+)$/m);
 const fallos = salida.match(/^ℹ fail (\d+)$/m);
-const esperados = new Set(['04', '05']);
+const esperados = new Map([
+  ['04', 'El cierre de v2.35 no debe eliminar el borrador compartido'],
+  ['05', 'La pestaña vacía de v2.35 borró el carrito de la misma cuenta'],
+]);
+const encabezados = salida.split('✖ failing tests:\n');
 const observados = new Set();
-for (const linea of salida.split('\n')) {
-  if (!linea.startsWith('✖ ') || linea === '✖ failing tests:') continue;
-  const id = linea.match(/^✖ (\d{2}) · /)?.[1];
-  if (!esperados.has(id)) process.exit(1);
+for (const detalle of encabezados[1]?.split(/^✖ /m).slice(1) || []) {
+  const id = detalle.match(/^(\d{2}) · /)?.[1];
+  const causa = esperados.get(id);
+  if (!causa || !detalle.includes('AssertionError [ERR_ASSERTION]: ' + causa)) process.exit(1);
   observados.add(id);
 }
-if (pruebas?.[1] !== '8' || !observados.size || Number(fallos?.[1]) !== observados.size) process.exit(1);
+if (encabezados.length !== 2 || pruebas?.[1] !== '8' || !observados.size
+  || Number(fallos?.[1]) !== observados.size) process.exit(1);
 console.warn('Limitaciones verificadas de v2.35: ' + [...observados].join(', ') + '. Aplicar la migración supervisada.');
