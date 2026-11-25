@@ -15,8 +15,14 @@ const proyectoExistenteAutorizado = projectId === 'punto-de-venta-comic-shop'
 if (!proyectoQA && !proyectoExistenteAutorizado) {
   throw new Error('BLOQUEADO: proyecto no autorizado para pruebas remotas; exige confirmación explícita del Firebase existente.');
 }
-for (const key of ['POS_QA_API_KEY', 'POS_QA_EMAIL', 'POS_QA_PASSWORD']) {
-  if (!process.env[key]) throw new Error('BLOQUEADO: falta ' + key);
+if (!process.env.POS_QA_API_KEY) throw new Error('BLOQUEADO: falta POS_QA_API_KEY');
+const credencialesPos = !!(process.env.POS_QA_USUARIO && process.env.POS_QA_PIN);
+const credencialesFirebase = !!(process.env.POS_QA_EMAIL && process.env.POS_QA_PASSWORD);
+if (!credencialesPos && !credencialesFirebase) {
+  throw new Error('BLOQUEADO: se requieren POS_QA_USUARIO y POS_QA_PIN, o POS_QA_EMAIL y POS_QA_PASSWORD.');
+}
+if (credencialesPos && !/^\d{4}$/.test(process.env.POS_QA_PIN)) {
+  throw new Error('BLOQUEADO: POS_QA_PIN debe tener 4 dígitos.');
 }
 if (process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_AUTH_EMULATOR_HOST) {
   throw new Error('BLOQUEADO: esta prueba requiere Firestore y Auth remotos.');
@@ -107,7 +113,23 @@ async function cesta({ uid, usuario, idCaja, n, falta }) {
 }
 
 async function main() {
-  const { user: { uid } } = await signInWithEmailAndPassword(auth, process.env.POS_QA_EMAIL, process.env.POS_QA_PASSWORD);
+  let correo, clave;
+  if (credencialesPos) {
+    const usuarioLimpio = String(process.env.POS_QA_USUARIO).trim().toLowerCase()
+      .normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, '.')
+      .replace(/[^a-z0-9._-]/g, '');
+    if (!usuarioLimpio) throw new Error('BLOQUEADO: POS_QA_USUARIO inválido.');
+    const acceso = await getDocFromServer(doc(db, 'logins', usuarioLimpio));
+    if (!acceso.exists() || typeof acceso.data().email !== 'string') {
+      throw new Error('BLOQUEADO: el usuario del POS no tiene registro de acceso válido.');
+    }
+    correo = acceso.data().email;
+    clave = 'cs-' + process.env.POS_QA_PIN;
+  } else {
+    correo = process.env.POS_QA_EMAIL;
+    clave = process.env.POS_QA_PASSWORD;
+  }
+  const { user: { uid } } = await signInWithEmailAndPassword(auth, correo, clave);
   const perfil = (await getDocFromServer(doc(db, 'usuarios', uid))).data();
   assert.ok(perfil?.activo === true && perfil.rol === 'admin' && typeof perfil.usuario === 'string',
     'Se requiere una cuenta admin existente con perfil activo.');
