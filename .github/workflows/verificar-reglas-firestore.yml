@@ -1,0 +1,108 @@
+name: Verificar reglas de Firestore
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  firestore-emulador:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verificar sintaxis y bloqueo de producción del test remoto
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check pruebas/firebase/remoto-cestas.cjs
+          if POS_QA_PROJECT_ID=punto-de-venta-comic-shop node pruebas/firebase/remoto-cestas.cjs > /tmp/guard-qa.log 2>&1; then
+            echo "La barrera de producción no funcionó"
+            exit 1
+          fi
+          grep -q "BLOQUEADO" /tmp/guard-qa.log
+      - name: Ejecutar pruebas unitarias
+        run: npm test
+      - name: Ejecutar reglas contra el emulador local
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/pos-firestore" --no-audit --no-fund firebase@10.12.2 @firebase/rules-unit-testing@3.0.3
+          npm ci --prefix funciones --no-audit --no-fund
+          contenedor_pos=$(docker run -d --rm -p 127.0.0.1:9849:8080 \
+            google/cloud-sdk@sha256:7238e47ca03f43296f380010193eedd7ce7cac69efcae36ff7b0a75e0cd879e8 \
+            gcloud beta emulators firestore start --project=demo-pos-bloque1 --host-port=0.0.0.0:8080)
+          trap 'docker logs --tail 40 "$contenedor_pos"; docker stop "$contenedor_pos" >/dev/null' EXIT
+          curl --fail --silent --show-error --retry 45 --retry-all-errors --max-time 2 --retry-delay 1 http://127.0.0.1:9849/
+          NODE_PATH="$RUNNER_TEMP/pos-firestore/node_modules" FIRESTORE_EMULATOR_HOST=127.0.0.1:9849 node --test --test-concurrency=1 pruebas/firebase/cobros.cjs pruebas/firebase/cestas-atomicas.cjs
+
+  candidato-piloto:
+    if: github.event_name == 'pull_request' && github.head_ref == 'integracion/pos-auditoria'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Preparar sitios de piloto sin Firebase
+        run: node scripts/preparar-piloto.cjs "$RUNNER_TEMP/pos-piloto"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pos-v2.43-piloto-pc-android
+          path: ${{ runner.temp }}/pos-piloto
+          include-hidden-files: true
+          if-no-files-found: error
+
+  navegador-pwa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Instalar herramientas temporales de navegador
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/pos-navegador" --no-audit --no-fund playwright@1.63.0 sharp@0.34.5
+          node "$RUNNER_TEMP/pos-navegador/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Ejecutar todas las suites de navegador
+        shell: bash
+        env:
+          NODE_PATH: ${{ runner.temp }}/pos-navegador/node_modules
+        run: |
+          set -uo pipefail
+          fallo=0
+          for suite in pruebas/e2e/[!_]*.cjs; do node "$suite" || fallo=1; done
+          exit "$fallo"
+      - name: Verificar actualización, puente y huella de la PWA
+        if: success() || failure()
+        shell: bash
+        env:
+          NODE_PATH: ${{ runner.temp }}/pos-navegador/node_modules
+        run: |
+          set -euo pipefail
+          huella=$(node pruebas/pwa/huella.cjs)
+          grep -Fx "const HUELLA_APP = '$huella';" sw.js
+          node scripts/preparar-piloto.cjs "$RUNNER_TEMP/pos-prueba-pwa"
+          export POS_PWA_PREVIO_DIR="$RUNNER_TEMP/pos-prueba-pwa/base/Punto-de-Venta"
+          export POS_PWA_CANDIDATO_DIR="$RUNNER_TEMP/pos-prueba-pwa/candidata/Punto-de-Venta"
+          node pruebas/pwa/actualizacion.cjs
+          node --test pruebas/pwa/puente.cjs
+          node pruebas/pwa/verificar-historica.cjs
