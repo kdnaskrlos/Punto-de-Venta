@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 25-11-2026.** El propietario confirmó el cierre de la verificación estructural y autorizó exclusivamente las reglas candidatas de v2.43. [Bitácora](BITACORA.md)
+- **Actualizado el 25-11-2026.** Se corrigió la simulación de la transición histórica del apartado tras el bloqueo en la etapa 2/5 de las reglas. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - **Prioridad** validar Firebase real con datos sintéticos en el proyecto existente. La publicación de v2.43 sigue bloqueada por esta validación y por las pruebas en dispositivos físicos. [Decisión del propietario](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
 
@@ -38,7 +38,9 @@
 
 - **Autorización de reglas.** El propietario autorizó solo `firestore.rules` de `fa521e96c86e4052934ec9dcd080aceba06e7443` en `punto-de-venta-comic-shop`. Huella candidata verificada en Git `f5242399a61a0d5318d8f65ebeff36a1fba94ba3761e3e565b165cc432226d0f`. El bloque conserva la fuente anterior, simula permisos de v2.42 y verifica la huella tras actualizar exclusivamente `cloud.firestore`. La reversión repunta al ruleset anterior tras confirmación. Pasaron seis escenarios simulados. Publicación y comprobación real de las reglas pendientes. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py) · [API de reversión](https://firebase.google.com/docs/reference/rules/rest/v1/projects.releases/patch)
 
-**Siguiente acción.** Ejecutar el bloque de reglas en Cloud Shell y compartir `REGLAS_V243_VERIFICADAS` o el bloqueo. Mantener el piloto desactivado.
+- **Primer intento de reglas en Cloud Shell.** Las reglas activas aprobaron 11 de 12 casos. La transición histórica del apartado devolvió `Function not found: existsAfter` y se detuvo antes de publicar. Se corrigió el mock de existencia posterior del comprobante, se revisaron las lecturas simuladas y ahora se informan ambas tandas antes de bloquear. Se conservaron 12 casos activos, 14 candidatos y la huella aprobada. Pasaron seis escenarios locales con APIs simuladas. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
+
+**Siguiente acción.** Ejecutar el bloque corregido de reglas en Cloud Shell, conservar el respaldo del intento anterior y compartir `REGLAS_V243_VERIFICADAS` o el diagnóstico conjunto.
 
 ## Reglas comerciales por confirmar
 

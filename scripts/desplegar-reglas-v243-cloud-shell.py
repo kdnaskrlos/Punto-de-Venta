@@ -149,8 +149,12 @@ def scenarios():
     before = {"usuario": WHO, "estado": "pendiente", "total": 25000, "saldo": 0}
     after = {**before, "estado": "completado", "ventaId": VENTA}
     historic_receipt = {**sale, "desdeApartado": APARTADO, "abonosPrevios": before["total"] - before["saldo"]}
-    closing = legacy + (lookup("get", reservation, before), lookup("getAfter", reservation, after))
-    transition = own + (mock("exists", sales_path, False), lookup("getAfter", sales_path, historic_receipt))
+    closing = legacy + (mock("exists", reservation, True), lookup("get", reservation, before),
+                        mock("existsAfter", reservation, True), lookup("getAfter", reservation, after))
+    # Las reglas activas pueden comprobar existencia y la candidata consulta el documento.
+    # Ambos mocks describen el mismo comprobante creado en el lote simulado.
+    transition = own + (mock("exists", sales_path, False), mock("existsAfter", sales_path, True),
+                        lookup("getAfter", sales_path, historic_receipt))
     core = [
         ("resolución de login antes de Auth", case("get", f"logins/{WHO}", uid=None,
                                                    previous={"uid": UID, "email": "fixture@example.invalid"})),
@@ -243,8 +247,13 @@ def publish(repo):
     check_legacy_mode()
     progress("[2/5] Evaluando permisos de v2.42 con solicitudes simuladas. Firestore no ejecuta esas operaciones.")
     core, controls = scenarios()
-    run_simulation(previous, core, "activo")
-    run_simulation(candidate, core + controls, "candidata")
+    simulation_errors = []
+    for label, source, suite in (("activo", previous, core), ("candidata", candidate, core + controls)):
+        try:
+            run_simulation(source, suite, label)
+        except Blocked as error:
+            simulation_errors.append(f"{label}: {error}")
+    require(not simulation_errors, " | ".join(simulation_errors))
     manifest["simulacionesV242"] = {"activo": len(core), "candidata": len(core) + len(controls)}
     save_manifest(directory, manifest)
 

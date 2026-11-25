@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-25 — Corrección de los mocks de compatibilidad
+
+- Cloud Shell informó 11 de 12 casos aprobados en las reglas activas. La transición histórica del apartado se detuvo en `existsAfter` antes de publicar.
+- Se añadió el mock del comprobante posterior al lote y se revisaron los demás accesos simulados. El script ejecuta ambas tandas y bloquea ante cualquier fallo. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
+- Pasaron seis escenarios locales con APIs simuladas. El archivo de reglas autorizado conserva su SHA-256 y el respaldo anterior permanece disponible.
+- Siguiente acción. Ejecutar el bloque corregido de Cloud Shell y compartir la salida.
+
 ## 2026-11-25 — Verificación estructural aprobada y reglas autorizadas
 
 - El propietario confirmó cero fallos y pendientes, transporte Pub/Sub verificado y ruleset anterior identificado. Sigue pendiente una prueba activa de entrega de eventos.
