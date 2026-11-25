@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-25 — Precheck real v2.43 bloqueado
+
+- Se verificaron el HEAD `8f98a6d`, el PR #21 en borrador y el ID y la clave web pública de `punto-de-venta-comic-shop` en `config.js`. La CI de reglas de ese HEAD figura como aprobada. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45684703207)
+- Se revisó la ruta de solo lectura. El proxy de Codex rechazó Firebase con HTTP 403 y la sesión requiere entrada oculta del PIN. Quedan pendientes Auth, perfil admin y puntero de caja. La ronda se limitó a revisión y consultas públicas. [Script](../pruebas/firebase/remoto-cestas.cjs)
+- Siguiente acción. Ejecutar `POS_QA_SOLO_PRECHECK=1` con el administrador habitual en una terminal de confianza. [Procedimiento](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
+
 ## 2026-11-25 — Incorporación de la memoria permanente
 
 - Se integraron los adjuntos con la memoria iniciada en la rama. Se conservaron las instrucciones originales y la habilidad `pos-contexto`.

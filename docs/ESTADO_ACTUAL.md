@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 25-11-2026.** Se consolidó la memoria de `kdnaskrlos/Punto-de-Venta`, se contrastó el estado de la candidata y se validaron los enlaces y el formato de los tres documentos. [Bitácora](BITACORA.md)
+- **Actualizado el 25-11-2026.** Se verificó la configuración pública para el precheck real de v2.43. La comprobación autenticada sigue pendiente. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - **Prioridad** validar Firebase real con datos sintéticos en el proyecto existente. La publicación de v2.43 sigue bloqueada por esta validación y por las pruebas en dispositivos físicos. [Decisión del propietario](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
 
@@ -27,12 +27,14 @@
 
 ## Firebase real y publicación pendientes
 
+- **Precheck real v2.43 bloqueado el 25-11-2026.** El HEAD `8f98a6d` del PR #21 coincide con la revisión solicitada. Se obtuvo el ID `punto-de-venta-comic-shop` y su clave web pública del `config.js` de esa revisión. El proxy de Codex rechazó las consultas HTTPS a Firebase con HTTP 403 y la sesión requiere el PIN en una terminal de confianza. Siguen pendientes la identidad en Firebase Auth, el perfil admin activo y el estado del puntero de caja. La revisión del código confirmó que `POS_QA_SOLO_PRECHECK=1` retorna antes de la matriz y solo lee Firestore. Esta ronda se limitó a la revisión del código y las consultas públicas. [Configuración](../config.js) · [Script](../pruebas/firebase/remoto-cestas.cjs)
+
 - El propietario autorizó datos sintéticos en `punto-de-venta-comic-shop` (Blaze) y el uso de su administrador habitual. Aceptó la ausencia de respaldo solo para esta fase no operativa. La matriz requiere verificar el proyecto, la caja, las colas y el efecto de los registros `qa-` en reportes. [Condiciones de la prueba](VALIDACION-FINAL-V243.md#firebase-remoto-existente) · [Decisión](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - La cuenta de despliegue y el workflow WIF están configurados. En la ejecución 45610821324 aprobaron el intercambio OIDC y la obtención de identidad, falló el paso de respaldo y se omitió el despliegue. El workflow en `main` contempla `verificar` y exige revisiones y autorizaciones separadas para reglas y Functions. [Ejecución WIF](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45610821324) · [Flujo de despliegue](DESPLIEGUE-FIREBASE-WIF.md)
-- Queda por confirmar el estado de las reglas, `procesarVentaPos` y Eventarc desplegados. La sesión del administrador habitual y las ventas sintéticas reales siguen sin resultados registrados. [Plan remoto](VALIDACION-FINAL-V243.md#firebase-remoto-existente) · [Seguimiento](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
+- Queda por confirmar el estado de las reglas, `procesarVentaPos` y Eventarc desplegados. Las ventas sintéticas reales siguen pendientes. [Plan remoto](VALIDACION-FINAL-V243.md#firebase-remoto-existente) · [Seguimiento](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
 - Antes de publicar, valida en Firebase real pagos y descuentos, caja, anulaciones, ventas y existencias, rechazo atómico, reintentos y conciliación. Prueba la PWA instalada en Windows y Android físicos y aplica la migración supervisada de v2.35. Concilia las colas, incluidas cuentas con UID sustituido, antes de acordar el retiro de ventas directas, abonos y liquidaciones de comisiones históricas. Conserva un plan de reversión y obtén la aprobación del propietario para publicar. [Criterios de publicación](VALIDACION-FINAL-V243.md#decisión-de-publicación)
 
-**Siguiente acción.** Ejecutar `POS_QA_SOLO_PRECHECK=1` en una terminal de confianza con el administrador habitual, usando el PIN de forma local y oculta. Inventariar las reglas y funciones activas en modo de lectura. Si hay caja abierta o colas por conciliar, resolverlas primero. Obtener autorización separada para cualquier despliegue necesario y confirmar de forma explícita las escrituras sintéticas antes de ejecutar la matriz. [Instrucciones exactas](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
+**Siguiente acción.** Ejecutar `POS_QA_SOLO_PRECHECK=1` desde la revisión `8f98a6d` en una terminal de confianza con el administrador habitual y el PIN en entrada oculta. [Procedimiento](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
 
 ## Reglas comerciales por confirmar
 
