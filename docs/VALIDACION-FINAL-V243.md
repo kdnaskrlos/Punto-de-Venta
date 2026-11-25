@@ -46,6 +46,15 @@ node scripts/preparar-piloto.cjs /ruta/nueva/piloto --firebase-qa /ruta/config-p
 | Pagos, apartados, caja y comisiones | Registra USD + COP con vuelto y un descuento aprobado. Completa y anula un apartado con abono. Comprueba la reposición, las salidas por los medios originales, el arqueo conciliado tras un cobro tardío y una sola liquidación por venta. |
 | Reversión y compatibilidad v2.35 | En QA, concilia pendientes antes de volver a v2.42 y conserva los grafos de ambas versiones. Para instalaciones v2.35, practica el procedimiento supervisado de la guía con datos sintéticos. Los casos 04 y 05 de pestañas con código antiguo todavía requieren ese procedimiento. |
 
+### Puerta de migración supervisada desde v2.35
+
+Los casos **04 y 05** de `pruebas/pwa/regresion-actualizacion.cjs` siguen fallando en la aplicación **antigua**: cerrar la última pestaña o cerrar otra pestaña vacía puede borrar el borrador de la misma cuenta. `pruebas/pwa/verificar-historica.cjs` reconoce estos fallos históricos, por lo que **CI verde no significa compatibilidad resuelta**. No es correcto corregir ese resultado silenciando o eliminando las pruebas.
+
+Para usuarios que todavía ejecuten v2.35, **antes de publicar v2.43**: (1) identificar instalaciones y pestañas abiertas; (2) registrar, finalizar o cancelar explícitamente cada carrito no cobrado, y conciliar cada cobro local pendiente con un resultado remoto, conservando su ID; (3) cerrar **todas** las pestañas de v2.35, sin confiar en que el cierre guarde borradores; (4) actualizar/reabrir con un solo cliente por cuenta, verificar versión y datos tras el cambio; (5) confirmar en Firestore que no hay cobros duplicados ni colas que vayan a reaparecer. Si hay clientes v2.35 desconocidos o desconectados, posponer el corte de rutas antiguas o bloquear por versión en el servidor, tras evaluar los cobros pendientes. No afirmar que un Service Worker nuevo puede modificar el comportamiento de una pestaña que sigue ejecutando código v2.35.
+
+**El administrador ya utiliza caja personal automática** (se crea al vender; no requiere arqueo de caja física). El script remoto de validación solo inicia una caja sintética personal si no existe ninguna caja activa del administrador, y nunca cierra una caja preexistente. El preflight `POS_QA_SOLO_PRECHECK=1` identifica esta condición sin escribir datos.
+
+
 ## Decisión de publicación
 
 La ruta directa sigue admitiendo importes calculados por el cliente. La protección nueva vincula la liquidación con el apartado, conserva su importe reservado y mantiene los lotes históricos sin marca. No recalcula los abonos ni valida su recepción. La liquidación histórica de comisiones conserva su formato y acredita la persona que la registró, pero no adquiere el bloqueo por venta de los clientes nuevos.
