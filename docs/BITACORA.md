@@ -2,11 +2,11 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
-## 2026-11-26 — Revisión corregida activa y recuperación dirigida preparada
+## 2026-11-26 — Revisión activa y recuperación directa preparada
 
-- Cloud Shell devolvió `REVISION_VERIFICADA` en `procesarventapos-00002-pas` para el SHA `9339da4`. Devolvió `NO_VERIFICADA` para `qa-v243-20261126-79dcb917`, pendiente con dos unidades intactas.
-- Se preparó una entrega puntual a la función activa mediante Cloud Tasks y OIDC. Pasaron la comprobación del CloudEvent con el SDK y una simulación del encolado que evita otra tarea si la venta ya fue confirmada. [Script](../scripts/recuperar-venta-v243-cloud-shell.py)
-- Siguiente acción. Entregar el evento de la solicitud original, conservar su ID y registrar el resultado real.
+- Cloud Shell confirmó el SHA `9339da4` en `procesarventapos-00002-pas`. La reentrega por Cloud Tasks devolvió `RECUPERACION_NO_VERIFICADA` y la consulta posterior a las 16:25 UTC quedó vacía. Se abandonó esa vía.
+- El bloque directo llama al procesador transaccional del mismo SHA con ADC y el ID original. Pasaron la sintaxis y cuatro escenarios simulados de la envoltura. [Script](../scripts/recuperar-venta-v243-cloud-shell.py) · [CI del procesador](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45852855011)
+- Siguiente acción. Continuar en Cloud Shell con la solicitud original y registrar su conciliación. La prueba real de Eventarc queda para una venta controlada posterior.
 
 ## 2026-11-26 — Validación funcional simplificada
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Entrega dirigida de la solicitud sintética original a procesarVentaPos."""
-import base64
+"""Ejecuta el procesador del POS para la solicitud original desde Cloud Shell."""
 import importlib.util
 import json
-import re
+import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -13,93 +13,76 @@ spec = importlib.util.spec_from_file_location(
 pos = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pos)
 
-QUEUES = "https://cloudtasks.googleapis.com/v2/" + pos.PARENT + "/queues"
-QUEUE = pos.PARENT + "/queues/pos-recuperacion-v243"
-QUEUE_URL = "https://cloudtasks.googleapis.com/v2/" + QUEUE
-TASK = QUEUE + "/tasks/recuperar-" + pos.V
+ADC = """
+const { applicationDefault } = require('firebase-admin/app');
+applicationDefault().getAccessToken().then(t => process.stdout.write(t.access_token))
+  .catch(e => { console.error(e.message); process.exitCode = 1; });
+"""
+
+PROCESSOR = """
+const { initializeApp, applicationDefault } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
+const { atenderVenta, idValido } = require('./ventas.cjs');
+const [projectId, uid, id] = process.argv.slice(1);
+if (projectId !== 'punto-de-venta-comic-shop' || id !== 'qa-v243-20261126-79dcb917' || !idValido(uid)) {
+  throw new Error('Proyecto o identidad de la solicitud inesperados.');
+}
+const db = getFirestore(initializeApp({ projectId, credential: applicationDefault() }));
+(async () => {
+  try {
+    const estado = await atenderVenta(db, { uid, id });
+    console.log(JSON.stringify({ procesador: estado, id }));
+  } finally {
+    await db.terminate();
+  }
+})().catch(e => {
+  console.error(e.code || '', e.message);
+  process.exitCode = 1;
+});
+"""
 
 
-def cloud_event(doc):
-    source = f"projects/{pos.P}/databases/(default)"
-    return {"specversion": "1.0", "id": "recuperar-" + pos.V,
-            "type": "google.cloud.firestore.document.v1.created",
-            "source": "//firestore.googleapis.com/" + source,
-            "subject": doc["name"].removeprefix(source + "/"),
-            "database": "(default)", "datacontenttype": "application/json",
-            "data": {"value": {k: doc[k] for k in ("name", "createTime", "updateTime")}}}
-
-
-def create_once(url, body):
-    try:
-        return pos.api(url, body, "POST")
-    except RuntimeError as error:
-        if "HTTP 409" in str(error) and "ALREADY_EXISTS" in str(error):
-            return None
-        raise
-
-
-def recover(manifest):
+def recover(manifest, functions):
+    pos.need(not os.environ.get("FIRESTORE_EMULATOR_HOST"), "Quita FIRESTORE_EMULATOR_HOST para esta operación.")
     original = json.loads(Path(manifest).read_text(encoding="utf-8"))["solicitudAntes"]
+    pos.token = subprocess.check_output(["node", "-e", ADC], cwd=functions, text=True).strip()
+    pos.need(pos.token, "El SDK no devolvió credenciales ADC.")
     timestamps = ("solicitudCreateTime", "solicitudUpdateTime")
-    before = pos.sale()
+
+    def reconcile():
+        result = pos.sale()
+        pos.need(all(result[k] and result[k] == original[k] for k in timestamps),
+                 "La solicitud no coincide con el manifiesto original.")
+        return result
+
+    before = reconcile()
     pos.emit(antes=before)
-    pos.need(all(before[k] and before[k] == original[k] for k in timestamps),
-             "La solicitud no coincide con la registrada en el manifiesto.")
     if before["estado"] == "CONFIRMADA":
         pos.emit(estado="YA_CONFIRMADA", venta=before)
         return
     pos.need(before["estado"] in ("PENDIENTE", "CONFIRMADA_SIN_NUMERO"),
-             "El estado de la solicitud requiere revisión antes de reenviar.")
-
-    fn = pos.function_state()
-    svc = fn["serviceConfig"]
-    pos.need(pos.active_sha(fn) == pos.NEW and svc.get("revision", "").split("/")[-1] == "procesarventapos-00002-pas",
-             "La revisión activa no coincide con el despliegue informado.")
-    url = svc.get("uri", "").rstrip("/")
-    identity = fn["eventTrigger"].get("serviceAccountEmail", "")
-    pos.need(re.fullmatch(r"https://procesarventapos-[a-z0-9-]+(?:\.(?:us-central1|a))?\.run\.app", url)
-             and identity == "570684941224-compute@developer.gserviceaccount.com",
-             "URL interna o identidad del disparador inesperada.")
-
+             "El estado requiere conciliación antes de procesar.")
+    pos.authorization("AUTORIZO_PROCESAR " + pos.V)
     box = pos.fields(pos.api(pos.FS + "/cajas/" + pos.BOX))
     uid = box.get("uid")
-    pos.need(isinstance(uid, str) and uid and "/" not in uid, "UID de caja inválido.")
-    route = f"usuarios/{uid}/solicitudesVenta/{pos.V}"
-    doc = pos.api(pos.FS + "/" + pos.quote(route, safe="/"))
-    pos.need(doc["name"] == pos.DB + "/" + route and doc["createTime"] == before[timestamps[0]]
-             and doc["updateTime"] == before[timestamps[1]], "Cambió el documento de solicitud.")
-    body = base64.b64encode(json.dumps(cloud_event(doc)).encode()).decode()
-    queue = pos.api(QUEUE_URL, missing=True)
-    pos.emit(destino=url, cola=QUEUE, tarea=TASK, cuenta=identity, creaCola=not bool(queue))
-    pos.authorization("AUTORIZO_RECUPERAR " + pos.V)
-    if not queue:
-        queue = create_once(QUEUES, {"name": QUEUE, "retryConfig": {"maxAttempts": 1}})
-        if not queue:
-            queue = pos.api(QUEUE_URL)
-    pos.need(queue.get("name") in (QUEUE, QUEUE.replace(pos.P, "570684941224", 1)) and queue.get("state") == "RUNNING"
-             and queue.get("retryConfig", {}).get("maxAttempts") == 1 and not queue.get("httpTarget"),
-             "La cola dedicada no está operativa o tiene configuración inesperada.")
-    task = create_once(QUEUE_URL + "/tasks", {"task": {
-        "name": TASK, "httpRequest": {"url": url, "httpMethod": "POST",
-            "headers": {"Content-Type": "application/cloudevents+json"}, "body": body,
-            "oidcToken": {"serviceAccountEmail": identity, "audience": url}}}})
-    if task:
-        pos.need(task.get("name") in (TASK, TASK.replace(pos.P, "570684941224", 1)), "Cloud Tasks devolvió otro identificador.")
-    pos.emit(envio="ENCOLADO" if task else "TAREA_YA_REGISTRADA", tarea=TASK)
-
-    deadline = time.monotonic() + 90
-    result = pos.sale()
-    while result["estado"] in ("PENDIENTE", "CONFIRMADA_SIN_NUMERO") and time.monotonic() < deadline:
-        time.sleep(6)
-        result = pos.sale()
-    pos.need(all(result[k] == original[k] for k in timestamps), "Cambió la solicitud durante la recuperación.")
-    pos.emit(estado="VENTA_RECUPERADA" if result["estado"] == "CONFIRMADA" else "RECUPERACION_NO_VERIFICADA", venta=result)
+    pos.need(isinstance(uid, str) and uid and "/" not in uid, "UID de la caja inválido.")
+    result = reconcile()
+    if result["estado"] == "CONFIRMADA":
+        pos.emit(estado="YA_CONFIRMADA", venta=result)
+        return
+    pos.need(result["estado"] in ("PENDIENTE", "CONFIRMADA_SIN_NUMERO"),
+             "El estado cambió después de la confirmación.")
+    code = subprocess.run(["node", "-e", PROCESSOR, pos.P, uid, pos.V], cwd=functions).returncode
+    # La conciliación compartida lee Firestore en un instante dos segundos anterior.
+    time.sleep(3)
+    after = reconcile()
+    pos.emit(estado="VENTA_RECUPERADA" if after["estado"] == "CONFIRMADA" else "RECUPERACION_NO_VERIFICADA",
+             codigoProcesador=code, venta=after)
+    return 0 if after["estado"] == "CONFIRMADA" else 1
 
 
 if __name__ == "__main__":
     try:
-        pos.token = pos.command("gcloud", "auth", "print-access-token")
-        pos.need(pos.token, "Sin credencial de Cloud Shell.")
-        recover(sys.argv[1])
-    except (RuntimeError, OSError, ValueError, KeyError) as error:
+        sys.exit(recover(*sys.argv[1:]))
+    except (RuntimeError, OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
         sys.exit(f"BLOQUEADO: {error}")

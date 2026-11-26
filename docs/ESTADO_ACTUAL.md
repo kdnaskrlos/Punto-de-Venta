@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 26-11-2026.** Cloud Shell confirmó el SHA corregido de `procesarVentaPos` en la revisión `procesarventapos-00002-pas`. La recuperación automática de la primera venta sigue pendiente. [Bitácora](BITACORA.md)
+- **Actualizado el 26-11-2026.** La revisión corregida `procesarventapos-00002-pas` sigue activa según Cloud Shell. La recuperación de la solicitud original queda pendiente de ejecutar el procesador directamente desde Cloud Shell. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - **Prioridad** estabilizar el POS con una validación funcional simplificada en Firebase real. La publicación de v2.43 sigue pendiente de autorización.
 
@@ -45,9 +45,9 @@
 
 - **Corrección candidata.** `procesarVentaPos` valida el tipo, el origen del proyecto y la base, la ruta del snapshot, los IDs y la concordancia con `subject` cuando viene informado. En el emulador, la reentrega sobre una solicitud preexistente con el mismo ID produjo un solo cobro, movimiento, evento y número. El efecto remoto depende de la autorización del despliegue y de una reentrega posterior. Si Eventarc agotó los reintentos, se requiere una recuperación autorizada sobre esa misma solicitud. [Disparador](../funciones/index.cjs) · [Regresión](../pruebas/firebase/cestas-atomicas.cjs)
 
-- **Recuperación dirigida preparada.** Cloud Shell devolvió `NO_VERIFICADA` para `qa-v243-20261126-79dcb917`. Sigue pendiente, sin marca, número ni movimientos, con dos unidades de inventario. El bloque usa una tarea HTTP con nombre estable y OIDC para entregar un CloudEvent a la función activa. Verifica la identidad de la solicitud con el manifiesto y reutiliza la comprobación de la venta, pagos, inventario y duplicados. Se validó localmente el CloudEvent con el SDK y el encolado con respuestas simuladas. La entrega real requiere Cloud Tasks habilitado y permisos para encolar y usar la cuenta existente. [Script](../scripts/recuperar-venta-v243-cloud-shell.py)
+- **Recuperación directa preparada.** Cloud Tasks devolvió `RECUPERACION_NO_VERIFICADA` y el propietario informó que los registros posteriores a las 16:25 UTC no devolvieron resultados. Se abandona esa vía. El bloque ejecuta `atenderVenta` del SHA `9339da4` con ADC en Cloud Shell. Usa el manifiesto para verificar la solicitud original y comprueba venta, número, pagos, inventario y duplicados. Se verificaron la sintaxis y cuatro escenarios de la envoltura con respuestas simuladas. La futura venta controlada de Eventarc es una prueba separada. [Script](../scripts/recuperar-venta-v243-cloud-shell.py)
 
-**Siguiente acción.** Ejecutar el bloque de recuperación dirigida para `qa-v243-20261126-79dcb917` y registrar la salida de la conciliación.
+**Siguiente acción.** Ejecutar el bloque directo para `qa-v243-20261126-79dcb917` y registrar el resultado antes de la nueva prueba controlada de Eventarc.
 
 ## Reglas comerciales por confirmar
 
