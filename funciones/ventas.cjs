@@ -130,4 +130,4 @@ async function atenderVenta(db, { uid, id }) {
   return estado;
 }
 
-module.exports = { atenderVenta };
+module.exports = { atenderVenta, idValido };

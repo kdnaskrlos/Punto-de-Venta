@@ -15,7 +15,7 @@ const {
 
 const proyecto = 'demo-pos-bloque1';
 const reglas = readFileSync(path.join(__dirname, '../../firestore.rules'), 'utf8');
-const { procesar, cerrar } = require('./servicio-ventas.cjs');
+const { procesar, eventoCreado, entregar, cerrar } = require('./servicio-ventas.cjs');
 const red = process.env.POS_CESTAS_REGLAS_ACTUALES === '1';
 const disparador = process.env.POS_CESTAS_DISPARADOR_LOCAL === '1';
 const fecha = '2026-11-24T14:00:00.000Z';
@@ -156,6 +156,49 @@ test('64 SKU offline conservan un único cobro con presupuesto constante de regl
   console.log('Lecturas distintas de movimientos desde las reglas de stock:', n);
   // Incluso antes de contar perfil, caja y venta, 64 accesos distintos no caben en el lote remoto.
   assert.equal(n, 0, 'la cesta debe dejar de depender de una lectura de reglas por SKU');
+});
+
+test('reentrega de Eventarc sin extensión document recupera la solicitud original una sola vez', { skip: red || disparador }, async () => {
+  const id = 'qa-v243-20261126-79dcb917', sku = id + '-sku';
+  await sembrar([sku]);
+  const a = cliente('a'), b = cliente('b'), v = venta(id, [sku]);
+  await entorno.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), 'cajas', 'a'), { estado: 'cerrada' }));
+  await enviar(a, 'a', v);
+  const solicitud = rutaSolicitud(a, 'a', id), marca = rutaMarca(a, 'a', id), guardada = doc(a, 'ventas', id);
+  const original = (await getDocFromServer(solicitud)).data();
+  assert.equal((await getDocFromServer(guardada)).exists(), false);
+  assert.equal((await getDocFromServer(marca)).exists(), false);
+
+  const evento = eventoCreado('a', id, { project: undefined });
+  const invalidos = [
+    { ...evento, source: evento.source.replace(proyecto, 'otro-proyecto') },
+    { ...evento, source: evento.source.replace('(default)', 'otra-base') },
+    { ...evento, project: 'otro-proyecto' },
+    { ...evento, namespace: 'otro-namespace' },
+    { ...evento, type: 'google.cloud.firestore.document.v1.updated' },
+    { ...evento, subject: `documents/usuarios/b/solicitudesVenta/${id}` },
+    { ...evento, subject: `documents/usuarios/a/solicitudesVenta/${id}/extra` },
+    { ...evento, data: undefined },
+    eventoCreado('__reservado__', id),
+    eventoCreado('a', '__reservado__'),
+  ];
+  for (const invalido of invalidos) assert.equal(await entregar(invalido), undefined);
+  assert.equal((await getDocFromServer(guardada)).exists(), false);
+  assert.equal((await getDocFromServer(marca)).exists(), false);
+  assert.equal((await getDocFromServer(doc(a, 'productos', sku))).data().existencia, 1);
+
+  assert.equal(await entregar(evento), 'confirmada_servidor');
+  assert.equal(await entregar(evento), 'confirmada_servidor');
+  assert.equal(await entregar({ ...evento, subject: undefined }), 'confirmada_servidor');
+  assert.deepEqual((await getDocFromServer(solicitud)).data(), original);
+  assert.equal((await getDocFromServer(marca)).data().refId, id);
+  const final = (await getDocFromServer(guardada)).data();
+  assert.deepEqual([final.id, final.pagos, final.numero], [id, v.pagos, 'V-0001']);
+  assert.equal((await getDocFromServer(doc(a, 'contadores', 'ventas'))).data().n, 1);
+  assert.equal((await getDocFromServer(doc(a, 'productos', sku))).data().existencia, 0);
+  assert.equal((await getDocsFromServer(collection(b, 'ventas'))).size, 1);
+  assert.equal((await getDocsFromServer(collection(b, 'movimientos'))).size, 1);
+  assert.equal((await getDocsFromServer(collection(b, 'eventos'))).size, 1);
 });
 
 test('el último SKU insuficiente deja intacto todo el inventario y conserva el comprobante', { skip: red || disparador }, async () => {

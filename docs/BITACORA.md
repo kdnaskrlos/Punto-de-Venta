@@ -2,18 +2,16 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
-## 2026-11-26 — Venta sintética con estado indeterminado
+## 2026-11-26 — Corrección de la entrega Firestore de procesarVentaPos
 
-- Cloud Shell informó que `qa-v243-20261126-79dcb917` llegó a la espera de confirmación y agotó 90 segundos sin observar marca y número oficial juntos.
-- El código separa las transacciones de cobro y numeración. La entrega real, el estado en Firestore y la causa exacta de la demora siguen por determinar. [Procesador](../funciones/ventas.cjs)
-- Se comprobó la sintaxis del bloque de solo lectura y ocho estados con respuestas simuladas. La CI de `16f25ae` pasó. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45848393140)
-- Siguiente acción. Ejecutar el diagnóstico de ese ID en Cloud Shell y conciliarlo antes de cualquier reintento o matriz.
+- Cloud Shell informó `PENDIENTE` para `qa-v243-20261126-79dcb917`, HTTP 500 y 12 respuestas 5xx. La traza cae al construir `usuarios/{uid}`. El SDK 7.4.0 calcula `params` desde la extensión `document`. La entrega real no tiene cabecera capturada ni error correlacionado con el ID. [SDK](https://github.com/firebase/firebase-functions/blob/v7.4.0/src/v2/providers/firestore.ts#L1026)
+- RED reprodujo el error exacto con el wrapper del SDK y protobuf sin la extensión. GREEN validó origen y ruta, descartó eventos inválidos y recuperó la solicitud preexistente con una sola venta, movimiento, evento y número. [Disparador](../funciones/index.cjs) · [Regresión](../pruebas/firebase/cestas-atomicas.cjs)
+- Pasaron 174 unitarias y 38 pruebas de Firestore Emulator con Node 22. La función permanece en el SHA desplegado. Siguiente acción. Revisar y autorizar el SHA candidato para verificar la recuperación de la solicitud original en Firebase real.
 
-## 2026-11-26 — Reglas verificadas y primera venta controlada preparada
+## 2026-11-26 — Reglas verificadas y primera venta pendiente de conciliación
 
-- El propietario informó `REGLAS_V243_VERIFICADAS` en `punto-de-venta-comic-shop`, ruleset `8b7c6bda-e0f3-49d6-9888-e8ca445dfec6` del commit `fa521e96c86e4052934ec9dcd080aceba06e7443`. Se cotejó la huella con Git. [Estado](ESTADO_ACTUAL.md#firebase-real-y-publicación-pendientes)
-- Se preparó una venta de un SKU, un pago COP y una caja sintética cerrada sin puntero. Pasaron 174 unitarias y ocho escenarios simulados del piloto.
-- El bloque corregido de reglas pasó sintaxis y tres escenarios simulados, incluida la conservación del respaldo anterior. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py) · [CI de 8363353](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45707695177)
+- Cloud Shell informó `REGLAS_V243_VERIFICADAS` en `punto-de-venta-comic-shop` para `8b7c6bda-e0f3-49d6-9888-e8ca445dfec6` del SHA autorizado `fa521e96c86e4052934ec9dcd080aceba06e7443`. El respaldo anterior se conservó en las pruebas simuladas. [Estado](ESTADO_ACTUAL.md#firebase-real-y-publicación-pendientes) · [CI de 8363353](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45707695177)
+- Se probó una venta de un SKU y un pago COP en caja cerrada. El primer bloque agotó los 90 segundos sin observar marca y número juntos. El diagnóstico de solo lectura pasó ocho escenarios simulados, al igual que el piloto antes de su ejecución. [CI de 16f25ae](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45848393140) · [CI de 4efbe1d](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45851070342)
 
 ## 2026-11-25 — Corrección de los mocks de compatibilidad
 
