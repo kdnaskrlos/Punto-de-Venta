@@ -2,11 +2,11 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
-## 2026-11-26 — Actualización exclusiva de procesarVentaPos preparada
+## 2026-11-26 — Validación funcional simplificada
 
-- La CI de `9339da407dfeec141e3287c47785e061dcbfc4ce` finalizó con éxito. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45852855011)
-- El procedimiento guarda la fuente anterior y verifica revisión, transporte, configuración y la conciliación de la solicitud original. Pasaron escenarios simulados de actualización y reversión y bloqueos por CI y deriva de configuración. [Script](../scripts/actualizar-funcion-v243-cloud-shell.py)
-- La actualización real sigue pendiente de autorización explícita. Siguiente acción. Ejecutar el bloque y registrar la revisión activa y el resultado de la recuperación automática.
+- El propietario cerró la auditoría exhaustiva y priorizó un POS operativo, estable y seguro. Cloud Shell se detuvo ante diferencias en el snapshot antes del PATCH.
+- Se simplificó el procedimiento existente. Reutiliza el manifiesto, limita el cambio a fuente y etiqueta SHA y concilia la venta original por ID. Las pruebas aprobadas del candidato siguen vigentes. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45852855011)
+- Se comprobó con una simulación que un cambio de metadatos permite continuar y que la fuente anterior sirve para revertir. Siguiente acción. Autorizar el bloque simplificado y registrar el resultado real. [Script](../scripts/actualizar-funcion-v243-cloud-shell.py)
 
 ## 2026-11-26 — Corrección de la entrega Firestore de procesarVentaPos
 

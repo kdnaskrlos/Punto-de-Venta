@@ -1,8 +1,8 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 26-11-2026.** Reglas v2.43 verificadas. La primera venta sintética sigue pendiente según Cloud Shell. La corrección de `procesarVentaPos` se reprodujo y validó en el emulador y está pendiente de autorización para desplegar. [Bitácora](BITACORA.md)
+- **Actualizado el 26-11-2026.** El intento de actualización de `procesarVentaPos` se detuvo antes del PATCH. El propietario aprobó una validación funcional simplificada para dejar el POS operativo, estable y seguro. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
-- **Prioridad** validar Firebase real con datos sintéticos en el proyecto existente. La publicación de v2.43 sigue bloqueada por esta validación y por las pruebas en dispositivos físicos. [Decisión del propietario](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
+- **Prioridad** estabilizar el POS con una validación funcional simplificada en Firebase real. La publicación de v2.43 sigue pendiente de autorización.
 
 ## Funcionalidades implementadas
 
@@ -45,9 +45,9 @@
 
 - **Corrección candidata.** `procesarVentaPos` valida el tipo, el origen del proyecto y la base, la ruta del snapshot, los IDs y la concordancia con `subject` cuando viene informado. En el emulador, la reentrega sobre una solicitud preexistente con el mismo ID produjo un solo cobro, movimiento, evento y número. El efecto remoto depende de la autorización del despliegue y de una reentrega posterior. Si Eventarc agotó los reintentos, se requiere una recuperación autorizada sobre esa misma solicitud. [Disparador](../funciones/index.cjs) · [Regresión](../pruebas/firebase/cestas-atomicas.cjs)
 
-- **Actualización exclusiva preparada.** El procedimiento comprueba la CI, conserva la fuente anterior con su generación de Storage y, tras autorización explícita, limita el PATCH a la fuente y la etiqueta SHA. Verifica revisión activa, tráfico, configuración de la función, Eventarc, Pub/Sub, IAM de Cloud Run y el ruleset. Consulta la solicitud original por su ID y ofrece diagnóstico de solo lectura y reversión autorizada. Las pruebas del procedimiento usaron servicios simulados. [Script](../scripts/actualizar-funcion-v243-cloud-shell.py)
+- **Actualización exclusiva simplificada.** Cloud Shell se bloqueó al comparar el snapshot completo antes del PATCH. El procedimiento reutiliza el manifiesto de ese intento, comprueba que la función y la fuente anterior coincidan y solicita autorización para actualizar la fuente y la etiqueta SHA mediante Cloud Functions v2. La comprobación funcional se concentra en la revisión activa y la conciliación de la solicitud original. Conserva la reversión por generación de Storage, Eventarc, las identidades y el ruleset activo. [Script](../scripts/actualizar-funcion-v243-cloud-shell.py)
 
-**Siguiente acción.** Ejecutar el bloque de Cloud Shell en modo `actualizar` cuando el propietario autorice el SHA `9339da407dfeec141e3287c47785e061dcbfc4ce` y registrar la revisión y el estado observado de la solicitud original.
+**Siguiente acción.** Ejecutar el bloque simplificado con el manifiesto existente y autorizar el SHA `9339da407dfeec141e3287c47785e061dcbfc4ce`. Registrar la revisión activa y el estado de `qa-v243-20261126-79dcb917`.
 
 ## Reglas comerciales por confirmar
 

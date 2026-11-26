@@ -42,26 +42,19 @@ def command(*args):
     return subprocess.check_output(args, text=True).strip()
 
 
-def api(url, data=None, method="GET", missing=False, upload=False, binary=False):
+def api(url, data=None, method="GET", missing=False, upload=False):
     headers = {"Content-Type": "application/zip" if upload else "application/json"}
     if not upload:
         headers["Authorization"] = "Bearer " + token
     body = data if upload or data is None else json.dumps(data).encode()
     try:
         with urlopen(Request(url, body, headers, method=method), timeout=90) as res:
-            return {} if upload else res.read() if binary else json.load(res)
+            return {} if upload else json.load(res)
     except HTTPError as e:
         if missing and e.code == 404:
             return {}
         detail = "" if upload else e.read().decode(errors="replace")[:1800]
         raise RuntimeError(f"{method} {urlsplit(url).path if not upload else 'carga de fuente'} HTTP {e.code} {detail}") from None
-
-
-def ci():
-    run = json.loads(command("gh", "api", "repos/kdnaskrlos/Punto-de-Venta/actions/runs/45852855011"))
-    need((run.get("head_sha"), run.get("workflow_id"), run.get("status"), run.get("conclusion"))
-         == (NEW, 428319907, "completed", "success"), "La CI del SHA candidato debe terminar con éxito.")
-    emit(ci=run["html_url"], sha=NEW)
 
 
 def digest(*values):
@@ -147,51 +140,45 @@ def sale():
             "solicitudUpdateTime": by_name[DB + "/" + paths["solicitud"]].get("updateTime")}
 
 
-def snapshot():
-    fn, run, ev, rule = (api(url) for url in (CF + FN, RUN, EA, RULES))
-    svc = fn["serviceConfig"]
-    ea = fn["eventTrigger"]
-    topic = ev["transport"]["pubsub"]["topic"]
-    sub = ev["transport"]["pubsub"]["subscription"]
-    allowed = (P, "570684941224")
-    for name, kind in ((topic, "topics"), (sub, "subscriptions")):
-        need(re.fullmatch(rf"projects/(?:{'|'.join(allowed)})/{kind}/[\w.-]+", name), "Transporte fuera del proyecto.")
-    pub = api("https://pubsub.googleapis.com/v1/" + sub)
-    need(pub.get("topic") == topic, "La suscripción apunta a otro tema.")
-    pub_topic = api("https://pubsub.googleapis.com/v1/" + topic)
-    ready = run["latestReadyRevision"].split("/")[-1]
-    traffic = [t for t in run["trafficStatuses"] if t.get("percent", 0)]
+def function_state():
+    fn = api(CF + FN)
+    svc, build = fn["serviceConfig"], fn["buildConfig"]
     need(fn.get("state") == "ACTIVE" and fn.get("environment") == "GEN_2"
          and svc.get("service", "").endswith("/locations/us-central1/services/procesarventapos")
-         and svc.get("revision", "").split("/")[-1] == ready
-         and run["terminalCondition"]["state"] == "CONDITION_SUCCEEDED" and not run.get("reconciling")
-         and len(traffic) == 1 and traffic[0].get("percent") == 100
-         and (traffic[0].get("revision", "").split("/")[-1] == ready or
-              (not traffic[0].get("revision") and traffic[0].get("type") == "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
-               and run.get("latestCreatedRevision") == run.get("latestReadyRevision"))),
-         "La función y su revisión de Cloud Run deben estar activas con 100 % del tráfico.")
-    need(ea["trigger"] == ev["name"] and ev["name"].endswith("/locations/nam5/triggers/procesarventapos-790966")
-         and ea.get("retryPolicy") == "RETRY_POLICY_RETRY"
-         and rule["rulesetName"].split("/")[-1] == "8b7c6bda-e0f3-49d6-9888-e8ca445dfec6", "Eventarc o ruleset difiere.")
-    template = run["template"]
-    for container in template.get("containers", []):
-        container.pop("image", None)
-    template.pop("revision", None)
-    # Cloud Functions puede propagar la etiqueta de versión a la plantilla.
-    template.get("labels", {}).pop("pos-source-sha", None)
-    if not template.get("labels"):
-        template.pop("labels", None)
-    iam = api(RUN + ":getIamPolicy?options.requestedPolicyVersion=3")
+         and build.get("runtime") == "nodejs22" and build.get("entryPoint") == "procesarVentaPos",
+         "La función activa no coincide con procesarVentaPos Gen 2.")
+    return fn
+
+
+def source_of(fn):
     build = fn["buildConfig"]
-    return {"sha": fn["labels"].get("pos-source-sha"), "fnLabels": fn["labels"], "revision": ready,
-            "updateTime": fn["updateTime"],
-            "source": build.get("sourceProvenance", {}).get("resolvedStorageSource") or build.get("source", {}).get("storageSource"),
-            "config": {"service": {k: v for k, v in svc.items() if k not in ("revision", "uri")},
-                       "build": {k: v for k, v in build.items() if k not in ("build", "source", "sourceProvenance")},
-                       "triggerFunction": {k: v for k, v in ea.items() if k != "updateTime"},
-                       "trigger": {k: v for k, v in ev.items() if k not in ("etag", "updateTime")},
-                       "subscription": pub, "topic": pub_topic, "rule": rule, "runIam": iam,
-                       "runTemplate": template, "ingress": run.get("ingress"), "invokerIamDisabled": run.get("invokerIamDisabled")}}
+    return build.get("sourceProvenance", {}).get("resolvedStorageSource") or build.get("source", {}).get("storageSource")
+
+
+def active_sha(fn):
+    return fn.get("labels", {}).get("pos-source-sha")
+
+
+def snapshot(fn):
+    svc, build, trigger = fn["serviceConfig"], fn["buildConfig"], fn["eventTrigger"]
+    run, eventarc, rule = (api(url) for url in (RUN, EA, RULES))
+    revision = run["latestReadyRevision"].split("/")[-1]
+    traffic = [t for t in run["trafficStatuses"] if t.get("percent", 0)]
+    need(svc.get("revision", "").split("/")[-1] == revision and len(traffic) == 1
+         and traffic[0]["percent"] == 100
+         and (traffic[0].get("revision", "").split("/")[-1] == revision
+              or (not traffic[0].get("revision") and traffic[0].get("type") == "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+                  and run.get("latestCreatedRevision") == run.get("latestReadyRevision"))),
+         "Cloud Run no tiene el 100 % del tráfico en la revisión de la función.")
+    need(trigger["trigger"] == eventarc["name"] and trigger.get("retryPolicy") == "RETRY_POLICY_RETRY"
+         and rule["rulesetName"].split("/")[-1] == "8b7c6bda-e0f3-49d6-9888-e8ca445dfec6",
+         "El disparador o el ruleset vigente no coincide.")
+    route = {k: eventarc[k] for k in ("name", "destination", "serviceAccount", "transport")}
+    route["eventFilters"] = sorted(eventarc["eventFilters"], key=lambda f: f["attribute"])
+    return {"revision": revision, "eventarc": route,
+            "runtimeServiceAccount": svc.get("serviceAccountEmail"), "buildServiceAccount": build.get("serviceAccount"),
+            "triggerServiceAccount": trigger.get("serviceAccountEmail"), "ingress": svc.get("ingressSettings"),
+            "ruleset": rule["rulesetName"]}
 
 
 def save(state):
@@ -215,7 +202,7 @@ def archive():
     api(out["uploadUrl"], zip_data, "PUT", upload=True)
     checksum = hashlib.sha256(zip_data).hexdigest()
     emit(zipSha256=checksum)
-    return out["storageSource"], checksum
+    return out["storageSource"]
 
 
 def storage_url(source):
@@ -234,18 +221,23 @@ def verify_saved_source(source):
          "La fuente anterior no está disponible para reversión.")
 
 
-def source_matches(actual, submitted, checksum):
-    if not actual:
-        return False
-    if all(str(actual.get(k)) == str(v) for k, v in submitted.items()):
-        return True
-    # Cloud Functions puede copiar el ZIP al bucket de fuentes resueltas.
-    return hashlib.sha256(api(storage_url(actual) + "&alt=media", binary=True)).hexdigest() == checksum
+def operations(state):
+    for record in state.get("operaciones", []):
+        name = record["nombre"]
+        need(re.fullmatch(r"projects/(?:punto-de-venta-comic-shop|570684941224)/locations/us-central1/operations/[\w.-]+", name),
+             "El manifiesto contiene una operación fuera del alcance.")
+        op = api(CF + name)
+        emit(operacion=name, done=op.get("done", False), error=op.get("error"))
+        yield op
 
 
-def change(before, source, target, state, checksum):
-    need(snapshot() == before, "El estado cambió después del preflight. Detén la operación.")
-    labels = {**before["fnLabels"], "pos-source-sha": target}
+def change(before, source, target, state, baseline):
+    current = function_state()
+    need(active_sha(current) == active_sha(before)
+         and current["serviceConfig"].get("revision") == before["serviceConfig"].get("revision")
+         and current["eventTrigger"].get("trigger") == before["eventTrigger"].get("trigger"),
+         "Cambió el SHA, la revisión o el disparador desde la lectura inicial.")
+    labels = {**current.get("labels", {}), "pos-source-sha": target}
     op = api(CF + FN + "?updateMask=buildConfig.source,labels",
              {"name": FN, "buildConfig": {"source": {"storageSource": source}}, "labels": labels}, "PATCH")
     name = op["name"]
@@ -259,20 +251,21 @@ def change(before, source, target, state, checksum):
         need(time.monotonic() < deadline, "Consulta la operación guardada antes de intentar otro cambio.")
         time.sleep(10)
         op = api(CF + name)
-    need(not op.get("error"), f"Cloud Functions rechazó la actualización: {op.get('error')}")
-    after = snapshot()
-    need(after["config"] == before["config"], "Cambió la configuración protegida. Revisa el manifiesto y la operación.")
-    need(after["sha"] == target and after["revision"] != before["revision"]
-         and source_matches(after["source"], source, checksum),
-         "El SHA, la revisión o la procedencia activa no coinciden con la carga.")
-    state["verificado"] = after
+    need(not op.get("error"), f"Cloud Functions rechazó el cambio: {op.get('error')}")
+    fn = function_state()
+    verified = snapshot(fn)
+    need(active_sha(fn) == target and verified["revision"] != baseline["revision"], "El SHA o la revisión no coincide.")
+    need(all(verified[k] == baseline[k] for k in verified if k != "revision"),
+         "Cambió una identidad, el transporte, Eventarc, el ingreso o el ruleset.")
+    state["verificado"] = {"sha": target, **verified}
     save(state)
-    emit(estado="REVISION_VERIFICADA", sha=target, revision=after["revision"])
+    emit(estado="REVISION_VERIFICADA", sha=target, revision=verified["revision"])
+    return verified
 
 
 def diagnostics(current, since):
     revision = current["revision"]
-    subscription = current["config"]["subscription"]["name"].split("/")[-1]
+    subscription = current["eventarc"]["transport"]["pubsub"]["subscription"].split("/")[-1]
     filt = (f'timestamp>="{since}" AND ('
             f'(resource.type="cloud_run_revision" AND resource.labels.revision_name="{revision}" '
             'AND (severity>=ERROR OR httpRequest.status>=400)) OR '
@@ -287,58 +280,58 @@ def diagnostics(current, since):
 
 
 def main(mode):
-    if mode == "diagnosticar":
-        state = json.loads(manifest.read_text(encoding=UTF)) if manifest.exists() else {}
-        for operation in state.get("operaciones", []):
-            op = api(CF + operation["nombre"])
-            emit(operacion=operation, done=op.get("done", False), error=op.get("error"))
-        emit(solicitud=sale())
-        now = snapshot()
-        emit(sha=now["sha"], revision=now["revision"])
-        diagnostics(now, state.get("inicio") or dt.datetime.now(dt.timezone.utc).isoformat()[:10] + "T00:00:00Z")
-        return
-    before = snapshot()
-    if mode == "actualizar":
-        ci()
-        need(not manifest.exists(), "Ya existe un manifiesto. Usa diagnosticar antes de cualquier cambio.")
-        need(before["sha"] == OLD and before["source"] and before["source"].get("generation"),
-             "La fuente anterior debe coincidir con el SHA desplegado y tener generación de Storage.")
-        verify_saved_source(before["source"])
-        original = sale()
-        need(original["estado"] == "PENDIENTE" and original["solicitudCreateTime"] and original["solicitudUpdateTime"],
-             "La solicitud original debe estar pendiente y tener marcas de tiempo verificables.")
-        emit(solicitudAntes=original, revisionAnterior=before["revision"], manifiesto=str(manifest))
-        authorization("AUTORIZO_ACTUALIZAR " + NEW)
-        state = {"anterior": before, "solicitudAntes": original, "inicio": dt.datetime.now(dt.timezone.utc).isoformat()}
-        save(state)
-        target_source, checksum = archive()
-        state["cargaCandidata"] = target_source
-        state["sha256Candidata"] = checksum
-        save(state)
-        change(before, target_source, NEW, state, checksum)
-        until = time.monotonic() + 120
-        result = sale()
-        while result["estado"] in ("PENDIENTE", "CONFIRMADA_SIN_NUMERO") and time.monotonic() < until:
-            time.sleep(8)
-            result = sale()
-        need(all(result[k] == original[k] for k in ("solicitudCreateTime", "solicitudUpdateTime")),
-             "La solicitud original cambió durante la verificación.")
-        emit(solicitudDespues=result, recuperacion="OBSERVADA" if result["estado"] == "CONFIRMADA" else "NO_VERIFICADA")
-        if result["estado"] != "CONFIRMADA":
-            diagnostics(state["verificado"], state["inicio"])
-        return
-    need(mode == "revertir", "Modo inválido.")
     state = json.loads(manifest.read_text(encoding=UTF))
+    if mode == "diagnosticar":
+        list(operations(state))
+        emit(solicitud=sale())
+        return
+
+    need(mode in ("actualizar", "revertir"), "Modo inválido.")
+    need(all(op.get("done") for op in operations(state)), "Hay una operación en curso. Usa diagnosticar.")
     old = state["anterior"]
-    need(old["sha"] == OLD and old["source"] and before["sha"] == NEW and before["config"] == old["config"]
-         and before["source"] and state.get("cargaCandidata") and
-         source_matches(before["source"], state["cargaCandidata"], state["sha256Candidata"]),
-         "El estado actual no coincide con la actualización registrada para revertir.")
-    verify_saved_source(old["source"])
-    authorization("AUTORIZO_REVERTIR " + OLD)
-    checksum = hashlib.sha256(api(storage_url(old["source"]) + "&alt=media", binary=True)).hexdigest()
-    change(before, old["source"], OLD, state, checksum)
-    emit(solicitudDespuesDeRevertir=sale())
+    before = function_state()
+    baseline = snapshot(before)
+    source = old["source"]
+    need(old["sha"] == OLD and source.get("generation"), "El manifiesto carece de fuente anterior verificable.")
+    verify_saved_source(source)
+    if mode == "revertir":
+        need(active_sha(before) == NEW and state.get("baselineMinima"),
+             "La reversión requiere que el SHA candidato esté activo y registrado.")
+        need(all(baseline[k] == state["baselineMinima"][k] for k in baseline if k != "revision"),
+             "Cambió la configuración esencial desde la actualización.")
+        authorization("AUTORIZO_REVERTIR " + OLD)
+        change(before, source, OLD, state, baseline)
+        emit(solicitud=sale())
+        return
+
+    need(active_sha(before) == OLD and source_of(before) == source, "La fuente activa difiere de la respaldada.")
+    original = sale()
+    need(original["estado"] in ("PENDIENTE", "CONFIRMADA", "CONFIRMADA_SIN_NUMERO")
+         and all(original[k] and original[k] == state["solicitudAntes"][k]
+                 for k in ("solicitudCreateTime", "solicitudUpdateTime")),
+         "El estado o la identidad de la solicitud original cambió. Usa diagnosticar.")
+    emit(solicitudAntes=original, revisionAnterior=baseline["revision"], manifiesto=str(manifest))
+    authorization("AUTORIZO_ACTUALIZAR " + NEW)
+    state["baselineMinima"] = baseline
+    state["inicio"] = dt.datetime.now(dt.timezone.utc).isoformat()
+    target_source = archive()
+    state["cargaCandidata"] = target_source
+    save(state)
+    verified = change(before, target_source, NEW, state, baseline)
+    until = time.monotonic() + 120
+    result = sale()
+    while result["estado"] in ("PENDIENTE", "CONFIRMADA_SIN_NUMERO") and time.monotonic() < until:
+        time.sleep(8)
+        result = sale()
+    need(all(result[k] == original[k] for k in ("solicitudCreateTime", "solicitudUpdateTime")),
+         "La solicitud original cambió durante la verificación.")
+    if result["estado"] == "CONFIRMADA":
+        recovery = "YA_CONFIRMADA" if original["estado"] == "CONFIRMADA" else "OBSERVADA"
+    else:
+        recovery = "NO_VERIFICADA"
+    emit(solicitudDespues=result, recuperacion=recovery)
+    if recovery == "NO_VERIFICADA":
+        diagnostics(verified, state["inicio"])
 
 
 if __name__ == "__main__":
