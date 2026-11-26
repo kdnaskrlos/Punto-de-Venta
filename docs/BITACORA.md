@@ -2,12 +2,16 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
-## 2026-11-26 — Bloque corregido para Cloud Shell
+## 2026-11-26 — Reglas verificadas y primera venta controlada preparada
 
-- Se preparó el bloque con el script de `8363353` y se corroboró la huella SHA-256 de `firestore.rules` del commit autorizado `fa521e9`. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
-- Pasaron la sintaxis y tres ejecuciones con APIs simuladas. Se observaron ambos estados esperados y un bloqueo antes de actualizar el release. El respaldo previo simulado quedó intacto.
-- Confirmados el PR #21 en borrador y la CI exitosa en `8363353`. La verificación del release real sigue pendiente de Cloud Shell. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45707695177)
-- Siguiente acción. Ejecutar el bloque en Cloud Shell y compartir el JSON final o el diagnóstico `BLOQUEADO`.
+- El propietario informó `REGLAS_V243_VERIFICADAS` en `punto-de-venta-comic-shop`, ruleset `8b7c6bda-e0f3-49d6-9888-e8ca445dfec6` del commit autorizado `fa521e96c86e4052934ec9dcd080aceba06e7443`. Se cotejó el SHA-256 informado con Git. [Estado](ESTADO_ACTUAL.md#firebase-real-y-publicación-pendientes)
+- Se preparó una venta de un SKU, un pago COP y una caja sintética cerrada sin puntero. Un número oficial y los registros de prueba permanecen en Firebase al ejecutarla.
+- Pasaron 174 unitarias y ocho escenarios simulados de la venta controlada. La entrega real y los efectos del cobro siguen pendientes de Cloud Shell.
+- Siguiente acción. Ejecutar solo `qa-v243-20261126-79dcb917` y registrar el JSON final o el diagnóstico.
+
+## 2026-11-26 — Validación del bloque corregido de reglas
+
+- Pasaron la sintaxis y tres ejecuciones simuladas del bloque de `8363353`. Se observaron ambos estados esperados, un bloqueo antes de actualizar el release y la conservación del respaldo previo simulado. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45707695177)
 
 ## 2026-11-25 — Corrección de los mocks de compatibilidad
 
