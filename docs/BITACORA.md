@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-26 — Revisión corregida activa y recuperación dirigida preparada
+
+- Cloud Shell devolvió `REVISION_VERIFICADA` en `procesarventapos-00002-pas` para el SHA `9339da4`. Devolvió `NO_VERIFICADA` para `qa-v243-20261126-79dcb917`, pendiente con dos unidades intactas.
+- Se preparó una entrega puntual a la función activa mediante Cloud Tasks y OIDC. Pasaron la comprobación del CloudEvent con el SDK y una simulación del encolado que evita otra tarea si la venta ya fue confirmada. [Script](../scripts/recuperar-venta-v243-cloud-shell.py)
+- Siguiente acción. Entregar el evento de la solicitud original, conservar su ID y registrar el resultado real.
+
 ## 2026-11-26 — Validación funcional simplificada
 
 - El propietario cerró la auditoría exhaustiva y priorizó un POS operativo, estable y seguro. Cloud Shell se detuvo ante diferencias en el snapshot antes del PATCH.
