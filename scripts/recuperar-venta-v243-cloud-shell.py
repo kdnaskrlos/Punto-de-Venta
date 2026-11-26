@@ -57,7 +57,7 @@ def recover(manifest):
              "La revisión activa no coincide con el despliegue informado.")
     url = svc.get("uri", "").rstrip("/")
     identity = fn["eventTrigger"].get("serviceAccountEmail", "")
-    pos.need(re.fullmatch(r"https://procesarventapos-[a-z0-9-]+(?:\.us-central1)?\.run\.app", url)
+    pos.need(re.fullmatch(r"https://procesarventapos-[a-z0-9-]+(?:\.(?:us-central1|a))?\.run\.app", url)
              and identity == "570684941224-compute@developer.gserviceaccount.com",
              "URL interna o identidad del disparador inesperada.")
 
