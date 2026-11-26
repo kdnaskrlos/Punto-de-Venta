@@ -22,7 +22,7 @@
 
 ## Evidencia de validación
 
-- El PR #21 sigue abierto en borrador. La CI de `4efbe1da5162f5d194e9d6f75b8149c24f1b79d3` completó con éxito «Verificar reglas de Firestore». La corrección pasó 174 pruebas unitarias y 38 pruebas de Firestore Emulator con Node 22. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Ejecución de CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45851070342)
+- El PR #21 sigue abierto en borrador. La CI «Verificar reglas de Firestore» de `9339da407dfeec141e3287c47785e061dcbfc4ce` finalizó con éxito. La corrección pasó además 174 pruebas unitarias y 38 pruebas de Firestore Emulator con Node 22. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45852855011)
 - En la revisión funcional `70ffba8` aprobaron 174/174 unitarias, 37/37 de Firestore Emulator, 181/181 funcionales de Chromium, 5/5 de actualización PWA y 25/25 del puente. Pasó la generación del piloto de demostración. [GitHub Actions](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101) · [Artefacto](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101/artifacts/15042164279)
 - La suite histórica obtuvo 6/8. Los casos 04 y 05 de pérdida de borrador en pestañas v2.35 siguen reproduciéndose. El ensayo del procesador en el emulador cubrió 18 tamaños hasta 248 SKU, reentregas y el rechazo íntegro con el último SKU agotado. [Resultados del PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21#issuecomment-7171416036)
 
@@ -45,7 +45,9 @@
 
 - **Corrección candidata.** `procesarVentaPos` valida el tipo, el origen del proyecto y la base, la ruta del snapshot, los IDs y la concordancia con `subject` cuando viene informado. En el emulador, la reentrega sobre una solicitud preexistente con el mismo ID produjo un solo cobro, movimiento, evento y número. El efecto remoto depende de la autorización del despliegue y de una reentrega posterior. Si Eventarc agotó los reintentos, se requiere una recuperación autorizada sobre esa misma solicitud. [Disparador](../funciones/index.cjs) · [Regresión](../pruebas/firebase/cestas-atomicas.cjs)
 
-**Siguiente acción.** Revisar y autorizar el SHA candidato de la función para que la recuperación de `qa-v243-20261126-79dcb917` pueda verificarse con su ID original.
+- **Actualización exclusiva preparada.** El procedimiento comprueba la CI, conserva la fuente anterior con su generación de Storage y, tras autorización explícita, limita el PATCH a la fuente y la etiqueta SHA. Verifica revisión activa, tráfico, configuración de la función, Eventarc, Pub/Sub, IAM de Cloud Run y el ruleset. Consulta la solicitud original por su ID y ofrece diagnóstico de solo lectura y reversión autorizada. Las pruebas del procedimiento usaron servicios simulados. [Script](../scripts/actualizar-funcion-v243-cloud-shell.py)
+
+**Siguiente acción.** Ejecutar el bloque de Cloud Shell en modo `actualizar` cuando el propietario autorice el SHA `9339da407dfeec141e3287c47785e061dcbfc4ce` y registrar la revisión y el estado observado de la solicitud original.
 
 ## Reglas comerciales por confirmar
 

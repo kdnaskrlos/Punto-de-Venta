@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-26 — Actualización exclusiva de procesarVentaPos preparada
+
+- La CI de `9339da407dfeec141e3287c47785e061dcbfc4ce` finalizó con éxito. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45852855011)
+- El procedimiento guarda la fuente anterior y verifica revisión, transporte, configuración y la conciliación de la solicitud original. Pasaron escenarios simulados de actualización y reversión y bloqueos por CI y deriva de configuración. [Script](../scripts/actualizar-funcion-v243-cloud-shell.py)
+- La actualización real sigue pendiente de autorización explícita. Siguiente acción. Ejecutar el bloque y registrar la revisión activa y el resultado de la recuperación automática.
+
 ## 2026-11-26 — Corrección de la entrega Firestore de procesarVentaPos
 
 - Cloud Shell informó `PENDIENTE` para `qa-v243-20261126-79dcb917`, HTTP 500 y 12 respuestas 5xx. La traza cae al construir `usuarios/{uid}`. El SDK 7.4.0 calcula `params` desde la extensión `document`. La entrega real no tiene cabecera capturada ni error correlacionado con el ID. [SDK](https://github.com/firebase/firebase-functions/blob/v7.4.0/src/v2/providers/firestore.ts#L1026)
