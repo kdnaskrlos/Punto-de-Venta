@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 25-11-2026.** Se corrigió la simulación de la transición histórica del apartado tras el bloqueo en la etapa 2/5 de las reglas. [Bitácora](BITACORA.md)
+- **Actualizado el 26-11-2026.** El bloque corregido de reglas está listo para ejecutar en Cloud Shell. Sigue pendiente la verificación del ruleset activo en Firebase real. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - **Prioridad** validar Firebase real con datos sintéticos en el proyecto existente. La publicación de v2.43 sigue bloqueada por esta validación y por las pruebas en dispositivos físicos. [Decisión del propietario](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
 
@@ -22,6 +22,7 @@
 
 ## Evidencia de validación
 
+- El PR #21 sigue abierto en borrador. La CI de `83633535f1f54e079185b7b329694b03429ddd61` completó con éxito el workflow «Verificar reglas de Firestore». [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Ejecución de CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45707695177)
 - En la revisión funcional `70ffba8` aprobaron 174/174 unitarias, 37/37 de Firestore Emulator, 181/181 funcionales de Chromium, 5/5 de actualización PWA y 25/25 del puente. Pasó la generación del piloto de demostración. [GitHub Actions](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101) · [Artefacto](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101/artifacts/15042164279)
 - La suite histórica obtuvo 6/8. Los casos 04 y 05 de pérdida de borrador en pestañas v2.35 siguen reproduciéndose. El ensayo del procesador en el emulador cubrió 18 tamaños hasta 248 SKU, reentregas y el rechazo íntegro con el último SKU agotado. [Resultados del PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21#issuecomment-7171416036)
 
@@ -40,7 +41,9 @@
 
 - **Primer intento de reglas en Cloud Shell.** Las reglas activas aprobaron 11 de 12 casos. La transición histórica del apartado devolvió `Function not found: existsAfter` y se detuvo antes de publicar. Se corrigió el mock de existencia posterior del comprobante, se revisaron las lecturas simuladas y ahora se informan ambas tandas antes de bloquear. Se conservaron 12 casos activos, 14 candidatos y la huella aprobada. Pasaron seis escenarios locales con APIs simuladas. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
 
-**Siguiente acción.** Ejecutar el bloque corregido de reglas en Cloud Shell, conservar el respaldo del intento anterior y compartir `REGLAS_V243_VERIFICADAS` o el diagnóstico conjunto.
+- **Bloque de Cloud Shell comprobado el 26-11-2026.** Se verificaron la sintaxis y la huella del archivo autorizado. Con APIs simuladas, el bloque devolvió ambos estados esperados y transmitió el diagnóstico de un fallo antes de actualizar el release. Las pruebas conservaron intacto el respaldo previo simulado. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
+
+**Siguiente acción.** Ejecutar el bloque corregido de reglas en Cloud Shell y compartir el JSON final con `REGLAS_V243_VERIFICADAS` o `REGLAS_YA_ACTIVAS_VERIFICADAS`; si falla, compartir la salida desde la etapa indicada hasta `BLOQUEADO`. El script guarda cada respaldo en un directorio nuevo.
 
 ## Reglas comerciales por confirmar
 

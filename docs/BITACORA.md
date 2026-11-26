@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-26 — Bloque corregido para Cloud Shell
+
+- Se preparó el bloque con el script de `8363353` y se corroboró la huella SHA-256 de `firestore.rules` del commit autorizado `fa521e9`. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
+- Pasaron la sintaxis y tres ejecuciones con APIs simuladas. Se observaron ambos estados esperados y un bloqueo antes de actualizar el release. El respaldo previo simulado quedó intacto.
+- Confirmados el PR #21 en borrador y la CI exitosa en `8363353`. La verificación del release real sigue pendiente de Cloud Shell. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45707695177)
+- Siguiente acción. Ejecutar el bloque en Cloud Shell y compartir el JSON final o el diagnóstico `BLOQUEADO`.
+
 ## 2026-11-25 — Corrección de los mocks de compatibilidad
 
 - Cloud Shell informó 11 de 12 casos aprobados en las reglas activas. La transición histórica del apartado se detuvo en `existsAfter` antes de publicar.
