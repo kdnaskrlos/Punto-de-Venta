@@ -2,11 +2,15 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-26 — Venta recuperada y prueba automática de Eventarc preparada
+
+- Cloud Shell confirmó `VENTA_RECUPERADA` para `qa-v243-20261126-79dcb917`, `V-0004`, pagos verificados y existencia final de una unidad. Resultado de una venta, un movimiento de inventario, un evento y ningún conflicto.
+- Se reutilizó el formato de venta controlada con el ID nuevo `qa-v243-eventarc-20261126-0d59dccc`. El bloque crea un único evento de alta por la vía normal de Firestore y espera los resultados automáticos. Pasaron sintaxis y dos escenarios simulados. [Script](../scripts/verificar-eventarc-venta-v243-cloud-shell.cjs)
+- Siguiente acción. Ejecutar en Cloud Shell la nueva venta controlada y registrar el resultado de Eventarc en la revisión `procesarventapos-00002-pas`.
+
 ## 2026-11-26 — Revisión activa y recuperación directa preparada
 
-- Cloud Shell confirmó el SHA `9339da4` en `procesarventapos-00002-pas`. La reentrega por Cloud Tasks devolvió `RECUPERACION_NO_VERIFICADA` y la consulta posterior a las 16:25 UTC quedó vacía. Se abandonó esa vía.
-- El bloque directo llama al procesador transaccional del mismo SHA con ADC y el ID original. Pasaron la sintaxis y cuatro escenarios simulados de la envoltura. [Script](../scripts/recuperar-venta-v243-cloud-shell.py) · [CI del procesador](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45852855011)
-- Siguiente acción. Continuar en Cloud Shell con la solicitud original y registrar su conciliación. La prueba real de Eventarc queda para una venta controlada posterior.
+- Cloud Tasks devolvió `RECUPERACION_NO_VERIFICADA` y los registros posteriores a las 16:25 UTC quedaron vacíos. Se abandonó esa vía. La envoltura directa de `atenderVenta` del SHA `9339da4` pasó sintaxis y cuatro escenarios simulados. [Script](../scripts/recuperar-venta-v243-cloud-shell.py) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45852855011)
 
 ## 2026-11-26 — Validación funcional simplificada
 
