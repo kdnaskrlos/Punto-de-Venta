@@ -1,8 +1,8 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 27-11-2026.** La candidata v2.43.2 incorpora el detalle de anulaciones y el desglose de comisiones por venta. Su carga en el piloto temporal está pendiente. [Bitácora](BITACORA.md)
+- **Actualizado el 27-11-2026.** El propietario aprobó el piloto v2.43.2 en PC y Android. La publicación definitiva está preparada y pendiente de los controles de corte y de autorización. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43.2 en `integracion/pos-auditoria`, con el PR #21 en borrador. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21)
-- **Prioridad** estabilizar el POS con una validación funcional simplificada en Firebase real. La publicación de v2.43 sigue pendiente de autorización.
+- **Prioridad** publicar v2.43.2 en el mismo origen, con ventas procesadas y reversión a v2.42.
 
 ## Funcionalidades implementadas
 
@@ -22,7 +22,8 @@
 
 ## Evidencia de validación
 
-- El PR #21 sigue abierto en borrador. Pasó la CI del receptor CloudEvent nativo en `a8b5330aeebdfa889d25d90debd96e2909506289`. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45918790033)
+- Pasó la CI de la revisión del piloto `66928d93b2cdc6461243375937bce04033a5d8c5`. GitHub generó una integración de prueba del PR #21 sobre `main`. La preparación de publicación tiene su propia comprobación de CI. [CI v2.43.2](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46063452609)
+- Pasó la CI del receptor CloudEvent nativo en `a8b5330aeebdfa889d25d90debd96e2909506289`. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45918790033)
 - En la revisión funcional `70ffba8` aprobaron 174/174 unitarias, 37/37 de Firestore Emulator, 181/181 funcionales de Chromium, 5/5 de actualización PWA y 25/25 del puente. Pasó la generación del piloto de demostración. [GitHub Actions](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101) · [Artefacto](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101/artifacts/15042164279)
 - La suite histórica obtuvo 6/8. Los casos 04 y 05 de pérdida de borrador en pestañas v2.35 siguen reproduciéndose. El ensayo del procesador en el emulador cubrió 18 tamaños hasta 248 SKU, reentregas y el rechazo íntegro con el último SKU agotado. [Resultados del PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21#issuecomment-7171416036)
 
@@ -35,7 +36,6 @@
 - **Inventario anterior al despliegue, aportado desde Cloud Shell.** `punto-de-venta-comic-shop` tiene Firestore `(default)` en modo `FIRESTORE_NATIVE`, ubicación `nam5`, Hosting existente y 14 colecciones raíz. En esa lectura, las reglas del 16-11-2026 diferían de la candidata y las listas de Functions estaban vacías.
 - **Función activa según Cloud Shell.** `procesarVentaPos` usa el receptor CloudEvent nativo del SHA `a8b5330aeebdfa889d25d90debd96e2909506289`. Eventarc entregó y procesó automáticamente la venta de control.
 - **Verificación estructural real aprobada según Cloud Shell.** El verificador terminó con `fallos: []` y `pendientes: []`, incluido el transporte Pub/Sub. Se registraron la restauración de los agentes administrados de Cloud Functions y Eventarc y el ruleset activo identificado para reversión. Cloud Shell informó 12 respuestas 5xx en el transporte y HTTP 500 en Cloud Run durante la prueba, con cero errores vinculados directamente al ID de venta. [Verificador](../scripts/verificar-funcion-v243-cloud-shell.py)
-- Antes de publicar, valida en Firebase real pagos y descuentos, caja, anulaciones, ventas y existencias, rechazo atómico, reintentos y conciliación. Prueba la PWA instalada en Windows y Android físicos y aplica la migración supervisada de v2.35. Concilia las colas, incluidas cuentas con UID sustituido, antes de acordar el retiro de ventas directas, abonos y liquidaciones de comisiones históricas. Conserva un plan de reversión y obtén la aprobación del propietario para publicar. [Criterios de publicación](VALIDACION-FINAL-V243.md#decisión-de-publicación)
 
 - **Reglas activas, verificadas en Cloud Shell.** El propietario informó `REGLAS_V243_VERIFICADAS` para `punto-de-venta-comic-shop`, commit autorizado `fa521e96c86e4052934ec9dcd080aceba06e7443`, ruleset `8b7c6bda-e0f3-49d6-9888-e8ca445dfec6` y SHA-256 `f5242399a61a0d5318d8f65ebeff36a1fba94ba3761e3e565b165cc432226d0f`. La huella coincide con la del archivo autorizado en Git. El script conserva la fuente anterior para reversión. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
 
@@ -51,14 +51,12 @@
 
 - **Conciliación real completada.** Cloud Shell confirmó las dos solicitudes pendientes como `V-0006` y `V-0007`, con pagos verificados, inventario correcto y sin duplicados ni conflictos.
 
-- **Piloto v2.43 desplegado.** El canal temporal de Firebase Hosting está conectado a Firebase real y vence el **4 de diciembre de 2026**. El propietario confirmó autenticación, inventario, venta e historial en PC. La versión pública sigue en v2.42. [Abrir el piloto](https://punto-de-venta-comic-shop--piloto-v243-n8egt6cf.web.app)
+- **Piloto v2.43.2 aprobado por el propietario en PC y Android.** Confirmó ventas offline, cierre y reapertura sin conexión, sincronización, inventario, caja y comisiones. Las pruebas de la vendedora y la consulta administrativa también quedaron aprobadas. [Piloto](https://punto-de-venta-comic-shop--piloto-v243-n8egt6cf.web.app)
+- **Configuración de publicación preparada.** `ventasAtomicas: true` está en la configuración de producción y se regeneró la huella de la PWA. Se verificaron los puntos de entrada públicos de v2.42 frente a su artefacto en Git y se preparó la reversión conservando ambos grafos. [Procedimiento](PUBLICACION-V2.43.2.md)
+- **Indispensable antes del corte.** Falta evidencia actual de la conciliación de todas las colas por terminal y cuenta, de un respaldo vigente de Firestore y de la rama configurada en Settings → Pages. Si aún hay clientes v2.35, requieren migración supervisada antes de cerrar sus pestañas. El PR #21 y Pages se promueven con autorización del propietario y CI de la revisión preparada. [Controles](PUBLICACION-V2.43.2.md#antes-de-autorizar)
+- **Aplazable.** Las matrices ampliadas de estrés y el retiro de las rutas históricas quedan fuera de este corte. Los registros sintéticos se conservan.
 
-- **Detalle histórico corregido.** Muestra el total, los pagos por medio y moneda, el vuelto, el ajuste cuando existe y el neto en COP. El cálculo de presentación usa equivalentes guardados o las tasas originales, y distingue una venta anulada. Pasaron 174 unitarias y tres pruebas dirigidas de Chromium, incluida la vista móvil simulada.
-
-- **Pruebas comerciales aprobadas por el propietario.** La operación de la vendedora, sus comisiones y su caja funcionaron correctamente en el piloto. Los resultados también fueron visibles en el perfil administrativo.
-- **v2.43.2 lista para el piloto.** El detalle de anulaciones conserva los valores originales, muestra los movimientos asociados de caja y presenta el neto final cuando la evidencia permite calcularlo. Comisiones abre el detalle dentro de la misma ventana y usa las líneas y liquidaciones históricas. [Ventas](../js/vistas/ventas-rango.js) · [Comisiones](../js/vistas/reportes.js)
-
-**Siguiente acción.** Cargar v2.43.2 en el canal temporal `piloto-v243`, conservar los recursos de las versiones anteriores y verificar ambos detalles en PC y Android.
+**Siguiente acción.** El propietario verifica y registra la conciliación por terminal, el respaldo y la fuente efectiva de Pages antes de autorizar el procedimiento. [Publicación](PUBLICACION-V2.43.2.md#publicar-con-autorización)
 
 ## Reglas comerciales por confirmar
 

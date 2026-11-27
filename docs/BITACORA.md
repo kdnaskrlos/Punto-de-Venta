@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Preparación de la publicación definitiva v2.43.2
+
+- El propietario aprobó PC y Android con cobros offline, cierre y reapertura, sincronización, inventario, caja y comisiones. GitHub confirmó la CI de `66928d9`. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46063452609)
+- Se habilitaron las ventas procesadas en producción y se regeneró la huella. Se verificaron los puntos de entrada públicos de v2.42 y se prepararon la integración del PR #21, la precarga del grafo y la reversión. [Procedimiento](PUBLICACION-V2.43.2.md)
+- La simulación local sobre un remoto Git de prueba verificó el bloqueo por fuente incorrecta, la cancelación, la precarga y la reversión con ambos grafos.
+- Siguiente acción. Confirmar las colas operativas por terminal y cuenta, la fuente de Pages y un respaldo vigente antes de autorizar. La publicación sigue en v2.42.
+
 ## 2026-11-27 — Pruebas comerciales aprobadas y detalles v2.43.2
 
 - El propietario confirmó las pruebas comerciales de la vendedora, sus comisiones y su caja, y verificó los resultados en el perfil administrativo.
