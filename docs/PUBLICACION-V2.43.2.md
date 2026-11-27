@@ -10,6 +10,8 @@ El POS público conserva [su URL de GitHub Pages](https://kdnaskrlos.github.io/P
 
 Se pueden aplazar la repetición de las matrices ya aprobadas para el alcance funcional, la ampliación de la matriz sintética a más casos de estrés, la retirada de las rutas de clientes antiguos y el trabajo sobre los registros de prueba. Si una ruta histórica presenta una diferencia de datos o un cobro indeterminado, aplica el primer criterio.
 
+Antes de autorizar el corte, confirma con el nuevo candidato en un origen de prueba que Chrome puede instalar el worker nuevo desde un perfil controlado por v2.42 con caché incompleta. Si la actualización aún no aparece, usa **Update** con el worker nuevo disponible en ese origen. Tras resguardar el trabajo, cierra el último cliente antiguo y reabre desde el mismo perfil. Comprueba un arranque con red, otro sin red y la conservación de borradores y pendientes. El worker nuevo verifica huellas antes de reparar su caché. Si faltan recursos y sigue sin red, muestra un 503 con reintento manual. [Recuperación](RECUPERACION-PWA.md)
+
 ## Publicar con autorización
 
 Desde un checkout del PR #21 con Git, Node.js, curl y GitHub CLI autenticados para leer Pages, integrar el PR y escribir en la rama estática, ejecuta el siguiente comando. Si Git por HTTPS aún no usa la sesión de GitHub CLI, configúralo con `gh auth setup-git`. Sustituye el valor por el SHA completo aprobado de la rama de integración.
@@ -24,4 +26,4 @@ Tras la publicación, abre la URL pública en una terminal conciliada y comprueb
 
 ## Reversión
 
-Si la versión pública requiere volver a v2.42, pausa los cobros y concilia las colas de v2.43.2 por ID antes de cambiar de worker. Desde el mismo checkout ejecuta `bash scripts/publicar-v2432.sh revertir` y escribe `REVERTIR v2.42` cuando se solicite. Se restauran juntos `index.html`, `sw.js` y la configuración raíz de v2.42, con ambos grafos y las fotos vigentes disponibles. Comprueba la versión y el estado de las operaciones al reabrir. El procedimiento actúa sobre GitHub Pages. Firebase conserva las ventas y sus marcas durante toda la operación.
+Si la versión pública requiere volver a v2.42, pausa los cobros y concilia las colas de v2.43.2 por ID antes de cambiar de worker. Desde el mismo checkout ejecuta `bash scripts/publicar-v2432.sh revertir` y escribe `REVERTIR v2.42` cuando se solicite. Se restauran juntos `index.html`, `sw.js` y la configuración raíz de v2.42, con ambos grafos y las fotos vigentes disponibles. Comprueba la versión y el estado de las operaciones al reabrir. v2.42 mantiene su limitación ante una caché incompleta. Si falla tras la reversión, aplica la recuperación con el registro del POS y conserva los datos del origen. El procedimiento actúa sobre GitHub Pages. Firebase conserva las ventas y sus marcas durante toda la operación. [Recuperación](RECUPERACION-PWA.md)

@@ -4,7 +4,7 @@
 const PUBLICACION = null;
 const CACHE = PUBLICACION?.cache || 'pos-v2.43.2';
 // Generada con node pruebas/pwa/huella.cjs al preparar la publicación.
-const HUELLA_APP = 'd990f26cf9a9397ed05dda918195635955974f34f5ea48dcf63c18cd197c8663';
+const HUELLA_APP = '4e0ec65e16c309cefad38d7278b6e8e35b1183053705b9eaee5b060538d2f342';
 const ANTERIOR = 'pos-v2.35';
 const LIBS = 'libs-v1';
 const FOTOS = 'fotos-v1';
@@ -32,9 +32,19 @@ const SHELL = [
 // Los iconos y el manifiesto conservan sus URL porque identifican la misma PWA.
 const rutaPublicada = ruta => PUBLICACION && /^(?:index\.html$|config\.js$|(?:js|css)\/)/.test(ruta)
   ? PUBLICACION.prefijo + ruta : ruta;
-const URL_INICIO = new URL(rutaPublicada('index.html'), self.registration.scope);
+const URL_INICIO = new URL(rutaPublicada('index.html'), self.registration.scope).href;
 const RECURSOS = SHELL.map(ruta => ({ ruta, url: new URL(rutaPublicada(ruta), self.registration.scope).href }));
 const URLS_APP = new Set(RECURSOS.map(r => r.url));
+const URL_HUELLAS = new URL('.pos-huellas-shell', self.registration.scope).href;
+let huellasVerificadas, reparacion;
+
+async function verificarHuellas(huellas) {
+  if (!Array.isArray(huellas) || huellas.length !== RECURSOS.length ||
+      !huellas.every(h => typeof h === 'string' && /^[a-f0-9]{64}$/.test(h))) return null;
+  const firmas = RECURSOS.map(({ ruta }, i) => ruta + '\0' + huellas[i] + '\n').join('');
+  if (await sha256(new TextEncoder().encode(firmas)) !== (PUBLICACION?.huella || HUELLA_APP)) return null;
+  return new Map(RECURSOS.map((recurso, i) => [recurso.url, { ruta: recurso.ruta, huella: huellas[i] }]));
+}
 function sinApp(navegacion) {
   const texto = 'Recursos de la aplicación no disponibles.';
   const html = `<!doctype html><html lang="es"><meta charset="utf-8">
@@ -72,14 +82,12 @@ async function descargarShell() {
       const respuesta = await fetch(url, { cache: 'reload', redirect: 'error', signal: control.signal });
       if (!respuesta.ok) throw new Error('Recurso no disponible: ' + ruta);
       verificarTipo(ruta, respuesta);
-      const firma = await sha256(await respuesta.clone().arrayBuffer());
-      return { url, respuesta, firma: ruta + '\0' + firma + '\n' };
+      return { url, respuesta, huella: await sha256(await respuesta.clone().arrayBuffer()) };
     }));
-    const firmas = recursos.map(r => r.firma).join('');
-    if (await sha256(new TextEncoder().encode(firmas)) !== (PUBLICACION?.huella || HUELLA_APP)) {
-      throw new Error('El servidor todavía no tiene todos los recursos de esta publicación');
-    }
-    return recursos;
+    const huellas = recursos.map(r => r.huella);
+    const verificadas = await verificarHuellas(huellas);
+    if (!verificadas) throw new Error('El servidor todavía no tiene todos los recursos de esta publicación');
+    return { recursos, huellas, verificadas };
   } catch (error) {
     control.abort();
     throw error;
@@ -88,12 +96,32 @@ async function descargarShell() {
   }
 }
 
-async function guardarShell(recursos) {
+async function guardarShell({ recursos, huellas, verificadas }) {
   const cache = await caches.open(CACHE);
-  const escrituras = await Promise.allSettled(recursos.map(async ({ url, respuesta }) => {
-    if (!await cache.match(url)) await cache.put(url, respuesta);
-  }));
+  // También se reemplazan las entradas presentes que pudieron quedar dañadas.
+  const escrituras = await Promise.allSettled(recursos.map(({ url, respuesta }) => cache.put(url, respuesta)));
   if (escrituras.some(r => r.status === 'rejected')) throw new Error('No se pudo guardar el shell completo');
+  await cache.put(URL_HUELLAS, new Response(JSON.stringify(huellas)));
+  huellasVerificadas = Promise.resolve(verificadas);
+}
+
+async function leerHuellas() {
+  const copia = await caches.match(URL_HUELLAS, { cacheName: CACHE });
+  return copia ? verificarHuellas(await copia.json()) : null;
+}
+
+async function leerRecurso(clave) {
+  try {
+    const guardada = await caches.match(clave, { cacheName: CACHE });
+    if (!guardada?.ok) return null;
+    huellasVerificadas ||= leerHuellas().catch(() => null);
+    const esperado = (await huellasVerificadas)?.get(clave);
+    if (!esperado) return null;
+    verificarTipo(esperado.ruta, guardada);
+    return await sha256(await guardada.clone().arrayBuffer()) === esperado.huella ? guardada : null;
+  } catch {
+    return null;
+  }
 }
 
 self.addEventListener('install', e => {
@@ -109,17 +137,16 @@ self.addEventListener('install', e => {
   })());
 });
 
-let reparacion;
 async function servirShell(clave, navegacion) {
   try {
-    const guardada = await caches.match(clave, { cacheName: CACHE });
+    const guardada = await leerRecurso(clave);
     if (guardada) return guardada;
 
     // Las pestañas comparten una descarga, validada con la huella del worker activo.
     // Un fallo de red o espacio deja las copias existentes disponibles para el próximo intento.
     reparacion ||= descargarShell().then(guardarShell).finally(() => { reparacion = null; });
     await reparacion;
-    return await caches.match(clave, { cacheName: CACHE }) || sinApp(navegacion);
+    return await leerRecurso(clave) || sinApp(navegacion);
   } catch {
     return sinApp(navegacion);
   }

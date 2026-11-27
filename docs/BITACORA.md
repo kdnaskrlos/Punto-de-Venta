@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Reparación de caché y transición desde v2.42
+
+- El propietario observó el 503 oficial en PC y Android. En Android, el bypass de red y desregistrar solo el worker permitieron abrir el POS en el mismo perfil.
+- Se reprodujo el 503 de v2.42 con la caché ausente. v2.43.2 verifica cada respuesta con SHA-256 y repara el conjunto con su misma publicación, sin recargas forzadas. [Worker](../sw.js) · [Prueba](../pruebas/pwa/actualizacion.cjs)
+- Pasaron siete comprobaciones dirigidas en Chromium, incluida la recuperación offline posterior, la conservación de IndexedDB y el relevo desde el 503 antiguo. La huella fue regenerada y verificada.
+- Siguiente acción. Comprobar la transición en PC y Android antes de autorizar el corte. La v2.42 continúa publicada. [Procedimiento](PUBLICACION-V2.43.2.md)
+
 ## 2026-11-27 — Preparación de la publicación definitiva v2.43.2
 
 - El propietario aprobó PC y Android con cobros offline, cierre y reapertura, sincronización, inventario, caja y comisiones. GitHub confirmó la CI de `66928d9`. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46063452609)

@@ -31,6 +31,7 @@ async function servir(temporal, anterior, artefacto, prefijo) {
   const estado = { raiz: artefacto, faltar: '', obsoleto: '', rechazados: 0, obsoletos: 0 };
   const servidor = https.createServer({ cert: readFileSync(cert), key: readFileSync(key) }, (req, res) => {
     const { pathname } = new URL(req.url, 'https://localhost');
+    if (pathname === '/') { res.writeHead(200, { 'Content-Type': 'text/html' }).end('<!doctype html>'); return; }
     if (!pathname.startsWith(PREFIJO + '/')) { res.writeHead(404).end(); return; }
     const recurso = pathname === PREFIJO + '/' ? '/index.html' : pathname.slice(PREFIJO.length);
     res.setHeader('Cache-Control', 'no-store');
@@ -254,6 +255,112 @@ async function probarMigracion(browser, ruta, estado, anterior, artefacto, { pre
   }
 }
 
+async function probarReparacion(browser, ruta, estado, artefacto, { prefijo, cache, version: esperada }) {
+  estado.raiz = artefacto;
+  estado.faltar = '';
+  const contexto = await contextoLocal(browser);
+  try {
+    const pagina = await abrir(contexto, ruta);
+    await pagina.evaluate(async ({ cache, prefijo }) => {
+      localStorage.setItem('pos-venta-admin', JSON.stringify({
+        c: { lineas: [{ sku: 'J-M', cantidad: 1 }], ventaId: 'carrito-reparacion' }, en: Date.now(),
+      }));
+      localStorage.setItem('pos-pendientes-admin', '[{"id":"pendiente-reparacion"}]');
+      await new Promise((resolve, reject) => {
+        const abrir = indexedDB.open('prueba-pos-reparacion', 1);
+        abrir.onupgradeneeded = () => abrir.result.createObjectStore('cobros').put('original', 'pendiente');
+        abrir.onsuccess = () => { abrir.result.close(); resolve(); };
+        abrir.onerror = () => reject(abrir.error);
+      });
+      const shell = await caches.open(cache);
+      await shell.put(prefijo + 'index.html', new Response('<h1>HTML dañado</h1>', { headers: { 'Content-Type': 'text/html' } }));
+      await shell.delete(prefijo + 'js/principal.js');
+    }, { cache, prefijo });
+
+    await contexto.setOffline(true);
+    assert.equal((await pagina.reload()).status(), 503);
+    await pagina.waitForSelector('#recuperar-pos');
+    await contexto.setOffline(false);
+    estado.obsoleto = '/' + prefijo + 'js/vistas/mas.js';
+    const obsoletos = estado.obsoletos;
+    assert.equal((await pagina.reload()).status(), 503);
+    assert.ok(estado.obsoletos > obsoletos, 'se rechazó un módulo de otra revisión servido con HTTP 200');
+    estado.obsoleto = '';
+    await pagina.getByRole('button', { name: 'Reintentar' }).click();
+    await version(pagina, esperada);
+    await pagina.waitForSelector('#retomar-si');
+
+    const datos = await pagina.evaluate(async () => ({
+      carrito: JSON.parse(localStorage.getItem('pos-venta-admin')).c.ventaId,
+      pendientes: localStorage.getItem('pos-pendientes-admin'),
+      sesion: window.__pos.ctx.sesion.usuario,
+      idb: await new Promise((resolve, reject) => {
+        const abrir = indexedDB.open('prueba-pos-reparacion', 1);
+        abrir.onerror = () => reject(abrir.error);
+        abrir.onsuccess = () => {
+          const db = abrir.result, leer = db.transaction('cobros').objectStore('cobros').get('pendiente');
+          leer.onsuccess = () => { db.close(); resolve(leer.result); };
+          leer.onerror = () => { db.close(); reject(leer.error); };
+        };
+      }),
+    }));
+    assert.deepEqual(datos, {
+      carrito: 'carrito-reparacion', pendientes: '[{"id":"pendiente-reparacion"}]', sesion: 'admin', idb: 'original',
+    });
+    await pagina.evaluate(async ({ cache, prefijo }) => {
+      const shell = await caches.open(cache);
+      await shell.put(prefijo + 'js/vistas/mas.js', new Response('throw new Error("dañado")', {
+        headers: { 'Content-Type': 'text/javascript' },
+      }));
+    }, { cache, prefijo });
+    const recuperado = await pagina.evaluate(async url => (await fetch(url)).text(), prefijo + 'js/vistas/mas.js');
+    assert.ok(recuperado.includes('acceso-demo'), 'el módulo dañado también se repara durante una sesión abierta');
+
+    await contexto.setOffline(true);
+    await pagina.reload();
+    await version(pagina, esperada);
+    console.log('ok repara HTML corrupto, módulo ausente y módulo dañado sin perder datos, y vuelve a arrancar offline');
+  } finally {
+    estado.obsoleto = '';
+    await contexto.close();
+  }
+}
+
+async function probarV242Incompleta(browser, ruta, estado, v242, artefacto, { cache, version: esperada }) {
+  estado.raiz = v242;
+  const contexto = await contextoLocal(browser);
+  try {
+    let pagina = await abrir(contexto, ruta);
+    await version(pagina, 'v2.42');
+    await pagina.evaluate(async () => {
+      localStorage.setItem('pos-pendientes-prueba', '[{"id":"legado-pendiente"}]');
+      await caches.delete('pos-v2.42-57bc1ad5b01c5d41');
+    });
+    assert.equal((await pagina.reload()).status(), 503);
+    assert.match(await pagina.locator('body').innerText(), /Recursos de la aplicación no disponibles/);
+    estado.raiz = artefacto;
+    assert.equal((await pagina.reload()).status(), 503, 'la navegación aún pertenece a v2.42');
+    await buscarActualizacion(pagina);
+    await pagina.waitForFunction(async nombre => Boolean((await navigator.serviceWorker.getRegistration()).waiting)
+      && await caches.has(nombre), cache);
+    const fueraDelAlcance = await contexto.newPage();
+    await fueraDelAlcance.goto(new URL('/', ruta).href);
+    await pagina.close();
+    await fueraDelAlcance.waitForFunction(async url => {
+      const registro = await navigator.serviceWorker.getRegistration(url);
+      return !registro.waiting && registro.active?.state === 'activated';
+    }, ruta);
+    await contexto.setOffline(true);
+    pagina = await abrir(contexto, ruta);
+    await version(pagina, esperada);
+    assert.equal(await pagina.evaluate(() => localStorage.getItem('pos-pendientes-prueba')), '[{"id":"legado-pendiente"}]');
+    assert.equal(await pagina.evaluate(() => performance.getEntriesByType('navigation')[0].type), 'navigate');
+    console.log('ok desde un 503 de v2.42 se instala el candidato y se activa al cerrar el último cliente');
+  } finally {
+    await contexto.close();
+  }
+}
+
 async function ejecutar() {
   const temporal = mkdtempSync(path.join(tmpdir(), 'pos-pwa-'));
   let servidor, browser;
@@ -271,6 +378,15 @@ async function ejecutar() {
     });
     await probarInstalacionLimpia(browser, local.ruta, publicacion);
     await probarMigracion(browser, local.ruta, local.estado, anterior, artefacto, publicacion);
+    await probarReparacion(browser, local.ruta, local.estado, artefacto, publicacion);
+    const v242 = path.join(temporal, 'v242');
+    mkdirSync(v242);
+    execFileSync('tar', ['-x', '-C', v242], {
+      input: execFileSync('git', ['archive', '0c3c7983fb288acc475ff4b44bcf071ea40df0f2'], {
+        cwd: RAIZ, maxBuffer: 16 * 1024 * 1024,
+      }),
+    });
+    await probarV242Incompleta(browser, local.ruta, local.estado, v242, artefacto, publicacion);
   } finally {
     await browser?.close();
     servidor?.close();
