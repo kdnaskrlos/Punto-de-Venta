@@ -7,5 +7,6 @@ export const firebaseConfig = {
   projectId: "punto-de-venta-comic-shop",
   storageBucket: "punto-de-venta-comic-shop.firebasestorage.app",
   messagingSenderId: "570684941224",
-  appId: "1:570684941224:web:9f90574461665bcf0cb39d"
+  appId: "1:570684941224:web:9f90574461665bcf0cb39d",
+  ventasAtomicas: true
 };

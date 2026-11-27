@@ -16,17 +16,30 @@
 document.documentElement.classList.add("fx");
 window.__ver=()=>document.documentElement.classList.remove("fx");
 window.__fuente=()=>{const f=document.fonts;(f?Promise.race([f.load('700 16px "Plus Jakarta Sans"'),new Promise(r=>setTimeout(r,1200))]):Promise.resolve()).then(()=>requestAnimationFrame(window.__ver));};
-setTimeout(window.__ver,1500);</script>
+setTimeout(window.__ver,1500);
+window.addEventListener('error',e=>{
+  const url=e.target?.src||e.target?.href;
+  if(!url)return;
+  const recurso=new URL(url);
+  if(recurso.origin!==location.origin||!/\.(js|css)$/.test(recurso.pathname))return;
+  const mostrar=()=>{document.getElementById('recuperar-pos').hidden=false};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mostrar,{once:true});
+  else mostrar();
+},true);</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=block" media="print" onload="this.media='all';window.__fuente()" onerror="window.__ver()">
-<link rel="stylesheet" href="versiones/v2.42-57bc1ad5b01c5d41/css/tokens.css">
-<link rel="stylesheet" href="versiones/v2.42-57bc1ad5b01c5d41/css/base.css">
-<link rel="stylesheet" href="versiones/v2.42-57bc1ad5b01c5d41/css/componentes.css">
-<link rel="stylesheet" href="versiones/v2.42-57bc1ad5b01c5d41/css/material.css">
-<link rel="stylesheet" href="versiones/v2.42-57bc1ad5b01c5d41/css/stock.css">
+<link rel="stylesheet" href="versiones/v2.43.2-8f1c2bbf9712b2d2/css/tokens.css">
+<link rel="stylesheet" href="versiones/v2.43.2-8f1c2bbf9712b2d2/css/base.css">
+<link rel="stylesheet" href="versiones/v2.43.2-8f1c2bbf9712b2d2/css/componentes.css">
+<link rel="stylesheet" href="versiones/v2.43.2-8f1c2bbf9712b2d2/css/material.css">
+<link rel="stylesheet" href="versiones/v2.43.2-8f1c2bbf9712b2d2/css/stock.css">
 </head>
 <body>
+<aside id="recuperar-pos" hidden role="status">
+<p>Faltan recursos para abrir el POS. Conéctate a Internet y pulsa Reintentar para reparar la caché. Conserva los datos del sitio.</p>
+<button type="button" onclick="location.reload()">Reintentar</button>
+</aside>
 <div id="app"></div>
-<script type="module" src="versiones/v2.42-57bc1ad5b01c5d41/js/arranque-pwa.js"></script>
-<script type="module" src="versiones/v2.42-57bc1ad5b01c5d41/js/principal.js"></script>
+<script type="module" src="versiones/v2.43.2-8f1c2bbf9712b2d2/js/arranque-pwa.js"></script>
+<script type="module" src="versiones/v2.43.2-8f1c2bbf9712b2d2/js/principal.js"></script>
 </body>
 </html>
