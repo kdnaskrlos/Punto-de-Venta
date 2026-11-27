@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-26 — Revisión 00003 activa y nueva venta de control preparada
+
+- Cloud Shell devolvió `REVISION_VERIFICADA` en `procesarventapos-00003-joz` para el SHA `339649d7126faed6d8feb3f2e58246568630954c`. Pasó la CI de ese SHA. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45916546856)
+- La solicitud `qa-v243-eventarc-20261126-0d59dccc` sigue pendiente con dos unidades intactas, sin marca, número ni movimientos.
+- Se reutilizó la venta controlada con el ID `qa-v243-eventarc-20261127-31c2a83e` y se incorporó la lectura de `motivo` ante fallo. Siguiente acción. Ejecutar el único bloque en Cloud Shell y registrar la salida. [Prueba](../scripts/verificar-eventarc-venta-v243-cloud-shell.cjs)
+
 ## 2026-11-26 — Eventarc entregó la solicitud, pero la revisión la descartó
 
 - Cloud Shell confirmó `V-0004` por recuperación directa. La segunda solicitud `qa-v243-eventarc-20261126-0d59dccc` llegó a `procesarventapos-00002-pas` a las `16:54:00.508707Z`, recibió HTTP 204 y quedó pendiente.

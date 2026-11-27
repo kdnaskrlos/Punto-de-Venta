@@ -7,7 +7,7 @@ const { initializeAuth, inMemoryPersistence, signInWithEmailAndPassword } = requ
 const { getFirestore, doc, collection, query, where, getDocFromServer: leer,
   getDocsFromServer: listar, setDoc, serverTimestamp } = require('firebase/firestore');
 const proyecto = 'punto-de-venta-comic-shop';
-const id = 'qa-v243-eventarc-20261126-0d59dccc';
+const id = 'qa-v243-eventarc-20261127-31c2a83e';
 const firma = (...x) => createHash('sha256').update(JSON.stringify(x)).digest('hex');
 let etapa = 'precheck';
 const paso = nombre => { etapa = nombre; console.log(nombre); };
