@@ -22,7 +22,10 @@ if (archivo) {
     || config.authDomain !== config.projectId + '.firebaseapp.com') {
     throw new Error('BLOQUEADO: configuración pública inválida o proyecto Firebase existente sin autorización explícita');
   }
-  configQA = Object.fromEntries(campos.map(k => [k, config[k]]));
+  const opcionales = ['storageBucket', 'messagingSenderId', 'measurementId'];
+  configQA = Object.fromEntries([...campos, ...opcionales]
+    .filter(k => typeof config[k] === 'string' && config[k].trim())
+    .map(k => [k, config[k]]));
 }
 const raiz = path.resolve(__dirname, '..');
 const temporal = mkdtempSync(path.join(tmpdir(), 'pos-piloto-'));

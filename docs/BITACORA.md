@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-26 — Backend verificado y piloto web preparado
+
+- Cloud Shell devolvió `POS_PROCESAMIENTO_VERIFICADO` para `a8b5330aeebdfa889d25d90debd96e2909506289`. Eventarc procesó automáticamente la venta de control y quedaron conciliadas `V-0006` y `V-0007` con pagos e inventario correctos, sin duplicados ni conflictos. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45918790033)
+- Se generó el piloto v2.43 y se comprobó la configuración de Firebase real, ventas procesadas y los recursos versionados de la PWA. [Generador](../scripts/preparar-piloto.cjs)
+- Siguiente acción. Activar el canal temporal HTTPS y probar desde la interfaz en PC y Android. La publicación v2.42 sigue vigente. [Acceso al piloto](VALIDACION-FINAL-V243.md#piloto-funcional-en-pc-y-android)
+
 ## 2026-11-26 — Receptor CloudEvent nativo y validación con una autorización
 
 - La ruta anterior dependía de la extracción de `params` y de la proyección a snapshot que hacía Firebase Functions. Se registró un manejador nativo de Functions Framework que obtiene el recurso Firestore directamente del cuerpo. El procesador financiero conserva sus transacciones. [Receptor](../funciones/index.cjs) · [Contrato de Google Cloud](https://docs.cloud.google.com/run/docs/triggering/trigger-functions-with-firestore-documents)
