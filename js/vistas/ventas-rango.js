@@ -2,7 +2,9 @@
 import { h, icono, abrirVentana, toast, pedirMotivo, unaVez } from '../ui.js';
 import { conCaja } from './caja.js';
 import { costoVenta } from '../nucleo/costos.js';
-import { fmtCop } from '../nucleo/dinero.js';
+import { fmtCop, fmtMonto } from '../nucleo/dinero.js';
+import { NOMBRE_MONEDA } from '../nucleo/formas.js';
+import { aCop } from '../nucleo/tasas.js';
 import { fechaHora, inicioDia, sumarDias } from '../nucleo/fechas.js';
 
 // cb({ventas, costosVenta|null, costos}) cada vez que cambia algo. Devuelve la función para dejar de escuchar.
@@ -32,13 +34,44 @@ export function escucharVentasConCosto(ctx, { desde, hasta }, cb) {
 }
 
 const hora = iso => new Date(iso).toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: 'numeric', minute: '2-digit' }).replace('a. m.', 'am').replace('p. m.', 'pm');
-const NOMBRE_MON = { COP: 'COP', USD: 'USD', BS: 'Bs' };
+const montoConMoneda = (monto, moneda) => `${fmtMonto(monto, moneda)} ${NOMBRE_MONEDA[moneda] || moneda}`;
+const filaMonto = (etiqueta, texto) => h('div', { class: 'det-fila' },
+  h('span', {}, etiqueta), h('span', { class: 'num' }, texto));
+
+function sumarCop(partes, tasas) {
+  const importes = partes.map(p => Number.isFinite(p.equivalenteCop)
+    ? p.equivalenteCop : aCop(p.monto, p.moneda || 'COP', tasas));
+  return importes.every(Number.isFinite) ? importes.reduce((suma, valor) => suma + valor, 0) : null;
+}
+
+function detalleCobro(v) {
+  const pagos = v.pagos || [];
+  const vuelto = v.vuelto;
+  const partes = (vuelto?.partes ?? (vuelto ? [vuelto] : []))
+    .filter(p => Number.isFinite(p.monto) && p.monto > 0);
+  const abonos = Number.isFinite(v.abonosPrevios) ? v.abonosPrevios : 0;
+  const pagado = sumarCop(pagos, v.tasas);
+  const cambio = Number.isFinite(vuelto?.equivalenteCop) ? vuelto.equivalenteCop : sumarCop(partes, v.tasas);
+  const neto = pagado === null || cambio === null ? null : pagado + abonos - cambio;
+  return [
+    pagos.length || abonos ? h('div', { class: 'det-grupo' }, h('span', { class: 'sec-m' }, 'Pagos recibidos'),
+      ...pagos.map(p => filaMonto(p.nombre || p.forma, montoConMoneda(p.monto, p.moneda || 'COP'))),
+      abonos ? filaMonto('Abonos previos', montoConMoneda(abonos, 'COP')) : null) : null,
+    partes.length ? h('div', { class: 'det-grupo' }, h('span', { class: 'sec-m' }, 'Vuelto entregado'),
+      ...partes.map(p => filaMonto(NOMBRE_MONEDA[p.moneda] || p.moneda, `−${fmtMonto(p.monto, p.moneda)}`)),
+      partes.length === 1 && partes[0].moneda === 'COP' ? null
+        : filaMonto('Equivalente en COP', cambio === null ? 'No disponible' : montoConMoneda(cambio, 'COP'))) : null,
+    Number.isFinite(vuelto?.remanenteCop) && vuelto.remanenteCop !== 0
+      ? filaMonto('Ajuste por redondeo', montoConMoneda(vuelto.remanenteCop, 'COP')) : null,
+    pagos.length || abonos ? h('div', { class: 'det-fila det-total' }, h('span', {}, 'Importe neto cobrado'),
+      h('b', { class: 'num' }, neto === null ? 'No disponible' : montoConMoneda(neto, 'COP'))) : null,
+  ];
+}
 
 // Detalle de una venta: prendas, pagos y, para gestión, "Anular venta" (la acción vive aquí, no en la lista).
 function abrirDetalle(ctx, v) {
   const anulada = v.estado === 'anulada';
   const filas = (v.lineas || []).map(l => h('div', { class: 'det-fila' }, h('span', {}, h('b', {}, `${l.cantidad}× `), `${l.nombre}${l.talla ? ' · Talla ' + l.talla : ''}`), h('span', { class: 'num' }, fmtCop(l.subtotal ?? l.precioUnit * l.cantidad))));
-  const pagos = (v.pagos || []).map(p => h('div', { class: 'det-fila' }, h('span', {}, p.nombre || p.forma), h('span', { class: 'num' }, `${p.moneda === 'COP' ? fmtCop(p.monto) : p.monto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${NOMBRE_MON[p.moneda] || p.moneda}`)));
   const anular = ctx.puedeVer('anularVenta') && !anulada ? h('button', { class: 'btn danger', id: 'det-anular', onclick: e => unaVez(e.currentTarget, async () => {
     const motivo = await pedirMotivo({ titulo: `Anular ${v.numero || 'venta'}`, boton: 'Anular venta', peligro: true });
     if (!motivo) return;
@@ -52,8 +85,8 @@ function abrirDetalle(ctx, v) {
     anulada && v.anulacion?.motivo ? h('div', { class: 'aviso' }, icono('alerta'), `Motivo: ${v.anulacion.motivo}`) : null,
     h('div', { class: 'det-grupo' }, ...filas),
     v.descuento?.monto ? h('div', { class: 'det-fila' }, h('span', {}, 'Descuento'), h('span', { class: 'num' }, `−${fmtCop(v.descuento.monto)}`)) : null,
-    h('div', { class: 'det-fila det-total' }, h('span', {}, 'Total'), h('b', { class: 'num' }, fmtCop(v.total))),
-    pagos.length ? h('div', { class: 'det-grupo' }, h('span', { class: 'sec-m' }, 'Pagos'), ...pagos) : null),
+    h('div', { class: 'det-fila det-total' }, h('span', {}, 'Total de la venta'), h('b', { class: 'num' }, montoConMoneda(v.total, 'COP'))),
+    ...detalleCobro(v)),
     acciones: anular ? h('div', { class: 'acciones' }, anular) : null });
 }
 

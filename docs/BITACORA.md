@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Vuelto en el detalle histórico de ventas
+
+- Se corrigió la visualización de total, pagos, vuelto, redondeo y neto usando los datos originales. Se conservó el estado de las ventas anuladas. [Vista](../js/vistas/ventas-rango.js)
+- Se actualizaron la versión a v2.43.1, la caché y la huella PWA. Pasaron 174 unitarias y tres casos de Chromium en PC y móvil simulado. [Regresión](../pruebas/e2e/detalle-venta.cjs)
+- Siguiente acción. Actualizar el canal temporal de Hosting y comprobar el detalle en PC y Android. La versión pública sigue en v2.42.
+
 ## 2026-11-27 — Piloto v2.43 activo y primeras pruebas en PC aprobadas
 
 - Se desplegó el piloto v2.43 en Firebase Hosting. El enlace vence el 4 de diciembre de 2026. [Piloto](https://punto-de-venta-comic-shop--piloto-v243-n8egt6cf.web.app)

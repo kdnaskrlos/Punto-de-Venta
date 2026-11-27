@@ -1,7 +1,7 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 27-11-2026.** El piloto v2.43 está activo en Firebase Hosting y pasó las pruebas iniciales en PC según el propietario. [Bitácora](BITACORA.md)
-- **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
+- **Actualizado el 27-11-2026.** El detalle histórico de ventas se corrigió en la candidata v2.43.1. El piloto temporal sigue en v2.43 hasta cargar el nuevo paquete. [Bitácora](BITACORA.md)
+- **Versión publicada registrada** v2.42. **Candidata** v2.43.1 en `integracion/pos-auditoria`, con el PR #21 en borrador. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21)
 - **Prioridad** estabilizar el POS con una validación funcional simplificada en Firebase real. La publicación de v2.43 sigue pendiente de autorización.
 
 ## Funcionalidades implementadas
@@ -53,7 +53,9 @@
 
 - **Piloto v2.43 desplegado.** El canal temporal de Firebase Hosting está conectado a Firebase real y vence el **4 de diciembre de 2026**. El propietario confirmó autenticación, inventario, venta e historial en PC. La versión pública sigue en v2.42. [Abrir el piloto](https://punto-de-venta-comic-shop--piloto-v243-n8egt6cf.web.app)
 
-**Siguiente acción.** Completar las pruebas comerciales, sin conexión y en Android antes de decidir la publicación de v2.43.
+- **Detalle histórico corregido.** Muestra el total, los pagos por medio y moneda, el vuelto, el ajuste cuando existe y el neto en COP. El cálculo de presentación usa equivalentes guardados o las tasas originales, y distingue una venta anulada. Pasaron 174 unitarias y tres pruebas dirigidas de Chromium, incluida la vista móvil simulada.
+
+**Siguiente acción.** Cargar v2.43.1 en el canal temporal `piloto-v243`, conservar los recursos versionados de v2.43 y abrir una venta histórica en PC y Android para comprobar el detalle.
 
 ## Reglas comerciales por confirmar
 
