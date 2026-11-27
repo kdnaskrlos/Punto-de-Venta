@@ -1,0 +1,247 @@
+// Panel de pagos reutilizable (cobrar, apartar, abonar, completar): formas por moneda, montos, falta y vuelto (§9.2).
+import { h, icono, esTelefono, deslizarParaQuitar, alEnfocarCampo, toast } from '../ui.js';
+import { estadoCobro, montoSugerido, vueltoEn, vueltoMixto, elegirMonedaVuelto } from '../nucleo/cobro.js';
+import { fmtCop, fmtMonto, parseMonto } from '../nucleo/dinero.js';
+import { aCop } from '../nucleo/tasas.js';
+import { formaEfectivo, NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
+
+// En los botones el grupo ya dice la moneda: "Efectivo pesos" → "Efectivo", "Transferencia / Nequi / …" → "Transferencia".
+export const nombreCorto = n => (n.split('/')[0].replace(/\(.*?\)/g, '').replace(/\b(pesos|d[oó]lares|bol[ií]vares)\b/gi, '').replace(/\s+/g, ' ').trim()) || n;
+
+const GRUPOS = [['COP', 'Pesos', 'c-cop'], ['USD', 'Dólares', 'c-usd'], ['BS', 'Bs', 'c-bs']];
+const tasaValida = n => Number.isFinite(n) && n > 0;
+
+// total: monto a cubrir en COP. permitirMenos: en abonos de apartado se puede pagar menos que el total.
+// iniciales (v2.26): pagos ya escritos [{ forma, monto }] (borrador recuperado tras un apagón).
+export function crearPanelPagos(ctx, { total, permitirMenos = false, alCambiar = () => {}, iniciales = null }) {
+  const formas = (ctx.ajustes.formasPago || []).filter(f => f.activa !== false);
+  const pagos = [];
+  for (const x of iniciales || []) { const forma = formas.find(f => f.id === x.forma); if (forma && x.monto > 0 && !pagos.some(p => p.forma.id === forma.id)) pagos.push({ forma, monto: x.monto }); }
+  const lista = h('div', { class: 'pagos' });
+  let botones = null;
+  let monedaManual = null;
+  const modos = [
+    ...(formaEfectivo(formas, 'USD') && formaEfectivo(formas, 'COP') ? [['MIXTO', 'USD + COP']] : []),
+    ...GRUPOS.filter(([m]) => formaEfectivo(formas, m)).map(([m]) => [m, m === 'COP' ? 'Todo en pesos' : NOMBRE_MONEDA[m]]),
+  ];
+  const barra = h('div', { class: 'barra-falta', role: 'status' });
+  const red = ctx.ajustes.redondeo || 100, billeteMinimoUsd = ctx.ajustes.billeteMinimoUsd || 1;
+  let listo = false; // no avisar cambios mientras se construye el panel
+  const avisar = () => { if (listo) alCambiar(); };
+
+  function evaluar() {
+    const e = estadoCobro({ total, pagos: pagos.map(p => ({ forma: p.forma.id, moneda: p.forma.moneda, monto: p.monto || 0 })), tasas: ctx.tasas, redondeo: red });
+    const cambios = new Map();
+    if (!permitirMenos && (e.vueltoCop > 0 || monedaManual)) {
+      for (const [moneda] of modos) {
+        const cambio = calcularCambio(e, moneda);
+        if (cambio) cambios.set(moneda, cambio);
+      }
+    }
+    if (!cambios.has(monedaManual)) monedaManual = null;
+    const moneda = elegirMonedaVuelto(pagos, [...cambios.keys()], monedaManual);
+    const cambio = cambios.get(moneda);
+    e.vueltoValido = permitirMenos || e.vueltoCop <= 0 || Boolean(cambio);
+    return { e, cambios, moneda, cambio };
+  }
+  const estado = () => evaluar().e;
+
+  function agregar(forma) {
+    if (esTelefono()) document.activeElement?.blur(); // sin borde de foco que parezca una selección
+    const e = estado();
+    let p = pagos.find(x => x.forma.id === forma.id);
+    if (!p) { p = { forma, monto: 0 }; pagos.push(p); }
+    if (e.faltaCop > 0) {
+      const sugerido = montoSugerido(e.faltaCop, forma.moneda, ctx.tasas) || 0;
+      p.monto = (p.monto || 0) + (forma.efectivo && forma.moneda === 'USD'
+        ? Math.ceil(sugerido / billeteMinimoUsd) * billeteMinimoUsd : sugerido);
+    }
+    pintar(forma.id);
+  }
+
+  // Las formas son tarjetas (como en Ajustes → Pagos) en dos columnas: tocar una la elige (o la quita).
+  // Los pagos elegidos se van sumando debajo del total, cada uno con su monto.
+  function pintar(enfocar) {
+    lista.replaceChildren(...pagos.map(p => {
+      const f = p.forma;
+      const inp = h('input', { class: 'inp num', inputmode: 'decimal', value: p.monto ? fmtMonto(p.monto, f.moneda) : '', 'aria-label': `Monto en ${f.nombre}` });
+      // v1.94: la letra del monto baja de tamaño a medida que crece, para que siempre quepa en el campo.
+      const tam = () => { const n = inp.value.length; inp.dataset.largo = n >= 11 ? 'xl' : n >= 8 ? 'l' : ''; };
+      inp.addEventListener('input', () => { p.monto = parseMonto(inp.value, f.moneda) || 0; tam(); pintarBarra(); avisar(); });
+      inp.addEventListener('blur', () => { inp.value = p.monto ? fmtMonto(p.monto, f.moneda) : ''; tam(); });
+      tam();
+      inp.addEventListener('focus', () => alEnfocarCampo(inp)); // v2.07: sin menú Cortar/Copiar en el teléfono
+      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') inp.blur(); });
+      const eq = h('span', { class: 'nota num equiv' });
+      p.pintarEq = equivalente => {
+        eq.textContent = f.moneda === 'COP' ? '' : equivalente == null ? 'Sin tasa' : equivalente > 0 ? `≈ ${fmtCop(equivalente)} COP` : '';
+      };
+      // v2.30: en la PC tampoco se enfoca ni se selecciona solo (igual que en el teléfono): al tocarlo se vacía.
+      // Tarjeta de pago (v1.94): ícono; nombre con la moneda debajo (COP, USD, Bs);
+      // el monto en su recuadro; un bote de basura al lado para quitarla.
+      return h('div', { class: `pago m-${f.moneda.toLowerCase()}`, 'data-forma': f.id },
+        h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
+        h('span', { class: 'pago-nombre' }, h('b', {}, nombreCorto(f.nombre)), h('span', { class: 'pago-moneda' }, NOMBRE_MONEDA[f.moneda])), // v1.94: sin el equivalente en pesos
+        h('label', { class: 'pago-monto' }, inp),
+        h('button', { type: 'button', class: 'pago-quitar', 'aria-label': `Quitar ${f.nombre}`, onclick: () => quitarPago(p) }, icono('borrar')));
+    }));
+    // El pago recién elegido entra abriéndose (como los desplegables de Pedidos).
+    const nueva = enfocar && lista.querySelector(`.pago[data-forma="${enfocar}"]`);
+    if (nueva && nueva.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const alto = nueva.offsetHeight;
+      const cs = getComputedStyle(nueva);
+      nueva.style.overflow = 'hidden';
+      nueva.animate([
+        { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', opacity: 0, transform: 'translateY(-4px)' },
+        { height: alto + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, opacity: 1, transform: 'none' }],
+        { duration: 210, easing: 'cubic-bezier(.4,0,.2,1)' })
+        .onfinish = () => { nueva.style.overflow = ''; };
+    }
+    pintarFormas();
+    pintarBarra();
+    avisar();
+  }
+
+  function pintarFormas() {
+    botones.replaceChildren(...formas.map(f => {
+      const elegida = pagos.some(x => x.forma.id === f.id);
+      const bloqueada = (f.moneda === 'BS' && !tasaValida(ctx.tasas?.bsPorUsd)) || (f.moneda !== 'COP' && !tasaValida(ctx.tasas?.copPorUsd));
+      return h('button', { type: 'button', class: `forma forma-tarjeta forma-cobro m-${f.moneda.toLowerCase()}` + (elegida ? ' activa' : ''), 'data-forma': f.id, 'data-forma-card': f.id, disabled: bloqueada, 'aria-pressed': String(elegida),
+        onclick: () => { if (elegida) quitarPago(pagos.find(x => x.forma.id === f.id)); else agregar(f); } },
+        h('span', { class: 'forma-ic' }, icono(iconoForma(f))),
+        h('span', { class: 'forma-txt' }, h('b', {}, nombreCorto(f.nombre)),
+          h('span', { class: 'forma-pie' }, h('span', { class: 'moneda' }, NOMBRE_MONEDA[f.moneda]), bloqueada ? (f.moneda === 'BS' ? ' · Sin tasa de Bs' : ' · Sin tasa') : f.efectivo && !/efectivo/i.test(nombreCorto(f.nombre)) ? ' · efectivo' : '')));
+    }));
+  }
+
+  // Quitar un pago: la tarjeta se cierra (alto y opacidad) y luego se recalcula.
+  // v2.08: si el pago ya tenía monto, al quitarlo se ofrece «Deshacer» (vuelve en su lugar con su monto).
+  function avisarQuitado(p, i) {
+    if (!(p.monto > 0)) return;
+    toast(`${nombreCorto(p.forma.nombre)} quitado`, { deshacer: () => { if (!lista.isConnected || pagos.includes(p)) return; pagos.splice(Math.min(i, pagos.length), 0, p); pintar(); avisar(); } });
+  }
+  function quitarPago(p) {
+    const fila = lista.querySelector(`.pago[data-forma="${p.forma.id}"]`);
+    const fin = () => { const i = pagos.indexOf(p); if (i >= 0) pagos.splice(i, 1); pintar(); avisar(); avisarQuitado(p, i); };
+    if (!fila || !fila.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { fin(); return; }
+    // Un solo movimiento continuo: la tarjeta se encoge y se desvanece a la vez (300 ms), y la forma de pago
+    // de abajo se desmarca al instante, para que lo que se ve coincida con lo que se tocó.
+    const tarjeta = botones.querySelector(`[data-forma-card="${p.forma.id}"]`);
+    tarjeta?.classList.remove('activa'); tarjeta?.setAttribute('aria-pressed', 'false');
+    const cs = getComputedStyle(fila);
+    fila.style.pointerEvents = 'none'; fila.style.overflow = 'hidden';
+    fila.querySelector('.pago-quitar')?.remove();
+    fila.animate([
+      { height: fila.offsetHeight + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth, opacity: 1, transform: 'none' },
+      { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', opacity: 0, transform: 'scale(.98)' }],
+      { duration: 210, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = fin;
+  }
+
+  // v2.08: cuando la barra cambia de tipo (Faltan ↔ Vuelto, que es más alto con sus monedas), su alto y su
+  // color pasan suave en vez de saltar.
+  let tipoBarra = '';
+  function animarBarra(antes, alto0) {
+    if (!antes || antes === barra.className || !barra.animate || !barra.isConnected || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const alto1 = barra.offsetHeight;
+    barra.getAnimations().forEach(a => a.cancel());
+    barra.animate([{ height: alto0 + 'px', overflow: 'hidden' }, { height: alto1 + 'px', overflow: 'hidden' }], { duration: 220, easing: 'cubic-bezier(.4,0,.2,1)' });
+    [...barra.children].forEach(c => c.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' }));
+  }
+  function pintarBarra() {
+    const antes = tipoBarra, alto0 = barra.offsetHeight;
+    pintarBarraYa();
+    tipoBarra = barra.className;
+    animarBarra(antes, alto0);
+  }
+  // Lo que se devuelve físicamente puede repartirse entre dos monedas.
+  // El remanente COP no entregable con el paso elegido se muestra sin ocultarlo.
+  function calcularCambio(e, moneda) {
+    if (moneda !== 'COP' && !tasaValida(ctx.tasas?.copPorUsd)) return null;
+    if (moneda === 'BS' && !tasaValida(ctx.tasas?.bsPorUsd)) return null;
+    if (moneda === 'MIXTO') {
+      const d = vueltoMixto(e.vueltoCop, ctx.tasas, { billeteMinimoUsd, redondeoCop: red });
+      if (!d) return null;
+      const partes = [];
+      if (d.usd > 0) partes.push({ moneda: 'USD', monto: d.usd, forma: formaEfectivo(formas, 'USD') });
+      if (d.cop > 0) partes.push({ moneda: 'COP', monto: d.cop, forma: formaEfectivo(formas, 'COP') });
+      return { partes, equivalenteCop: d.equivalenteCop, remanenteCop: d.remanenteCop,
+        texto: partes.map(p => fmtMonto(p.monto, p.moneda) + ' ' + NOMBRE_MONEDA[p.moneda]).join(' + ') || '0 COP' };
+    }
+    const monto = vueltoEn(e.vueltoCop, moneda, ctx.tasas, red);
+    if (!Number.isFinite(monto)) return null;
+    const parte = { moneda, monto, forma: formaEfectivo(formas, moneda) };
+    const equivalenteCop = aCop(monto, moneda, ctx.tasas);
+    const remanenteCop = Math.max(0, e.vueltoCop - (equivalenteCop || 0));
+    return { partes: monto > 0 ? [parte] : [], equivalenteCop, remanenteCop,
+      texto: fmtMonto(monto, moneda) + ' ' + NOMBRE_MONEDA[moneda] };
+  }
+
+  function pintarBarraYa() {
+    const { e, cambios, moneda, cambio } = evaluar();
+    pagos.forEach((p, i) => p.pintarEq?.(e.pagos[i].equivalenteCop));
+    if (e.vueltoCop > 0 && !permitirMenos) {
+      barra.className = 'barra-falta vuelto';
+      barra.replaceChildren(h('span', {}, 'Vuelto'), ' ', h('span', { class: 'monto num' }, cambio?.texto || 'Sin tasa'),
+        ...(cambio?.remanenteCop ? [h('span', { class: 'nota' }, `Ajuste por redondeo: ${fmtCop(cambio.remanenteCop)} COP`)] : []),
+        h('div', { class: 'vuelto-moneda segmentado' }, ...modos.map(([m, etiqueta]) => h('button', { type: 'button', 'data-moneda': m,
+          'aria-pressed': String(m === moneda), disabled: !cambios.has(m),
+          onclick: () => { monedaManual = m; pintarBarra(); avisar(); } }, etiqueta))));
+    } else if (e.cuadra || (permitirMenos && e.faltaCop < total)) {
+      barra.className = 'barra-falta ok';
+      barra.replaceChildren(h('span', {}, permitirMenos && !e.cuadra ? 'Saldo' : 'Faltan'), ' ', h('span', { class: 'monto num' }, fmtCop(e.cuadra ? 0 : e.faltaCop)));
+    } else {
+      barra.className = 'barra-falta falta';
+      barra.replaceChildren(h('span', {}, 'Faltan'), ' ', h('span', { class: 'monto num' }, fmtCop(e.faltaCop)));
+    }
+  }
+
+  // v2.06: en el teléfono el pago se quita deslizándolo a la izquierda (como las prendas del carrito), sin papelera.
+  deslizarParaQuitar(lista, '.pago[data-forma]', fila => {
+    const p = pagos.find(x => x.forma.id === fila.dataset.forma);
+    if (!p) return;
+    const tarjeta = botones.querySelector(`[data-forma-card="${p.forma.id}"]`);
+    tarjeta?.classList.remove('activa'); tarjeta?.setAttribute('aria-pressed', 'false');
+    const fin = () => { const i = pagos.indexOf(p); if (i >= 0) pagos.splice(i, 1); pintar(); avisar(); avisarQuitado(p, i); };
+    if (!fila.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { fin(); return; }
+    const cs = getComputedStyle(fila), tx = fila.style.transform;
+    fila.style.overflow = 'hidden'; fila.style.pointerEvents = 'none';
+    fila.animate([
+      { height: fila.offsetHeight + 'px', marginTop: cs.marginTop, opacity: 0, transform: tx },
+      { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', opacity: 0, transform: tx }],
+      { duration: 220, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = fin;
+  }, { soloTelefono: true });
+  botones = h('div', { class: 'formas-cobro' });
+  const el = h('div', { class: 'panel-pagos' }, lista, h('div', { class: 'sec-m' }, 'Forma de pago'), botones);
+  pintar();
+  listo = true;
+  const alCambiarTasas = e => {
+    if (e.detail.que !== 'tasas') return;
+    pintarFormas();
+    pintarBarra();
+    avisar();
+  };
+  window.addEventListener('pos:datos', alCambiarTasas);
+  return {
+    quitar: () => window.removeEventListener('pos:datos', alCambiarTasas),
+    el,
+    // v2.06: el total puede cambiar dentro del cobro (descuento): se recalcula falta y vuelto.
+    ponerTotal(n) { total = n; pintarBarra(); avisar(); },
+    barra, // la ventana la coloca en el pie, siempre visible
+    estado,
+    // v2.26: lo escrito, para guardarlo en el borrador de la venta.
+    borrador: () => pagos.filter(p => p.monto > 0).map(p => ({ forma: p.forma.id, monto: p.monto })),
+    // Pagos y vuelto listos para guardar en la venta o el apartado.
+    resultado() {
+      const { e, cambio } = evaluar();
+      const pagosOk = e.pagos.filter(p => p.monto > 0).map(p => ({ forma: p.forma, nombre: formas.find(f => f.id === p.forma).nombre, moneda: p.moneda, monto: p.monto, equivalenteCop: p.equivalenteCop }));
+      let vuelto = null;
+      if (!permitirMenos && e.vueltoCop > 0 && cambio) {
+        vuelto = { partes: cambio.partes, equivalenteCop: cambio.equivalenteCop,
+          remanenteCop: cambio.remanenteCop, // compatibilidad con recibos históricos
+          moneda: cambio.partes[0]?.moneda || 'COP', monto: cambio.partes[0]?.monto || 0,
+          forma: cambio.partes[0]?.forma || formaEfectivo(formas, 'COP') };
+      }
+      return { pagos: pagosOk, vuelto, estado: e };
+    },
+  };
+}
