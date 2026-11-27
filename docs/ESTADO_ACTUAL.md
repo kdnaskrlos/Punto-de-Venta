@@ -2,7 +2,7 @@
 
 - **Actualizado el 27-11-2026.** El POS oficial sirve **v2.43.2** en GitHub Pages desde el commit estático `60b21c4582ef9957a1362e324837d61deeeccae8`. [POS oficial](https://kdnaskrlos.github.io/Punto-de-Venta/) · [Publicación](https://github.com/kdnaskrlos/Punto-de-Venta/commit/60b21c4582ef9957a1362e324837d61deeeccae8)
 - **Código fuente.** El PR #21 se integró en `main` mediante `f1a5ad7`. Las próximas sesiones parten de `main` y de v2.43.2 en producción. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Versión](../js/version.js)
-- **Cierre de pilotos.** El propietario confirmó que las pruebas en producción son satisfactorias hasta el momento y dio por cerrada la fase de pilotos. [Bitácora](BITACORA.md)
+- **Fase 1 cerrada.** El propietario confirmó pruebas satisfactorias en producción y la retirada de `piloto-v243` el 27/11/2026 según Cloud Shell. El POS oficial en GitHub Pages es la única aplicación operativa de referencia. [Bitácora](BITACORA.md)
 
 ## Funcionalidades implementadas
 
@@ -55,9 +55,10 @@
 - **Incidencia de arranque v2.42.** PC y Android mostraron un 503. En Android el bypass y desregistrar solo el worker desbloquearon el acceso. Se reprodujo el 503 con la caché del shell ausente. La v2.43.2 comprueba la integridad de cada recurso y repara su caché con un conjunto de la misma versión. [Recuperación](RECUPERACION-PWA.md)
 - **Respaldo de producción.** El propietario confirmó el respaldo de Firestore `(default)` del **27/11/2026** para `punto-de-venta-comic-shop`. El procedimiento de reversión a v2.42 conserva los recursos versionados. [Publicación y reversión](PUBLICACION-V2.43.2.md#revertir-si-falla-el-corte)
 
-## Único pendiente operativo
+## Fase 2 · Planificación
 
-**Retirar `piloto-v243`** cuando se confirme la estabilidad del POS oficial y se concilien por ID las operaciones locales de cada terminal y cuenta en el origen del piloto. La retirada se limita al canal de vista previa y conserva los registros. [Retirada](PUBLICACION-V2.43.2.md#retirar-el-piloto-existente)
+- El catálogo maestro incorpora 180 escenarios con IDs permanentes. Se conservan los estados del diagnóstico inicial como antecedentes. El registro de reglas reúne aprobaciones trazables y el plan vincula los bloques con sus escenarios.
+- **Siguiente acción.** Validar con el propietario la propuesta 2.1 Clientes, en particular la visibilidad de historial y apartados para vendedora y el tratamiento de teléfonos compartidos o cambiados. [Diseño](PLAN_MAESTRO.md#bloque-21-clientes) · [Catálogo](ESCENARIOS_COMERCIALES.md) · [Reglas](REGLAS_COMERCIALES.md)
 
 ## Reglas comerciales por confirmar
 

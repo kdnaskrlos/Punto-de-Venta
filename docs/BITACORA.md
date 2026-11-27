@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Cierre de fase 1 y catálogo de fase 2
+
+- El propietario confirmó en Cloud Shell la retirada de `piloto-v243` el 27/11/2026. El POS oficial en GitHub Pages pasa a ser la única referencia operativa. [Estado](ESTADO_ACTUAL.md)
+- Se incorporaron los 180 escenarios del adjunto, con íntegra conservación de orden, categorías y texto. La verificación documental confirmó los IDs originales, sin duplicados ni omisiones. [Catálogo](ESCENARIOS_COMERCIALES.md)
+- `pos-contexto` y AGENTS.md incorporan el mantenimiento del catálogo, evidencia, trazabilidad y aprobaciones. El próximo ID es `ESC-181`. [Reglas](REGLAS_COMERCIALES.md)
+- Siguiente acción. Validar el alcance propuesto del bloque 2.1 Clientes con el propietario. [Plan maestro](PLAN_MAESTRO.md#bloque-21-clientes)
+
 ## 2026-11-27 — v2.43.2 publicada en el POS oficial
 
 - PR #21 integrado en `main` mediante `f1a5ad7`. GitHub Pages sirve v2.43.2 desde `60b21c4`, con ventas atómicas habilitadas y Service Worker con recuperación de caché. [PR](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Publicación](https://github.com/kdnaskrlos/Punto-de-Venta/commit/60b21c4582ef9957a1362e324837d61deeeccae8)
@@ -134,14 +141,10 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 - Pasaron sintaxis y cinco escenarios con APIs simuladas. La iteración se limitó a documentación y preparación del diagnóstico.
 - Siguiente acción. Ejecutar el bloque de diagnóstico en Cloud Shell y compartir su salida.
 
-## 2026-11-25 — Autorización y comprobación IAM de procesarVentaPos
-
-- Se autorizó solo `procesarVentaPos` en `punto-de-venta-comic-shop` para `fa521e9`. El alta por Cloud Shell comprueba IAM, solicitudes y estado, y verifica Cloud Run y Eventarc por metadatos. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
-- El preflight sustituyó la restricción de dominio de la cuenta predeterminada de Compute Engine por la verificación de pertenencia y estado en IAM. Pasaron las pruebas de sintaxis y los escenarios con APIs simuladas.
-
 ## 2026-11-25 — Preparación y precheck de Firebase real
 
 - Firebase confirmó Firestore Native en `nam5` y Hosting existente. El precheck verificó administrador activo, ausencia de caja y cero ventas ejecutadas. Codex obtuvo HTTP 403 al consultar inicialmente las reglas y la identidad WIF quedó limitada a `main`; se preparó el despliegue separado para `fa521e9`. [Procedimiento](DESPLIEGUE-FIREBASE-WIF.md) · [Precheck](VALIDACION-FINAL-V243.md#firebase-remoto-existente) · [CI del SHA](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45687488832) · [CI de reglas](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45684703207)
 - Se aprobaron en CI el núcleo, Chromium, Firestore Emulator y el piloto de `70ffba8`. El emulador cubrió la caja personal y cestas de hasta 248 SKU. La matriz real conserva IDs y requiere confirmación para las escrituras sintéticas. WIF intercambió la identidad y el fallo del respaldo omitió el despliegue. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [CI funcional](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101) · [CI de caja](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45653138434) · [Matriz](../pruebas/firebase/remoto-cestas.cjs) · [Condiciones](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
 - Se estableció la memoria permanente con `pos-contexto`, evidencia diferenciada y actualización de ambos documentos por ronda. El propietario priorizó Firebase real con datos sintéticos. [Protocolo](../AGENTS.md#flujo-permanente-chatgpt--codex) · [Fuentes](memoria/README.md) · [Autorización](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
+- Se autorizó solo `procesarVentaPos` de `fa521e9`. El alta y ajuste del preflight IAM se verificaron con sintaxis y APIs simuladas. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
 - El reinicio de fábrica quedó pospuesto. Pedidos Personalizados mantiene su Firebase y las nuevas reglas comerciales requieren especificación. [Issue #26](https://github.com/kdnaskrlos/Punto-de-Venta/issues/26) · [Notas de Pedidos](superpowers/specs/2026-11-14-pedidos-en-pos-notas.md) · [Reglas por confirmar](ESTADO_ACTUAL.md#reglas-comerciales-por-confirmar)
