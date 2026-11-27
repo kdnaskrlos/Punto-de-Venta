@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 27-11-2026.** El propietario aprobó el piloto funcional v2.43.2. Un fallo posterior de arranque en v2.42 oficial motivó una reparación de caché en la candidata. Falta comprobar la transición en PC y Android antes de autorizar la publicación. [Bitácora](BITACORA.md)
+- **Actualizado el 27-11-2026.** El propietario cerró la fase de pilotos y decidió verificar la transición de la candidata v2.43.2 directamente en PC y Android durante el corte supervisado del POS oficial. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43.2 en `integracion/pos-auditoria`, con el PR #21 en borrador. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21)
 - **Prioridad** publicar v2.43.2 en el mismo origen, con ventas procesadas y reversión a v2.42.
 
@@ -22,7 +22,7 @@
 
 ## Evidencia de validación
 
-- Pasó la CI de la revisión del piloto `66928d93b2cdc6461243375937bce04033a5d8c5`. GitHub generó una integración de prueba del PR #21 sobre `main`. La preparación previa de publicación `186bc0e` también pasó CI. La corrección del worker requiere la CI de su propio SHA. [CI del piloto](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46063452609) · [CI de la preparación](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46065947884)
+- Pasó la CI de `55a66a6`, revisión aprobada con la recuperación de caché. Era el HEAD del PR #21 al iniciar el cierre de pilotos. La revisión documental se integra con sus propios controles. [CI de la candidata](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46073890069) · [CI del piloto](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46063452609)
 - Pasó la CI del receptor CloudEvent nativo en `a8b5330aeebdfa889d25d90debd96e2909506289`. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45918790033)
 - En la revisión funcional `70ffba8` aprobaron 174/174 unitarias, 37/37 de Firestore Emulator, 181/181 funcionales de Chromium, 5/5 de actualización PWA y 25/25 del puente. Pasó la generación del piloto de demostración. [GitHub Actions](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101) · [Artefacto](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101/artifacts/15042164279)
 - La suite histórica obtuvo 6/8. Los casos 04 y 05 de pérdida de borrador en pestañas v2.35 siguen reproduciéndose. El ensayo del procesador en el emulador cubrió 18 tamaños hasta 248 SKU, reentregas y el rechazo íntegro con el último SKU agotado. [Resultados del PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21#issuecomment-7171416036)
@@ -55,9 +55,9 @@
 - **Incidencia de arranque v2.42.** PC y Android mostraron un 503. En Android el bypass y desregistrar solo el worker desbloquearon el acceso. Se reprodujo el 503 con la caché del shell ausente. La candidata comprueba la integridad de cada recurso y repara su caché con un conjunto de la misma versión. [Recuperación](RECUPERACION-PWA.md)
 - **Configuración de publicación preparada.** `ventasAtomicas: true` está en la configuración de producción y se regeneró la huella de la PWA. Se verificaron los puntos de entrada públicos de v2.42 frente a su artefacto en Git y se preparó la reversión conservando ambos grafos. [Procedimiento](PUBLICACION-V2.43.2.md)
 - **Indispensable antes del corte.** Falta evidencia actual de la conciliación de todas las colas por terminal y cuenta, de un respaldo vigente de Firestore y de la rama configurada en Settings → Pages. Si aún hay clientes v2.35, requieren migración supervisada antes de cerrar sus pestañas. El PR #21 y Pages se promueven con autorización del propietario y CI de la revisión preparada. [Controles](PUBLICACION-V2.43.2.md#antes-de-autorizar)
-- **Aplazable.** Las matrices ampliadas de estrés y el retiro de las rutas históricas quedan fuera de este corte. Los registros sintéticos se conservan.
+- **Retirada del piloto.** Cuando el POS oficial esté estable y las operaciones del origen del piloto estén conciliadas, retirar exclusivamente el canal `piloto-v243`. Los registros sintéticos se conservan. [Retirada](PUBLICACION-V2.43.2.md#retirar-el-piloto-existente)
 
-**Siguiente acción.** Verificar la transición del worker corregido en una terminal de cada tipo, PC y Android, antes de autorizar el corte. [Publicación](PUBLICACION-V2.43.2.md#publicar-con-autorización)
+**Siguiente acción.** Confirmar el respaldo de Firestore, las colas del POS oficial y la fuente de Pages para ejecutar el corte supervisado. [Publicación](PUBLICACION-V2.43.2.md#publicar-con-autorización)
 
 ## Reglas comerciales por confirmar
 

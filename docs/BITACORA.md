@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Cierre de pilotos y corte supervisado del POS oficial
+
+- El propietario cerró la fase de pilotos y decidió verificar la transición a v2.43.2 en el POS oficial, en PC y Android durante el corte.
+- Se confirmó la CI de `55a66a6` y se verificó el paquete estático con ventas procesadas, huella vigente y recursos de v2.42 intactos. La publicación oficial sigue en v2.42. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46073890069)
+- El procedimiento exige respaldo, colas conciliadas y fuente de Pages verificada. La retirada de `piloto-v243` queda condicionada a estabilidad y conciliación en su propio origen. [Publicación](PUBLICACION-V2.43.2.md)
+
 ## 2026-11-27 — Reparación de caché y transición desde v2.42
 
 - El propietario observó el 503 oficial en PC y Android. En Android, el bypass de red y desregistrar solo el worker permitieron abrir el POS en el mismo perfil.
