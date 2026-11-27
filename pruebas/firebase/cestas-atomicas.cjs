@@ -158,7 +158,7 @@ test('64 SKU offline conservan un único cobro con presupuesto constante de regl
   assert.equal(n, 0, 'la cesta debe dejar de depender de una lectura de reglas por SKU');
 });
 
-test('reentrega de Eventarc sin extensión document recupera la solicitud original una sola vez', { skip: red || disparador }, async () => {
+test('Eventarc acepta la base predeterminada en su formato de transporte y procesa una sola vez', { skip: red || disparador }, async () => {
   const id = 'qa-v243-20261126-79dcb917', sku = id + '-sku';
   await sembrar([sku]);
   const a = cliente('a'), b = cliente('b'), v = venta(id, [sku]);
@@ -174,10 +174,13 @@ test('reentrega de Eventarc sin extensión document recupera la solicitud origin
     { ...evento, source: evento.source.replace(proyecto, 'otro-proyecto') },
     { ...evento, source: evento.source.replace('(default)', 'otra-base') },
     { ...evento, project: 'otro-proyecto' },
+    { ...evento, database: 'otra-base' },
     { ...evento, namespace: 'otro-namespace' },
     { ...evento, type: 'google.cloud.firestore.document.v1.updated' },
     { ...evento, subject: `documents/usuarios/b/solicitudesVenta/${id}` },
     { ...evento, subject: `documents/usuarios/a/solicitudesVenta/${id}/extra` },
+    { ...evento, source: evento.source + '/documents/usuarios/b/solicitudesVenta/' + id },
+    { ...evento, subject: `documents/usuarios/a%2Fotro/solicitudesVenta/${id}` },
     { ...evento, data: undefined },
     eventoCreado('__reservado__', id),
     eventoCreado('a', '__reservado__'),
@@ -187,8 +190,11 @@ test('reentrega de Eventarc sin extensión document recupera la solicitud origin
   assert.equal((await getDocFromServer(marca)).exists(), false);
   assert.equal((await getDocFromServer(doc(a, 'productos', sku))).data().existencia, 1);
 
+  assert.equal(await entregar({ ...evento, namespace: '' }), 'confirmada_servidor');
   assert.equal(await entregar(evento), 'confirmada_servidor');
-  assert.equal(await entregar(evento), 'confirmada_servidor');
+  assert.equal(await entregar({ ...evento, source: evento.source.replace('//firestore.googleapis.com/', '')
+    + '/documents/usuarios/a/solicitudesVenta/' + id }), 'confirmada_servidor');
+  assert.equal(await entregar({ ...evento, subject: `usuarios/%61/solicitudesVenta/${id}` }), 'confirmada_servidor');
   assert.equal(await entregar({ ...evento, subject: undefined }), 'confirmada_servidor');
   assert.deepEqual((await getDocFromServer(solicitud)).data(), original);
   assert.equal((await getDocFromServer(marca)).data().refId, id);

@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 26-11-2026.** Cloud Shell confirmó la recuperación directa de la primera venta, `V-0004`. La revisión corregida `procesarventapos-00002-pas` está activa y queda pendiente la prueba de entrega automática de Eventarc. [Bitácora](BITACORA.md)
+- **Actualizado el 26-11-2026.** La venta recuperada `V-0004` confirmó el procesador financiero en Firebase real. Eventarc entregó la segunda solicitud a `procesarventapos-00002-pas`, que la descartó y respondió HTTP 204. La solicitud sigue pendiente. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - **Prioridad** estabilizar el POS con una validación funcional simplificada en Firebase real. La publicación de v2.43 sigue pendiente de autorización.
 
@@ -43,13 +43,13 @@
 
 - **Primer intento por Eventarc.** La solicitud `qa-v243-20261126-79dcb917` quedó pendiente con el SHA anterior. Cloud Run registró «documentPath … Path must be a non-empty string» en `ventas.cjs:34:46`, antes de la transacción. Firebase Functions 7.4.0 calcula `event.params` desde la extensión `document`. El error se reprodujo con un CloudEvent binario sin la extensión. Los registros reales carecen de la cabecera original y de correlación directa con el ID. [SDK](https://github.com/firebase/firebase-functions/blob/v7.4.0/src/v2/providers/firestore.ts#L1026) · [Procesador](../funciones/ventas.cjs)
 
-- **Corrección desplegada.** `procesarVentaPos` valida el origen, la base y la ruta de la solicitud en el evento. El emulador confirmó que dos entregas de la solicitud original producen una sola venta numerada, un movimiento y un evento. [Disparador](../funciones/index.cjs) · [Regresión](../pruebas/firebase/cestas-atomicas.cjs)
+- **Revisión desplegada y corrección candidata.** La revisión desplegada `9339da4` obtiene la ruta del snapshot. El código candidato admite el namespace predeterminado vacío y normaliza las variantes del nombre de recurso y de `subject`. Valida el proyecto, la base y la concordancia con el snapshot. Los avisos registran solo el motivo de rechazo. [Disparador](../funciones/index.cjs)
 
 - **Recuperación directa confirmada.** Cloud Shell devolvió `VENTA_RECUPERADA` para `qa-v243-20261126-79dcb917`, estado `CONFIRMADA`, número `V-0004`, pagos verificados y existencia final de una unidad. Se observó una venta, un movimiento de inventario, un evento de actividad y ningún conflicto. [Script](../scripts/recuperar-venta-v243-cloud-shell.py)
 
-- **Prueba de entrega automática preparada.** Se reutiliza la venta controlada de un SKU y 10.000 COP con el ID fijo nuevo `qa-v243-eventarc-20261126-0d59dccc`. El bloque crea una sola solicitud autenticada y observa la marca y los efectos del procesador. Pasaron la sintaxis y dos escenarios simulados del bloque, incluida la detección de un ID ocupado. [Script](../scripts/verificar-eventarc-venta-v243-cloud-shell.cjs)
+- **Segunda prueba automática.** A las `2026-11-26T16:54:00.508707Z`, la revisión `procesarventapos-00002-pas` devolvió HTTP 204 y advirtió que el origen o documento era inválido. El aviso no identifica el atributo. RED reprodujo el rechazo con `namespace` vacío y GREEN confirmó la recuperación y la idempotencia en el emulador. Pasaron además la comprobación local del alias de proyecto y una simulación del despliegue desde un manifiesto nuevo. [Contrato de Eventarc](https://docs.cloud.google.com/eventarc/docs/cloudevents#firestore) · [Regresión](../pruebas/firebase/cestas-atomicas.cjs)
 
-**Siguiente acción.** Ejecutar la venta de control `qa-v243-eventarc-20261126-0d59dccc` en Cloud Shell y registrar el resultado automático.
+**Siguiente acción.** Autorizar y ejecutar desde Cloud Shell el PATCH exclusivo de la función candidata. Comprobar la revisión activa y conservar `qa-v243-eventarc-20261126-0d59dccc` para una conciliación posterior. [Procedimiento](../scripts/actualizar-funcion-v243-cloud-shell.py)
 
 ## Reglas comerciales por confirmar
 

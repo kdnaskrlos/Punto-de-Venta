@@ -17,6 +17,7 @@ P = "punto-de-venta-comic-shop"
 OLD = "fa521e96c86e4052934ec9dcd080aceba06e7443"
 NEW = "9339da407dfeec141e3287c47785e061dcbfc4ce"
 V = "qa-v243-20261126-79dcb917"
+EVENTARC_SALE = "qa-v243-eventarc-20261126-0d59dccc"
 BOX, SKU = V + "-caja", V + "-sku"
 CF = "https://cloudfunctions.googleapis.com/v2/"
 PARENT = f"projects/{P}/locations/us-central1"
@@ -76,16 +77,18 @@ def fields(doc):
     return {k: decode(v) for k, v in doc.get("fields", {}).items()}
 
 
-def sale():
+def sale(venta_id=V):
+    box_id, sku_id = venta_id + "-caja", venta_id + "-sku"
+
     def get(path):
         return fields(api(FS + "/" + quote(path, safe="/:"), missing=True))
 
-    uid = get("cajas/" + BOX).get("uid")
+    uid = get("cajas/" + box_id).get("uid")
     need(isinstance(uid, str) and uid and "/" not in uid, "La caja sintética carece de UID verificable.")
-    conflict_id = "venta-" + digest(uid, V)
-    mov_id, event_id = digest(V, SKU), digest(uid, V, "venta.creada")
-    paths = {"solicitud": f"usuarios/{uid}/solicitudesVenta/{V}", "marca": f"usuarios/{uid}/operacionesCobro/venta:{V}",
-             "venta": f"ventas/{V}", "caja": f"cajas/{BOX}", "sku": f"productos/{SKU}",
+    conflict_id = "venta-" + digest(uid, venta_id)
+    mov_id, event_id = digest(venta_id, sku_id), digest(uid, venta_id, "venta.creada")
+    paths = {"solicitud": f"usuarios/{uid}/solicitudesVenta/{venta_id}", "marca": f"usuarios/{uid}/operacionesCobro/venta:{venta_id}",
+             "venta": f"ventas/{venta_id}", "caja": f"cajas/{box_id}", "sku": f"productos/{sku_id}",
              "contador": "contadores/ventas", "conflicto": f"conflictos/{conflict_id}"}
     instant = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=2)).isoformat(timespec="microseconds")
     docs = api(FS + ":batchGet", {"documents": [DB + "/" + v for v in paths.values()], "readTime": instant}, "POST")
@@ -100,30 +103,30 @@ def sale():
             "from": [{"collectionId": col}], "where": filt, "limit": 5}}, "POST")
         return [(r["document"]["name"].split("/")[-1], fields(r["document"])) for r in rows if "document" in r]
 
-    sales = query("ventas", "cajaId", BOX)
-    moves = query("movimientos", "ref", V)
-    stock_moves = query("movimientos", "sku", SKU)
-    events = query("eventos", "ref.id", V)
+    sales = query("ventas", "cajaId", box_id)
+    moves = query("movimientos", "ref", venta_id)
+    stock_moves = query("movimientos", "sku", sku_id)
+    events = query("eventos", "ref.id", venta_id)
     number = v.get("numero")
     sequence = query("ventas", "numero", number) if isinstance(number, str) and number else []
     submitted = sol.get("venta", {})
     payments = v.get("pagos", [])
     paid = len(payments) == 1 and payments == submitted.get("pagos") and all(
         payments[0].get(k) == x for k, x in {"moneda": "COP", "monto": 10000, "equivalenteCop": 10000}.items())
-    intact = submitted.get("id") == V and submitted.get("cajaId") == BOX and box.get("uid") == uid
-    settled = (intact and mark.get("estadoSync") == "confirmada_servidor" and mark.get("refId") == V
-               and v.get("id") == V and v.get("uid") == uid and v.get("cajaId") == BOX and v.get("estado") == "ok"
+    intact = submitted.get("id") == venta_id and submitted.get("cajaId") == box_id and box.get("uid") == uid
+    settled = (intact and mark.get("estadoSync") == "confirmada_servidor" and mark.get("refId") == venta_id
+               and v.get("id") == venta_id and v.get("uid") == uid and v.get("cajaId") == box_id and v.get("estado") == "ok"
                and v.get("total") == submitted.get("total") == 10000 and v.get("lineas") == submitted.get("lineas")
                and paid and box.get("movimientos") == [] and sku.get("existencia") == 1 and sku.get("ultimoMov") == mov_id
-               and [x[0] for x in sales] == [V] and [x[0] for x in moves] == [mov_id]
+               and [x[0] for x in sales] == [venta_id] and [x[0] for x in moves] == [mov_id]
                and [x[0] for x in stock_moves] == [mov_id] and [x[0] for x in events] == [event_id]
-               and moves[0][1].get("cantidad") == -1 and moves[0][1].get("sku") == SKU
-               and events[0][1].get("ref") == {"col": "ventas", "id": V} and not conflict)
-    if settled and isinstance(number, str) and re.fullmatch(r"V-[0-9]{4,}", number) and [x[0] for x in sequence] == [V]:
+               and moves[0][1].get("cantidad") == -1 and moves[0][1].get("sku") == sku_id
+               and events[0][1].get("ref") == {"col": "ventas", "id": venta_id} and not conflict)
+    if settled and isinstance(number, str) and re.fullmatch(r"V-[0-9]{4,}", number) and [x[0] for x in sequence] == [venta_id]:
         status = "CONFIRMADA"
     elif settled and not number:
         status = "CONFIRMADA_SIN_NUMERO"
-    elif intact and mark.get("estadoSync") == "rechazada_conflicto" and mark.get("refId") == V \
+    elif intact and mark.get("estadoSync") == "rechazada_conflicto" and mark.get("refId") == venta_id \
             and mark.get("conflictoId") == conflict_id and conflict and not (v or sales or moves or stock_moves or events) \
             and sku.get("existencia") == 2:
         status = "RECHAZADA"
@@ -131,11 +134,11 @@ def sale():
         status = "PENDIENTE"
     else:
         status = "INCONSISTENTE"
-    return {"estado": status, "id": V, "solicitudExiste": bool(sol), "marca": mark.get("estadoSync"), "numero": number,
+    return {"estado": status, "id": venta_id, "solicitudExiste": bool(sol), "marca": mark.get("estadoSync"), "numero": number,
             "existencia": sku.get("existencia"), "pagosVerificados": paid, "ventasCaja": len(sales), "ventasConNumero": len(sequence),
             "movimientosInventario": len(moves), "movimientosSku": len(stock_moves), "eventos": len(events),
             "movimientosCaja": len(box.get("movimientos") or []), "conflicto": conflict.get("motivo"),
-            "contador": counter.get("n"), "ultimaVentaEsEsta": counter.get("ventaId") == V,
+            "contador": counter.get("n"), "ultimaVentaEsEsta": counter.get("ventaId") == venta_id,
             "solicitudCreateTime": by_name[DB + "/" + paths["solicitud"]].get("createTime"),
             "solicitudUpdateTime": by_name[DB + "/" + paths["solicitud"]].get("updateTime")}
 
@@ -193,9 +196,9 @@ def authorization(phrase):
         need(tty.readline().strip() == phrase, "Autorización ausente.")
 
 
-def archive():
-    need(command("git", "-C", repo, "rev-parse", NEW + "^{commit}") == NEW, "SHA candidato ausente.")
-    zip_data = subprocess.check_output(["git", "-C", repo, "archive", "--format=zip", NEW + ":funciones"])
+def archive(sha=NEW):
+    need(command("git", "-C", repo, "rev-parse", sha + "^{commit}") == sha, "SHA candidato ausente.")
+    zip_data = subprocess.check_output(["git", "-C", repo, "archive", "--format=zip", sha + ":funciones"])
     out = api(CF + PARENT + "/functions:generateUploadUrl", {"environment": "GEN_2"}, "POST")
     url = urlsplit(out["uploadUrl"])
     need(url.scheme == "https" and url.hostname == "storage.googleapis.com", "Destino inesperado para la carga.")
@@ -279,11 +282,39 @@ def diagnostics(current, since):
         for e in out.get("entries", [])], mas=bool(out.get("nextPageToken")))
 
 
+def update_eventarc():
+    need(not manifest.exists(), "Ya hay un manifiesto para esta operación. Consulta su resultado antes de continuar.")
+    target = command("git", "-C", repo, "rev-parse", "HEAD")
+    need(re.fullmatch(r"[0-9a-f]{40}", target) and target not in (NEW, OLD),
+         "El checkout no corresponde a la corrección nueva.")
+    before = function_state()
+    baseline = snapshot(before)
+    source = source_of(before)
+    need(active_sha(before) == NEW and baseline["revision"] == "procesarventapos-00002-pas"
+         and source and source.get("generation"), "La revisión activa difiere de la informada.")
+    verify_saved_source(source)
+    original = sale(EVENTARC_SALE)
+    need(original["estado"] == "PENDIENTE" and original["solicitudCreateTime"] and original["solicitudUpdateTime"],
+         "La solicitud de control no consta como pendiente.")
+    emit(solicitudAntes=original, revisionAnterior=baseline["revision"], manifiesto=str(manifest))
+    authorization("AUTORIZO_ACTUALIZAR " + target)
+    state = {"anterior": {"sha": NEW, "source": source, "config": baseline}, "solicitudAntes": original,
+             "objetivo": target, "idSolicitud": EVENTARC_SALE, "inicio": dt.datetime.now(dt.timezone.utc).isoformat()}
+    save(state)
+    change(before, archive(target), target, state, baseline)
+    after = sale(EVENTARC_SALE)
+    need(all(after[k] == original[k] for k in ("solicitudCreateTime", "solicitudUpdateTime")),
+         "Cambió la solicitud original.")
+    emit(solicitudConservada=after)
+
+
 def main(mode):
+    if mode == "actualizar-eventarc":
+        return update_eventarc()
     state = json.loads(manifest.read_text(encoding=UTF))
     if mode == "diagnosticar":
         list(operations(state))
-        emit(solicitud=sale())
+        emit(solicitud=sale(EVENTARC_SALE if state.get("idSolicitud") == EVENTARC_SALE else V))
         return
 
     need(mode in ("actualizar", "revertir"), "Modo inválido.")

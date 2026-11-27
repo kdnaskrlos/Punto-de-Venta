@@ -2,11 +2,11 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
-## 2026-11-26 — Venta recuperada y prueba automática de Eventarc preparada
+## 2026-11-26 — Eventarc entregó la solicitud, pero la revisión la descartó
 
-- Cloud Shell confirmó `VENTA_RECUPERADA` para `qa-v243-20261126-79dcb917`, `V-0004`, pagos verificados y existencia final de una unidad. Resultado de una venta, un movimiento de inventario, un evento y ningún conflicto.
-- Se reutilizó el formato de venta controlada con el ID nuevo `qa-v243-eventarc-20261126-0d59dccc`. El bloque crea un único evento de alta por la vía normal de Firestore y espera los resultados automáticos. Pasaron sintaxis y dos escenarios simulados. [Script](../scripts/verificar-eventarc-venta-v243-cloud-shell.cjs)
-- Siguiente acción. Ejecutar en Cloud Shell la nueva venta controlada y registrar el resultado de Eventarc en la revisión `procesarventapos-00002-pas`.
+- Cloud Shell confirmó `V-0004` por recuperación directa. La segunda solicitud `qa-v243-eventarc-20261126-0d59dccc` llegó a `procesarventapos-00002-pas` a las `16:54:00.508707Z`, recibió HTTP 204 y quedó pendiente.
+- RED reprodujo el rechazo con `namespace` vacío. GREEN admitió la base predeterminada y las variantes de ruta con validación del recurso, y conservó una sola venta, movimiento y número ante entregas repetidas en el emulador. El aviso registra un código sin datos de la solicitud. La cabecera real no consta en el aviso anterior. [SDK](https://github.com/firebase/firebase-functions/blob/v7.4.0/src/v2/providers/firestore.ts#L1026) · [Regresión](../pruebas/firebase/cestas-atomicas.cjs)
+- Pasó la simulación de autorización y despliegue con manifiesto nuevo. Siguiente acción. Autorizar el PATCH exclusivo desde una sesión nueva y conservar la solicitud pendiente. [Procedimiento](../scripts/actualizar-funcion-v243-cloud-shell.py)
 
 ## 2026-11-26 — Revisión activa y recuperación directa preparada
 
@@ -141,26 +141,9 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 - El emulador comprobó que un ID usado impide repetir la matriz y que el precheck solo lee Firestore. El procesador local fue probado con reentregas de cestas de hasta 248 SKU.
 - Falta medir el mismo comportamiento en el servicio real. [Script](../pruebas/firebase/remoto-cestas.cjs) · [Evidencia](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21#issuecomment-7171416036)
 
-## 2026-11-25 — Caja personal del administrador
+## 2026-11-25 — Caja personal, datos de prueba y piloto
 
-- Se verificó la caja personal automática con fondo cero y cierre sin arqueo. La matriz usa una caja sintética personal.
-- Se reforzaron la apertura y el cierre transaccionales y se validaron los permisos de encargada y vendedora en el emulador.
-- Una caja preexistente bloquea la matriz. Su estado puede consultarse primero en solo lectura. [Pruebas](../pruebas/firebase/cobros.cjs) · [CI de caja personal](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45653138434)
-
-## 2026-11-25 — Datos de prueba y respaldo
-
-- El propietario autorizó el proyecto existente `punto-de-venta-comic-shop` y el administrador habitual para las pruebas sintéticas.
-- Se aceptó la ausencia de respaldo para el POS todavía no operativo. Los documentos `qa-` pueden figurar en informes.
-- Inventariar recursos, verificar caja y conciliar operaciones antes de escribir. [Decisión](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22) · [Condiciones](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
-
-## 2026-11-25 — Autenticación y despliegue
-
-- El workflow separó la verificación de identidad y las autorizaciones para Functions y reglas.
-- El intercambio OIDC por WIF pasó en la ejecución 45610821324. El paso de respaldo falló y el despliegue quedó omitido.
-- El estado del backend v2.43 sigue pendiente de comprobación en Firebase. [Ejecución WIF](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45610821324) · [Procedimiento](DESPLIEGUE-FIREBASE-WIF.md)
-
-## 2026-11-25 — Preparación del piloto v2.43
-
-- La publicación registrada sigue en v2.42 y la candidata v2.43 está en el PR #21 en borrador.
-- Aprobaron núcleo, navegador y emulador. Los casos 04 y 05 de pérdida de borradores en pestañas v2.35 siguen reproduciéndose.
-- Para publicar quedan Firebase real, Windows y Android físicos y la conciliación previa al retiro de las rutas históricas. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Criterios](VALIDACION-FINAL-V243.md#decisión-de-publicación)
+- Se comprobó la caja personal automática con fondo cero, apertura y cierre transaccionales y cierre sin arqueo. Una caja preexistente bloquea la matriz y se puede comprobar en solo lectura. Se validaron los permisos de encargada y vendedora en el emulador. [Pruebas](../pruebas/firebase/cobros.cjs) · [CI de caja personal](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45653138434)
+- El propietario autorizó `punto-de-venta-comic-shop` y su administrador habitual. Aceptó la ausencia de respaldo durante la fase no operativa y el efecto de los registros `qa-` en informes. [Decisión](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22) · [Condiciones](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
+- WIF aprobó el intercambio OIDC. Falló el paso de respaldo y el workflow omitió el despliegue. [Ejecución WIF](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45610821324) · [Procedimiento](DESPLIEGUE-FIREBASE-WIF.md)
+- La v2.42 seguía publicada y la candidata v2.43 quedó en el PR #21 en borrador. Aprobaron núcleo, navegador y emulador. Los casos 04 y 05 de pestañas v2.35 siguieron reproduciéndose. Quedaron pendientes Firebase real, dispositivos físicos y conciliación de rutas históricas. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Criterios](VALIDACION-FINAL-V243.md#decisión-de-publicación)
