@@ -1,0 +1,24 @@
+/* Sistema de diseño Comic Shop (skill comicshop-interfaz) + colores propios del punto de venta. */
+:root{--sel-neu:#111827;--sel-neu-bg:#eef1f4;--sel-neu-bd:#c9d0d8;--tono-ambar:#b45309;--tono-naranja:#c2410c;--tono-gris:#475569;--sel:#3b82f6;--wa-fondo:#efe7dd;--wa-burbuja-tx:#111b21;--tono-turquesa:#0891b2;--tono-verde:#15803d;--tono-rojo:#dc2626;--tono-azul:#2563eb;--tono-violeta:#7c3aed;--tono-rosa:#db2777;
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#f6f8fa; --line:#e5e9ee;
+  --ink:#111827; --muted:#6b7280;
+  --accent:#15803d; --accent-ink:#ffffff; --accent-soft:#dcfce7;
+  --t-info:#2563eb; --t-violet:#7c3aed; --t-wa:#16a34a;
+  --ok:#16a34a; --warn:#b45309; --err:#dc2626; --soon:#a16207;
+  /* Monedas: COP teal, USD azul, Bs violeta (contraste ≥ 4,5:1 sobre blanco) */
+  --cop:#0f766e; --usd:#2563eb; --bs:#7c3aed;
+  /* Borde de campos más oscuro que en Pedidos para contraste ≥ 3:1 */
+  --field-line:#9ca3af;
+  /* Recuadros que no son de una moneda */
+  --kpi-ganancia:#4d7c0f; --kpi-neutro:#475569; --kpi-alerta:#c2410c;
+  /* Paleta crema: fondo / borde / texto */
+  --g-bg:#dcfce7; --g-bd:#bbf7d0; --g-tx:#15803d;
+  --y-bg:#fff7d1; --y-bd:#f3dc7c; --y-tx:#a16207;
+  --r-bg:#fdecec; --r-bd:#f6c0c0; --r-tx:#b91c1c;
+  --b-bg:#ebf2fe; --b-bd:#c5d8fb; --b-tx:#2563eb;
+  --v-bg:#f3eefe; --v-bd:#d9c9fb; --v-tx:#7c3aed;
+  --n-bg:#f3f4f6; --n-bd:#e5e7eb; --n-tx:#4b5563;
+  --f:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:12px; --side:84px; --ease:cubic-bezier(.22,.9,.3,1);
+  color-scheme:light;
+}
