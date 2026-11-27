@@ -1,7 +1,7 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 27-11-2026.** El detalle histórico de ventas se corrigió en la candidata v2.43.1. El piloto temporal sigue en v2.43 hasta cargar el nuevo paquete. [Bitácora](BITACORA.md)
-- **Versión publicada registrada** v2.42. **Candidata** v2.43.1 en `integracion/pos-auditoria`, con el PR #21 en borrador. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21)
+- **Actualizado el 27-11-2026.** La candidata v2.43.2 incorpora el detalle de anulaciones y el desglose de comisiones por venta. Su carga en el piloto temporal está pendiente. [Bitácora](BITACORA.md)
+- **Versión publicada registrada** v2.42. **Candidata** v2.43.2 en `integracion/pos-auditoria`, con el PR #21 en borrador. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21)
 - **Prioridad** estabilizar el POS con una validación funcional simplificada en Firebase real. La publicación de v2.43 sigue pendiente de autorización.
 
 ## Funcionalidades implementadas
@@ -55,7 +55,10 @@
 
 - **Detalle histórico corregido.** Muestra el total, los pagos por medio y moneda, el vuelto, el ajuste cuando existe y el neto en COP. El cálculo de presentación usa equivalentes guardados o las tasas originales, y distingue una venta anulada. Pasaron 174 unitarias y tres pruebas dirigidas de Chromium, incluida la vista móvil simulada.
 
-**Siguiente acción.** Cargar v2.43.1 en el canal temporal `piloto-v243`, conservar los recursos versionados de v2.43 y abrir una venta histórica en PC y Android para comprobar el detalle.
+- **Pruebas comerciales aprobadas por el propietario.** La operación de la vendedora, sus comisiones y su caja funcionaron correctamente en el piloto. Los resultados también fueron visibles en el perfil administrativo.
+- **v2.43.2 lista para el piloto.** El detalle de anulaciones conserva los valores originales, muestra los movimientos asociados de caja y presenta el neto final cuando la evidencia permite calcularlo. Comisiones abre el detalle dentro de la misma ventana y usa las líneas y liquidaciones históricas. [Ventas](../js/vistas/ventas-rango.js) · [Comisiones](../js/vistas/reportes.js)
+
+**Siguiente acción.** Cargar v2.43.2 en el canal temporal `piloto-v243`, conservar los recursos de las versiones anteriores y verificar ambos detalles en PC y Android.
 
 ## Reglas comerciales por confirmar
 

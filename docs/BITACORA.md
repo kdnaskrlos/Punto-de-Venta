@@ -2,6 +2,13 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Pruebas comerciales aprobadas y detalles v2.43.2
+
+- El propietario confirmó las pruebas comerciales de la vendedora, sus comisiones y su caja, y verificó los resultados en el perfil administrativo.
+- Las ventas anuladas conservan cobro, tasas y motivo, y muestran los movimientos de devolución y el saldo final cuando se pueden identificar. Comisiones abre cada venta con líneas, importes históricos y estado de liquidación. [Ventas](../js/vistas/ventas-rango.js) · [Comisiones](../js/vistas/reportes.js)
+- Se actualizó la versión, la caché y la huella de la PWA. Pasaron 7 casos dirigidos en Chromium, con vista móvil simulada, y 5 comprobaciones de instalación y actualización PWA. [Ventas](../pruebas/e2e/detalle-venta.cjs) · [Comisiones](../pruebas/e2e/comisiones-demo.cjs) · [PWA](../pruebas/pwa/actualizacion.cjs)
+- Siguiente acción. Actualizar solo el canal `piloto-v243` y comprobar los dos detalles en PC y Android. La publicación registrada sigue en v2.42.
+
 ## 2026-11-27 — Vuelto en el detalle histórico de ventas
 
 - Se corrigió la visualización de total, pagos, vuelto, redondeo y neto usando los datos originales. Se conservó el estado de las ventas anuladas. [Vista](../js/vistas/ventas-rango.js)
@@ -115,65 +122,9 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 - Pasaron sintaxis y tres escenarios con APIs simuladas. La ejecución y el resultado de Firebase real quedan pendientes.
 - Siguiente acción. Ejecutar el bloque en Cloud Shell y compartir la salida estructural o el bloqueo.
 
-## 2026-11-25 — Iteración 04 de v2.43 · Inventario real y plan de despliegue
+## 2026-11-25 — Preparación y precheck de Firebase real
 
-- Cloud Shell confirmó `punto-de-venta-comic-shop`, Firestore Native `nam5`, Hosting y 14 colecciones raíz. Las reglas activas del 16-11-2026 difieren por SHA-256 de las candidatas. Functions v1 y v2 están vacías y no hay `procesarVentaPos`.
-- Se verificó la combinación de función gen 2 Node.js 22 en `us-central1` y Eventarc en `nam5`. El WIF exige el SHA de `main` y no puede desplegar la candidata del PR #21 desde su rama. [Workflow](https://github.com/kdnaskrlos/Punto-de-Venta/blob/main/.github/workflows/desplegar-firebase-pos.yml) · [Eventarc](https://docs.cloud.google.com/eventarc/docs/locations)
-- Se fijó `fa521e9` para un despliegue escalonado vía Cloud Shell. Quedan por comprobar IAM efectivo, compatibilidad de las colecciones y reglas activas, solicitudes y reversión. La ronda se limitó a revisión y documentación.
-- Siguiente acción. Obtener autorización explícita por componente para la función y las reglas de `fa521e9`. [CI del SHA](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45687488832)
-
-## 2026-11-25 — Iteración 03 de v2.43 · Precheck aprobado e inventario pendiente
-
-- El propietario aportó el resultado de Cloud Shell en `punto-de-venta-comic-shop`. Precheck de solo lectura aprobado, administrador activo, sin caja personal ni física, sin puntero para esa cuenta y cero ventas ejecutadas.
-- Se cotejaron las reglas y la Function gen 2 de la candidata, con Node.js 22, reintentos y creación de solicitudes en `(default)`. [Reglas](../firestore.rules) · [Función](../funciones/index.cjs)
-- La API de reglas devolvió HTTP 403 desde Codex y no se dispuso de acceso administrativo a Google Cloud. Quedaron pendientes el inventario, las reglas activas y la revisión y el disparador en servicio.
-- Siguiente acción. Ejecutar el inventario de solo lectura desde Cloud Shell y compartir su salida. [Plan remoto](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
-
-## 2026-11-25 — Precheck real v2.43 bloqueado
-
-- Se verificaron el HEAD `8f98a6d`, el PR #21 en borrador y el ID y la clave web pública de `punto-de-venta-comic-shop` en `config.js`. La CI de reglas de ese HEAD figura como aprobada. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45684703207)
-- Se revisó la ruta de solo lectura. El proxy de Codex rechazó Firebase con HTTP 403 y la sesión requiere entrada oculta del PIN. Quedan pendientes Auth, perfil admin y puntero de caja. La ronda se limitó a revisión y consultas públicas. [Script](../pruebas/firebase/remoto-cestas.cjs)
-- Siguiente acción. Ejecutar `POS_QA_SOLO_PRECHECK=1` con el administrador habitual en una terminal de confianza. [Procedimiento](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
-
-## 2026-11-25 — Incorporación de la memoria permanente
-
-- Se integraron los adjuntos con la memoria iniciada en la rama. Se conservaron las instrucciones originales y la habilidad `pos-contexto`.
-- Se contrastaron el código, los adjuntos y la evidencia de GitHub. Pasaron las comprobaciones de rutas, anclas, longitud y alcance documental.
-- Sigue pendiente validar Firebase real. La próxima acción es el precheck con el administrador habitual. [Plan de validación](VALIDACION-FINAL-V243.md#firebase-remoto-existente) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21)
-
-## 2026-11-25 — Decisión de mantener memoria permanente
-
-- Se acordaron `AGENTS.md`, `docs/ESTADO_ACTUAL.md` y `docs/BITACORA.md`, con las instrucciones compatibles del archivo que ya existía.
-- La rama añadió `pos-contexto` para recuperar y mantener la memoria. Las fuentes de etapas anteriores permanecen en `docs/memoria/`. [Habilidad](../.agents/skills/pos-contexto/SKILL.md) · [Índice](memoria/README.md)
-- Cada tarea debe actualizar estado y bitácora antes de cerrarse. [Protocolo](../AGENTS.md#flujo-permanente-chatgpt--codex)
-
-## 2026-11-25 — Prioridad de Firebase real
-
-- El propietario decidió pasar a validar el Firebase existente con datos sintéticos en el servicio real.
-- La CI conserva valor como evidencia local. Pendientes la sesión real del administrador, las revisiones de reglas y Function activas, y la matriz de ventas.
-- La decisión mantiene separada la autorización para despliegues y borrados. Primero va el precheck en solo lectura. [Instrucción y próximos pasos](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
-
-## 2026-11-25 — Alcance pospuesto
-
-- El reinicio total de fábrica se pospuso hasta terminar las validaciones y requiere autorización independiente para borrar. [Issue #26](https://github.com/kdnaskrlos/Punto-de-Venta/issues/26)
-- Pedidos Personalizados conserva su propio Firebase. La integración de Pedidos en el POS corresponde a una fase posterior. [Notas de Pedidos](superpowers/specs/2026-11-14-pedidos-en-pos-notas.md)
-- Lotes por goteo, apartados vencidos, «cliente fantasma» y tasa paralela requieren especificación comercial. [Reglas por confirmar](ESTADO_ACTUAL.md#reglas-comerciales-por-confirmar)
-
-## 2026-11-25 — Revisión de la candidata
-
-- La CI de `70ffba8` aprobó núcleo, Firestore Emulator, Chromium y generación del piloto.
-- Se corrigió el foco de la entrada en escritorio y se estabilizó la prueba de comisiones históricas. El script remoto admite la cuenta habitual del POS.
-- Las ventas de prueba contra Firebase real quedaron pendientes. [Resultados en PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21#issuecomment-7171416036) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101)
-
-## 2026-11-25 — Seguridad de la matriz remota
-
-- Se añadió un ID estable por ejecución y una confirmación explícita de escrituras sintéticas. Los productos preexistentes quedan protegidos frente a colisiones.
-- El emulador comprobó que un ID usado impide repetir la matriz y que el precheck solo lee Firestore. El procesador local fue probado con reentregas de cestas de hasta 248 SKU.
-- Falta medir el mismo comportamiento en el servicio real. [Script](../pruebas/firebase/remoto-cestas.cjs) · [Evidencia](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21#issuecomment-7171416036)
-
-## 2026-11-25 — Caja personal, datos de prueba y piloto
-
-- Se comprobó la caja personal automática con fondo cero, apertura y cierre transaccionales y cierre sin arqueo. Una caja preexistente bloquea la matriz y se puede comprobar en solo lectura. Se validaron los permisos de encargada y vendedora en el emulador. [Pruebas](../pruebas/firebase/cobros.cjs) · [CI de caja personal](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45653138434)
-- El propietario autorizó `punto-de-venta-comic-shop` y su administrador habitual. Aceptó la ausencia de respaldo durante la fase no operativa y el efecto de los registros `qa-` en informes. [Decisión](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22) · [Condiciones](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
-- WIF aprobó el intercambio OIDC. Falló el paso de respaldo y el workflow omitió el despliegue. [Ejecución WIF](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45610821324) · [Procedimiento](DESPLIEGUE-FIREBASE-WIF.md)
-- La v2.42 seguía publicada y la candidata v2.43 quedó en el PR #21 en borrador. Aprobaron núcleo, navegador y emulador. Los casos 04 y 05 de pestañas v2.35 siguieron reproduciéndose. Quedaron pendientes Firebase real, dispositivos físicos y conciliación de rutas históricas. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Criterios](VALIDACION-FINAL-V243.md#decisión-de-publicación)
+- Firebase confirmó Firestore Native en `nam5` y Hosting existente. El precheck verificó administrador activo, ausencia de caja y cero ventas ejecutadas. Codex obtuvo HTTP 403 al consultar inicialmente las reglas y la identidad WIF quedó limitada a `main`; se preparó el despliegue separado para `fa521e9`. [Procedimiento](DESPLIEGUE-FIREBASE-WIF.md) · [Precheck](VALIDACION-FINAL-V243.md#firebase-remoto-existente) · [CI del SHA](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45687488832) · [CI de reglas](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45684703207)
+- Se aprobaron en CI el núcleo, Chromium, Firestore Emulator y el piloto de `70ffba8`. El emulador cubrió la caja personal y cestas de hasta 248 SKU. La matriz real conserva IDs y requiere confirmación para las escrituras sintéticas. WIF intercambió la identidad y el fallo del respaldo omitió el despliegue. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [CI funcional](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101) · [CI de caja](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45653138434) · [Matriz](../pruebas/firebase/remoto-cestas.cjs) · [Condiciones](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
+- Se estableció la memoria permanente con `pos-contexto`, evidencia diferenciada y actualización de ambos documentos por ronda. El propietario priorizó Firebase real con datos sintéticos. [Protocolo](../AGENTS.md#flujo-permanente-chatgpt--codex) · [Fuentes](memoria/README.md) · [Autorización](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
+- El reinicio de fábrica quedó pospuesto. Pedidos Personalizados mantiene su Firebase y las nuevas reglas comerciales requieren especificación. [Issue #26](https://github.com/kdnaskrlos/Punto-de-Venta/issues/26) · [Notas de Pedidos](superpowers/specs/2026-11-14-pedidos-en-pos-notas.md) · [Reglas por confirmar](ESTADO_ACTUAL.md#reglas-comerciales-por-confirmar)

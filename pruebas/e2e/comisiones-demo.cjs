@@ -58,6 +58,19 @@ casos('comisiones-demo', [
         existencia: almacen._estado('productos').get(sku).existencia };
     }, { id: venta.id, cajaId: venta.cajaId, sku: SKU });
     a.deepStrictEqual(datos, { venta, caja: 'abierta', existencia: 11 });
+    await p.click('#com-ver-ventas');
+    const filaVenta = p.getByRole('button', { name: new RegExp(venta.numero) });
+    await filaVenta.focus();
+    await p.keyboard.press('Enter');
+    const detalle = p.locator('.ventana .rd');
+    const texto = await detalle.innerText();
+    for (const patron of [/Ana Pérez/, /@vendedora/, /Talla/, /1 × 22\.000 COP/, /Tramo 1/,
+      /Comisión normal · 4\.000 COP/, /22\.000 COP\s+Subtotal/, /Total de prendas\s+1/,
+      /Comisión pendiente\s+4\.000 COP/, /Estado de liquidación\s+Pendiente/]) a.match(texto, patron);
+    a.strictEqual(await p.locator('.ventana').count(), 1);
+    await p.getByRole('button', { name: 'Volver a las ventas' }).click();
+    a.ok(await filaVenta.evaluate(el => el === document.activeElement));
+    await p.keyboard.press('Escape');
     await p.click('#com-pagar');
     await p.waitForFunction(() => document.querySelector('.resumen-com')?.textContent.includes('Todo pagado'));
     a.deepStrictEqual(await p.evaluate(() => [...window.__pos.ctx.almacen._estado('comisiones').values()].map(x => [x.vendedor, x.monto, x.ventas])),
@@ -67,6 +80,12 @@ casos('comisiones-demo', [
     await p.reload();
     await p.waitForFunction(() => document.querySelector('.resumen-com')?.textContent.includes('Todo pagado'));
     a.strictEqual(await p.locator('#com-pagar').count(), 0);
+    await p.click('#com-ver-ventas');
+    await p.getByRole('button', { name: new RegExp(venta.numero) }).click();
+    const liquidada = await p.locator('.ventana .rd').innerText();
+    a.match(liquidada, /Comisión pagada\s+4\.000 COP/);
+    a.match(liquidada, /Comisión pendiente\s+0 COP/);
+    a.match(liquidada, /Estado de liquidación\s+Liquidada/);
   }],
   ['Roles con PIN: la vendedora y Admin ven 4.000 con la caja de la venta abierta', async (env, a) => {
     const p = await env.pagina({ query: '?demo&entrar' });
@@ -96,7 +115,8 @@ casos('comisiones-demo', [
         { id: 'normal', usuario: 'vendedora', uid: 'u-vendedora', comision: 3000 },
       ];
       datos.col.ventas = ventas.map(({ id, usuario, uid, comision }) => [id, { id, usuario, uid, estado: 'ok', fecha,
-        lineas: [{ sku: 'F-B-4', cantidad: 1, comision }], total: 22000 }]);
+        lineas: [{ sku: 'F-B-4', nombre: 'Franela', cantidad: 1, comision,
+          ...(id === 'normal' ? { color: 'Azul', reducida: true, tramo: 0 } : {}) }], total: 22000 }]);
       localStorage.setItem(clave, JSON.stringify(datos));
     });
     await p.reload();
@@ -105,6 +125,15 @@ casos('comisiones-demo', [
     a.strictEqual(await p.textContent('#com-pendiente'), '3.000');
     await p.click('#com-vendedor [data-usuario="demo"]');
     a.strictEqual(await p.textContent('#com-pendiente'), '4.000');
+    await p.click('#com-ver-ventas');
+    await p.locator('.ventana .venta-hoy').click();
+    const detalle = p.locator('.ventana .rd');
+    const historica = await detalle.innerText();
+    a.match(historica, /Comisión · 4\.000 COP/);
+    a.match(historica, /Comisión normal\s+No disponible/);
+    a.match(historica, /Comisión total\s+4\.000 COP/);
+    a.doesNotMatch(historica, /Tramo/);
+    await p.keyboard.press('Escape');
     await p.click('#com-pagar');
     await p.waitForFunction(() => document.querySelector('.resumen-com')?.textContent.includes('Todo pagado'));
     a.strictEqual(await p.locator('#com-pagar').count(), 0);
@@ -117,5 +146,15 @@ casos('comisiones-demo', [
     await p.click('#com-vendedor [data-usuario="vendedora"]');
     a.strictEqual(await p.textContent('#com-pendiente'), '3.000');
     a.strictEqual(await p.locator('#com-pagar').count(), 1);
+    await p.setViewportSize({ width: 360, height: 800 });
+    await p.click('#com-ver-ventas');
+    await p.locator('.ventana .venta-hoy').click();
+    const movil = await detalle.innerText();
+    a.match(movil, /Azul/);
+    a.match(movil, /Comisión reducida · 3\.000 COP/);
+    a.match(movil, /Comisión reducida\s+3\.000 COP/);
+    const ancho = await detalle.boundingBox();
+    a.ok(ancho.x >= 0 && ancho.x + ancho.width <= 360);
+
   }],
 ]);

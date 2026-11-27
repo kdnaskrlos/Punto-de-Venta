@@ -34,17 +34,19 @@ export function escucharVentasConCosto(ctx, { desde, hasta }, cb) {
 }
 
 const hora = iso => new Date(iso).toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: 'numeric', minute: '2-digit' }).replace('a. m.', 'am').replace('p. m.', 'pm');
-const montoConMoneda = (monto, moneda) => `${fmtMonto(monto, moneda)} ${NOMBRE_MONEDA[moneda] || moneda}`;
+const montoConMoneda = (monto, moneda) => Number.isFinite(monto)
+  ? moneda ? `${fmtMonto(monto, moneda)} ${NOMBRE_MONEDA[moneda] || moneda}` : `${monto} · Moneda sin registrar`
+  : 'No disponible';
 const filaMonto = (etiqueta, texto) => h('div', { class: 'det-fila' },
   h('span', {}, etiqueta), h('span', { class: 'num' }, texto));
 
 function sumarCop(partes, tasas) {
   const importes = partes.map(p => Number.isFinite(p.equivalenteCop)
-    ? p.equivalenteCop : aCop(p.monto, p.moneda || 'COP', tasas));
+    ? p.equivalenteCop : aCop(p.monto, p.moneda, tasas));
   return importes.every(Number.isFinite) ? importes.reduce((suma, valor) => suma + valor, 0) : null;
 }
 
-function detalleCobro(v) {
+function datosCobro(v) {
   const pagos = v.pagos || [];
   const vuelto = v.vuelto;
   const partes = (vuelto?.partes ?? (vuelto ? [vuelto] : []))
@@ -53,9 +55,15 @@ function detalleCobro(v) {
   const pagado = sumarCop(pagos, v.tasas);
   const cambio = Number.isFinite(vuelto?.equivalenteCop) ? vuelto.equivalenteCop : sumarCop(partes, v.tasas);
   const neto = pagado === null || cambio === null ? null : pagado + abonos - cambio;
+  return { pagos, partes, abonos, cambio, neto: pagos.length || abonos ? neto : null };
+}
+
+function detalleCobro(v, cobro) {
+  const { pagos, partes, abonos, cambio, neto } = cobro;
+  const vuelto = v.vuelto;
   return [
     pagos.length || abonos ? h('div', { class: 'det-grupo' }, h('span', { class: 'sec-m' }, 'Pagos recibidos'),
-      ...pagos.map(p => filaMonto(p.nombre || p.forma, montoConMoneda(p.monto, p.moneda || 'COP'))),
+      ...pagos.map(p => filaMonto(p.nombre || p.forma, montoConMoneda(p.monto, p.moneda))),
       abonos ? filaMonto('Abonos previos', montoConMoneda(abonos, 'COP')) : null) : null,
     partes.length ? h('div', { class: 'det-grupo' }, h('span', { class: 'sec-m' }, 'Vuelto entregado'),
       ...partes.map(p => filaMonto(NOMBRE_MONEDA[p.moneda] || p.moneda, `−${fmtMonto(p.monto, p.moneda)}`)),
@@ -63,14 +71,49 @@ function detalleCobro(v) {
         : filaMonto('Equivalente en COP', cambio === null ? 'No disponible' : montoConMoneda(cambio, 'COP'))) : null,
     Number.isFinite(vuelto?.remanenteCop) && vuelto.remanenteCop !== 0
       ? filaMonto('Ajuste por redondeo', montoConMoneda(vuelto.remanenteCop, 'COP')) : null,
-    pagos.length || abonos ? h('div', { class: 'det-fila det-total' }, h('span', {}, 'Importe neto cobrado'),
+    pagos.length || abonos ? h('div', { class: 'det-fila det-total' }, h('span', {}, v.estado === 'anulada' ? 'Importe neto original' : 'Importe neto cobrado'),
       h('b', { class: 'num' }, neto === null ? 'No disponible' : montoConMoneda(neto, 'COP'))) : null,
+    v.estado === 'anulada' && (Number.isFinite(v.tasas?.copPorUsd) || Number.isFinite(v.tasas?.bsPorUsd))
+      ? h('div', { class: 'det-grupo' }, h('span', { class: 'sec-m' }, 'Tasas originales'),
+        Number.isFinite(v.tasas?.copPorUsd) ? filaMonto('COP por USD', fmtMonto(v.tasas.copPorUsd, 'COP')) : null,
+        Number.isFinite(v.tasas?.bsPorUsd) ? filaMonto('Bs por USD', fmtMonto(v.tasas.bsPorUsd, 'BS')) : null) : null,
   ];
+}
+
+function mostrarDevolucion(v, cobro, cajas, destino) {
+  const { por, fecha } = v.anulacion || {};
+  const cuando = Date.parse(fecha);
+  // El movimiento histórico registra número, operador y fecha, sin el ID de venta.
+  const propios = v.numero && por && Number.isFinite(cuando) ? cajas.flatMap(c => c.movimientos || [])
+    .filter(m => m.motivo === `anulación ${v.numero}` && m.usuario === por
+      && Math.abs(Date.parse(m.fecha) - cuando) <= 60000
+      && ['entrada', 'salida'].includes(m.tipo) && Number.isFinite(m.monto) && m.monto > 0) : [];
+  const originales = [...cobro.pagos, ...cobro.partes];
+  const movimientos = propios.map(m => {
+    const partes = originales.filter(p => p.forma && p.forma === m.forma);
+    const monedas = new Set(partes.map(p => p.moneda).filter(Boolean));
+    return { ...m, nombre: m.nombre || partes.find(p => p.nombre)?.nombre || m.forma || 'Medio sin registrar',
+      moneda: m.moneda || (monedas.size === 1 ? [...monedas][0] : null) };
+  });
+  const importes = movimientos.map(m => m.moneda ? aCop(m.monto, m.moneda, v.tasas) : null);
+  const devuelto = movimientos.length && importes.every(Number.isFinite)
+    ? movimientos.reduce((suma, m, i) => suma + (m.tipo === 'salida' ? 1 : -1) * importes[i], 0) : null;
+  const final = cobro.neto === null || devuelto === null ? null : cobro.neto - devuelto;
+  destino.replaceChildren(h('div', {},
+    h('span', { class: 'sec-m' }, 'Devolución registrada'),
+    ...movimientos.map(m => filaMonto(m.tipo === 'entrada' ? `${m.nombre} · Entrada` : m.nombre,
+      (m.tipo === 'salida' ? '−' : '+') + montoConMoneda(m.monto, m.moneda))),
+    movimientos.length ? null : h('p', { class: 'nota' }, 'Sin movimientos de devolución asociados disponibles.'),
+    devuelto === null ? null : filaMonto('Devolución neta en COP', montoConMoneda(devuelto, 'COP')),
+    h('div', { class: 'det-fila det-total' }, h('span', {}, 'Importe neto final'),
+      h('b', { class: 'num' }, final === null ? 'No disponible' : montoConMoneda(final, 'COP')))));
 }
 
 // Detalle de una venta: prendas, pagos y, para gestión, "Anular venta" (la acción vive aquí, no en la lista).
 function abrirDetalle(ctx, v) {
   const anulada = v.estado === 'anulada';
+  const cobro = datosCobro(v);
+  const devolucion = anulada ? h('div', { class: 'det-grupo' }) : null;
   const filas = (v.lineas || []).map(l => h('div', { class: 'det-fila' }, h('span', {}, h('b', {}, `${l.cantidad}× `), `${l.nombre}${l.talla ? ' · Talla ' + l.talla : ''}`), h('span', { class: 'num' }, fmtCop(l.subtotal ?? l.precioUnit * l.cantidad))));
   const anular = ctx.puedeVer('anularVenta') && !anulada ? h('button', { class: 'btn danger', id: 'det-anular', onclick: e => unaVez(e.currentTarget, async () => {
     const motivo = await pedirMotivo({ titulo: `Anular ${v.numero || 'venta'}`, boton: 'Anular venta', peligro: true });
@@ -86,8 +129,14 @@ function abrirDetalle(ctx, v) {
     h('div', { class: 'det-grupo' }, ...filas),
     v.descuento?.monto ? h('div', { class: 'det-fila' }, h('span', {}, 'Descuento'), h('span', { class: 'num' }, `−${fmtCop(v.descuento.monto)}`)) : null,
     h('div', { class: 'det-fila det-total' }, h('span', {}, 'Total de la venta'), h('b', { class: 'num' }, montoConMoneda(v.total, 'COP'))),
-    ...detalleCobro(v)),
+    ...detalleCobro(v, cobro), devolucion),
     acciones: anular ? h('div', { class: 'acciones' }, anular) : null });
+  if (anulada) {
+    mostrarDevolucion(v, cobro, [], devolucion);
+    if (v.numero && v.anulacion?.fecha && ctx.almacen?.escuchar) {
+      vent.alCerrar = ctx.almacen.escuchar('cajas', cajas => mostrarDevolucion(v, cobro, cajas, devolucion));
+    }
+  }
 }
 
 // Lista de ventas: cada fila se toca para ver el detalle (y ahí, Anular).
