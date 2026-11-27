@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — v2.43.2 publicada en el POS oficial
+
+- PR #21 integrado en `main` mediante `f1a5ad7`. GitHub Pages sirve v2.43.2 desde `60b21c4`, con ventas atómicas habilitadas y Service Worker con recuperación de caché. [PR](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Publicación](https://github.com/kdnaskrlos/Punto-de-Venta/commit/60b21c4582ef9957a1362e324837d61deeeccae8)
+- CI del PR aprobada. El propietario confirmó el respaldo de Firestore del 27/11/2026 y que las pruebas en producción son satisfactorias hasta el momento. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46075284193)
+- Fase de pilotos cerrada. Queda únicamente retirar `piloto-v243` tras confirmar estabilidad del POS oficial y conciliar las operaciones locales del piloto. [Retirada](PUBLICACION-V2.43.2.md#retirar-el-piloto-existente)
+
 ## 2026-11-27 — Cierre de pilotos y corte supervisado del POS oficial
 
 - El propietario cerró la fase de pilotos y decidió verificar la transición a v2.43.2 en el POS oficial, en PC y Android durante el corte.
@@ -128,19 +134,10 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 - Pasaron sintaxis y cinco escenarios con APIs simuladas. La iteración se limitó a documentación y preparación del diagnóstico.
 - Siguiente acción. Ejecutar el bloque de diagnóstico en Cloud Shell y compartir su salida.
 
-## 2026-11-25 — Corrección de la validación IAM del alta de la función
+## 2026-11-25 — Autorización y comprobación IAM de procesarVentaPos
 
-- El propietario informó que la comprobación de formato rechazó la cuenta predeterminada de Compute Engine antes del alta. Confirmó que Policy Troubleshooter está habilitada.
-- Se sustituyó la restricción de dominio por la verificación de pertenencia y estado en IAM y se agruparon los bloqueos de permisos antes del alta.
-- Pasaron sintaxis y seis escenarios con APIs simuladas. El despliegue autorizado y los permisos efectivos siguen pendientes de comprobación desde Cloud Shell.
-- Siguiente acción. Ejecutar el bloque corregido y compartir la salida. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
-
-## 2026-11-25 — Autorización exclusiva de procesarVentaPos v2.43
-
-- El propietario autorizó solo `procesarVentaPos` en `punto-de-venta-comic-shop` para `fa521e96c86e4052934ec9dcd080aceba06e7443`. Las reglas siguen pendientes de autorización.
-- Se preparó el bloque de Cloud Shell para comprobar IAM, solicitudes, compatibilidad y estado, crear solo la función y verificar Cloud Run y Eventarc por metadatos. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
-- Pasaron sintaxis y tres escenarios con APIs simuladas. La ejecución y el resultado de Firebase real quedan pendientes.
-- Siguiente acción. Ejecutar el bloque en Cloud Shell y compartir la salida estructural o el bloqueo.
+- Se autorizó solo `procesarVentaPos` en `punto-de-venta-comic-shop` para `fa521e9`. El alta por Cloud Shell comprueba IAM, solicitudes y estado, y verifica Cloud Run y Eventarc por metadatos. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
+- El preflight sustituyó la restricción de dominio de la cuenta predeterminada de Compute Engine por la verificación de pertenencia y estado en IAM. Pasaron las pruebas de sintaxis y los escenarios con APIs simuladas.
 
 ## 2026-11-25 — Preparación y precheck de Firebase real
 

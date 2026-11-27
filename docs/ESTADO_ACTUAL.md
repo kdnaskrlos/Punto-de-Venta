@@ -1,8 +1,8 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 27-11-2026.** El propietario cerró la fase de pilotos y decidió verificar la transición de la candidata v2.43.2 directamente en PC y Android durante el corte supervisado del POS oficial. [Bitácora](BITACORA.md)
-- **Versión publicada registrada** v2.42. **Candidata** v2.43.2 en `integracion/pos-auditoria`, con el PR #21 en borrador. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21)
-- **Prioridad** publicar v2.43.2 en el mismo origen, con ventas procesadas y reversión a v2.42.
+- **Actualizado el 27-11-2026.** El POS oficial sirve **v2.43.2** en GitHub Pages desde el commit estático `60b21c4582ef9957a1362e324837d61deeeccae8`. [POS oficial](https://kdnaskrlos.github.io/Punto-de-Venta/) · [Publicación](https://github.com/kdnaskrlos/Punto-de-Venta/commit/60b21c4582ef9957a1362e324837d61deeeccae8)
+- **Código fuente.** El PR #21 se integró en `main` mediante `f1a5ad7`. Las próximas sesiones parten de `main` y de v2.43.2 en producción. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Versión](../js/version.js)
+- **Cierre de pilotos.** El propietario confirmó que las pruebas en producción son satisfactorias hasta el momento y dio por cerrada la fase de pilotos. [Bitácora](BITACORA.md)
 
 ## Funcionalidades implementadas
 
@@ -14,25 +14,25 @@
 | Apartados | Reserva de existencias, abonos, liquidación en una venta y cancelación con devolución de stock según el flujo. [Apartados](../js/vistas/apartados.js) · [Almacén Firebase](../js/datos/firebase.js) |
 | PWA y sincronización | Caché de recursos versionados, persistencia local, recuperación de carritos, cola de operaciones, IDs estables y conflictos conciliables. [Service worker](../sw.js) · [Recuperación](RECUPERACION-PWA.md) · [Guía](../GUIA.md) |
 
-## Qué agrega la candidata v2.43
+## Qué incorpora v2.43.2 en producción
 
-- La ruta procesada se habilita con `firebaseConfig.ventasAtomicas`. `procesarVentaPos` valida el comprobante con los datos de servidor y confirma venta, movimientos e inventario en una transacción. El rechazo por stock conserva el comprobante y la reentrega conserva el ID. El código mantiene la ruta directa para clientes históricos. [Procesador](../funciones/ventas.cjs) · [Auditoría](AUDITORIA-BLOQUE-1.md)
+- La configuración oficial tiene `ventasAtomicas: true`. `procesarVentaPos` valida el comprobante con los datos de servidor y confirma venta, movimientos e inventario en una transacción. El rechazo por stock conserva el comprobante y la reentrega conserva el ID. El código mantiene la ruta directa para clientes históricos. [Procesador](../funciones/ventas.cjs) · [Auditoría](AUDITORIA-BLOQUE-1.md)
 - El precheck del administrador comprueba su perfil y el estado de su caja mediante lecturas de Firestore. La matriz exige confirmación de escrituras e ID estable de ejecución. Protege cajas y productos preexistentes y permite conciliar reintentos. [Script remoto](../pruebas/firebase/remoto-cestas.cjs) · [Procedimiento](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
-- La candidata mejora la recuperación del shell ante un 503 y de borradores de varias pestañas. Continúa la limitación de v2.35 cuando una pestaña aún ejecuta el JavaScript antiguo. [Recuperación PWA](RECUPERACION-PWA.md) · [Migración supervisada](VALIDACION-FINAL-V243.md#puerta-de-migración-supervisada-desde-v235)
+- El Service Worker verifica la integridad de los recursos y repara la caché con archivos de su propia publicación. La versión también mejora la recuperación de borradores entre pestañas. Continúa la limitación de v2.35 cuando una pestaña aún ejecuta el JavaScript antiguo. [Recuperación PWA](RECUPERACION-PWA.md) · [Migración supervisada](VALIDACION-FINAL-V243.md#puerta-de-migración-supervisada-desde-v235)
 
 ## Evidencia de validación
 
-- Pasó la CI de `55a66a6`, revisión aprobada con la recuperación de caché. Era el HEAD del PR #21 al iniciar el cierre de pilotos. La revisión documental se integra con sus propios controles. [CI de la candidata](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46073890069) · [CI del piloto](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46063452609)
+- GitHub Actions confirmó la CI de la recuperación de caché (`55a66a6`) y del HEAD integrado por el PR #21 (`4ec6605`). Se cotejaron `index.html`, `sw.js` y `config.js` de la URL oficial con el commit publicado y se verificó el módulo de versión. [CI de la corrección](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46073890069) · [CI del PR integrado](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46075284193)
 - Pasó la CI del receptor CloudEvent nativo en `a8b5330aeebdfa889d25d90debd96e2909506289`. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45918790033)
 - En la revisión funcional `70ffba8` aprobaron 174/174 unitarias, 37/37 de Firestore Emulator, 181/181 funcionales de Chromium, 5/5 de actualización PWA y 25/25 del puente. Pasó la generación del piloto de demostración. [GitHub Actions](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101) · [Artefacto](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101/artifacts/15042164279)
 - La suite histórica obtuvo 6/8. Los casos 04 y 05 de pérdida de borrador en pestañas v2.35 siguen reproduciéndose. El ensayo del procesador en el emulador cubrió 18 tamaños hasta 248 SKU, reentregas y el rechazo íntegro con el último SKU agotado. [Resultados del PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21#issuecomment-7171416036)
 
-## Firebase real y publicación pendientes
+## Firebase real y antecedentes de validación
 
 - **Precheck real v2.43 aprobado según la salida de Cloud Shell aportada por el propietario.** En `punto-de-venta-comic-shop`, `modo: solo-lectura`, `adminActivo: true`, `cajaPersonalExistente: false`, `cajaFisicaExistente: false`, `sinPunteroDeCaja: true` y `ventasEjecutadas: 0`. La ausencia del puntero corresponde al administrador habitual. [Script](../pruebas/firebase/remoto-cestas.cjs)
 
 - El propietario autorizó datos sintéticos en `punto-de-venta-comic-shop` (Blaze) y el uso de su administrador habitual. Aceptó la ausencia de respaldo solo para esta fase no operativa. La matriz requiere verificar el proyecto, la caja, las colas y el efecto de los registros `qa-` en reportes. [Condiciones de la prueba](VALIDACION-FINAL-V243.md#firebase-remoto-existente) · [Decisión](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
-- El WIF de `main` exige `refs/heads/main` y que el SHA de ejecución, el SHA autorizado y el checkout coincidan. El proveedor documentado también limita la confianza a `main`. El workflow vigente no permite desplegar la candidata del PR #21 desde esa rama. El intercambio OIDC aprobado en la ejecución 45610821324 acredita identidad, con alcance distinto de los permisos efectivos de despliegue. [Workflow](https://github.com/kdnaskrlos/Punto-de-Venta/blob/main/.github/workflows/desplegar-firebase-pos.yml) · [Ejecución WIF](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45610821324)
+- El WIF de `main` exige `refs/heads/main` y que el SHA de ejecución, el SHA autorizado y el checkout coincidan. El proveedor documentado también limita la confianza a `main`. Durante la fase de integración, ese flujo no permitía desplegar la candidata desde su rama. El intercambio OIDC aprobado en la ejecución 45610821324 acredita identidad, con alcance distinto de los permisos efectivos de despliegue. [Workflow](https://github.com/kdnaskrlos/Punto-de-Venta/blob/main/.github/workflows/desplegar-firebase-pos.yml) · [Ejecución WIF](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45610821324)
 - **Inventario anterior al despliegue, aportado desde Cloud Shell.** `punto-de-venta-comic-shop` tiene Firestore `(default)` en modo `FIRESTORE_NATIVE`, ubicación `nam5`, Hosting existente y 14 colecciones raíz. En esa lectura, las reglas del 16-11-2026 diferían de la candidata y las listas de Functions estaban vacías.
 - **Función activa según Cloud Shell.** `procesarVentaPos` usa el receptor CloudEvent nativo del SHA `a8b5330aeebdfa889d25d90debd96e2909506289`. Eventarc entregó y procesó automáticamente la venta de control.
 - **Verificación estructural real aprobada según Cloud Shell.** El verificador terminó con `fallos: []` y `pendientes: []`, incluido el transporte Pub/Sub. Se registraron la restauración de los agentes administrados de Cloud Functions y Eventarc y el ruleset activo identificado para reversión. Cloud Shell informó 12 respuestas 5xx en el transporte y HTTP 500 en Cloud Run durante la prueba, con cero errores vinculados directamente al ID de venta. [Verificador](../scripts/verificar-funcion-v243-cloud-shell.py)
@@ -52,12 +52,12 @@
 - **Conciliación real completada.** Cloud Shell confirmó las dos solicitudes pendientes como `V-0006` y `V-0007`, con pagos verificados, inventario correcto y sin duplicados ni conflictos.
 
 - **Piloto v2.43.2 aprobado por el propietario en PC y Android.** Confirmó ventas offline, cierre y reapertura sin conexión, sincronización, inventario, caja y comisiones. Las pruebas de la vendedora y la consulta administrativa también quedaron aprobadas. [Piloto](https://punto-de-venta-comic-shop--piloto-v243-n8egt6cf.web.app)
-- **Incidencia de arranque v2.42.** PC y Android mostraron un 503. En Android el bypass y desregistrar solo el worker desbloquearon el acceso. Se reprodujo el 503 con la caché del shell ausente. La candidata comprueba la integridad de cada recurso y repara su caché con un conjunto de la misma versión. [Recuperación](RECUPERACION-PWA.md)
-- **Configuración de publicación preparada.** `ventasAtomicas: true` está en la configuración de producción y se regeneró la huella de la PWA. Se verificaron los puntos de entrada públicos de v2.42 frente a su artefacto en Git y se preparó la reversión conservando ambos grafos. [Procedimiento](PUBLICACION-V2.43.2.md)
-- **Indispensable antes del corte.** Falta evidencia actual de la conciliación de todas las colas por terminal y cuenta, de un respaldo vigente de Firestore y de la rama configurada en Settings → Pages. Si aún hay clientes v2.35, requieren migración supervisada antes de cerrar sus pestañas. El PR #21 y Pages se promueven con autorización del propietario y CI de la revisión preparada. [Controles](PUBLICACION-V2.43.2.md#antes-de-autorizar)
-- **Retirada del piloto.** Cuando el POS oficial esté estable y las operaciones del origen del piloto estén conciliadas, retirar exclusivamente el canal `piloto-v243`. Los registros sintéticos se conservan. [Retirada](PUBLICACION-V2.43.2.md#retirar-el-piloto-existente)
+- **Incidencia de arranque v2.42.** PC y Android mostraron un 503. En Android el bypass y desregistrar solo el worker desbloquearon el acceso. Se reprodujo el 503 con la caché del shell ausente. La v2.43.2 comprueba la integridad de cada recurso y repara su caché con un conjunto de la misma versión. [Recuperación](RECUPERACION-PWA.md)
+- **Respaldo de producción.** El propietario confirmó el respaldo de Firestore `(default)` del **27/11/2026** para `punto-de-venta-comic-shop`. El procedimiento de reversión a v2.42 conserva los recursos versionados. [Publicación y reversión](PUBLICACION-V2.43.2.md#revertir-si-falla-el-corte)
 
-**Siguiente acción.** Confirmar el respaldo de Firestore, las colas del POS oficial y la fuente de Pages para ejecutar el corte supervisado. [Publicación](PUBLICACION-V2.43.2.md#publicar-con-autorización)
+## Único pendiente operativo
+
+**Retirar `piloto-v243`** cuando se confirme la estabilidad del POS oficial y se concilien por ID las operaciones locales de cada terminal y cuenta en el origen del piloto. La retirada se limita al canal de vista previa y conserva los registros. [Retirada](PUBLICACION-V2.43.2.md#retirar-el-piloto-existente)
 
 ## Reglas comerciales por confirmar
 
@@ -66,7 +66,7 @@
 - Lotes mayoristas abiertos por goteo, preventas, entregas parciales y agrupación de ventas para impedir fragmentación indebida.
 - Precios, reservas, anticipos, saldos y liquidación de operaciones parciales. Atribución y reversión de comisiones cuando distintas personas reciben el abono y el saldo del apartado.
 
-Las reglas vigentes están en [AGENTS.md](../AGENTS.md#reglas-comerciales-vigentes). Las fuentes históricas describen etapas anteriores y se contrastan con el código y las pruebas de la candidata. [Memoria histórica](memoria/README.md) · [Notas de Pedidos](superpowers/specs/2026-11-14-pedidos-en-pos-notas.md)
+Las reglas vigentes están en [AGENTS.md](../AGENTS.md#reglas-comerciales-vigentes). Las fuentes históricas describen etapas anteriores y se contrastan con el código y las pruebas de la versión vigente. [Memoria histórica](memoria/README.md) · [Notas de Pedidos](superpowers/specs/2026-11-14-pedidos-en-pos-notas.md)
 
 ## Fuera de la fase actual
 
