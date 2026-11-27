@@ -18,10 +18,19 @@ La fase 1 está **completada operativamente** en v2.43.2. La clasificación dist
 | **2.8 · Caja y gestión financiera avanzada** | Conciliación electrónica, transferencias, gastos y movimientos de varias monedas. | Movimientos enlazados, autorizaciones y tasas históricas |
 | **2.9 · Inventario avanzado** | Daños, bajas, consumo, disponibilidad y ubicaciones si se aprueban. | Clasificación de movimientos y política de inventario |
 | **2.10 · Reportes avanzados** | Rentabilidad, períodos y cierres a partir de los flujos ya conciliados. | Fuentes verificadas y definición contable de cada indicador |
+| **2.11 · Rediseño integral y unificación visual** | Armonizar las pantallas existentes con el Design System aprobado. | Prototipos aprobados y pruebas de regresión de los flujos vigentes |
 | **3 · Tienda Online** | Disponibilidad y reservas por canal con inventario compartido. | Política por canal y garantía contra doble reserva |
 | **4 · Integración de Pedidos Personalizados** | Cotización y diseño, taller, anticipos, entrega, identidad común y migración. | Permisos, fuentes de datos, conciliación y corte reversible |
 
 Al implementar un bloque, habilita solo aquello cuyas dependencias ya estén aprobadas y disponibles. Por ejemplo, el reintegro por saldo a favor depende de 2.6, la comisión a crédito de un registro conciliable de deuda y los reportes de cada fuente financiera. La ficha de Clientes puede avanzar con ventas y apartados existentes. El ID común entre POS y Pedidos, la migración y las nuevas escrituras financieras quedan en sus bloques.
+
+<a id="diseno-transversal"></a>
+
+## Diseño UI/UX transversal
+
+1. **Después de 2.0 y antes de iniciar 2.1 Clientes.** Definir y aprobar el nuevo Design System. Su referencia futura será `docs/DESIGN_SYSTEM.md`. Documentará componentes, patrones, estados de interfaz y criterios de accesibilidad para PC y móvil.
+2. **Durante la fase 2.** Diseñar las nuevas interfaces con el Design System aprobado. Revisar cada diseño en un prototipo HTML independiente e interactivo, con datos sintéticos y sin conexión al POS. Trasladarlo al producto después de la aprobación del propietario.
+3. **En 2.11.** Rediseñar y unificar visualmente las pantallas existentes por grupos de flujos. Preservar la lógica comercial, la arquitectura, la persistencia, la seguridad, los datos, la sincronización offline y todas las funcionalidades existentes. La aceptación incluirá regresiones de los flujos afectados.
 
 <a id="bloque-20-consolidacion"></a>
 
@@ -43,7 +52,7 @@ La entrada en 2.0 requiere un riesgo concreto en una función operativa, con evi
 | [ESC-107](ESCENARIOS_COMERCIALES.md#esc-107) · Acceso a la ficha | Aprobar quién puede ver contacto, ventas y apartados. Base propuesta: administración y encargada consultan el historial, vendedora busca y selecciona para cobrar. La exportación se reserva para su propia aprobación. | Cotejar la consulta propuesta con las reglas existentes. Al implementar, cubrir positivo y negativo por rol, incluso acceso directo y cambio de sesión. Clientes y apartados permiten lectura a cuentas activas en las reglas actuales; una nueva restricción de servidor necesita aprobación y pruebas. [Reglas actuales](../firestore.rules) |
 | [ESC-172](ESCENARIOS_COMERCIALES.md#esc-172) · Identidad local | Aprobar coincidencia por teléfono normalizado y aislar casos ambiguos, compartidos, reasignados o con número cambiado para revisión. La coincidencia de nombre sirve para búsqueda. | Contrastar el contrato actual y probar con datos sintéticos un homónimo y un teléfono ambiguo. Vincular de forma automática solo operaciones cuya correspondencia se pueda comprobar. El ID intersistemas y la migración integral siguen en fase 4. [Captura](../js/vistas/cliente.js) · [Normalización](../js/nucleo/recibo.js) |
 
-El diseño de consultas podrá comenzar al aprobar esos límites. La protección del historial (ESC-098) y la continuidad (ESC-103/104) se reutilizan como garantías con regresiones dirigidas en la implementación. La paginación y la caché parcial (ESC-108) son criterios del propio bloque. Quedaría bloqueado el arranque solo si una revisión dirigida demuestra que estas garantías fallan dentro de la ficha propuesta. El cierre completo de 2.0 queda fuera de la puerta de Clientes.
+El bloque 2.1 podrá comenzar tras completar 2.0, aprobar el Design System y acordar ambos límites. La protección del historial (ESC-098) y la continuidad (ESC-103/104) se reutilizan como garantías con regresiones dirigidas en la implementación. La paginación y la caché parcial (ESC-108) son criterios del propio bloque. Quedaría bloqueado el arranque solo si una revisión dirigida demuestra que estas garantías fallan dentro de la ficha propuesta. 2.0 conserva su alcance acotado a brechas demostrables del núcleo.
 
 <a id="bloque-21-clientes"></a>
 

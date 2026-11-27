@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Diseño UI/UX transversal
+
+- Se incorporó la definición del Design System tras 2.0 y antes de Clientes, su uso en fase 2 y la unificación visual de pantallas existentes en 2.11. [Plan](PLAN_MAESTRO.md#diseno-transversal)
+- El protocolo prevé consultar `docs/DESIGN_SYSTEM.md` cuando exista y aprobar prototipos HTML independientes antes de trasladarlos al POS. Se verificaron los enlaces y la secuencia del plan.
+- Siguiente acción. Acotar las brechas de 2.0 para preparar el hito de diseño.
+
 ## 2026-11-27 — Clasificación por bloque y mínimos de Clientes
 
 - Se clasificaron los 180 escenarios con fase, bloque, dependencias, carácter bloqueante, riesgo de adelantarlo y evidencia reutilizada. Fase 1 sigue completada operativamente en v2.43.2. [Catálogo](ESCENARIOS_COMERCIALES.md#clasificación-y-seguimiento)
