@@ -85,13 +85,15 @@ casos('perfiles-demo', [
       await p.click('.side [aria-label="Mi cuenta"]');
       a.strictEqual(await p.locator('.probar, #mi-pin, #modo-demo').count(), 0);
       a.ok(await p.locator('#aviso-demo').isHidden());
+      const hojaCuenta = p.getByRole('dialog', { name: 'Mi cuenta', exact: true });
       await p.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
+      await hojaCuenta.waitFor({ state: 'detached' });
       await entrarComo(p, 'admin');
       await p.click('.side [aria-label="Mi cuenta"]');
       a.strictEqual(await p.locator('.probar').count(), 0);
       a.ok(await p.locator('#mi-pin').isVisible());
       await p.keyboard.press('Escape');
-      await p.locator('.hoja[aria-label="Mi cuenta"]').waitFor({ state: 'detached' });
+      await hojaCuenta.waitFor({ state: 'detached' });
 
       await ir(p, '/ajustes');
       await p.click('#modo-demo');

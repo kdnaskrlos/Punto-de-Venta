@@ -115,3 +115,10 @@ test('bloque 3 · repartir el piso exacto entre tallas sin crear ni perder pesos
   assert.equal(cv.reduce((s, l) => s + l.comision, 0), 20000);
   assert.deepEqual(cv.map(l => l.comision), [6666, 13334]);
 });
+
+test('la oferta porcentual conserva el piso de cinco prendas con el mismo redondeo del carrito', () => {
+  const productos = { s: { precios: [22000, 20000], oferta: { activa: true, pct: 2 },
+    comisiones: [{ tipo: 'Porcentaje', valor: 10 }, { tipo: 'Fijo', valor: 1000 }] } };
+  const linea = { sku: 's', cantidad: 6, tramo: 1, precioUnit: 19600, subtotal: 117600, oferta: true };
+  assert.equal(comisionesVenta([linea], productos)[0].comision, 10800);
+});

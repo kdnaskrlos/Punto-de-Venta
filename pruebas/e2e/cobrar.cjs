@@ -55,6 +55,18 @@ casos('cobrar', [
     await p.click('text=Nueva venta');
     a.strictEqual(await p.$('.lado-carrito .linea'), null);
   }],
+  ['Un cobro local muestra pendiente y permite conservar el comprobante', async (env, a) => {
+    const p = await preparar(env);
+    await p.evaluate(() => {
+      window.__pos.ctx.almacen.guardarVenta = async () => ({ ok: true, offline: true, estadoSync: 'local_pendiente' });
+    });
+    await p.click('[data-cobro] .cobrar');
+    await p.click('.forma[data-forma="efectivo-cop"]');
+    await p.click('#cobrar-final');
+    await p.getByRole('heading', { name: 'Venta pendiente de sincronización' }).waitFor();
+    a.strictEqual(await p.getByRole('heading', { name: 'Venta exitosa' }).count(), 0);
+    a.ok((await p.getAttribute('a.recibo', 'href')).startsWith('https://wa.me/'));
+  }],
   ['Doble clic rápido en Cobrar: una sola venta', async (env, a) => {
     const p = await preparar(env);
     await p.click('[data-cobro] .cobrar');
@@ -132,9 +144,9 @@ casos('cobrar', [
     const igual = await p.waitForSelector('button:has-text("Cobrar igual")', { timeout: 3000 }).catch(() => null);
     if (igual) await igual.click();
     await p.waitForSelector('text=Venta exitosa');
-    a.strictEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('pos-pendientes-vendedora') || '[]').length), 1, 'queda anotada para revisar');
+    a.strictEqual(await p.evaluate(() => JSON.parse(localStorage.getItem('pos-demo-pendientes-vendedora') || '[]').length), 1, 'queda anotada para revisar');
     await p.evaluate(async () => { window.__pos.ctx.almacen.simularSinConexion(false); const m = await import('/js/datos/pendientes.js'); await m.revisarPendientes(window.__pos.ctx); });
-    a.strictEqual(await p.evaluate(() => localStorage.getItem('pos-pendientes-vendedora')), null, 'revisada');
+    a.strictEqual(await p.evaluate(() => localStorage.getItem('pos-demo-pendientes-vendedora')), null, 'revisada');
     const cf = await p.evaluate(() => [...window.__pos.ctx.almacen._estado('conflictos').values()]);
     a.strictEqual(cf.length, 1); a.strictEqual(cf[0].tipo, 'inventario');
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);

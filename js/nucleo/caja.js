@@ -37,3 +37,22 @@ export function diferenciasCierre(esperado, contado, formasPago, tasas) {
   }
   return { filas, totalEsperadoCop, totalContadoCop, totalCop, totalIncompleto };
 }
+
+
+export function devolucionNeta(venta, apartado) {
+  const neto = new Map();
+  const sumar = (p, signo) => neto.set(p.forma, (neto.get(p.forma) || 0) + signo * p.monto);
+  for (const p of [...(apartado?.abonos || []), ...(venta.pagos || [])]) sumar(p, 1);
+  for (const p of venta.vuelto?.partes || (venta.vuelto?.monto ? [venta.vuelto] : [])) sumar(p, -1);
+  return [...neto].map(([forma, monto]) => [forma, Math.round(monto * 100) / 100]).filter(([, monto]) => monto);
+}
+
+// El contado es histórico. El esperado se reconstruye con los cobros ya sincronizados.
+export function conciliarCierre(caja, ventas, abonos, formas, tasas) {
+  const cierre = caja.cierre || {};
+  if (cierre.porArquear || !cierre.contado) return cierre;
+  const configuradas = cierre.formasArqueo || formas;
+  const esperado = esperadoCaja(caja, ventas, abonos, configuradas);
+  const visibles = configuradas.filter(f => f.efectivo || f.id in cierre.contado || esperado[f.id]);
+  return { ...cierre, ...diferenciasCierre(esperado, cierre.contado, visibles, cierre.tasasArqueo || tasas) };
+}

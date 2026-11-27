@@ -27,3 +27,8 @@ test('v2.09 · el descuento no se reparte a prendas «separado» (subtotal 0 en 
   const partes = repartirDescuento([{ subtotal: 48000 }, { subtotal: 0 }, { subtotal: 42000 }], 9000);
   assert.deepEqual(partes, [4800, 0, 4200]);
 });
+
+test('2 COP repartidos entre cuatro líneas nunca se convierten en recargo', () => {
+  const lineas = Array.from({ length: 4 }, () => ({ subtotal: 22000 }));
+  assert.deepEqual(repartirDescuento(lineas, 2), [1, 1, 0, 0]);
+});

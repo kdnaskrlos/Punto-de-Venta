@@ -46,7 +46,7 @@ export function pantallaEntrada(raiz, ctx, { demo }) {
   const motivo = ctx.almacen.motivoSalida?.();
   if (motivo) error('pin', `Se cerró la sesión: no se pudo cargar tu perfil (${motivo})`);
   // En el teléfono no se abre el teclado solo: la persona toca el campo cuando quiere escribir.
-  if (!esTelefono()) setTimeout(() => form.querySelector('#entrar-usuario')?.focus(), 30);
+  if (!esTelefono()) form.querySelector('#entrar-usuario').focus();
 }
 
 export function pantallaPrimerAdmin(raiz, ctx) {

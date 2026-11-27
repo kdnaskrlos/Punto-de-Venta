@@ -1,3 +1,6 @@
 .superpowers/
 node_modules/
 *.log
+
+# Credenciales efímeras emitidas por GitHub Actions WIF.
+gha-creds-*.json

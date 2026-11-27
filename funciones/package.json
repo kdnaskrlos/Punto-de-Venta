@@ -1,0 +1,15 @@
+{
+  "name": "punto-de-venta-ventas",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.cjs",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "5.0.5",
+    "firebase-admin": "14.5.1",
+    "firebase-functions": "7.4.0",
+    "protobufjs": "7.6.6"
+  }
+}

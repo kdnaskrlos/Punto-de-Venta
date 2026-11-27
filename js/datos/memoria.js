@@ -1,5 +1,6 @@
 // Almacén en memoria: modo demostración y pruebas. Cumple el mismo contrato que firebase.js
 // y aplica los mismos permisos, para que las pantallas se comporten igual en ambos.
+import { devolucionNeta } from '../nucleo/caja.js';
 import { puede } from '../nucleo/permisos.js';
 import { diaLocal, finDia } from '../nucleo/fechas.js';
 import { telefonoInternacional } from '../nucleo/recibo.js';
@@ -123,6 +124,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
   const exigir = accion => (!sesion ? 'sesion' : !puede(rol(), accion) ? 'permiso' : null);
 
   const api = {
+    esDemostracion: true,
     nuevoId,
     _estado: nombre => col[nombre],
 
@@ -236,15 +238,13 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       const original = col.cajas.get(v.cajaId);
       const caja = original?.estado === 'abierta' ? original : cajaAbierta(sesion.uid);
       if (!caja) return NO('sin-caja');
-      const neto = {};
-      for (const p of v.pagos || []) neto[p.forma] = (neto[p.forma] || 0) + p.monto;
-      if (v.vuelto?.partes) {
-        for (const p of v.vuelto.partes) neto[p.forma] = (neto[p.forma] || 0) - p.monto;
-      } else if (v.vuelto?.monto) neto[v.vuelto.forma] = (neto[v.vuelto.forma] || 0) - v.vuelto.monto;
-      for (const [forma, monto] of Object.entries(neto)) {
-        const m = Math.round(monto * 100) / 100;
-        if (m) caja.movimientos.push({ tipo: m > 0 ? 'salida' : 'entrada', forma, monto: Math.abs(m), motivo: `anulación ${v.numero || ''}`.trim(), usuario: sesion.usuario, fecha: ahora() });
-      }
+      const apartado = v.desdeApartado ? col.apartados.get(v.desdeApartado) : null;
+      if (v.desdeApartado && (!apartado || apartado.ventaId !== id)) return NO('apartado');
+      const movs = devolucionNeta(v, apartado).map(([forma, monto]) => ({
+        tipo: monto > 0 ? 'salida' : 'entrada', forma, monto: Math.abs(monto),
+        motivo: `anulación ${v.numero || ''}`.trim(), usuario: sesion.usuario, fecha: ahora(),
+      }));
+      caja.movimientos.push(...movs);
       for (const [sku, n] of Object.entries(porSku(v.lineas))) mover(sku, n, 'anulación', id, motivo);
       v.estado = 'anulada';
       v.anulacion = { por: sesion.usuario, motivo, fecha: ahora() };
@@ -464,6 +464,12 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
     },
     async pagarComisiones(reg) {
       const e = exigir('pagarComisiones'); if (e) return NO(e);
+      const ventas = reg.ventas || [];
+      if (!ventas.length || new Set(ventas).size !== ventas.length) return NO('datos');
+      if ([...col.comisiones.values()].some(p => p.vendedor === reg.vendedor && ventas.some(id =>
+        Array.isArray(p.ventas) ? p.ventas.includes(id)
+          : col.ventas.has(id) && diaLocal(col.ventas.get(id).fecha) >= p.desde && diaLocal(col.ventas.get(id).fecha) <= p.hasta,
+      ))) return NO('ya-pagada');
       const id = nuevoId();
       col.comisiones.set(id, { ...copia(reg), id, por: sesion.usuario, fecha: ahora() });
       escribio(); avisar('comisiones');

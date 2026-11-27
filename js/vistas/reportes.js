@@ -7,7 +7,7 @@ import { resumenDia, masVendidos, inventarioBajo, valorInventario, ventasPorPeri
 import { resumenComisiones, ganaComision } from '../nucleo/comisiones.js';
 import { fmtCop, fmtMonto } from '../nucleo/dinero.js';
 import { NOMBRE_MONEDA, iconoForma } from '../nucleo/formas.js';
-import { hoy, sumarDias, rangoCorto, inicioDia } from '../nucleo/fechas.js';
+import { hoy, sumarDias, rangoCorto, inicioDia, fechaHora } from '../nucleo/fechas.js';
 import { abrirCalendarioRango } from './calendario.js';
 import { escucharVentasConCosto, listaVentas } from './ventas-rango.js';
 import { abrirActividad } from './actividad.js';
@@ -198,6 +198,54 @@ registrarVista('/reportes', {
 // Algunas copias locales conservan ventas registradas por el usuario simulado.
 const esVentaDemoHistorica = v => v.usuario === 'demo' && v.uid === 'u-demo';
 
+function abrirComisionesPorVenta(ventas, quien, filtro, pagos, totalPeriodo) {
+  const panel = h('div', { class: 'rd' });
+  const valorCop = m => Number.isFinite(m) ? `${fmtCop(m)} COP` : 'No disponible';
+  const fila = (etiqueta, valor) => h('div', { class: 'det-fila' }, h('span', {}, etiqueta), h('b', { class: 'num' }, valor));
+  const detalle = (v, indice) => {
+    const lineas = v.lineas || [];
+    const completo = lineas.length > 0 && lineas.every(l => Number.isFinite(l.comision));
+    const clasificado = completo && lineas.every(l => !l.comision || typeof l.reducida === 'boolean');
+    const r = resumenComisiones([v], filtro, pagos);
+    const volver = h('button', { type: 'button', class: 'btn', onclick: () => lista(indice) }, 'Volver a las ventas');
+    panel.replaceChildren(
+      volver,
+      rdTotal(v.numero || 'Venta sin número', valorCop(v.total), v.cliente?.nombre || 'Sin cliente'),
+      h('p', { class: 'nota' }, [v.fecha ? fechaHora(v.fecha) : null, v.usuario ? `${quien} · @${v.usuario}` : null].filter(Boolean).join(' · ')),
+      ...lineas.map(l => rdFila({ ic: 'recibo', nombre: l.nombre || l.sku || 'Producto sin identificación',
+        detalle: [l.color, l.talla ? `Talla ${l.talla}` : null,
+          Number.isFinite(l.cantidad) ? `${l.cantidad} × ${valorCop(l.precioUnit)}` : null,
+          Number.isInteger(l.tramo) && l.tramo >= 0 ? `Tramo ${l.tramo + 1}` : null].filter(Boolean).join(' · '),
+        extra: h('small', {}, `Comisión${l.reducida === true ? ' reducida' : l.reducida === false ? ' normal' : ''} · ${valorCop(l.comision)}`),
+        valor: valorCop(l.subtotal), sub: 'Subtotal' })),
+      fila('Total de prendas', lineas.length && lineas.every(l => Number.isFinite(l.cantidad)) ? String(r.prendas) : 'No disponible'),
+      fila('Comisión normal', valorCop(clasificado ? r.normal : null)),
+      fila('Comisión reducida', valorCop(clasificado ? r.reducida : null)),
+      fila('Comisión total', valorCop(completo ? r.total : null)),
+      fila('Comisión pagada', valorCop(completo ? r.pagado : null)),
+      fila('Comisión pendiente', valorCop(completo ? r.pendiente : null)),
+      fila('Estado de liquidación', !completo ? 'No disponible' : !r.total ? 'Sin comisión' : r.pendiente ? 'Pendiente' : 'Liquidada'));
+    panel.closest('.cuerpo').scrollTop = 0;
+    volver.focus();
+  };
+  function lista(indice) {
+    const filas = ventas.map((v, i) => {
+      const r = resumenComisiones([v], filtro, pagos);
+      const prendas = r.prendas === 1 ? '1 prenda' : `${r.prendas} prendas`;
+      return h('button', { type: 'button', class: 'venta-hoy', onclick: () => detalle(v, i) },
+        h('span', { class: 'vh-info' }, h('b', {}, v.cliente?.nombre || 'Sin cliente'),
+          h('span', { class: 'vh-meta' }, [v.numero, Number.isFinite(r.prendas) ? prendas : null].filter(Boolean).join(' · '))),
+        h('span', { class: 'num' }, v.lineas?.length && v.lineas.every(l => Number.isFinite(l.comision))
+          ? fmtCop(r.total) : 'No disponible'), icono('der'));
+    });
+    panel.replaceChildren(rdTotal('Comisión en el período', fmtCop(totalPeriodo),
+      `${ventas.length} ${ventas.length === 1 ? 'venta' : 'ventas'}`), h('div', { class: 'lista-ventas' }, ...filas));
+    filas[indice]?.focus();
+  }
+  lista();
+  abrirVentana({ titulo: `Ventas de ${quien}`, contenido: panel });
+}
+
 registrarVista('/comisiones', {
   accion: 'pagarComisiones',
   montar(cont, ctx) {
@@ -239,10 +287,9 @@ registrarVista('/comisiones', {
           h('div', { class: 'com-fila' }, h('span', {}, 'Comisión normal'), h('b', { class: 'num' }, fmtCop(r.normal))),
           h('div', { class: 'com-fila' }, h('span', {}, 'Comisión reducida', h('small', { class: 'nota' }, ' (descuento u oferta)')), h('b', { class: 'num' }, fmtCop(r.reducida))),
           h('div', { class: 'com-fila' }, h('span', {}, 'Ya pagado'), h('b', { class: 'num' }, fmtCop(r.pagado))),
-          propias.length ? h('button', { type: 'button', class: 'rep-ver', id: 'com-ver-ventas', onclick: () => abrirVentana({ titulo: `Ventas de ${quien?.nombre || vendedor}`, contenido: h('div', { class: 'rd' },
-            rdTotal('Comisión en el período', fmtCop(r.total), `${propias.length} ${propias.length === 1 ? 'venta' : 'ventas'}`),
-            ...propias.map(v => { const c = (v.lineas || []).reduce((s, l) => s + (l.comision || 0), 0), n = (v.lineas || []).reduce((s, l) => s + (l.cantidad || 0), 0);
-              return rdFila({ ic: 'recibo', nombre: v.cliente?.nombre || 'Sin cliente', detalle: [v.numero, `${n} ${n === 1 ? 'prenda' : 'prendas'}`].filter(Boolean).join(' · '), valor: fmtCop(c) }); })) }) }, 'Ver comisión por venta', icono('der')) : null));
+          propias.length ? h('button', { type: 'button', class: 'rep-ver', id: 'com-ver-ventas',
+            onclick: () => abrirComisionesPorVenta(propias, quien?.nombre || vendedor, { vendedor, desde, hasta }, pagos, r.total),
+          }, 'Ver comisión por venta', icono('der')) : null));
     };
     const cargar = (d, hh) => { desde = d; hasta = hh; quitarVentas && quitarVentas(); quitarVentas = escucharVentasConCosto(ctx, { desde, hasta }, x => { ventas = x.ventas; pintar(); }); };
     const rango = selectorRango(cargar, 'semana');

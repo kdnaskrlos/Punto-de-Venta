@@ -2,9 +2,9 @@
 // sigue atendiendo la app hasta que la instalación de la nueva esté completa.
 // scripts/preparar-publicacion.cjs fija una ruta y una huella para el árbol servido.
 const PUBLICACION = null;
-const CACHE = PUBLICACION?.cache || 'pos-v2.42';
+const CACHE = PUBLICACION?.cache || 'pos-v2.43.2';
 // Generada con node pruebas/pwa/huella.cjs al preparar la publicación.
-const HUELLA_APP = 'cc1498baa1f27343ccacca39cf79b320112d60bd599be14716206a48568ddf32';
+const HUELLA_APP = '4e0ec65e16c309cefad38d7278b6e8e35b1183053705b9eaee5b060538d2f342';
 const ANTERIOR = 'pos-v2.35';
 const LIBS = 'libs-v1';
 const FOTOS = 'fotos-v1';
@@ -32,10 +32,35 @@ const SHELL = [
 // Los iconos y el manifiesto conservan sus URL porque identifican la misma PWA.
 const rutaPublicada = ruta => PUBLICACION && /^(?:index\.html$|config\.js$|(?:js|css)\/)/.test(ruta)
   ? PUBLICACION.prefijo + ruta : ruta;
-const URL_INICIO = new URL(rutaPublicada('index.html'), self.registration.scope);
+const URL_INICIO = new URL(rutaPublicada('index.html'), self.registration.scope).href;
 const RECURSOS = SHELL.map(ruta => ({ ruta, url: new URL(rutaPublicada(ruta), self.registration.scope).href }));
 const URLS_APP = new Set(RECURSOS.map(r => r.url));
-const RESPUESTA_SIN_APP = () => new Response('Recursos de la aplicación no disponibles.', { status: 503 });
+const URL_HUELLAS = new URL('.pos-huellas-shell', self.registration.scope).href;
+let huellasVerificadas, reparacion;
+
+async function verificarHuellas(huellas) {
+  if (!Array.isArray(huellas) || huellas.length !== RECURSOS.length ||
+      !huellas.every(h => typeof h === 'string' && /^[a-f0-9]{64}$/.test(h))) return null;
+  const firmas = RECURSOS.map(({ ruta }, i) => ruta + '\0' + huellas[i] + '\n').join('');
+  if (await sha256(new TextEncoder().encode(firmas)) !== (PUBLICACION?.huella || HUELLA_APP)) return null;
+  return new Map(RECURSOS.map((recurso, i) => [recurso.url, { ruta: recurso.ruta, huella: huellas[i] }]));
+}
+function sinApp(navegacion) {
+  const texto = 'Recursos de la aplicación no disponibles.';
+  const html = `<!doctype html><html lang="es"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recuperar el punto de venta</title>
+<main id="recuperar-pos"><h1>${texto}</h1>
+<p>Conéctate a Internet y vuelve a intentar. Si el dispositivo tiene poco espacio, libera espacio fuera de los datos del POS.</p>
+<p>Si hay una actualización esperando, resguarda el trabajo en las otras ventanas antes de cerrarlas. Cierra también la app instalada y vuelve a abrir el POS en el mismo perfil.</p>
+<p>Conserva los datos del sitio y la instalación.</p>
+<button type="button" onclick="location.reload()">Reintentar</button></main></html>`;
+  return new Response(navegacion ? html : texto, {
+    status: 503,
+    headers: { 'Content-Type': navegacion ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
+  });
+}
 
 async function sha256(datos) {
   const hash = await crypto.subtle.digest('SHA-256', datos);
@@ -49,31 +74,83 @@ function verificarTipo(ruta, respuesta) {
   if (esperado && !esperado.test(tipo)) throw new Error('Tipo de recurso inesperado: ' + ruta);
 }
 
+async function descargarShell() {
+  const control = new AbortController();
+  const limite = setTimeout(() => control.abort(), 15000);
+  try {
+    const recursos = await Promise.all(RECURSOS.map(async ({ ruta, url }) => {
+      const respuesta = await fetch(url, { cache: 'reload', redirect: 'error', signal: control.signal });
+      if (!respuesta.ok) throw new Error('Recurso no disponible: ' + ruta);
+      verificarTipo(ruta, respuesta);
+      return { url, respuesta, huella: await sha256(await respuesta.clone().arrayBuffer()) };
+    }));
+    const huellas = recursos.map(r => r.huella);
+    const verificadas = await verificarHuellas(huellas);
+    if (!verificadas) throw new Error('El servidor todavía no tiene todos los recursos de esta publicación');
+    return { recursos, huellas, verificadas };
+  } catch (error) {
+    control.abort();
+    throw error;
+  } finally {
+    clearTimeout(limite);
+  }
+}
+
+async function guardarShell({ recursos, huellas, verificadas }) {
+  const cache = await caches.open(CACHE);
+  // También se reemplazan las entradas presentes que pudieron quedar dañadas.
+  const escrituras = await Promise.allSettled(recursos.map(({ url, respuesta }) => cache.put(url, respuesta)));
+  if (escrituras.some(r => r.status === 'rejected')) throw new Error('No se pudo guardar el shell completo');
+  await cache.put(URL_HUELLAS, new Response(JSON.stringify(huellas)));
+  huellasVerificadas = Promise.resolve(verificadas);
+}
+
+async function leerHuellas() {
+  const copia = await caches.match(URL_HUELLAS, { cacheName: CACHE });
+  return copia ? verificarHuellas(await copia.json()) : null;
+}
+
+async function leerRecurso(clave) {
+  try {
+    const guardada = await caches.match(clave, { cacheName: CACHE });
+    if (!guardada?.ok) return null;
+    huellasVerificadas ||= leerHuellas().catch(() => null);
+    const esperado = (await huellasVerificadas)?.get(clave);
+    if (!esperado) return null;
+    verificarTipo(esperado.ruta, guardada);
+    return await sha256(await guardada.clone().arrayBuffer()) === esperado.huella ? guardada : null;
+  } catch {
+    return null;
+  }
+}
+
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
-    const recursos = await Promise.all(RECURSOS.map(async ({ ruta, url }) => {
-      const respuesta = await fetch(url, { cache: 'reload' });
-      if (!respuesta.ok || respuesta.redirected) throw new Error('Recurso no disponible: ' + ruta);
-      verificarTipo(ruta, respuesta);
-      const firma = await sha256(await respuesta.clone().arrayBuffer());
-      return { url, respuesta, firma: ruta + '\0' + firma + '\n' };
-    }));
-    const firmas = recursos.map(r => r.firma).join('');
-    if (await sha256(new TextEncoder().encode(firmas)) !== (PUBLICACION?.huella || HUELLA_APP)) {
-      throw new Error('El servidor todavía no tiene todos los recursos de esta publicación');
-    }
-
-    // El conjunto se descarga y verifica antes de escribir. Una nueva instalación
-    // de la misma publicación solo puede escribir los mismos bytes.
+    const recursos = await descargarShell();
     const existia = await caches.has(CACHE);
-    const cache = await caches.open(CACHE);
-    const escrituras = await Promise.allSettled(recursos.map(({ url, respuesta }) => cache.put(url, respuesta)));
-    if (escrituras.some(r => r.status === 'rejected')) {
+    try { await guardarShell(recursos); }
+    catch (error) {
+      // Solo se puede retirar una caché creada por esta instalación fallida.
       if (!existia) await caches.delete(CACHE);
-      throw new Error('No se pudo guardar la publicación completa');
+      throw error;
     }
   })());
 });
+
+async function servirShell(clave, navegacion) {
+  try {
+    const guardada = await leerRecurso(clave);
+    if (guardada) return guardada;
+
+    // Las pestañas comparten una descarga, validada con la huella del worker activo.
+    // Un fallo de red o espacio deja las copias existentes disponibles para el próximo intento.
+    reparacion ||= descargarShell().then(guardarShell).finally(() => { reparacion = null; });
+    await reparacion;
+    return await leerRecurso(clave) || sinApp(navegacion);
+  } catch {
+    return sinApp(navegacion);
+  }
+}
 
 self.addEventListener('message', e => {
   // El protocolo heredado no prueba que las pestañas hayan resguardado su trabajo.
@@ -102,13 +179,11 @@ self.addEventListener('fetch', e => {
   const r = e.request, u = new URL(r.url);
   if (r.method !== 'GET') return;
 
-  // La caché de la aplicación es inmutable después de la instalación.
-  // Un módulo que falte jamás se sustituye por HTML ni por otra revisión.
+  // Solo se agregan recursos verificados de la misma versión a la caché del shell.
   const recurso = u.origin + u.pathname;
   const navegacion = r.mode === 'navigate' && u.href.startsWith(self.registration.scope);
   if (URLS_APP.has(recurso) || navegacion) {
-    e.respondWith(caches.open(CACHE).then(c => c.match(navegacion ? URL_INICIO : recurso))
-      .then(respuesta => respuesta || RESPUESTA_SIN_APP()));
+    e.respondWith(servirShell(navegacion ? URL_INICIO : recurso, navegacion));
     return;
   }
 

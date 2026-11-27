@@ -38,7 +38,6 @@ export const GRUPOS = [
 export const IMPORTANTES = new Set(['venta.anulada', 'apartado.cancelado', 'caja.reabierta', 'inventario.ajuste', 'usuario.eliminado', 'usuario.pin', 'conflicto.registrado', 'descuento.aprobado', 'ajustes.cambiados']);
 
 const prendas = l => (l || []).reduce((s, x) => s + (x.cantidad || 0), 0);
-const cli = d => d?.cliente?.nombre ? ` · ${d.cliente.nombre}` : '';
 const monto = p => `${fmtMonto(p.monto, p.moneda)} ${p.moneda === 'COP' ? 'COP' : p.moneda}`;
 
 // Solo las claves que cambiaron (para Ajustes): { antes: {...}, despues: {...} }.
@@ -54,12 +53,12 @@ export function diferencias(antes = {}, despues = {}) {
 export function describir(metodo, args, x = {}) {
   const [a0, a1, a2, a3] = args;
   switch (metodo) {
-    case 'guardarVenta': return { tipo: 'venta.creada', ref: { col: 'ventas', id: a0.id }, resumen: `${fmtCop(a0.total)} COP · ${prendas(a0.lineas)} prendas${cli(a0)}${x.offline ? ' · sin conexión' : ''}` };
-    case 'guardarApartado': return { tipo: 'apartado.creado', ref: { col: 'apartados', id: a0.id }, resumen: `${fmtCop(a0.total)} COP · ${prendas(a0.lineas)} prendas${cli(a0)}` };
-    case 'anularVenta': return { tipo: 'venta.anulada', ref: { col: 'ventas', id: a0, numero: x.venta?.numero || null }, resumen: `${x.venta?.numero || 'Venta'} · ${fmtCop(x.venta?.total || 0)} COP${cli(x.venta)}`, motivo: a1 };
-    case 'abonarApartado': return { tipo: 'apartado.abono', ref: { col: 'apartados', id: a0 }, resumen: `${monto(a1)}${cli(x.ap)}` };
-    case 'completarApartado': return { tipo: 'apartado.completado', ref: { col: 'apartados', id: a0, venta: a1.id }, resumen: `${fmtCop(a1.total)} COP${cli(a1)}` };
-    case 'cancelarApartado': return { tipo: 'apartado.cancelado', ref: { col: 'apartados', id: a0 }, resumen: `${fmtCop(x.ap?.total || 0)} COP${cli(x.ap)}`, motivo: a1 };
+    case 'guardarVenta': return { tipo: 'venta.creada', ref: { col: 'ventas', id: a0.id }, resumen: `${fmtCop(a0.total)} COP · ${prendas(a0.lineas)} prendas${x.offline ? ' · sin conexión' : ''}` };
+    case 'guardarApartado': return { tipo: 'apartado.creado', ref: { col: 'apartados', id: a0.id }, resumen: `${fmtCop(a0.total)} COP · ${prendas(a0.lineas)} prendas` };
+    case 'anularVenta': return { tipo: 'venta.anulada', ref: { col: 'ventas', id: a0, numero: x.venta?.numero || null }, resumen: `${x.venta?.numero || 'Venta'} · ${fmtCop(x.venta?.total || 0)} COP`, motivo: a1 };
+    case 'abonarApartado': return { tipo: 'apartado.abono', ref: { col: 'apartados', id: a0 }, resumen: monto(a1) };
+    case 'completarApartado': return { tipo: 'apartado.completado', ref: { col: 'apartados', id: a0, venta: a1.id }, resumen: `${fmtCop(a1.total)} COP` };
+    case 'cancelarApartado': return { tipo: 'apartado.cancelado', ref: { col: 'apartados', id: a0 }, resumen: `${fmtCop(x.ap?.total || 0)} COP`, motivo: a1 };
     case 'abrirCaja': return { tipo: 'caja.abierta', ref: { col: 'cajas', id: x.id }, resumen: (a1?.tipo === 'personal' ? 'Caja personal' : 'Fondo ' + Object.entries(a0 || {}).filter(([, n]) => n).map(([m, n]) => `${fmtMonto(n, m)} ${m}`).join(' · ')) || 'Sin fondo' };
     case 'movimientoCaja': return { tipo: a1.tipo === 'salida' ? 'caja.salida' : 'caja.entrada', ref: { col: 'cajas', id: a0 }, resumen: `${fmtMonto(a1.monto, x.moneda || 'COP')} ${x.moneda || ''}`.trim(), motivo: a1.motivo || '' };
     case 'cerrarCaja': return { tipo: 'caja.cerrada', ref: { col: 'cajas', id: a0 }, resumen: a1?.totalCop ? `${a1.totalCop > 0 ? 'Sobrante +' : 'Faltante −'}${fmtCop(Math.abs(a1.totalCop))} COP` : 'Cuadró', motivo: a1?.nota || '' };
@@ -71,7 +70,7 @@ export function describir(metodo, args, x = {}) {
     case 'guardarOferta': return { tipo: 'oferta.cambiada', ref: { col: 'productos', grupo: a0 }, resumen: a1?.activa && a1?.pct > 0 ? `${x.nombre || a0} · ${a1.pct}% de descuento` : `${x.nombre || a0} · sin oferta` };
     case 'guardarImagen': return { tipo: 'foto.subida', ref: null, resumen: a0 };
     case 'guardarAjustes': return { tipo: 'ajustes.cambiados', ref: { col: 'ajustes', id: a0 }, resumen: Object.keys(x.cambios?.despues || {}).map(k => CAMPOS_AJUSTES[k] || k).join(', '), antes: x.cambios?.antes ?? null, despues: x.cambios?.despues ?? null };
-    case 'guardarCliente': return { tipo: 'cliente.guardado', ref: { col: 'clientes', id: x.telefono }, resumen: `${a0.nombre}${x.antes ? ` (antes: ${x.antes})` : ''}` };
+    case 'guardarCliente': return { tipo: 'cliente.guardado', ref: { col: 'clientes', id: x.telefono }, resumen: x.antes ? 'Nombre actualizado' : 'Cliente registrado' };
     case 'solicitarAutorizacion': return { tipo: 'descuento.pedido', ref: { col: 'autorizaciones', id: x.id }, resumen: `${a0.tipo === 'monto' ? fmtCop(a0.valor) + ' COP' : a0.pct + '%'} sobre ${fmtCop(a0.subtotal || 0)} COP`, motivo: a0.motivo || '' };
     case 'responderAutorizacion': return { tipo: a1 ? 'descuento.aprobado' : 'descuento.rechazado', ref: { col: 'autorizaciones', id: a0 }, resumen: x.a ? `@${x.a.solicita} · ${x.a.tipo === 'monto' ? fmtCop(x.a.valor) + ' COP' : x.a.pct + '%'}` : '' };
     case 'pagarComisiones': return { tipo: 'comisiones.pagadas', ref: { col: 'comisiones', id: x.id }, resumen: `@${a0.vendedor} · ${fmtCop(a0.monto || a0.total || 0)} COP · ${a0.ventas?.length || 0} ventas` };

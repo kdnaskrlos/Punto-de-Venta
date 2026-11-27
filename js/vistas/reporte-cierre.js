@@ -1,3 +1,4 @@
+import { conciliarCierre } from '../nucleo/caja.js';
 // v2.25 · Reporte de cierre de caja: se abre al tocar una caja cerrada.
 // Resultado (Sobrante / Faltante / Cuadró), desglose por forma de pago, resumen del día, nota y envío por WhatsApp.
 import { h, icono, abrirVentana, esTelefono } from '../ui.js';
@@ -28,12 +29,12 @@ export async function abrirReporteCierre(ctx, caja) {
   const [ventas, apartados] = await Promise.all([leerUnaVez(ctx, 'ventas', { cajaId: caja.id }), leerUnaVez(ctx, 'apartados')]);
   const formas = ctx.ajustes.formasPago || [];
   const nombreForma = id => formas.find(f => f.id === id)?.nombre || id;
-  const ci = caja.cierre || {};
-  const res = resultadoCierre(ci.totalCop);
   const validas = ventas.filter(v => v.estado !== 'anulada'), anuladas = ventas.length - validas.length;
   const vendido = validas.reduce((s, v) => s + (v.total || 0), 0);
   const prendas = validas.reduce((s, v) => s + (v.lineas || []).reduce((t, l) => t + (l.cantidad || 0), 0), 0);
   const abonos = apartados.flatMap(a => (a.abonos || []).filter(x => x.cajaId === caja.id));
+  const ci = conciliarCierre(caja, ventas, abonos, formas, ctx.tasas);
+  const res = resultadoCierre(ci.totalCop);
   const abonado = abonos.reduce((s, a) => s + (a.equivalenteCop ?? aCop(a.monto, a.moneda, ctx.tasas) ?? 0), 0);
   const movs = caja.movimientos || [];
   const monedaDe = f => formas.find(x => x.id === f)?.moneda || 'COP';

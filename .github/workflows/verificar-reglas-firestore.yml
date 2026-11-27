@@ -10,8 +10,6 @@ permissions:
 
 jobs:
   firestore-emulador:
-    # La PR aislada solo instala workflows: main aún no contiene los tests del candidato.
-    if: github.head_ref != 'integracion/verificar-firebase-sin-despliegue'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -68,7 +66,6 @@ jobs:
           if-no-files-found: error
 
   navegador-pwa:
-    if: github.head_ref != 'integracion/verificar-firebase-sin-despliegue'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
