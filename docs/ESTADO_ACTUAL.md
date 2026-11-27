@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 26-11-2026.** Cloud Shell confirmó `POS_PROCESAMIENTO_VERIFICADO` en Firebase real. La fase del backend quedó completada y la candidata v2.43 está preparada para el piloto en PC y Android. [Bitácora](BITACORA.md)
+- **Actualizado el 27-11-2026.** El piloto v2.43 está activo en Firebase Hosting y pasó las pruebas iniciales en PC según el propietario. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - **Prioridad** estabilizar el POS con una validación funcional simplificada en Firebase real. La publicación de v2.43 sigue pendiente de autorización.
 
@@ -51,9 +51,9 @@
 
 - **Conciliación real completada.** Cloud Shell confirmó las dos solicitudes pendientes como `V-0006` y `V-0007`, con pagos verificados, inventario correcto y sin duplicados ni conflictos.
 
-- **Piloto web preparado.** Se generó la candidata v2.43 con Firebase real, la ruta de ventas procesadas habilitada y la PWA versionada. Se sirve por un canal temporal HTTPS de Firebase Hosting separado del canal público. La apertura en PC y Android requiere activar el canal con una cuenta autorizada. [Acceso al piloto](VALIDACION-FINAL-V243.md#piloto-funcional-en-pc-y-android)
+- **Piloto v2.43 desplegado.** El canal temporal de Firebase Hosting está conectado a Firebase real y vence el **4 de diciembre de 2026**. El propietario confirmó autenticación, inventario, venta e historial en PC. La versión pública sigue en v2.42. [Abrir el piloto](https://punto-de-venta-comic-shop--piloto-v243-n8egt6cf.web.app)
 
-**Siguiente acción.** Activar el canal temporal y abrir su enlace en Chrome en PC y Android para probar el POS desde la interfaz.
+**Siguiente acción.** Completar las pruebas comerciales, sin conexión y en Android antes de decidir la publicación de v2.43.
 
 ## Reglas comerciales por confirmar
 

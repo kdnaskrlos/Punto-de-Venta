@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Piloto v2.43 activo y primeras pruebas en PC aprobadas
+
+- Se desplegó el piloto v2.43 en Firebase Hosting. El enlace vence el 4 de diciembre de 2026. [Piloto](https://punto-de-venta-comic-shop--piloto-v243-n8egt6cf.web.app)
+- El propietario confirmó el funcionamiento de autenticación, inventario, venta e historial en PC.
+- Continúan las últimas pruebas comerciales, sin conexión y en Android antes de publicar. La v2.42 sigue como versión pública.
+
 ## 2026-11-26 — Backend verificado y piloto web preparado
 
 - Cloud Shell devolvió `POS_PROCESAMIENTO_VERIFICADO` para `a8b5330aeebdfa889d25d90debd96e2909506289`. Eventarc procesó automáticamente la venta de control y quedaron conciliadas `V-0006` y `V-0007` con pagos e inventario correctos, sin duplicados ni conflictos. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45918790033)
