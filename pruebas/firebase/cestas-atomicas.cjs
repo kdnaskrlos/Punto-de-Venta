@@ -158,7 +158,7 @@ test('64 SKU offline conservan un único cobro con presupuesto constante de regl
   assert.equal(n, 0, 'la cesta debe dejar de depender de una lectura de reglas por SKU');
 });
 
-test('Eventarc acepta la base predeterminada en su formato de transporte y procesa una sola vez', { skip: red || disparador }, async () => {
+test('CloudEvent nativo procesa el documento de Firestore una sola vez con protobuf y JSON', { skip: red || disparador }, async () => {
   const id = 'qa-v243-20261126-79dcb917', sku = id + '-sku';
   await sembrar([sku]);
   const a = cliente('a'), b = cliente('b'), v = venta(id, [sku]);
@@ -170,18 +170,17 @@ test('Eventarc acepta la base predeterminada en su formato de transporte y proce
   assert.equal((await getDocFromServer(marca)).exists(), false);
 
   const evento = eventoCreado('a', id, { project: undefined });
+  const ruta = `projects/${proyecto}/databases/(default)/documents/usuarios/a/solicitudesVenta/${id}`;
   const invalidos = [
     { ...evento, source: evento.source.replace(proyecto, 'otro-proyecto') },
     { ...evento, source: evento.source.replace('(default)', 'otra-base') },
-    { ...evento, project: 'otro-proyecto' },
-    { ...evento, database: 'otra-base' },
-    { ...evento, namespace: 'otro-namespace' },
     { ...evento, type: 'google.cloud.firestore.document.v1.updated' },
-    { ...evento, subject: `documents/usuarios/b/solicitudesVenta/${id}` },
-    { ...evento, subject: `documents/usuarios/a/solicitudesVenta/${id}/extra` },
-    { ...evento, source: evento.source + '/documents/usuarios/b/solicitudesVenta/' + id },
-    { ...evento, subject: `documents/usuarios/a%2Fotro/solicitudesVenta/${id}` },
     { ...evento, data: undefined },
+    { ...evento, data: Buffer.from([10, 255]) },
+    { ...evento, data: { oldValue: { name: ruta } } },
+    eventoCreado('a', id, { nombre: ruta.replace(proyecto, 'otro-proyecto') }),
+    eventoCreado('a', id, { nombre: ruta.replace('(default)', 'otra-base') }),
+    eventoCreado('a', id, { nombre: ruta.replace('solicitudesVenta', 'ventas') }),
     eventoCreado('__reservado__', id),
     eventoCreado('a', '__reservado__'),
   ];
@@ -190,12 +189,12 @@ test('Eventarc acepta la base predeterminada en su formato de transporte y proce
   assert.equal((await getDocFromServer(marca)).exists(), false);
   assert.equal((await getDocFromServer(doc(a, 'productos', sku))).data().existencia, 1);
 
-  assert.equal(await entregar({ ...evento, namespace: '' }), 'confirmada_servidor');
-  assert.equal(await entregar(evento), 'confirmada_servidor');
-  assert.equal(await entregar({ ...evento, source: evento.source.replace('//firestore.googleapis.com/', '')
-    + '/documents/usuarios/a/solicitudesVenta/' + id }), 'confirmada_servidor');
-  assert.equal(await entregar({ ...evento, subject: `usuarios/%61/solicitudesVenta/${id}` }), 'confirmada_servidor');
-  assert.equal(await entregar({ ...evento, subject: undefined }), 'confirmada_servidor');
+  assert.equal(await entregar({ ...evento, datacontenttype: undefined, namespace: '', subject: undefined,
+    document: 'usuarios/{uid}/solicitudesVenta/{id}' }), 'confirmada_servidor');
+  assert.equal(await entregar({ ...evento, data: undefined, data_base64: evento.data.toString('base64') }),
+    'confirmada_servidor');
+  assert.equal(await entregar({ ...evento, data: { value: { name: ruta } },
+    subject: `documents/usuarios/b/solicitudesVenta/${id}`, database: '' }), 'confirmada_servidor');
   assert.deepEqual((await getDocFromServer(solicitud)).data(), original);
   assert.equal((await getDocFromServer(marca)).data().refId, id);
   const final = (await getDocFromServer(guardada)).data();

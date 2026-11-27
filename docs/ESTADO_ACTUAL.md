@@ -1,6 +1,6 @@
 # Estado actual del Punto de Venta Comic Shop
 
-- **Actualizado el 26-11-2026.** Cloud Shell devolvió `REVISION_VERIFICADA` para `procesarventapos-00003-joz`. La validación automática sigue pendiente de una nueva venta de control. [Bitácora](BITACORA.md)
+- **Actualizado el 26-11-2026.** El procesador financiero confirmó `V-0004` mediante recuperación directa. La candidata incorpora un receptor CloudEvent nativo para la ruta automática. La actualización y la validación en Firebase real esperan autorización. [Bitácora](BITACORA.md)
 - **Versión publicada registrada** v2.42. **Candidata** v2.43 en `integracion/pos-auditoria`, con el PR #21 en borrador. El seguimiento de la publicación está en el issue #22. [Publicación v2.42](PUBLICACION-V2.42.md) · [Versión candidata](../js/version.js) · [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [Issue #22](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22)
 - **Prioridad** estabilizar el POS con una validación funcional simplificada en Firebase real. La publicación de v2.43 sigue pendiente de autorización.
 
@@ -51,7 +51,9 @@
 
 - **Solicitud anterior conservada.** `qa-v243-eventarc-20261126-0d59dccc` sigue `PENDIENTE` según Cloud Shell, con dos unidades intactas y sin marca, número ni movimientos. Su conciliación queda pendiente.
 
-**Siguiente acción.** Ejecutar en Cloud Shell la venta de control `qa-v243-eventarc-20261127-31c2a83e`. Si falla, el bloque consulta de inmediato los códigos `motivo` de la revisión activa desde el inicio del intento. [Prueba](../scripts/verificar-eventarc-venta-v243-cloud-shell.cjs)
+- **Recepción nativa preparada.** Functions Framework recibe el CloudEvent y obtiene el nombre completo del documento de Firestore en protobuf o JSON. El procesador valida la solicitud desde Firestore y conserva sus transacciones e idempotencia. Firebase Functions conserva el descriptor para Firebase CLI. Pasaron el caso dirigido en el emulador, dos entregas HTTP locales sobre el mismo documento y una simulación que solo habilita la conciliación tras una venta automática confirmada. El aviso anterior carece del sobre completo del evento. [Contrato oficial](https://docs.cloud.google.com/run/docs/triggering/trigger-functions-with-firestore-documents) · [Receptor](../funciones/index.cjs)
+
+**Siguiente acción.** Autorizar una sola ejecución que actualice `procesarVentaPos`, envíe `qa-v243-eventarc-nativo-20261127-c7f04261` y, solo si se confirma automáticamente, concilie las solicitudes sintéticas registradas y aún pendientes por su ID original. [Procedimiento](../scripts/validar-y-conciliar-pos-cloud-shell.py)
 
 ## Reglas comerciales por confirmar
 

@@ -7,12 +7,13 @@ const { initializeAuth, inMemoryPersistence, signInWithEmailAndPassword } = requ
 const { getFirestore, doc, collection, query, where, getDocFromServer: leer,
   getDocsFromServer: listar, setDoc, serverTimestamp } = require('firebase/firestore');
 const proyecto = 'punto-de-venta-comic-shop';
-const id = 'qa-v243-eventarc-20261127-31c2a83e';
+const id = process.argv[2] || 'qa-v243-eventarc-20261127-31c2a83e';
 const firma = (...x) => createHash('sha256').update(JSON.stringify(x)).digest('hex');
 let etapa = 'precheck';
 const paso = nombre => { etapa = nombre; console.log(nombre); };
 
 async function probar() {
+  assert.match(id, /^qa-v243-eventarc-(?:nativo-)?[0-9]{8}-[0-9a-f]{8}$/, 'Se requiere un ID de venta de control.');
   assert.ok(!process.env.FIRESTORE_EMULATOR_HOST && !process.env.FIREBASE_AUTH_EMULATOR_HOST, 'Se requiere Firebase real.');
   const { firebaseConfig } = await import('../config.js');
   assert.equal(firebaseConfig.projectId, proyecto, 'El config.js apunta a otro proyecto.');

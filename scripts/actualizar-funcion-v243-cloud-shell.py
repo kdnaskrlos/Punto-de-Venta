@@ -77,13 +77,15 @@ def fields(doc):
     return {k: decode(v) for k, v in doc.get("fields", {}).items()}
 
 
-def sale(venta_id=V):
+def sale(venta_id=V, permitir_ausente=False):
     box_id, sku_id = venta_id + "-caja", venta_id + "-sku"
 
     def get(path):
         return fields(api(FS + "/" + quote(path, safe="/:"), missing=True))
 
     uid = get("cajas/" + box_id).get("uid")
+    if permitir_ausente and not uid and not get("ventas/" + venta_id) and not get("productos/" + sku_id):
+        return {"estado": "SIN_SOLICITUD", "id": venta_id}
     need(isinstance(uid, str) and uid and "/" not in uid, "La caja sintética carece de UID verificable.")
     conflict_id = "venta-" + digest(uid, venta_id)
     mov_id, event_id = digest(venta_id, sku_id), digest(uid, venta_id, "venta.creada")
@@ -122,6 +124,8 @@ def sale(venta_id=V):
                and [x[0] for x in stock_moves] == [mov_id] and [x[0] for x in events] == [event_id]
                and moves[0][1].get("cantidad") == -1 and moves[0][1].get("sku") == sku_id
                and events[0][1].get("ref") == {"col": "ventas", "id": venta_id} and not conflict)
+    if permitir_ausente and not (sol or mark or v or conflict or sales or moves or stock_moves or events):
+        return {"estado": "SOLO_DATOS_DE_PRUEBA", "id": venta_id}
     if settled and isinstance(number, str) and re.fullmatch(r"V-[0-9]{4,}", number) and [x[0] for x in sequence] == [venta_id]:
         status = "CONFIRMADA"
     elif settled and not number:
@@ -266,18 +270,19 @@ def change(before, source, target, state, baseline):
     return verified
 
 
-def diagnostics(current, since):
+def diagnostics(current, since, venta_id=V):
     revision = current["revision"]
     subscription = current["eventarc"]["transport"]["pubsub"]["subscription"].split("/")[-1]
     filt = (f'timestamp>="{since}" AND ('
             f'(resource.type="cloud_run_revision" AND resource.labels.revision_name="{revision}" '
             'AND (severity>=ERROR OR httpRequest.status>=400)) OR '
             'protoPayload.resourceName:"procesarventapos-790966" OR '
-            f'resource.labels.subscription_id="{subscription}" OR SEARCH("{V}"))')
+            f'resource.labels.subscription_id="{subscription}" OR (resource.labels.revision_name="{revision}" AND jsonPayload.motivo:*) OR SEARCH("{venta_id}"))')
     out = api("https://logging.googleapis.com/v2/entries:list", {
         "resourceNames": ["projects/" + P], "filter": filt, "orderBy": "timestamp desc", "pageSize": 20}, "POST")
     emit(contextoDeRevisionSinCorrelacionGarantizada=[{
         "hora": e.get("timestamp"), "trace": e.get("trace"), "http": e.get("httpRequest", {}).get("status"),
+        "motivo": e.get("jsonPayload", {}).get("motivo"),
         "mensaje": (e.get("textPayload") or e.get("jsonPayload", {}).get("message") or "")[:1000]}
         for e in out.get("entries", [])], mas=bool(out.get("nextPageToken")))
 

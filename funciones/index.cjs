@@ -1,7 +1,8 @@
+const { cloudEvent } = require('@google-cloud/functions-framework');
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
-const { warn } = require('firebase-functions/logger');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { parse } = require('protobufjs');
 const { atenderVenta, idValido } = require('./ventas.cjs');
 
 const proyectoEntorno = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'punto-de-venta-comic-shop';
@@ -9,63 +10,67 @@ const app = getApps()[0] || (process.env.FIREBASE_CONFIG ? initializeApp() : ini
 const proyecto = app.options.projectId || proyectoEntorno;
 const proyectoPos = ['punto-de-venta-comic-shop', '570684941224'];
 const proyectos = new Set(proyectoPos.includes(proyecto) ? proyectoPos : [proyecto]);
-const basePredeterminada = '(default)';
+const base = '(default)';
 const tipoCreacion = 'google.cloud.firestore.document.v1.created';
+const patron = 'usuarios/{uid}/solicitudesVenta/{id}';
 
-function coincideRuta(referencia, ruta) {
-  if (referencia === ruta) return true;
-  const partes = referencia.split('/');
-  const esperadas = ruta.split('/');
-  try {
-    return partes.length === esperadas.length
-      && partes.every((parte, i) => decodeURIComponent(parte) === esperadas[i]);
-  } catch {
-    return false;
-  }
-}
+// Proyección de google.events.cloud.firestore.v1.DocumentEventData y Document.
+// El decodificador salta los campos restantes. El cobro relee la solicitud en Firestore.
+const documentoEvento = parse(`
+  syntax = "proto3";
+  message Document { string name = 1; }
+  message DocumentEventData { Document value = 1; }
+`).root.lookupType('DocumentEventData');
 
 function solicitudDelEvento(evento) {
-  if (evento.type !== tipoCreacion) return { motivo: 'tipo_evento' };
+  if (evento?.type !== tipoCreacion) return { motivo: 'tipo_evento' };
 
-  // Eventarc usa un nombre de recurso. El SDK también representa el recurso
-  // sin autoridad y, en ocasiones, con la ruta del documento al final.
-  const origen = typeof evento.source === 'string' ? evento.source.replace(/^\/\/firestore\.googleapis\.com\//, '') : '';
-  const [projects, proyectoOrigen, databases, baseOrigen, documents, ...rutaOrigen] = origen.split('/');
-  if (projects !== 'projects' || databases !== 'databases'
-    || (documents !== undefined && documents !== 'documents')) return { motivo: 'formato_origen' };
-  if (!proyectos.has(proyectoOrigen) || (evento.project !== undefined && !proyectos.has(evento.project))) {
-    return { motivo: 'proyecto' };
-  }
-  if (baseOrigen !== basePredeterminada && baseOrigen !== '%28default%29') return { motivo: 'base_origen' };
-  if (evento.database !== undefined && evento.database !== basePredeterminada) return { motivo: 'base_extension' };
-  // La base nativa no usa namespaces. El transporte puede omitirlo o enviarlo vacío.
-  if (evento.namespace !== undefined && evento.namespace !== '' && evento.namespace !== basePredeterminada) {
-    return { motivo: 'namespace' };
+  const origen = typeof evento.source === 'string' ? evento.source : '';
+  const autoridad = /^(?:https:)?\/\/firestore\.googleapis\.com(?:\/|$)/;
+  if (!autoridad.test(origen) && !origen.startsWith('projects/')) return { motivo: 'formato_origen' };
+  const [projects, proyectoOrigen, databases, baseOrigen] = origen.replace(autoridad, '').split('/');
+  if (projects === 'projects' && !proyectos.has(proyectoOrigen)) return { motivo: 'proyecto_origen' };
+  if (databases === 'databases' && baseOrigen !== base && baseOrigen !== '%28default%29') {
+    return { motivo: 'base_origen' };
   }
 
-  // El SDK obtiene params de la extensión document. El snapshot contiene la ruta
-  // concreta del protobuf aunque esa extensión no venga en la entrega.
-  const ruta = evento.data?.ref?.path;
-  if (!evento.data?.exists || typeof ruta !== 'string') return { motivo: 'snapshot_ausente' };
-  const partes = ruta.split('/');
-  const [coleccion, uid, subcoleccion, id] = partes;
-  if (partes.length !== 4 || coleccion !== 'usuarios' || subcoleccion !== 'solicitudesVenta'
-    || !idValido(uid) || !idValido(id)) return { motivo: 'ruta_snapshot' };
-  if (rutaOrigen.length && !coincideRuta(rutaOrigen.join('/'), ruta)) return { motivo: 'ruta_origen' };
-  if (evento.subject !== undefined && (typeof evento.subject !== 'string'
-    || !coincideRuta(evento.subject.replace(/^documents\//, ''), ruta))) return { motivo: 'subject' };
+  let datos = evento.data;
+  try {
+    if (datos instanceof Uint8Array) datos = documentoEvento.decode(datos);
+    else if (datos === undefined && typeof evento.data_base64 === 'string') {
+      datos = documentoEvento.decode(Buffer.from(evento.data_base64, 'base64'));
+    }
+  } catch {
+    return { motivo: 'protobuf_invalido' };
+  }
+  const nombre = datos?.value?.name;
+  if (typeof nombre !== 'string' || !nombre) return { motivo: 'documento_ausente' };
+
+  // Las extensiones document, database, namespace y subject son del transporte.
+  // La identidad que se procesa es el nombre completo del documento recién creado.
+  const partes = nombre.split('/');
+  const [prefijo, proyectoDocumento, bases, baseDocumento, documentos, usuarios, uid, solicitudes, id] = partes;
+  if (partes.length !== 9 || prefijo !== 'projects' || bases !== 'databases' || documentos !== 'documents'
+    || usuarios !== 'usuarios' || solicitudes !== 'solicitudesVenta' || !idValido(uid) || !idValido(id)) {
+    return { motivo: 'ruta_documento' };
+  }
+  if (!proyectos.has(proyectoDocumento)) return { motivo: 'proyecto_documento' };
+  if (baseDocumento !== base) return { motivo: 'base_documento' };
   return { uid, id };
 }
 
-exports.procesarVentaPos = onDocumentCreated({
-  document: 'usuarios/{uid}/solicitudesVenta/{id}',
-  region: process.env.POS_REGION_FUNCIONES || 'us-central1',
-  retry: true,
-}, async event => {
-  const solicitud = solicitudDelEvento(event);
+async function procesarVentaPos(evento) {
+  const solicitud = solicitudDelEvento(evento);
   if (solicitud.motivo) {
-    warn('procesarVentaPos ignoró un CloudEvent con origen o documento inválido.', { motivo: solicitud.motivo });
+    console.warn(JSON.stringify({ severity: 'WARNING', message: 'CloudEvent de venta rechazado.', motivo: solicitud.motivo }));
     return;
   }
   return atenderVenta(getFirestore(app), solicitud);
-});
+}
+
+cloudEvent('procesarVentaPos', procesarVentaPos);
+// Firebase CLI descubre el disparador por su descriptor. La entrega usa el manejador nativo.
+procesarVentaPos.__endpoint = onDocumentCreated({
+  document: patron, region: process.env.POS_REGION_FUNCIONES || 'us-central1', retry: true,
+}, procesarVentaPos).__endpoint;
+exports.procesarVentaPos = procesarVentaPos;

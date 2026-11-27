@@ -18,16 +18,17 @@ function eventoCreado(uid, id, extensiones = {}) {
   const project = app.options.projectId;
   const document = `usuarios/${uid}/solicitudesVenta/${id}`;
   const base = `projects/${project}/databases/(default)`;
+  const { nombre = `${base}/documents/${document}`, ...atributos } = extensiones;
   const tiempo = { seconds: 1795528800, nanos: 0 };
   const data = DocumentEventData.encode({ value: {
-    name: `${base}/documents/${document}`, createTime: tiempo, updateTime: tiempo,
+    name: nombre, createTime: tiempo, updateTime: tiempo,
   } }).finish();
   return {
     specversion: '1.0', id: 'entrega-' + id,
     type: 'google.cloud.firestore.document.v1.created',
     source: '//firestore.googleapis.com/' + base, subject: 'documents/' + document,
     project, database: '(default)', datacontenttype: 'application/protobuf',
-    data: Buffer.from(data), ...extensiones,
+    data: Buffer.from(data), ...atributos,
   };
 }
 

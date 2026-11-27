@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-26 — Receptor CloudEvent nativo y validación con una autorización
+
+- La ruta anterior dependía de la extracción de `params` y de la proyección a snapshot que hacía Firebase Functions. Se registró un manejador nativo de Functions Framework que obtiene el recurso Firestore directamente del cuerpo. El procesador financiero conserva sus transacciones. [Receptor](../funciones/index.cjs) · [Contrato de Google Cloud](https://docs.cloud.google.com/run/docs/triggering/trigger-functions-with-firestore-documents)
+- Pasaron el caso dirigido en Firestore Emulator, la recepción HTTP de protobuf y JSON con un solo cobro y una simulación que bloquea la conciliación si falla la venta automática. El código candidato sigue pendiente de validación real. [Regresión](../pruebas/firebase/cestas-atomicas.cjs)
+- Siguiente acción. Autorizar actualización exclusiva, una venta automática de 10.000 COP y la conciliación condicionada de los IDs sintéticos existentes. [Procedimiento](../scripts/validar-y-conciliar-pos-cloud-shell.py)
+
 ## 2026-11-26 — Revisión 00003 activa y nueva venta de control preparada
 
 - Cloud Shell devolvió `REVISION_VERIFICADA` en `procesarventapos-00003-joz` para el SHA `339649d7126faed6d8feb3f2e58246568630954c`. Pasó la CI de ese SHA. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45916546856)
