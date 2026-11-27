@@ -57,8 +57,8 @@
 
 ## Fase 2 · Planificación
 
-- El catálogo maestro incorpora 180 escenarios con IDs permanentes. Se conservan los estados del diagnóstico inicial como antecedentes. El registro de reglas reúne aprobaciones trazables y el plan vincula los bloques con sus escenarios.
-- **Siguiente acción.** Validar con el propietario la propuesta 2.1 Clientes, en particular la visibilidad de historial y apartados para vendedora y el tratamiento de teléfonos compartidos o cambiados. [Diseño](PLAN_MAESTRO.md#bloque-21-clientes) · [Catálogo](ESCENARIOS_COMERCIALES.md) · [Reglas](REGLAS_COMERCIALES.md)
+- El catálogo clasifica los 180 escenarios por fase, bloque, dependencias técnicas y comerciales, carácter bloqueante, riesgo de adelantarlo y evidencia existente. 2.0 se limita a brechas demostrables de funciones operativas en v2.43.2. Se reutilizan auditorías, CI y validación de producción con sus alcances documentados. [Plan maestro](PLAN_MAESTRO.md) · [Clasificación](ESCENARIOS_COMERCIALES.md#clasificación-y-seguimiento)
+- **Siguiente acción.** Aprobar los dos requisitos mínimos de entrada de Clientes: visibilidad de contacto, ventas y apartados por rol (ESC-107) y vínculo local seguro ante teléfonos ambiguos (alcance acotado de ESC-172). [Mínimos de entrada](PLAN_MAESTRO.md#minimos-entrada-clientes) · [Reglas](REGLAS_COMERCIALES.md)
 
 ## Reglas comerciales por confirmar
 

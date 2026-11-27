@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Clasificación por bloque y mínimos de Clientes
+
+- Se clasificaron los 180 escenarios con fase, bloque, dependencias, carácter bloqueante, riesgo de adelantarlo y evidencia reutilizada. Fase 1 sigue completada operativamente en v2.43.2. [Catálogo](ESCENARIOS_COMERCIALES.md#clasificación-y-seguimiento)
+- 2.0 se acotó a brechas demostrables del núcleo vigente. Se contrastaron el guardado por medio de cada abono, las reglas de acceso y la clave actual de clientes. Se verificaron la cobertura documental y los enlaces. [Plan](PLAN_MAESTRO.md#bloque-20-consolidacion)
+- Siguiente acción. Aprobar el alcance de acceso de ESC-107 y la identidad local de ESC-172 para abrir Clientes. Los alcances intersistemas siguen en fase 4. [Mínimos](PLAN_MAESTRO.md#minimos-entrada-clientes)
+
 ## 2026-11-27 — Cierre de fase 1 y catálogo de fase 2
 
 - El propietario confirmó en Cloud Shell la retirada de `piloto-v243` el 27/11/2026. El POS oficial en GitHub Pages pasa a ser la única referencia operativa. [Estado](ESTADO_ACTUAL.md)
@@ -96,7 +102,7 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 
 ## 2026-11-26 — Reglas verificadas y primera venta pendiente de conciliación
 
-- Cloud Shell informó `REGLAS_V243_VERIFICADAS` en `punto-de-venta-comic-shop` para `8b7c6bda-e0f3-49d6-9888-e8ca445dfec6` del SHA autorizado `fa521e96c86e4052934ec9dcd080aceba06e7443`. El respaldo anterior se conservó en las pruebas simuladas. [Estado](ESTADO_ACTUAL.md#firebase-real-y-publicación-pendientes) · [CI de 8363353](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45707695177)
+- Cloud Shell informó `REGLAS_V243_VERIFICADAS` en `punto-de-venta-comic-shop` para `8b7c6bda-e0f3-49d6-9888-e8ca445dfec6` del SHA autorizado `fa521e96c86e4052934ec9dcd080aceba06e7443`. El respaldo anterior se conservó en las pruebas simuladas. [Estado](ESTADO_ACTUAL.md#firebase-real-y-antecedentes-de-validación) · [CI de 8363353](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45707695177)
 - Se probó una venta de un SKU y un pago COP en caja cerrada. El primer bloque agotó los 90 segundos sin observar marca y número juntos. El diagnóstico de solo lectura pasó ocho escenarios simulados, al igual que el piloto antes de su ejecución. [CI de 16f25ae](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45848393140) · [CI de 4efbe1d](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45851070342)
 
 ## 2026-11-25 — Corrección de los mocks de compatibilidad
@@ -134,17 +140,10 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 - Pasaron sintaxis y siete escenarios simulados, incluido fallo de la credencial antes del alta. Sigue pendiente ejecutar en Firebase real con el SHA autorizado.
 - Siguiente acción. Ejecutar el bloque único de Cloud Shell y compartir su resultado.
 
-## 2026-11-25 — Diagnóstico del HTTP 403 de Policy Troubleshooter
-
-- El propietario informó que se aceptó la cuenta de Compute Engine y que las consultas v3 se detuvieron con HTTP 403. Los permisos efectivos de despliegue siguen pendientes.
-- Se contrastaron los requisitos de cuota y visibilidad de Google. El diagnóstico prueba los permisos propios del llamante por separado, informa la evidencia disponible de los otros principales y propone ajustes acotados cuando corresponde. [Diagnóstico](../scripts/diagnosticar-iam-funcion-v243.py)
-- Pasaron sintaxis y cinco escenarios con APIs simuladas. La iteración se limitó a documentación y preparación del diagnóstico.
-- Siguiente acción. Ejecutar el bloque de diagnóstico en Cloud Shell y compartir su salida.
-
 ## 2026-11-25 — Preparación y precheck de Firebase real
 
 - Firebase confirmó Firestore Native en `nam5` y Hosting existente. El precheck verificó administrador activo, ausencia de caja y cero ventas ejecutadas. Codex obtuvo HTTP 403 al consultar inicialmente las reglas y la identidad WIF quedó limitada a `main`; se preparó el despliegue separado para `fa521e9`. [Procedimiento](DESPLIEGUE-FIREBASE-WIF.md) · [Precheck](VALIDACION-FINAL-V243.md#firebase-remoto-existente) · [CI del SHA](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45687488832) · [CI de reglas](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45684703207)
 - Se aprobaron en CI el núcleo, Chromium, Firestore Emulator y el piloto de `70ffba8`. El emulador cubrió la caja personal y cestas de hasta 248 SKU. La matriz real conserva IDs y requiere confirmación para las escrituras sintéticas. WIF intercambió la identidad y el fallo del respaldo omitió el despliegue. [PR #21](https://github.com/kdnaskrlos/Punto-de-Venta/pull/21) · [CI funcional](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45657887101) · [CI de caja](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45653138434) · [Matriz](../pruebas/firebase/remoto-cestas.cjs) · [Condiciones](VALIDACION-FINAL-V243.md#firebase-remoto-existente)
-- Se estableció la memoria permanente con `pos-contexto`, evidencia diferenciada y actualización de ambos documentos por ronda. El propietario priorizó Firebase real con datos sintéticos. [Protocolo](../AGENTS.md#flujo-permanente-chatgpt--codex) · [Fuentes](memoria/README.md) · [Autorización](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304)
-- Se autorizó solo `procesarVentaPos` de `fa521e9`. El alta y ajuste del preflight IAM se verificaron con sintaxis y APIs simuladas. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
+- Se estableció `pos-contexto` y se priorizó Firebase real con datos sintéticos. Se autorizó solo `procesarVentaPos` de `fa521e9`; el alta y preflight IAM se verificaron con sintaxis y APIs simuladas. [Protocolo](../AGENTS.md#flujo-permanente-chatgpt--codex) · [Fuentes](memoria/README.md) · [Autorización](https://github.com/kdnaskrlos/Punto-de-Venta/issues/22#issuecomment-7171546304) · [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
+- Las consultas v3 de Policy Troubleshooter devolvieron HTTP 403. El diagnóstico distinguió permisos propios del llamante y visibilidad de otros principales. Pasaron cinco escenarios simulados. [Diagnóstico](../scripts/diagnosticar-iam-funcion-v243.py)
 - El reinicio de fábrica quedó pospuesto. Pedidos Personalizados mantiene su Firebase y las nuevas reglas comerciales requieren especificación. [Issue #26](https://github.com/kdnaskrlos/Punto-de-Venta/issues/26) · [Notas de Pedidos](superpowers/specs/2026-11-14-pedidos-en-pos-notas.md) · [Reglas por confirmar](ESTADO_ACTUAL.md#reglas-comerciales-por-confirmar)
