@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Ciclo de vida de Firebase Admin en las pruebas de 2.0.1
+
+- La CI obtuvo 38/43 en Firestore Emulator. Se reprodujo el error en cuatro casos de apartados y en el cierre final después de que el caso de 64 SKU eliminara la app compartida. [CI anterior](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46091072291)
+- El fixture de ventas se inicializa bajo demanda y se cierra al terminar la suite. Pasaron 5/5 casos dirigidos y 42/42 de la suite completa de Firestore Emulator en local. [Pruebas](../pruebas/firebase/cobros.cjs)
+- Siguiente acción. Revisar el candidato en el PR #27. 2.0.2 sigue pendiente de autorización. [PR #27](https://github.com/kdnaskrlos/Punto-de-Venta/pull/27)
+
 ## 2026-11-27 — Candidato 2.0.1 · Abonos y liquidación de apartados
 
 - El propietario aprobó el alcance de 2.0 y el reintegro íntegro en ropa normal. La retención por costos comprometidos en personalizados quedó para fase 4. ESC-004 incorpora reposiciones fragmentadas, con precio, vigencia y comisión pendientes. [Reglas](REGLAS_COMERCIALES.md) · [ESC-004](ESCENARIOS_COMERCIALES.md#esc-004)

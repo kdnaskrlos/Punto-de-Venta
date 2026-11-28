@@ -8,6 +8,8 @@ if (!/^127\.0\.0\.1:[1-9]\d{0,4}$/.test(process.env.FIRESTORE_EMULATOR_HOST || '
 const cargar = createRequire(path.resolve(__dirname, '../../funciones/package.json'));
 const { initializeApp, deleteApp } = cargar('firebase-admin/app');
 process.env.GCE_METADATA_HOST = '127.0.0.1:1';
+// El receptor conserva esta instancia. Cada archivo de pruebas es dueño de su ciclo
+// de vida y la cierra en el after de la suite, nunca en el de un caso individual.
 const app = initializeApp({ projectId: 'demo-pos-bloque1' });
 const { procesarVentaPos } = cargar('./index.cjs');
 const raizSdk = path.resolve(path.dirname(cargar.resolve('firebase-functions')), '../..');
@@ -32,9 +34,10 @@ function eventoCreado(uid, id, extensiones = {}) {
   };
 }
 
+let cierre;
 module.exports = {
   procesar: (uid, id) => procesarVentaPos(eventoCreado(uid, id, { document: `usuarios/${uid}/solicitudesVenta/${id}` })),
   eventoCreado,
   entregar: evento => procesarVentaPos(evento),
-  cerrar: () => deleteApp(app),
+  cerrar: () => cierre ||= deleteApp(app),
 };

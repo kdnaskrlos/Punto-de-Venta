@@ -20,9 +20,13 @@ before(async () => {
   entorno = await initializeTestEnvironment({ projectId: proyecto, firestore: { host: direccion, port: Number(puerto), rules: reglas } });
   console.log('Reglas cargadas SHA-256', createHash('sha256').update(reglas).digest('hex'));
 });
-after(async () => { await entorno?.cleanup(); if (procesadorApartados) await procesadorApartados.cerrar(); });
-let procesadorApartados;
-const servicioApartados = () => procesadorApartados ||= require('./servicio-ventas.cjs');
+let servicio;
+const servicioVentas = () => servicio ||= require('./servicio-ventas.cjs');
+
+after(async () => {
+  try { await entorno?.cleanup(); }
+  finally { await servicio?.cerrar(); }
+});
 
 async function preparar({ skus = [] } = {}) {
   await entorno.clearFirestore();
@@ -556,8 +560,7 @@ test('guardarVenta conserva 64 SKU sin red y vacía su cola ordenada al reabrir,
     const tope = Date.now() + 15000;
     while (leerPendientes('a').length && Date.now() < tope) await revisarPendientes(ctx);
   } else {
-    const { procesar, cerrar } = require('./servicio-ventas.cjs');
-    t.after(cerrar);
+    const { procesar } = servicioVentas();
     await revisarPendientes(ctx); // Primer intento con el procesador aún sin respuesta.
     assert.equal((await getDocFromServer(solicitud(v1.id))).exists(), true);
     assert.equal((await getDocFromServer(solicitud(v2.id))).exists(), false);
@@ -835,7 +838,7 @@ const efectivoCop = monto => ({ forma: 'efectivo-cop', nombre: 'Efectivo pesos',
 const efectivoUsd = monto => ({ forma: 'efectivo-usd', nombre: 'Efectivo dólares', moneda: 'USD', monto, equivalenteCop: monto * 4000 });
 
 test('2.0.1: abono compuesto es indivisible, exige equivalentes válidos y conserva abonos históricos', { timeout: 30000 }, async () => {
-  const { procesar } = servicioApartados();
+  const { procesar } = servicioVentas();
   await preparar();
   await entorno.withSecurityRulesDisabled(async c => {
     const db = c.firestore();
@@ -873,7 +876,7 @@ test('2.0.1: abono compuesto es indivisible, exige equivalentes válidos y conse
 });
 
 test('2.0.1: alta reservada y liquidación usan pagos válidos y mantienen stock, precios y abonos originales', { timeout: 30000 }, async () => {
-  const { procesar } = servicioApartados();
+  const { procesar } = servicioVentas();
   await preparar();
   const a = entorno.authenticatedContext('a').firestore();
   const linea = { sku: 'ultimo', cantidad: 1, tramo: 0, precioUnit: 11000, subtotal: 11000,
@@ -909,7 +912,7 @@ test('2.0.1: alta reservada y liquidación usan pagos válidos y mantienen stock
 });
 
 test('2.0.1: la cola offline de apartados conserva el comprobante al reabrir y contabiliza tras confirmación', { timeout: 45000 }, async t => {
-  const { procesar } = servicioApartados();
+  const { procesar } = servicioVentas();
   await preparar();
   const a = entorno.authenticatedContext('a').firestore();
   const { posA, abrir, esperarSesion, leerPendientes, revisarPendientes } = await prepararAdaptadores(t, a, null, { ventasAtomicas: true });
@@ -939,7 +942,7 @@ test('2.0.1: la cola offline de apartados conserva el comprobante al reabrir y c
 });
 
 test('2.0.1: la aprobación del carrito se conserva al apartar y no se vuelve a aplicar en venta', { timeout: 30000 }, async () => {
-  const { procesar } = servicioApartados();
+  const { procesar } = servicioVentas();
   await preparar();
   const carrito = 'carrito-con-descuento', id = 'reserva-con-descuento';
   const linea = { sku: 'ultimo', cantidad: 1, tramo: 0, precioUnit: 11000, subtotal: 11000,
