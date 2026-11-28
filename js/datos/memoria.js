@@ -270,10 +270,20 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
       const ap = col.apartados.get(id); if (!ap) return NO('no-existe');
       if (ap.estado !== 'pendiente') return NO('estado');
       const caja = cajaAbierta(sesion.uid); if (!caja) return NO('sin-caja');
-      if (pago.id && ap.abonos.some(x => x.id === pago.id)) return SI();
-      if ((pago.equivalenteCop || 0) > ap.saldo + 50) return NO('excede');
-      ap.abonos.push({ ...pago, cajaId: caja.id, usuario: sesion.usuario, fecha: ahora() });
-      ap.saldo = Math.max(0, ap.total - ap.abonos.reduce((s, a) => s + (a.equivalenteCop || 0), 0));
+      const grupo = Array.isArray(pago.pagos);
+      const operacionId = grupo ? 'abono:' + pago.id : null;
+      if (grupo && (!pago.id || !pago.pagos.length)) return NO('datos');
+      if (ap.abonos.some(x => grupo ? x.operacionId === operacionId : pago.id && x.id === pago.id)) return SI({ repetido: true });
+      const medios = grupo ? pago.pagos : [pago];
+      if (grupo && medios.some(p => !Number.isSafeInteger(p?.equivalenteCop) || p.equivalenteCop <= 0)) return NO('datos');
+      const monto = medios.reduce((total, p) => total + (p.equivalenteCop || 0), 0);
+      if (monto > ap.saldo) return NO('excede');
+      const fecha = pago.fecha || ahora();
+      ap.abonos.push(...medios.map((p, i) => ({
+        ...p, cajaId: caja.id, usuario: sesion.usuario, fecha,
+        ...(grupo ? { id: pago.id + '-' + i, operacionId, tasas: pago.tasas } : {}),
+      })));
+      ap.saldo -= monto;
       escribio(); avisar('apartados');
       return SI();
     },
@@ -522,7 +532,7 @@ export function crearMemoria(datos, { guardarEn = null } = {}) {
     api[m] = async (...args) => {
       const x = previo[m]?.(args) || {};
       const r = await f(...args);
-      if (r?.ok && !(m === 'guardarAjustes' && !x.cambios) && !(m === 'guardarCliente' && x.igual)) anotarEvento(m, args, { ...x, ...r, offline: r.offline });
+      if (r?.ok && !r.repetido && !(m === 'guardarAjustes' && !x.cambios) && !(m === 'guardarCliente' && x.igual)) anotarEvento(m, args, { ...x, ...r, offline: r.offline });
       return r;
     };
   }

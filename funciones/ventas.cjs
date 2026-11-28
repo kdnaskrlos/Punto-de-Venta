@@ -5,8 +5,8 @@ const CONFIRMADA = 'confirmada_servidor';
 const RECHAZADA = 'rechazada_conflicto';
 const ROLES = ['vendedora', 'encargada', 'admin'];
 const CAMPOS = ['id', 'cajaId', 'fecha', 'creada', 'offline', 'cliente', 'lineas', 'subtotal', 'descuento', 'total', 'pagos', 'vuelto', 'tasas'];
-// Presupuesto conservador de este protocolo: dos escrituras por SKU y tres compartidas.
-const MAX_SKUS = Math.floor((500 - 3) / 2);
+// Presupuesto conservador de este protocolo: dos escrituras por SKU, tres compartidas y hasta una de autorización.
+const MAX_SKUS = Math.floor((500 - 4) / 2);
 const clave = (...partes) => createHash('sha256').update(JSON.stringify(partes)).digest('hex');
 const idValido = v => typeof v === 'string' && v.length > 0 && Buffer.byteLength(v) <= 1500
   && !v.includes('/') && !['.', '..'].includes(v) && !/^__.*__$/.test(v);
@@ -87,7 +87,9 @@ async function procesarVenta(db, uid, id, leerTasa) {
       && v.vuelto.partes.some(p => p?.moneda === 'BS'));
     const tasaRemota = conBs && ajustesTasas.bsModo !== 'manual' ? await leerTasa() : null;
     const idAutorizacion = v.descuento?.autorizacionId;
-    const autorizacion = idValido(idAutorizacion) ? (await tx.get(db.doc('autorizaciones/' + idAutorizacion))).data() : null;
+    const autorizacionSnap = idValido(idAutorizacion) ? await tx.get(db.doc('autorizaciones/' + idAutorizacion)) : null;
+    const autorizacion = autorizacionSnap?.data();
+    if (autorizacion?.usadaEn) return rechazar('finanzas-autorizacion');
     const resultado = verificarFinanzas(v, Object.fromEntries(productos.map(p => [p.id, p.data()])),
       general.data() || {}, ajustesTasas, tasaRemota, { ...perfil, uid }, autorizacion);
     if (resultado) return rechazar('finanzas-' + resultado);
@@ -98,6 +100,7 @@ async function procesarVenta(db, uid, id, leerTasa) {
       tx.create(db.collection('movimientos').doc(mov), { id: mov, sku, cantidad: -cantidad, motivo: 'venta',
         ref: id, nota: '', usuario, fecha });
     }
+    if (autorizacion) tx.update(autorizacionSnap.ref, { usadaEn: { col: 'ventas', id } });
     tx.create(venta, { ...v, uid, usuario, numero: null, estado: 'ok' });
     tx.create(marca, { ...datosMarca, estadoSync: CONFIRMADA });
     anotar('venta.creada', 'ventas', id, { resumen: `${v.total.toLocaleString('es-CO')} COP · ${v.lineas.reduce((n, l) => n + l.cantidad, 0)} prendas` });
@@ -120,14 +123,17 @@ async function numerarVenta(db, uid, id) {
   });
 }
 
-async function atenderVenta(db, { uid, id }) {
+function consultaTasa() {
   let tasa;
-  const leerTasa = () => tasa ||= fetch('https://kdnaskrlos.github.io/Calculadora-de-Tasas/tasa.json', {
+  return () => tasa ||= fetch('https://kdnaskrlos.github.io/Calculadora-de-Tasas/tasa.json', {
     signal: AbortSignal.timeout(4000), redirect: 'error',
   }).then(r => r.ok ? r.json() : null).catch(() => null);
-  const estado = await procesarVenta(db, uid, id, leerTasa);
+}
+
+async function atenderVenta(db, { uid, id }) {
+  const estado = await procesarVenta(db, uid, id, consultaTasa());
   if (estado === CONFIRMADA) await numerarVenta(db, uid, id);
   return estado;
 }
 
-module.exports = { atenderVenta, idValido };
+module.exports = { atenderVenta, idValido, fechaValida, cantidadesDe, numerarVenta, consultaTasa, MAX_SKUS };

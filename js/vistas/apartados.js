@@ -57,7 +57,7 @@ export async function crearApartado(ctx, { id, r0, pagos, cerrar }) {
   const c = carrito(ctx);
   const ap = {
     id, fecha: new Date().toISOString(), cliente: { ...carrito(ctx).cliente }, lineas: lineasParaGuardar(ctx, r),
-    subtotal: r.subtotal, descuento: r.descuento ? { tipo: c.descuento.tipo, valor: c.descuento.valor, monto: r.descuento, autorizadoPor: c.autorizacion?.por || null } : null,
+    subtotal: r.subtotal, descuento: r.descuento ? { tipo: c.descuento.tipo, valor: c.descuento.valor, monto: r.descuento, autorizadoPor: c.autorizacion?.por || null, autorizacionId: c.autorizacion?.id || null } : null,
     total: r.total, abonos: pagos, tasas: tasasDe(ctx),
   };
   const res = await conCaja(ctx, () => ctx.almacen.guardarApartado(ap));
@@ -76,7 +76,8 @@ function abrirPago(ctx, ap, modo) {
   const panel = crearPanelPagos(ctx, { total: ap.saldo, permitirMenos: !completar, alCambiar: () => actualizar() });
   const actualizar = () => {
     const e = panel.estado();
-    final.disabled = guardando || (completar ? (!e.cuadra || !e.vueltoValido) : (e.pagadoCop <= 0 || e.vueltoCop > 0));
+    final.disabled = guardando || (completar ? (!e.cuadra || !e.vueltoValido)
+      : (e.pagadoCop <= 0 || e.vueltoCop > 0 || e.pagos.some(p => p.equivalenteCop == null)));
   };
   const v = abrirVentana({ titulo: completar ? 'Completar apartado' : 'Abonar', pantallaCompleta: true,
     contenido: h('div', { class: 'cobro' }, h('p', {}, h('b', {}, ap.cliente.nombre), ` · total ${fmtCop(ap.total)} · saldo `, h('b', { class: 'num' }, fmtCop(ap.saldo))), panel.el),
@@ -84,7 +85,7 @@ function abrirPago(ctx, ap, modo) {
   v.alCerrar = panel.quitar;
   actualizar();
   const idVenta = ctx.almacen.nuevoId();
-  let pendiente = false, pagosEnCurso;
+  let pendiente = false;
   final.addEventListener('click', async () => {
     if (guardando) return;
     guardando = true; actualizar();
@@ -98,23 +99,8 @@ function abrirPago(ctx, ap, modo) {
       res = await conCaja(ctx, () => ctx.almacen.completarApartado(ap.id, venta));
       if (res.ok && res.offline && !res.estadoSync) anotarPendiente(ctx, { que: 'completar', id: idVenta, apartadoId: ap.id, offline: true, datos: venta }); // v2.26
     } else {
-      // Cada abono lleva un id fijo: si algo falla y se reintenta, los ya guardados no se repiten.
-      const actual = await ctx.almacen.obtener('apartados', ap.id) || ap;
-      const fecha = new Date().toISOString();
-      const intento = pagosEnCurso || pagos.map((p, i) => ({ ...p, id: `${idVenta}-${i}`, fecha }));
-      const nuevos = intento.filter(p => !(actual.abonos || []).some(a => a.id === p.id));
-      const suma = nuevos.reduce((s, p) => s + (p.equivalenteCop || 0), 0);
-      if (suma > actual.saldo + 50) res = { ok: false, error: 'excede' };
-      else {
-        res = { ok: true };
-        for (const abono of nuevos) {
-          const r = await conCaja(ctx, () => ctx.almacen.abonarApartado(ap.id, abono));
-          if (!r.ok) { res = r; break; }
-          pagosEnCurso ||= intento;
-          pendiente ||= r.estadoSync === LOCAL_PENDIENTE;
-          if (r.offline && !r.estadoSync) anotarPendiente(ctx, { que: 'abono', id: abono.id, apartadoId: ap.id, offline: true, datos: { ...abono, fecha: new Date().toISOString(), cliente: ap.cliente } }); // v2.26
-        }
-      }
+      const abono = { id: idVenta, pagos, fecha: new Date().toISOString(), tasas: tasasDe(ctx) };
+      res = await conCaja(ctx, () => ctx.almacen.abonarApartado(ap.id, abono));
     }
     guardando = false;
     if (!res.ok) {
@@ -150,9 +136,9 @@ function tarjeta(ctx, ap, filtro) {
     // Abono y saldo alineados a la derecha, con una línea divisoria continua entre ellos.
     h('b', { class: 'ap-nombre' }, nombre),
     h('span', { class: 'ap-et ap-et-abono' }, 'Abono'),
-    h('span', { class: 'ap-et ap-et-saldo' }, pendiente ? 'Saldo' : etiqueta),
+    h('span', { class: 'ap-et ap-et-saldo' }, pendiente ? 'Saldo' : ap.pendienteLocal ? 'Por sincronizar' : etiqueta),
     h('span', { class: 'ap-fecha' }, icono('calendario'), diaCorto(ap.fecha), h('span', { class: 'ap-sep', 'aria-hidden': 'true' }, '/'),
-      h('span', { class: 'ap-hace' + (viejo ? ' viejo' : '') }, dias <= 0 ? 'Hoy' : `${dias} ${dias === 1 ? 'día' : 'días'}`)),
+      h('span', { class: 'ap-hace' + (viejo ? ' viejo' : '') }, ap.pendienteLocal ? 'Por sincronizar' : dias <= 0 ? 'Hoy' : `${dias} ${dias === 1 ? 'día' : 'días'}`)),
     h('b', { class: 'num ap-abono' }, fmtCop(abonado)),
     h('b', { class: 'num ap-saldo' + (pendiente ? '' : ' cerrado') }, fmtCop(pendiente ? ap.saldo : ap.total)),
     h('span', { class: 'ap-linea', 'aria-hidden': 'true' }));
@@ -175,7 +161,7 @@ function abrirDetalle(ctx, ap) {
       h('div', {}, h('h2', { class: 'ap-det-nombre' }, ap.cliente?.nombre || 'Apartado'),
         // v2.00: el teléfono, más grande, abre el chat de WhatsApp del cliente.
         ap.cliente?.telefono ? h('a', { class: 'ap-det-tel nota num wa', href: `https://wa.me/${String(ap.cliente.telefono).replace(/\D/g, '')}`, target: '_blank', rel: 'noopener', 'aria-label': `Escribir por WhatsApp a ${ap.cliente?.nombre || 'cliente'}, ${telLegible(ap.cliente.telefono)}` }, icono('telefono'), telLegible(ap.cliente.telefono)) : null),
-      h('span', { class: 'ap-det-cab-der' }, h('span', { class: `est ${color}` }, etiqueta), h('button', { class: 'ibtn cerrar', 'data-act': 'close', 'aria-label': 'Cerrar' }, icono('x')))),
+      h('span', { class: 'ap-det-cab-der' }, h('span', { class: `est ${color}` }, ap.pendienteLocal ? 'Por sincronizar' : etiqueta), h('button', { class: 'ibtn cerrar', 'data-act': 'close', 'aria-label': 'Cerrar' }, icono('x')))),
     h('div', { class: 'ap-det-pago' },
       h('div', { class: 'ap-det-cifras' },
         // Primero lo abonado y luego lo que falta (de izquierda a derecha, como se lee el pago).
@@ -200,7 +186,7 @@ function abrirDetalle(ctx, ap) {
       abonos.length ? h('button', { type: 'button', class: 'det-ver', id: 'ap-historial', onclick: historial }, `Ver historial de abonos (${abonos.length})`, icono('der')) : null) : null,
     h('p', { class: 'det-meta' }, icono('calendario'), `Apartado el ${fechaHora(ap.fecha).replace(/^\S+ /, '')} · @${ap.usuario}`));
   const acciones = pendiente ? h('div', { class: 'acciones ap-acc' },
-    ctx.puedeVer('cancelarApartado') ? h('button', { class: 'btn texto peligro', id: 'ap-cancelar', onclick: () => ir(async () => {
+    !ap.pendienteLocal && ctx.puedeVer('cancelarApartado') ? h('button', { class: 'btn texto peligro', id: 'ap-cancelar', onclick: () => ir(async () => {
       const motivo = await pedirMotivo({ titulo: 'Cancelar apartado', boton: 'Cancelar apartado', peligro: true });
       if (!motivo) return;
       const r = await ctx.almacen.cancelarApartado(ap.id, motivo);
@@ -224,7 +210,7 @@ let memoAp = null;
 registrarVista('/apartados', {
   montar(cont, ctx) {
     let filtro = 'pendiente', busqueda = '';
-    let lista = memoAp?.usuario === ctx.sesion?.usuario ? memoAp.lista : null;
+    let lista = memoAp?.uid === ctx.sesion?.uid && memoAp?.almacen === ctx.almacen ? memoAp.lista : null;
     const FILTROS = [['pendiente', 'Pendientes'], ['completado', 'Completados'], ['cancelado', 'Cancelados'], ['todos', 'Todos']];
     const seg = h('div', { class: 'filtros filtro-ap', role: 'group', 'aria-label': 'Filtrar apartados' });
     const resumen = h('div', { class: 'ap-resumen' });
@@ -257,9 +243,9 @@ registrarVista('/apartados', {
     };
     buscar.addEventListener('input', () => { busqueda = buscar.value; pintar(); });
     const quitar = ctx.almacen.escuchar('apartados', l => {
-      const primera = !lista; lista = l; memoAp = { usuario: ctx.sesion?.usuario, lista: l }; pintar();
+      const primera = !lista; lista = l; memoAp = { uid: ctx.sesion?.uid, almacen: ctx.almacen, lista: l }; pintar();
       if (primera) resumen.querySelector('.ap-res-cifra .num')?.classList.add('llega');
-    });
+    }, { pendientesLocales: true });
     cont.append(resumen, h('div', { class: 'ap-filtros' }, campoBusqueda(buscar), seg), caja);
     pintar();
     return quitar;

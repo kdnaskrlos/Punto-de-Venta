@@ -33,7 +33,7 @@ function vueltoValido(v, sobrante, tasas, formas, ajustes) {
     && v.forma === (partes[0]?.forma || cop || null));
 }
 
-export function verificarFinanzas(v, productos, general, ajustesTasas, tasaRemota, perfil, autorizacion) {
+export function verificarLineas(v, productos, general, perfil, autorizacion) {
   const limites = normalizarTramos(general.tramos);
   const calculo = calcularCarrito(v.lineas.map(({ sku, cantidad }) => ({ sku, cantidad })), productos, {
     limites, redondeo: general.redondeo ?? 100,
@@ -63,24 +63,40 @@ export function verificarFinanzas(v, productos, general, ajustesTasas, tasaRemot
       && l.comision === comisiones[i].comision && l.reducida === comisiones[i].reducida;
   })) return 'lineas';
 
+  return null;
+}
+
+// Un abono aplica al saldo sin vuelto. La liquidación aplica al saldo pendiente
+// y conserva los importes originales del apartado, aunque el catálogo haya cambiado.
+export function verificarPagos(v, total, general, ajustesTasas, tasaRemota, parcial = false) {
+  if (!Number.isSafeInteger(total) || total < 0 || !Array.isArray(v.pagos)) return 'pagos';
   const tasas = tasasVigentes(ajustesTasas, tasaRemota);
   const formas = (normalizarFormas(general.formasPago) || FORMAS_PAGO_DEFECTO).filter(f => f.activa !== false);
   const usadas = new Set();
   for (const p of v.pagos) {
-    const f = formas.find(f => f.id === p.forma);
+    const f = formas.find(f => f.id === p?.forma);
+    if (!f) return 'pagos';
     const centavos = Math.round(p.monto * 100);
-    if (!f || f.moneda !== p.moneda || f.nombre !== p.nombre || usadas.has(p.forma)
+    if (f.moneda !== p.moneda || f.nombre !== p.nombre || usadas.has(p.forma)
       || p.monto <= 0 || !Number.isSafeInteger(centavos) || centavos / 100 !== p.monto
       || (p.moneda === 'COP' && !Number.isSafeInteger(p.monto))) return 'pagos';
     usadas.add(p.forma);
   }
   const e = estadoCobro({ total, pagos: v.pagos, tasas });
-  if (!e.cuadra || !Number.isSafeInteger(e.pagadoCop)
-    || !e.pagos.every((p, i) => p.equivalenteCop === v.pagos[i].equivalenteCop)) return 'pagos';
-  if (!vueltoValido(v.vuelto, e.vueltoCop, tasas, formas, general)) return 'vuelto';
+  if ((!parcial && !e.cuadra) || !Number.isSafeInteger(e.pagadoCop)
+    || !e.pagos.every((p, i) => Number.isSafeInteger(p.equivalenteCop) && (!parcial || p.equivalenteCop > 0)
+      && p.equivalenteCop === v.pagos[i].equivalenteCop)) return 'pagos';
+  if (parcial ? e.vueltoCop > 0 || v.vuelto != null : !vueltoValido(v.vuelto, e.vueltoCop, tasas, formas, general)) return 'vuelto';
   if ((v.pagos.some(p => p.moneda !== 'COP') || v.vuelto?.partes?.some(p => p.moneda !== 'COP'))
     && v.tasas?.copPorUsd !== tasas.copPorUsd) return 'tasas';
   if ((v.pagos.some(p => p.moneda === 'BS') || v.vuelto?.partes?.some(p => p.moneda === 'BS'))
     && (v.tasas?.bsPorUsd !== tasas.bsPorUsd || v.tasas?.fuenteBs !== tasas.fuenteBs)) return 'tasas';
-  return null;
+  return { pagadoCop: e.pagadoCop };
+}
+
+export function verificarFinanzas(v, productos, general, ajustesTasas, tasaRemota, perfil, autorizacion) {
+  const lineas = verificarLineas(v, productos, general, perfil, autorizacion);
+  if (lineas) return lineas;
+  const pagos = verificarPagos(v, v.total, general, ajustesTasas, tasaRemota);
+  return typeof pagos === 'string' ? pagos : null;
 }

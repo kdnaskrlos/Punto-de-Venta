@@ -97,3 +97,16 @@ test('la demostración reconcilia su cola sin retirar pendientes reales con el m
   assert.deepEqual(leerPendientes('admin').map(p => p.id), ['real-sintetico']);
   assert.deepEqual(leerPendientes('admin', true), []);
 });
+
+test('la vista de apartados proyecta un abono compuesto una vez y conserva el original', async () => {
+  const { APARTADO_PROCESADO, LOCAL_PENDIENTE, proyectarApartados } = await import('../../js/datos/pendientes.js');
+  const original = { id: 'ap', saldo: 6000, estado: 'pendiente', abonos: [{ id: 'histórico', equivalenteCop: 1000 }] };
+  const cobro = { id: 'mixto', que: 'abono', apartadoId: 'ap', transporte: APARTADO_PROCESADO, estadoSync: LOCAL_PENDIENTE,
+    datos: { cajaId: 'caja', pagos: [{ equivalenteCop: 1500 }, { equivalenteCop: 2000 }] } };
+  const [provisional] = proyectarApartados([original], [cobro], 'operadora');
+  assert.equal(provisional.saldo, 2500);
+  assert.equal(provisional.pendienteLocal, true);
+  assert.deepEqual(original.abonos.map(p => p.id), ['histórico']);
+  const confirmado = { ...provisional, pendienteLocal: false };
+  assert.deepEqual(proyectarApartados([confirmado], [cobro], 'operadora'), [confirmado]);
+});

@@ -56,7 +56,7 @@ export function describir(metodo, args, x = {}) {
     case 'guardarVenta': return { tipo: 'venta.creada', ref: { col: 'ventas', id: a0.id }, resumen: `${fmtCop(a0.total)} COP · ${prendas(a0.lineas)} prendas${x.offline ? ' · sin conexión' : ''}` };
     case 'guardarApartado': return { tipo: 'apartado.creado', ref: { col: 'apartados', id: a0.id }, resumen: `${fmtCop(a0.total)} COP · ${prendas(a0.lineas)} prendas` };
     case 'anularVenta': return { tipo: 'venta.anulada', ref: { col: 'ventas', id: a0, numero: x.venta?.numero || null }, resumen: `${x.venta?.numero || 'Venta'} · ${fmtCop(x.venta?.total || 0)} COP`, motivo: a1 };
-    case 'abonarApartado': return { tipo: 'apartado.abono', ref: { col: 'apartados', id: a0 }, resumen: monto(a1) };
+    case 'abonarApartado': return { tipo: 'apartado.abono', ref: { col: 'apartados', id: a0 }, resumen: Array.isArray(a1.pagos) ? a1.pagos.map(monto).join(' · ') : monto(a1) };
     case 'completarApartado': return { tipo: 'apartado.completado', ref: { col: 'apartados', id: a0, venta: a1.id }, resumen: `${fmtCop(a1.total)} COP` };
     case 'cancelarApartado': return { tipo: 'apartado.cancelado', ref: { col: 'apartados', id: a0 }, resumen: `${fmtCop(x.ap?.total || 0)} COP`, motivo: a1 };
     case 'abrirCaja': return { tipo: 'caja.abierta', ref: { col: 'cajas', id: x.id }, resumen: (a1?.tipo === 'personal' ? 'Caja personal' : 'Fondo ' + Object.entries(a0 || {}).filter(([, n]) => n).map(([m, n]) => `${fmtMonto(n, m)} ${m}`).join(' · ')) || 'Sin fondo' };

@@ -20,7 +20,9 @@ before(async () => {
   entorno = await initializeTestEnvironment({ projectId: proyecto, firestore: { host: direccion, port: Number(puerto), rules: reglas } });
   console.log('Reglas cargadas SHA-256', createHash('sha256').update(reglas).digest('hex'));
 });
-after(async () => { await entorno?.cleanup(); });
+after(async () => { await entorno?.cleanup(); if (procesadorApartados) await procesadorApartados.cerrar(); });
+let procesadorApartados;
+const servicioApartados = () => procesadorApartados ||= require('./servicio-ventas.cjs');
 
 async function preparar({ skus = [] } = {}) {
   await entorno.clearFirestore();
@@ -820,3 +822,146 @@ test('matriz conserva cajas existentes y no duplica la venta de una ejecución i
   assert.deepEqual((await getDocFromServer(venta)).data(), guardada);
 });
 
+
+function solicitarApartado(db, que, refId, apartadoId, datos, uid = 'a') {
+  return setDoc(doc(db, 'usuarios', uid, 'solicitudesVenta', que + ':' + refId), {
+    cobro: { que, refId, apartadoId, datos: { id: refId, cajaId: uid, fecha, creada: fecha,
+      offline: true, tasas: { copPorUsd: 4000 }, ...datos } },
+    dispositivo: 'qa-2.0.1', version: 'prueba', orden: 1, recibida: serverTimestamp(),
+  });
+}
+
+const efectivoCop = monto => ({ forma: 'efectivo-cop', nombre: 'Efectivo pesos', moneda: 'COP', monto, equivalenteCop: monto });
+const efectivoUsd = monto => ({ forma: 'efectivo-usd', nombre: 'Efectivo dólares', moneda: 'USD', monto, equivalenteCop: monto * 4000 });
+
+test('2.0.1: abono compuesto es indivisible, exige equivalentes válidos y conserva abonos históricos', { timeout: 30000 }, async () => {
+  const { procesar } = servicioApartados();
+  await preparar();
+  await entorno.withSecurityRulesDisabled(async c => {
+    const db = c.firestore();
+    await setDoc(doc(db, 'ajustes', 'tasas'), { copPorUsd: 4000 });
+    await updateDoc(doc(db, 'apartados', 'ap'), { saldo: 18000, abonos: [
+      { id: 'anterior', cajaId: 'a', usuario: 'a', forma: 'efectivo-usd', moneda: 'USD', monto: 1, equivalenteCop: 4000, fecha },
+    ] });
+  });
+  const a = entorno.authenticatedContext('a').firestore(), b = entorno.authenticatedContext('b').firestore();
+  const apartado = () => getDocFromServer(doc(a, 'apartados', 'ap')).then(s => s.data());
+  await solicitarApartado(a, 'abono', 'invalido', 'ap', { pagos: [efectivoCop(3000), { ...efectivoUsd(1), equivalenteCop: 1000 }] });
+  assert.equal(await procesar('a', 'abono:invalido'), 'rechazada_conflicto');
+  assert.equal((await apartado()).saldo, 18000);
+  assert.deepEqual((await apartado()).abonos.map(p => p.id), ['anterior']);
+  await assertFails(solicitarApartado(b, 'abono', 'ajeno', 'ap', { pagos: [efectivoCop(1)] }));
+  await solicitarApartado(a, 'abono', 'mixto', 'ap', { pagos: [efectivoCop(3000), efectivoUsd(1)] });
+  await assertFails(solicitarApartado(a, 'abono', 'mixto', 'ap', { pagos: [efectivoCop(1)] }));
+  const entregas = await Promise.all([procesar('a', 'abono:mixto'), procesar('a', 'abono:mixto')]);
+  assert.deepEqual(entregas, ['confirmada_servidor', 'confirmada_servidor']);
+  const ap = await apartado();
+  assert.equal(ap.saldo, 11000);
+  assert.deepEqual(ap.abonos.map(p => p.id), ['anterior', 'mixto-0', 'mixto-1']);
+  assert.equal(ap.abonos[2].tasas.copPorUsd, 4000);
+  assert.equal(ap.abonos[2].cajaId, 'a');
+  assert.equal((await getDocsFromServer(query(collection(b, 'eventos'), where('tipo', '==', 'apartado.abono')))).size, 1);
+
+  // Saldo leído por dos operadores a la vez: solo un grupo cabe.
+  await Promise.all([
+    solicitarApartado(a, 'abono', 'compite-a', 'ap', { pagos: [efectivoCop(7000)] }),
+    solicitarApartado(b, 'abono', 'compite-b', 'ap', { pagos: [efectivoCop(7000)] }, 'b'),
+  ]);
+  assert.deepEqual((await Promise.all([procesar('a', 'abono:compite-a'), procesar('b', 'abono:compite-b')])).sort(),
+    ['confirmada_servidor', 'rechazada_conflicto']);
+  assert.equal((await apartado()).saldo, 4000);
+});
+
+test('2.0.1: alta reservada y liquidación usan pagos válidos y mantienen stock, precios y abonos originales', { timeout: 30000 }, async () => {
+  const { procesar } = servicioApartados();
+  await preparar();
+  const a = entorno.authenticatedContext('a').firestore();
+  const linea = { sku: 'ultimo', cantidad: 1, tramo: 0, precioUnit: 11000, subtotal: 11000,
+    oferta: false, descuento: 0, comision: 4000, reducida: false };
+  await solicitarApartado(a, 'apartado', 'alta-invalida', 'alta-invalida',
+    { total: 11000, subtotal: 11000, lineas: [linea], pagos: [efectivoCop(12000)] });
+  assert.equal(await procesar('a', 'apartado:alta-invalida'), 'rechazada_conflicto');
+  assert.equal((await getDocFromServer(doc(a, 'apartados', 'alta-invalida'))).exists(), false);
+  const existencia = async () => (await getDocFromServer(doc(a, 'productos', 'ultimo'))).data().existencia;
+  assert.equal(await existencia(), 1);
+  await solicitarApartado(a, 'apartado', 'alta', 'alta',
+    { total: 11000, subtotal: 11000, lineas: [linea], pagos: [efectivoCop(3000)] });
+  assert.equal(await procesar('a', 'apartado:alta'), 'confirmada_servidor');
+  const apartadoRef = doc(a, 'apartados', 'alta');
+  assert.equal((await getDocFromServer(apartadoRef)).data().saldo, 8000);
+  assert.equal(await existencia(), 0);
+  await assertFails(updateDoc(apartadoRef, { saldo: 7000, abonos: [{ equivalenteCop: 3000 }, { equivalenteCop: 1000 }] }));
+  await entorno.withSecurityRulesDisabled(async c => updateDoc(doc(c.firestore(), 'productos', 'ultimo'), { precios: [99999] }));
+  await solicitarApartado(a, 'completar', 'pago-insuficiente', 'alta',
+    { total: 11000, abonosPrevios: 3000, pagos: [efectivoCop(7000)] });
+  assert.equal(await procesar('a', 'completar:pago-insuficiente'), 'rechazada_conflicto');
+  assert.equal((await getDocFromServer(apartadoRef)).data().saldo, 8000);
+  assert.equal((await getDocFromServer(doc(a, 'ventas', 'pago-insuficiente'))).exists(), false);
+  await solicitarApartado(a, 'completar', 'liquidar', 'alta',
+    { total: 11000, abonosPrevios: 3000, pagos: [efectivoCop(8000)], vuelto: null });
+  assert.equal(await procesar('a', 'completar:liquidar'), 'confirmada_servidor');
+  assert.equal(await procesar('a', 'completar:liquidar'), 'confirmada_servidor');
+  const venta = (await getDocFromServer(doc(a, 'ventas', 'liquidar'))).data();
+  assert.deepEqual([venta.total, venta.abonosPrevios, venta.lineas[0].precioUnit, venta.numero], [11000, 3000, 11000, 'V-0001']);
+  const ap = (await getDocFromServer(apartadoRef)).data();
+  assert.deepEqual([ap.estado, ap.saldo, ap.abonos[0].id], ['completado', 0, 'alta-0']);
+  assert.equal(await existencia(), 0);
+});
+
+test('2.0.1: la cola offline de apartados conserva el comprobante al reabrir y contabiliza tras confirmación', { timeout: 45000 }, async t => {
+  const { procesar } = servicioApartados();
+  await preparar();
+  const a = entorno.authenticatedContext('a').firestore();
+  const { posA, abrir, esperarSesion, leerPendientes, revisarPendientes } = await prepararAdaptadores(t, a, null, { ventasAtomicas: true });
+  const cajas = query(collection(a, 'cajas'), where('usuario', '==', 'a'), where('estado', '==', 'abierta'));
+  assert.equal((await getDocsFromServer(cajas)).size, 1);
+  globalThis.navigator.onLine = false;
+  await disableNetwork(a);
+  const abono = { id: 'sin-red', fecha, tasas: { copPorUsd: null }, pagos: [efectivoCop(3000)] };
+  assert.deepEqual(await posA.abonarApartado('ap', abono), { ok: true, offline: true, estadoSync: 'local_pendiente' });
+  const [p] = leerPendientes('a');
+  assert.deepEqual(p.datos.pagos, abono.pagos);
+  const reabierto = abrir('a');
+  const sesion = await esperarSesion(reabierto);
+  globalThis.navigator.onLine = true;
+  await enableNetwork(a);
+  const conciliar = revisarPendientes({ sesion, almacen: reabierto });
+  const solicitud = doc(a, 'usuarios', 'a', 'solicitudesVenta', 'abono:sin-red');
+  await new Promise((r, e) => {
+    const quitar = onSnapshot(solicitud, { includeMetadataChanges: true }, s => {
+      if (s.exists() && !s.metadata.hasPendingWrites) { quitar(); r(); }
+    }, e);
+  });
+  assert.equal(await procesar('a', 'abono:sin-red'), 'confirmada_servidor');
+  await conciliar;
+  assert.deepEqual(leerPendientes('a'), []);
+  assert.equal((await getDocFromServer(doc(a, 'apartados', 'ap'))).data().saldo, 19000);
+});
+
+test('2.0.1: la aprobación del carrito se conserva al apartar y no se vuelve a aplicar en venta', { timeout: 30000 }, async () => {
+  const { procesar } = servicioApartados();
+  await preparar();
+  const carrito = 'carrito-con-descuento', id = 'reserva-con-descuento';
+  const linea = { sku: 'ultimo', cantidad: 1, tramo: 0, precioUnit: 11000, subtotal: 11000,
+    oferta: false, descuento: 1000, comision: 2000, reducida: true };
+  await entorno.withSecurityRulesDisabled(async c => {
+    const db = c.firestore();
+    await updateDoc(doc(db, 'productos', 'ultimo'), { existencia: 2 });
+    await setDoc(doc(db, 'autorizaciones', 'descuento-autorizado'), {
+      estado: 'aprobada', uid: 'a', usuario: 'a', ventaId: carrito, aprueba: 'b',
+      tipo: 'monto', valor: 1000, subtotal: 11000,
+      firmaCarrito: JSON.stringify([JSON.stringify([carrito, [['ultimo', 1]]]), [['ultimo', 1, 11000, false]]]),
+    });
+  });
+  const a = entorno.authenticatedContext('a').firestore();
+  const datos = { subtotal: 11000, total: 10000, lineas: [linea], pagos: [efectivoCop(10000)],
+    descuento: { tipo: 'monto', valor: 1000, monto: 1000, autorizadoPor: 'b', autorizacionId: 'descuento-autorizado' } };
+  await solicitarApartado(a, 'apartado', id, id, datos);
+  assert.equal(await procesar('a', 'apartado:' + id), 'confirmada_servidor');
+  await setDoc(doc(a, 'usuarios', 'a', 'solicitudesVenta', carrito), {
+    venta: { id: carrito, ...datos, cajaId: 'a', fecha, creada: fecha, offline: true },
+    dispositivo: 'qa', version: 'prueba', orden: 2, recibida: serverTimestamp(),
+  });
+  assert.equal(await procesar('a', carrito), 'rechazada_conflicto');
+  assert.equal((await getDocFromServer(doc(a, 'productos', 'ultimo'))).data().existencia, 1);
+});

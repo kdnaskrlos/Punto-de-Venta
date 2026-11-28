@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Candidato 2.0.1 · Abonos y liquidación de apartados
+
+- El propietario aprobó el alcance de 2.0 y el reintegro íntegro en ropa normal. La retención por costos comprometidos en personalizados quedó para fase 4. ESC-004 incorpora reposiciones fragmentadas, con precio, vigencia y comisión pendientes. [Reglas](REGLAS_COMERCIALES.md) · [ESC-004](ESCENARIOS_COMERCIALES.md#esc-004)
+- El candidato confirma cada abono compuesto en una sola transacción, conserva la cola offline y valida alta, liquidación, saldo, caja y pagos en servidor. Se probaron reintentos, concurrencia, autorización y datos históricos. [Procesador](../funciones/apartados.cjs)
+- Validación local: 175 unitarias, 8 casos de emulador y 6 de apartados en Chromium aprobados. Siguiente acción: revisar el candidato en GitHub. La política de moneda, medio y caja y la autorización de 2.0.2 siguen pendientes.
+
 ## 2026-11-27 — Alcance propuesto de Consolidación del núcleo
 
 - Se contrastaron los casos operativos con el diagnóstico previo, las reglas, el código y la evidencia existente. La huella local coincide con la registrada para el ruleset. Se verificó el alcance documental.
