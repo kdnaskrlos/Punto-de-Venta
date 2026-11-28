@@ -6,7 +6,7 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 
 - El propietario aprobó el alcance de 2.0 y el reintegro íntegro en ropa normal. La retención por costos comprometidos en personalizados quedó para fase 4. ESC-004 incorpora reposiciones fragmentadas, con precio, vigencia y comisión pendientes. [Reglas](REGLAS_COMERCIALES.md) · [ESC-004](ESCENARIOS_COMERCIALES.md#esc-004)
 - El candidato confirma cada abono compuesto en una sola transacción, conserva la cola offline y valida alta, liquidación, saldo, caja y pagos en servidor. Se probaron reintentos, concurrencia, autorización y datos históricos. [Procesador](../funciones/apartados.cjs)
-- Validación local: 175 unitarias, 8 casos de emulador y 6 de apartados en Chromium aprobados. Siguiente acción: revisar el candidato en GitHub. La política de moneda, medio y caja y la autorización de 2.0.2 siguen pendientes.
+- Validación local: 175 unitarias, 8 casos de emulador, 6 de apartados en Chromium y 7 comprobaciones PWA aprobados. Siguiente acción: revisar el PR #27. La política de moneda, medio y caja y la autorización de 2.0.2 siguen pendientes. [PR #27](https://github.com/kdnaskrlos/Punto-de-Venta/pull/27)
 
 ## 2026-11-27 — Alcance propuesto de Consolidación del núcleo
 
@@ -134,8 +134,7 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 
 - El propietario confirmó cero fallos y pendientes, transporte Pub/Sub verificado y ruleset anterior identificado. Sigue pendiente una prueba activa de entrega de eventos.
 - Autorizó solo `firestore.rules` de `fa521e96c86e4052934ec9dcd080aceba06e7443` en `punto-de-venta-comic-shop`. Se corroboró la huella candidata y se prepararon respaldo, simulaciones de v2.42, publicación y reversión. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
-- Pasaron seis escenarios simulados. La ejecución real de las reglas sigue pendiente.
-- Siguiente acción. Ejecutar el bloque de reglas en Cloud Shell y compartir el resultado.
+- Pasaron seis escenarios simulados. Se dio paso a la ejecución de Cloud Shell registrada en la entrada posterior.
 
 ## 2026-11-25 — Alta y verificación estructural de la función
 
