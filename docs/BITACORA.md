@@ -2,6 +2,12 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Alcance propuesto de Consolidación del núcleo
+
+- Se contrastaron los casos operativos con el diagnóstico previo, las reglas, el código y la evidencia existente. La huella local coincide con la registrada para el ruleset. Se verificó el alcance documental.
+- Se propusieron cuatro iteraciones de abonos, inventario y reversos, comisiones y cierre compatible de rutas. Se conservan los límites de la evidencia sobre operaciones reales. [Plan](PLAN_MAESTRO.md#bloque-20-consolidacion)
+- Siguiente acción. Aprobar el alcance y el destino del abono confirmado al cancelar un apartado pendiente.
+
 ## 2026-11-27 — Diseño UI/UX transversal
 
 - Se incorporó la definición del Design System tras 2.0 y antes de Clientes, su uso en fase 2 y la unificación visual de pantallas existentes en 2.11. [Plan](PLAN_MAESTRO.md#diseno-transversal)
@@ -125,26 +131,10 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 - Pasaron seis escenarios simulados. La ejecución real de las reglas sigue pendiente.
 - Siguiente acción. Ejecutar el bloque de reglas en Cloud Shell y compartir el resultado.
 
-## 2026-11-25 — Función real desplegada y corrección de la verificación
+## 2026-11-25 — Alta y verificación estructural de la función
 
-- El propietario confirmó `procesarVentaPos` activa, revisión `procesarventapos-00001-mem` lista con 100 % del tráfico y Eventarc `procesarventapos-790966` en `nam5` con destino `cloudFunction`, filtros y cuenta correctos.
-- Se registró la restauración de los agentes administrados de Cloud Functions y Eventarc informada por el propietario. Sus enlaces, la invocación y el transporte se comprueban mediante el verificador de solo lectura. [Verificador](../scripts/verificar-funcion-v243-cloud-shell.py)
-- Se corrigió el verificador para aceptar `destination.cloudFunction` y la ausencia de `conditions`. Pasaron siete escenarios simulados. La ronda se limitó a documentación y verificación local. [Referencia de Eventarc](https://docs.cloud.google.com/eventarc/docs/reference/rest/v1/projects.locations.triggers)
-- Siguiente acción. Ejecutar el verificador en Cloud Shell. Las reglas de `fa521e9` requieren autorización separada.
-
-## 2026-11-25 — Aprovisionamiento del agente y alta oficial de la función
-
-- El propietario informó que falta el rol del agente de Cloud Functions y que el token de Compute devolvió HTTP 403. El alta sigue pendiente.
-- Se preparó un bloque con confirmación explícita, aprovisionamiento por Service Usage, restauración del rol exclusivo del agente y alta de la función por la API v2 sin obtener un token de Compute. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
-- Pasaron sintaxis y nueve escenarios simulados. La verificación real sigue pendiente y su alcance es estructural, sin eventos de venta.
-- Siguiente acción. Ejecutar el bloque integral y compartir el resultado.
-
-## 2026-11-25 — Alta de la función sin Policy Troubleshooter
-
-- El propietario confirmó permisos propios del llamante, cuenta de Compute Engine válida, backend compatible, Node.js 22 gen 2 disponible y cero solicitudes. El 403 de Troubleshooter persiste.
-- Se cambió el preflight a IAM Credentials y `testIamPermissions` bajo la identidad real. El alta comprobada conserva la compilación, revisión privada y Eventarc como evidencias, sin cambios de IAM. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
-- Pasaron sintaxis y siete escenarios simulados, incluido fallo de la credencial antes del alta. Sigue pendiente ejecutar en Firebase real con el SHA autorizado.
-- Siguiente acción. Ejecutar el bloque único de Cloud Shell y compartir su resultado.
+- El propietario informó fallos iniciales de IAM y Policy Troubleshooter. Se prepararon el alta por la API v2, la restauración de agentes y un preflight con IAM Credentials y `testIamPermissions`. Pasaron sintaxis y los escenarios simulados. [Script](../scripts/desplegar-funcion-v243-cloud-shell.sh)
+- Se confirmó la revisión `procesarventapos-00001-mem` con 100 % del tráfico y el disparador `procesarventapos-790966` en `nam5`. El verificador se ajustó para reconocer `destination.cloudFunction` y permitir la ausencia de `conditions`. Pasaron siete casos simulados. El alcance era estructural y las reglas de `fa521e9` requerían autorización separada. [Verificador](../scripts/verificar-funcion-v243-cloud-shell.py) · [Eventarc](https://docs.cloud.google.com/eventarc/docs/reference/rest/v1/projects.locations.triggers)
 
 ## 2026-11-25 — Preparación y precheck de Firebase real
 

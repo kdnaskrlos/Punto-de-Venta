@@ -677,3 +677,5 @@ Documento de planificación. Los escenarios 001–014 resumen el diagnóstico so
 ### Registro de revisiones posteriores
 
 Añade aquí las revisiones con fecha, ID, estado, cambio, evidencia y alcance. Estados: **Por verificar**, **Pendiente**, **En curso**, **Parcial**, **Implementado**, **Bloqueado**, **Reemplazado** o **Descartado**. Si cambia el alcance, registra autor, motivo, versión anterior en Git y sucesor si existe. Conserva la definición y el ancla histórica aun al dividir el catálogo. Próximo ID disponible **ESC-181**.
+
+- **27/11/2026 · Fase 2.0.** La revisión dirigida de ESC-008/057, ESC-013/063/101, ESC-045/069 y ESC-012/100 documentó el alcance y los controles existentes. Las correcciones propuestas requieren aprobación. [Propuesta de consolidación](PLAN_MAESTRO.md#bloque-20-consolidacion)

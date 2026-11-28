@@ -59,7 +59,7 @@
 
 - El catálogo clasifica los 180 escenarios por fase, bloque, dependencias técnicas y comerciales, carácter bloqueante, riesgo de adelantarlo y evidencia existente. 2.0 se limita a brechas demostrables de funciones operativas en v2.43.2. Se reutilizan auditorías, CI y validación de producción con sus alcances documentados. [Plan maestro](PLAN_MAESTRO.md) · [Clasificación](ESCENARIOS_COMERCIALES.md#clasificación-y-seguimiento)
 - La línea transversal de UI/UX establece el Design System entre 2.0 y Clientes, su adopción en las nuevas interfaces y la unificación de pantallas existentes en 2.11. [Diseño UI/UX](PLAN_MAESTRO.md#diseno-transversal)
-- **Siguiente acción.** Acotar las brechas de 2.0 antes de definir el Design System. Para iniciar Clientes, queda además aprobar los dos requisitos mínimos de entrada de Clientes: visibilidad de contacto, ventas y apartados por rol (ESC-107) y vínculo local seguro ante teléfonos ambiguos (alcance acotado de ESC-172). [Mínimos de entrada](PLAN_MAESTRO.md#minimos-entrada-clientes) · [Reglas](REGLAS_COMERCIALES.md)
+- **Siguiente acción.** Aprobar el alcance propuesto de 2.0 y el destino del abono confirmado al cancelar un apartado pendiente. La propuesta agrupa abonos, inventario y reversos, comisiones y cierre compatible de rutas en cuatro iteraciones. [Propuesta](PLAN_MAESTRO.md#bloque-20-consolidacion)
 
 ## Reglas comerciales por confirmar
 
