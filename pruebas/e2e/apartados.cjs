@@ -34,14 +34,16 @@ casos('apartados', [
     const d = await texto(p, '.ap-det');
     for (const x of ['Pendiente', 'Saldo pendiente', '84.000', 'Prendas']) a.ok(d.includes(x), `falta ${x} en el detalle: ${d}`);
   }],
-  ['Abonar suma y Completar crea la venta sin volver a descontar', async (env, a) => {
+  ['Abonar por dos medios y Completar crea la venta sin volver a descontar', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });
     await apartar(p, '20.000');
     await p.click('.side .nav[aria-label="Apartados"]'); await p.waitForSelector('.apartado');
     a.ok((await texto(p, '.apartado')).includes('64.000'));
     await p.click('.apartado'); await p.click('#ap-abonar');
     await p.click('.forma[data-forma="efectivo-cop"]');
-    await p.fill('.pago[data-forma="efectivo-cop"] input', '4.000');
+    await p.fill('.pago[data-forma="efectivo-cop"] input', '1.000');
+    await p.click('.forma[data-forma="transferencia-cop"]');
+    await p.fill('.pago[data-forma="transferencia-cop"] input', '3.000');
     await p.click('#abono-final');
     await p.waitForFunction(() => document.querySelector('.apartado')?.textContent.includes('60.000'));
     await p.click('.apartado'); a.ok((await texto(p, '.ap-det')).includes('Último abono'), 'último abono');
@@ -56,6 +58,9 @@ casos('apartados', [
     a.strictEqual(vs.length, 1);
     a.strictEqual(vs[0].total, 84000);
     a.deepStrictEqual(vs[0].pagos.map(x => x.monto), [60000]);
+    const abonos = await p.evaluate(() => [...window.__pos.ctx.almacen._estado('apartados').values()][0].abonos.slice(1));
+    a.deepStrictEqual(abonos.map(x => [x.forma, x.monto]), [['efectivo-cop', 1000], ['transferencia-cop', 3000]]);
+    a.ok(abonos[0].operacionId && abonos[0].operacionId === abonos[1].operacionId);
   }],
   ['La vendedora no cancela; la encargada sí y devuelve existencias', async (env, a) => {
     const p = await env.pagina({ usuario: 'vendedora', caja: true, ruta: '/vender' });

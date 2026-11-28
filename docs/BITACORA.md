@@ -2,6 +2,19 @@
 
 Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, cambios, comprobaciones, bloqueos y próxima acción cuando corresponda. Si la bitácora supera 150 líneas, resume las rondas antiguas y conserva sus referencias a PR e incidencias. Registra las decisiones permanentes verificadas en [AGENTS.md](../AGENTS.md) y el panorama vigente en [ESTADO_ACTUAL.md](ESTADO_ACTUAL.md).
 
+## 2026-11-27 — Ciclo de vida de Firebase Admin en las pruebas de 2.0.1
+
+- La CI obtuvo 38/43 en Firestore Emulator. Se reprodujo el error en cuatro casos de apartados y en el cierre final después de que el caso de 64 SKU eliminara la app compartida. [CI anterior](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46091072291)
+- El fixture de ventas se inicializa bajo demanda y se cierra al terminar la suite. Pasaron 5/5 casos dirigidos y 42/42 de la suite completa de Firestore Emulator en local. [Pruebas](../pruebas/firebase/cobros.cjs)
+- GitHub Actions confirmó 175/175 unitarias, 42/42 de Firestore Emulator y la aprobación de Chromium y PWA para `c23f9e3`. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/46098291774)
+- Siguiente acción. Revisar el candidato en el PR #27. 2.0.2 sigue pendiente de autorización. [PR #27](https://github.com/kdnaskrlos/Punto-de-Venta/pull/27)
+
+## 2026-11-27 — Candidato 2.0.1 · Abonos y liquidación de apartados
+
+- El propietario aprobó el alcance de 2.0 y el reintegro íntegro en ropa normal. La retención por costos comprometidos en personalizados quedó para fase 4. ESC-004 incorpora reposiciones fragmentadas, con precio, vigencia y comisión pendientes. [Reglas](REGLAS_COMERCIALES.md) · [ESC-004](ESCENARIOS_COMERCIALES.md#esc-004)
+- El candidato confirma cada abono compuesto en una sola transacción, conserva la cola offline y valida alta, liquidación, saldo, caja y pagos en servidor. Se probaron reintentos, concurrencia, autorización y datos históricos. [Procesador](../funciones/apartados.cjs)
+- Validación local: 175 unitarias, 8 casos de emulador, 6 de apartados en Chromium y 7 comprobaciones PWA aprobados. Siguiente acción: revisar el PR #27. La política de moneda, medio y caja y la autorización de 2.0.2 siguen pendientes. [PR #27](https://github.com/kdnaskrlos/Punto-de-Venta/pull/27)
+
 ## 2026-11-27 — Alcance propuesto de Consolidación del núcleo
 
 - Se contrastaron los casos operativos con el diagnóstico previo, las reglas, el código y la evidencia existente. La huella local coincide con la registrada para el ruleset. Se verificó el alcance documental.
@@ -69,14 +82,12 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 ## 2026-11-27 — Piloto v2.43 activo y primeras pruebas en PC aprobadas
 
 - Se desplegó el piloto v2.43 en Firebase Hosting. El enlace vence el 4 de diciembre de 2026. [Piloto](https://punto-de-venta-comic-shop--piloto-v243-n8egt6cf.web.app)
-- El propietario confirmó el funcionamiento de autenticación, inventario, venta e historial en PC.
-- Continúan las últimas pruebas comerciales, sin conexión y en Android antes de publicar. La v2.42 sigue como versión pública.
+- El propietario confirmó autenticación, inventario, venta e historial en PC. Quedaban las pruebas comerciales, offline y Android. La v2.42 seguía publicada.
 
 ## 2026-11-26 — Backend verificado y piloto web preparado
 
 - Cloud Shell devolvió `POS_PROCESAMIENTO_VERIFICADO` para `a8b5330aeebdfa889d25d90debd96e2909506289`. Eventarc procesó automáticamente la venta de control y quedaron conciliadas `V-0006` y `V-0007` con pagos e inventario correctos, sin duplicados ni conflictos. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45918790033)
-- Se generó el piloto v2.43 y se comprobó la configuración de Firebase real, ventas procesadas y los recursos versionados de la PWA. [Generador](../scripts/preparar-piloto.cjs)
-- Siguiente acción. Activar el canal temporal HTTPS y probar desde la interfaz en PC y Android. La publicación v2.42 sigue vigente. [Acceso al piloto](VALIDACION-FINAL-V243.md#piloto-funcional-en-pc-y-android)
+- Se generó el piloto v2.43 y se verificaron Firebase real, ventas procesadas y recursos PWA. Quedaba activar el canal HTTPS y probar en PC y Android. La v2.42 seguía publicada. [Generador](../scripts/preparar-piloto.cjs) · [Acceso al piloto](VALIDACION-FINAL-V243.md#piloto-funcional-en-pc-y-android)
 
 ## 2026-11-26 — Receptor CloudEvent nativo y validación con una autorización
 
@@ -87,8 +98,7 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 ## 2026-11-26 — Revisión 00003 activa y nueva venta de control preparada
 
 - Cloud Shell devolvió `REVISION_VERIFICADA` en `procesarventapos-00003-joz` para el SHA `339649d7126faed6d8feb3f2e58246568630954c`. Pasó la CI de ese SHA. [CI](https://github.com/kdnaskrlos/Punto-de-Venta/actions/runs/45916546856)
-- La solicitud `qa-v243-eventarc-20261126-0d59dccc` sigue pendiente con dos unidades intactas, sin marca, número ni movimientos.
-- Se reutilizó la venta controlada con el ID `qa-v243-eventarc-20261127-31c2a83e` y se incorporó la lectura de `motivo` ante fallo. Siguiente acción. Ejecutar el único bloque en Cloud Shell y registrar la salida. [Prueba](../scripts/verificar-eventarc-venta-v243-cloud-shell.cjs)
+- La solicitud `qa-v243-eventarc-20261126-0d59dccc` seguía pendiente con dos unidades intactas, sin marca, número ni movimientos. Se preparó `qa-v243-eventarc-20261127-31c2a83e` para Cloud Shell con lectura de `motivo` ante fallo. [Prueba](../scripts/verificar-eventarc-venta-v243-cloud-shell.cjs)
 
 ## 2026-11-26 — Eventarc entregó la solicitud, pero la revisión la descartó
 
@@ -119,17 +129,12 @@ Entradas recientes primero. Mantén cada ronda en 3–5 líneas, con fecha, camb
 
 ## 2026-11-25 — Corrección de los mocks de compatibilidad
 
-- Cloud Shell informó 11 de 12 casos aprobados en las reglas activas. La transición histórica del apartado se detuvo en `existsAfter` antes de publicar.
-- Se añadió el mock del comprobante posterior al lote y se revisaron los demás accesos simulados. El script ejecuta ambas tandas y bloquea ante cualquier fallo. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
-- Pasaron seis escenarios locales con APIs simuladas. El archivo de reglas autorizado conserva su SHA-256 y el respaldo anterior permanece disponible.
-- Siguiente acción. Ejecutar el bloque corregido de Cloud Shell y compartir la salida.
+- Cloud Shell informó 11/12 casos aprobados. La transición histórica del apartado se detuvo en `existsAfter` antes de publicar. El mock del comprobante posterior al lote permite ejecutar ambas tandas y bloquear ante fallos. Pasaron seis simulaciones. Se conservaron la huella y el respaldo. Quedaba ejecutar el bloque corregido en Cloud Shell. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
 
 ## 2026-11-25 — Verificación estructural aprobada y reglas autorizadas
 
 - El propietario confirmó cero fallos y pendientes, transporte Pub/Sub verificado y ruleset anterior identificado. Sigue pendiente una prueba activa de entrega de eventos.
-- Autorizó solo `firestore.rules` de `fa521e96c86e4052934ec9dcd080aceba06e7443` en `punto-de-venta-comic-shop`. Se corroboró la huella candidata y se prepararon respaldo, simulaciones de v2.42, publicación y reversión. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
-- Pasaron seis escenarios simulados. La ejecución real de las reglas sigue pendiente.
-- Siguiente acción. Ejecutar el bloque de reglas en Cloud Shell y compartir el resultado.
+- Autorizó solo `firestore.rules` de `fa521e96c86e4052934ec9dcd080aceba06e7443` en `punto-de-venta-comic-shop`. Se corroboró la huella y se prepararon respaldo, publicación y reversión. Pasaron seis simulaciones de v2.42 y se dio paso a Cloud Shell. [Script](../scripts/desplegar-reglas-v243-cloud-shell.py)
 
 ## 2026-11-25 — Alta y verificación estructural de la función
 

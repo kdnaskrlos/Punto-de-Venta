@@ -134,7 +134,8 @@ service cloud.firestore {
       let ruta = apartadoPath(v.desdeApartado);
       let previo = get(ruta).data;
       let siguiente = getAfter(ruta).data;
-      return previo.estado == 'pendiente' && siguiente.estado == 'completado'
+      return previo.estado == 'pendiente' && !previo.get('procesado', false) && siguiente.estado == 'completado'
+        && !existsAfter(solicitudVentaPath(request.auth.uid, 'completar:' + id))
         && siguiente.ventaId == id && siguiente.saldo == 0 && v.total == previo.total;
     }
 
@@ -173,14 +174,15 @@ service cloud.firestore {
       allow create: if ejemploNuevo();
       allow delete: if ejemploExistente();
       allow read: if activo();
-      allow create: if activo() && request.resource.data.usuario == yo() && request.resource.data.estado == 'pendiente';
+      allow create: if activo() && request.resource.data.usuario == yo() && request.resource.data.estado == 'pendiente' && !request.resource.data.get('procesado', false)
+        && !existsAfter(solicitudVentaPath(request.auth.uid, 'apartado:' + id));
       allow update: if activo() && resource.data.estado == 'pendiente' && (
-          (soloCambian(['abonos', 'saldo', 'ultimoAbono']) && request.resource.data.abonos.hasAll(resource.data.abonos)
+          (!resource.data.get('procesado', false) && soloCambian(['abonos', 'saldo', 'ultimoAbono']) && request.resource.data.abonos.hasAll(resource.data.abonos)
             && request.resource.data.abonos.size() > resource.data.abonos.size()
             && request.resource.data.saldo <= resource.data.saldo && request.resource.data.saldo >= 0
             && (request.resource.data.get('ultimoAbono', null) == resource.data.get('ultimoAbono', null)
               || abonoMarcado(id)))
-          || (soloCambian(['estado', 'ventaId', 'saldo']) && request.resource.data.estado == 'completado'
+          || (!resource.data.get('procesado', false) && soloCambian(['estado', 'ventaId', 'saldo']) && request.resource.data.estado == 'completado'
             && !exists(ventaPath(request.resource.data.ventaId))
             && getAfter(ventaPath(request.resource.data.ventaId)).data.desdeApartado == id
             && getAfter(ventaPath(request.resource.data.ventaId)).data.abonosPrevios == resource.data.total - resource.data.saldo)
@@ -214,10 +216,28 @@ service cloud.firestore {
         && v.id == id && v.fecha is string && v.creada is string && v.offline is bool && v.cajaId is string
         && v.lineas is list && v.lineas.size() > 0 && v.pagos is list && v.total is number;
     }
+    function solicitudApartadoValida(s, id) {
+      let c = s.cobro;
+      let d = c.datos;
+      return s.keys().hasOnly(['cobro', 'orden', 'dispositivo', 'version', 'recibida'])
+        && s.orden is int && s.orden > 0 && s.recibida == request.time
+        && s.dispositivo is string && s.dispositivo.size() > 0 && s.dispositivo.size() <= 120
+        && s.version is string && s.version.size() <= 32
+        && c is map && c.keys().hasOnly(['que', 'refId', 'apartadoId', 'datos'])
+        && c.que in ['apartado', 'abono', 'completar']
+        && c.refId is string && c.refId.matches('^[^/]{1,110}$') && id == c.que + ':' + c.refId
+        && c.apartadoId is string && c.apartadoId.matches('^[^/]{1,120}$')
+        && (c.que != 'apartado' || c.refId == c.apartadoId)
+        && d is map && d.id == c.refId && d.cajaId is string
+        && d.fecha is string && d.creada is string && d.offline is bool
+        && d.pagos is list && d.tasas is map;
+    }
     match /usuarios/{uid}/solicitudesVenta/{id} {
       allow get: if activo() && uid == request.auth.uid;
       allow create: if activo() && uid == request.auth.uid
-        && me().rol in ['admin', 'encargada', 'vendedora'] && solicitudVentaValida(request.resource.data, id);
+        && me().rol in ['admin', 'encargada', 'vendedora']
+        && (request.resource.data.keys().hasAny(['cobro'])
+          ? solicitudApartadoValida(request.resource.data, id) : solicitudVentaValida(request.resource.data, id));
       allow list, update, delete: if false;
     }
     match /usuarios/{uid}/operacionesCobro/{id} {
@@ -225,7 +245,7 @@ service cloud.firestore {
       allow create: if activo() && uid == request.auth.uid
         && request.resource.data.que in ['venta', 'apartado', 'abono', 'completar']
         && id == request.resource.data.que + ':' + request.resource.data.refId
-        && (request.resource.data.que != 'venta' || !existsAfter(solicitudVentaPath(uid, request.resource.data.refId)))
+        && !existsAfter(solicitudVentaPath(uid, request.resource.data.que == 'venta' ? request.resource.data.refId : id))
         && request.resource.data.orden is int && request.resource.data.orden > 0
         && request.resource.data.dispositivo is string && request.resource.data.fecha is string
         && (request.resource.data.estadoSync == 'confirmada_servidor' && documentoCobrado(request.resource.data, id)

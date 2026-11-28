@@ -5,19 +5,22 @@ export const LOCAL_PENDIENTE = 'local_pendiente';
 export const CONFIRMADA_SERVIDOR = 'confirmada_servidor';
 export const RECHAZADA_CONFLICTO = 'rechazada_conflicto';
 export const VENTA_PROCESADA = 'venta-procesada-v1';
+export const APARTADO_PROCESADO = 'apartado-procesado-v1';
+export const cobroProcesado = p => [VENTA_PROCESADA, APARTADO_PROCESADO].includes(p.transporte);
 
 const clave = (usuario, demo) => (demo ? 'pos-demo-pendientes-' : 'pos-pendientes-') + (usuario || '');
 // Una versión anterior no debe interpretar una intención de venta como un lote rechazado.
-const prefijo = (usuario, transporte) => (transporte === VENTA_PROCESADA ? 'pos-venta-procesada-' : 'pos-cobro-') + usuario + ':';
+const prefijos = { [VENTA_PROCESADA]: 'pos-venta-procesada-', [APARTADO_PROCESADO]: 'pos-apartado-procesado-' };
+const prefijo = (usuario, transporte) => (prefijos[transporte] || 'pos-cobro-') + usuario + ':';
 export const claveOperacion = p => p.que + ':' + p.id;
 const claveCobro = (usuario, p) => prefijo(usuario, p.transporte) + claveOperacion(p);
 
 export function leerCobro(usuario, p) {
   try {
     const directo = localStorage.getItem(claveCobro(usuario, p));
-    const alterno = !p.transporte && p.que === 'venta' && localStorage.getItem(
-      claveCobro(usuario, { ...p, transporte: VENTA_PROCESADA }),
-    );
+    const alterno = !p.transporte && localStorage.getItem(claveCobro(usuario, {
+      ...p, transporte: p.que === 'venta' ? VENTA_PROCESADA : APARTADO_PROCESADO,
+    }));
     return JSON.parse(directo || alterno || 'null');
   } catch { return null; }
 }
@@ -57,13 +60,37 @@ export function leerPendientes(usuario, demo = false) {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (!k?.startsWith(prefijo(usuario)) && !k?.startsWith(prefijo(usuario, VENTA_PROCESADA))) continue;
+      if (![undefined, VENTA_PROCESADA, APARTADO_PROCESADO].some(t => k?.startsWith(prefijo(usuario, t)))) continue;
       const p = JSON.parse(localStorage.getItem(k));
       if (p) nuevos.push(p);
     }
   } catch { /* quedan disponibles los pendientes ya leídos */ }
   return anteriores.concat(nuevos.sort((a, b) => a.orden - b.orden));
 }
+export function proyectarApartados(documentos, cola, usuario) {
+  const mapa = new Map(documentos.map(ap => [ap.id, ap]));
+  for (const p of cola) {
+    if (p.transporte !== APARTADO_PROCESADO || p.estadoSync !== LOCAL_PENDIENTE) continue;
+    const ap = mapa.get(p.apartadoId);
+    const d = p.datos;
+    if (p.que === 'completar') {
+      if (ap?.estado === 'pendiente') mapa.set(ap.id, { ...ap, saldo: 0, estado: 'completado', pendienteLocal: true });
+      continue;
+    }
+    if (ap && (p.que === 'apartado' || ap.estado !== 'pendiente')) continue;
+    if (!ap && p.que === 'abono') continue;
+    const medios = d.pagos.map((pago, i) => ({ ...pago, id: p.id + '-' + i,
+      cajaId: d.cajaId, fecha: d.fecha, usuario, operacionId: claveOperacion(p) }));
+    const previos = ap?.abonos || [];
+    if (previos.some(a => a.operacionId === claveOperacion(p) || medios.some(b => b.id === a.id))) continue;
+    const saldo = (ap?.saldo ?? d.total) - medios.reduce((total, a) => total + a.equivalenteCop, 0);
+    if (!Number.isSafeInteger(saldo) || saldo < 0) continue;
+    mapa.set(p.apartadoId, { ...(ap || d), id: p.apartadoId, usuario: ap?.usuario ?? usuario,
+      estado: 'pendiente', abonos: [...previos, ...medios], saldo, pendienteLocal: true });
+  }
+  return [...mapa.values()];
+}
+
 function escribir(usuario, lista, demo) {
   try { if (lista.length) localStorage.setItem(clave(usuario, demo), JSON.stringify(lista)); else localStorage.removeItem(clave(usuario, demo)); } catch { /* sin almacenamiento */ }
 }
@@ -89,7 +116,7 @@ export async function revisarUno(almacen, p, productosPorSku = {}) {
   if (p.orden != null) {
     const estado = await almacen.verificarCobro(p);
     if (estado === CONFIRMADA_SERVIDOR || estado === RECHAZADA_CONFLICTO) return 'ok';
-    if (p.transporte === VENTA_PROCESADA) return 'esperar';
+    if (cobroProcesado(p)) return 'esperar';
     return { conflicto: conflictoRechazo(p) };
   }
   let existe = false;

@@ -13,6 +13,13 @@ Este registro enlaza los acuerdos vigentes con su fuente de aprobación, alcance
 
 Las demás reglas vigentes ya documentadas se consultan en [AGENTS.md](../AGENTS.md#reglas-comerciales-vigentes) y en la [memoria de decisiones](memoria/DECISIONES.md#vigentes). La [propuesta de fase 2](PLAN_MAESTRO.md) mantiene abiertas las decisiones nuevas. Para Pedidos, el [acuerdo histórico](superpowers/specs/2026-11-14-pedidos-en-pos-notas.md) documenta roles comunes, cobro por caja y migración única. Su alcance operativo requiere aprobación antes del corte.
 
+## Decisiones aprobadas para los reversos
+
+| Regla | Aprobación y alcance | Referencias |
+| --- | --- | --- |
+| Al cancelar un apartado de ropa normal se devuelve íntegramente el dinero abonado. | Propietario, 27/11/2026, aprobación expresa de la consolidación. Moneda, medio de pago y caja se definirán antes de implementar 2.0.2. | [ESC-063](ESCENARIOS_COMERCIALES.md#esc-063) · [Plan](PLAN_MAESTRO.md#bloque-20-consolidacion) |
+| Al cancelar un pedido personalizado con tiempo, trabajo o materiales ya comprometidos, se podrá retener parte o todo el abono para recuperar esos costos conforme a las condiciones previamente acordadas. | Propietario, 27/11/2026. Alcance para fase 4. | [ESC-124](ESCENARIOS_COMERCIALES.md#esc-124) · [ESC-161](ESCENARIOS_COMERCIALES.md#esc-161) |
+
 ## Cómo registrar decisiones
 
 Cuando el propietario apruebe explícitamente una regla, registra la fecha, quién la aprobó, la fuente verificable, la vigencia, permisos, excepciones, escenarios vinculados y evidencia de implementación disponible. Si la aprobación cubre solo una parte, indica ese alcance. Si falta evidencia de aprobación, conserva la propuesta en el catálogo o el plan. Si una decisión se modifica, reemplaza o descarta, anota la fecha, motivo y enlace a la versión histórica y al acuerdo sucesor. Vincula aquí los acuerdos ya registrados en lugar de duplicarlos.

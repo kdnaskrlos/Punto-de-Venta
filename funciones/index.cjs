@@ -4,6 +4,7 @@ const { getFirestore } = require('firebase-admin/firestore');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { parse } = require('protobufjs');
 const { atenderVenta, idValido } = require('./ventas.cjs');
+const { atenderApartado } = require('./apartados.cjs');
 
 const proyectoEntorno = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'punto-de-venta-comic-shop';
 const app = getApps()[0] || (process.env.FIREBASE_CONFIG ? initializeApp() : initializeApp({ projectId: proyectoEntorno }));
@@ -65,7 +66,12 @@ async function procesarVentaPos(evento) {
     console.warn(JSON.stringify({ severity: 'WARNING', message: 'CloudEvent de venta rechazado.', motivo: solicitud.motivo }));
     return;
   }
-  return atenderVenta(getFirestore(app), solicitud);
+  const db = getFirestore(app);
+  if (/^(apartado|abono|completar):/.test(solicitud.id)) {
+    const doc = await db.doc(`usuarios/${solicitud.uid}/solicitudesVenta/${solicitud.id}`).get();
+    if (doc.data()?.cobro) return atenderApartado(db, solicitud);
+  }
+  return atenderVenta(db, solicitud);
 }
 
 cloudEvent('procesarVentaPos', procesarVentaPos);

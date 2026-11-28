@@ -11,7 +11,7 @@ import { nuevoId } from './contrato.js';
 import { subirFotoGitHub, CLAVE_TOKEN } from './github-fotos.js';
 import { describir, diferencias } from './eventos.js';
 import { claveOperacion, guardarCobro, leerCobro, leerPendientes, resolverCobro,
-  LOCAL_PENDIENTE, CONFIRMADA_SERVIDOR, RECHAZADA_CONFLICTO, VENTA_PROCESADA } from './pendientes.js';
+  LOCAL_PENDIENTE, CONFIRMADA_SERVIDOR, RECHAZADA_CONFLICTO, VENTA_PROCESADA, APARTADO_PROCESADO, cobroProcesado, proyectarApartados } from './pendientes.js';
 import { dispositivo } from './dispositivo.js';
 import { APP_VERSION } from '../version.js';
 
@@ -67,12 +67,12 @@ async function idImportacion(uid, filas) {
   return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export function crearFirebase(config, { ventasAtomicas = false } = {}) {
+export function crearFirebase(config, { ventasAtomicas = false, apartadosAtomicos = ventasAtomicas } = {}) {
   const app = initializeApp(config);
   const auth = getAuth(app);
   const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
   let sesion = null, miCaja = null, pendientes = 0, pendientesVentas = 0, errorSync = null;
-  const enCurso = new Set(), cobrosEnCurso = new Map(), enviosVentas = new Map();
+  const enCurso = new Set(), cobrosEnCurso = new Map(), enviosProcesados = new Map(), oyentesApartados = new Set();
   // La caja abierta se conoce con el primer dato de su escucha; vender espera ese momento (máx. 4 s).
   let cajaConocida = Promise.resolve(), avisarCajaConocida = () => {};
   const esperarCaja = () => Promise.race([cajaConocida, new Promise(r => setTimeout(r, 4000))]);
@@ -199,6 +199,7 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
   const resultadoMarca = snap => snap.data()?.estadoSync === RECHAZADA_CONFLICTO ? rechazado('conflicto')
     : snap.metadata.hasPendingWrites ? pendienteLocal() : confirmado();
   const listo = resultado => ({ resultado, entrada: Promise.resolve() });
+  const avisarApartados = () => { for (const cb of oyentesApartados) cb(); };
   const avisarCobros = () => globalThis.dispatchEvent?.(new Event('pos:cobros-sync'));
 
   // Un solo lote por cobro. Firestore lo conserva y lo envía en orden en este dispositivo.
@@ -319,11 +320,11 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
     return [];
   }
 
-  const mismaCuentaVenta = (p, actor) => actor && sesion?.uid === actor.uid
+  const mismaCuentaCobro = (p, actor) => actor && sesion?.uid === actor.uid
     && p.uid === actor.uid && p.proyecto === config.projectId;
   const solicitudVenta = (uid, id) => doc(db, 'usuarios', uid, 'solicitudesVenta', id);
 
-  async function esperarMarcaVenta(marca) {
+  async function esperarMarcaCobro(marca) {
     let quitar = () => {};
     try {
       const estado = await conTope(new Promise((resolve, reject) => {
@@ -335,29 +336,31 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
     } finally { quitar(); }
   }
 
-  // Solo se entrega la primera venta pendiente de esta cuenta en el mismo almacenamiento.
+  // Solo se entrega el primer cobro procesado pendiente de esta cuenta en el mismo almacenamiento.
   // Un envío sin respuesta se reintenta con el comprobante y el ID originales.
-  function sincronizarVenta(p, actor = sesion) {
-    if (!mismaCuentaVenta(p, actor) || !navigator.onLine) return Promise.resolve(null);
-    const clave = actor.uid + ':' + p.id;
-    if (enviosVentas.has(clave)) return enviosVentas.get(clave);
+  function sincronizarCobroProcesado(p, actor = sesion) {
+    if (!mismaCuentaCobro(p, actor) || !navigator.onLine) return Promise.resolve(null);
+    const clave = actor.uid + ':' + claveOperacion(p);
+    if (enviosProcesados.has(clave)) return enviosProcesados.get(clave);
     const enviar = async () => {
       const marca = marcaCobro(actor.uid, p);
       const anterior = await conTope(getDocFromServer(marca), 2500);
-      if (anterior === demora || !mismaCuentaVenta(p, actor)) return null;
+      if (anterior === demora || !mismaCuentaCobro(p, actor)) return null;
       if (anterior.exists() && !anterior.metadata.hasPendingWrites) return anterior.data().estadoSync;
-      const primera = leerPendientes(actor.usuario).find(q => q.transporte === VENTA_PROCESADA
-        && q.estadoSync === LOCAL_PENDIENTE && mismaCuentaVenta(q, actor));
-      if (primera?.id !== p.id) return null;
-      if (await conTope(waitForPendingWrites(db), 3500) === demora || !mismaCuentaVenta(p, actor)) return null;
+      const primera = leerPendientes(actor.usuario).find(q => cobroProcesado(q)
+        && q.estadoSync === LOCAL_PENDIENTE && mismaCuentaCobro(q, actor));
+      if (!primera || claveOperacion(primera) !== claveOperacion(p)) return null;
+      if (await conTope(waitForPendingWrites(db), 3500) === demora || !mismaCuentaCobro(p, actor)) return null;
 
-      const solicitud = solicitudVenta(actor.uid, p.id);
+      const paraVenta = p.transporte === VENTA_PROCESADA;
+      const solicitud = solicitudVenta(actor.uid, paraVenta ? p.id : claveOperacion(p));
       const existente = await conTope(getDocFromServer(solicitud), 2500);
-      if (existente === demora || !mismaCuentaVenta(p, actor)) return null;
+      if (existente === demora || !mismaCuentaCobro(p, actor)) return null;
       if (!existente.exists()) {
         try {
           const subida = await conTope(setDoc(solicitud, limpiarIndefinidos({
-            venta: p.datos, orden: p.orden, dispositivo: p.dispositivo, version: p.version, recibida: serverTimestamp(),
+            ...(paraVenta ? { venta: p.datos } : { cobro: { que: p.que, refId: p.id, apartadoId: p.apartadoId, datos: p.datos } }),
+            orden: p.orden, dispositivo: p.dispositivo, version: p.version, recibida: serverTimestamp(),
           })), 3500);
           if (subida === demora) return null;
         } catch (e) {
@@ -366,11 +369,12 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
           if (registrada === demora || !registrada.exists()) throw e;
         }
       }
-      return mismaCuentaVenta(p, actor) ? esperarMarcaVenta(marca) : null;
+      return mismaCuentaCobro(p, actor) ? esperarMarcaCobro(marca) : null;
     };
     const resultado = enviar().then(estado => {
       if (estado === CONFIRMADA_SERVIDOR || estado === RECHAZADA_CONFLICTO) {
         resolverCobro(actor.usuario, p, estado);
+        if (p.transporte === APARTADO_PROCESADO) avisarApartados();
         errorSync = null;
         return estado;
       }
@@ -379,15 +383,15 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
       errorSync = e.code || 'error';
       return null;
     }).finally(() => {
-      enviosVentas.delete(clave);
+      enviosProcesados.delete(clave);
       avisarSync();
     });
-    enviosVentas.set(clave, resultado);
+    enviosProcesados.set(clave, resultado);
     return resultado;
   }
 
-  async function solicitarVenta(venta, cajaId, actor) {
-    const operacion = { que: 'venta', id: venta.id };
+  async function solicitarCobroProcesado(operacion, comprobante, cajaId, actor) {
+    const transporte = operacion.que === 'venta' ? VENTA_PROCESADA : APARTADO_PROCESADO;
     try {
       const previa = await getDocFromCache(marcaCobro(actor.uid, operacion));
       if (previa.exists()) return resultadoMarca(previa);
@@ -396,12 +400,12 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
       if (sesion?.uid !== actor.uid) return null;
       const anterior = leerCobro(actor.usuario, operacion);
       if (anterior) return anterior;
-      const datos = limpiarIndefinidos({ ...venta, cajaId, offline: !navigator.onLine, creada: ahora() });
+      const datos = limpiarIndefinidos({ ...comprobante, cajaId, offline: !navigator.onLine, creada: ahora() });
       // Presupuesto del protocolo de ventas. La comprobación se repite en el servidor.
-      if (new Set(datos.lineas.map(l => l.sku)).size > 248 || new TextEncoder().encode(JSON.stringify(datos)).length > 512 * 1024) {
+      if (new Set(datos.lineas?.map(l => l.sku)).size > 248 || new TextEncoder().encode(JSON.stringify(datos)).length > 512 * 1024) {
         return NO('limite-venta');
       }
-      return guardarCobro(actor.usuario, { ...operacion, transporte: VENTA_PROCESADA, uid: actor.uid,
+      return guardarCobro(actor.usuario, { ...operacion, transporte, uid: actor.uid,
         proyecto: config.projectId, dispositivo: dispositivo().id, version: APP_VERSION,
         datos });
     };
@@ -413,9 +417,10 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
     if (p.error) return p;
     if (p.estadoSync === RECHAZADA_CONFLICTO) return rechazado('conflicto');
     avisarSync();
-    if (p.transporte !== VENTA_PROCESADA) return pendienteLocal();
-    if (!mismaCuentaVenta(p, actor)) return NO('sesion');
-    const envio = sincronizarVenta(p, actor);
+    if (!cobroProcesado(p)) return pendienteLocal();
+    if (p.transporte === APARTADO_PROCESADO) avisarApartados();
+    if (!mismaCuentaCobro(p, actor)) return NO('sesion');
+    const envio = sincronizarCobroProcesado(p, actor);
     envio.then(r => { if (r) avisarCobros(); });
     const estado = await conTope(envio, 4000);
     if (estado === CONFIRMADA_SERVIDOR) return confirmado();
@@ -590,8 +595,23 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
       else if (!conds.length && ['ventas', 'movimientos', 'autorizaciones', 'eventos'].includes(nombre) && obj?.desde) conds.push(where('fecha', '>=', obj.desde));
       if (conds.length) q = query(q, ...conds);
       if (nombre === 'usuarios' && sesion.rol !== 'admin') q = query(q, where('activo', '==', true));
-      return onSnapshot(q, s => cb(s.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => cumpleFiltro(d, filtro))),
-        e => { console.warn('escuchar', nombre, e); cb([]); });
+      const actor = sesion;
+      const proyeccion = nombre === 'apartados' && obj?.pendientesLocales;
+      let documentos = [];
+      const publicar = () => {
+        if (sesion?.uid !== actor.uid) return;
+        const lista = proyeccion ? proyectarApartados(documentos,
+          leerPendientes(actor.usuario).filter(p => mismaCuentaCobro(p, actor)), actor.usuario) : documentos;
+        cb(lista.filter(d => cumpleFiltro(d, filtro)));
+      };
+      const quitar = onSnapshot(q, s => {
+        documentos = s.docs.map(d => ({ id: d.id, ...d.data() }));
+        publicar();
+      }, e => { console.warn('escuchar', nombre, e); documentos = []; publicar(); });
+      if (!proyeccion) return quitar;
+      oyentesApartados.add(publicar);
+      addEventListener('storage', publicar);
+      return () => { quitar(); oyentesApartados.delete(publicar); removeEventListener('storage', publicar); };
     },
     async obtener(nombre, id) {
       try { const s = await getDoc(ref(nombre, id)); return s.exists() ? { id: s.id, ...s.data() } : null; } catch { return null; }
@@ -623,7 +643,7 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
     },
     notificarCobros: avisarSync,
     verificarCobro(p) {
-      return p.transporte === VENTA_PROCESADA ? sincronizarVenta(p) : comprobarCobro(p, sesion);
+      return cobroProcesado(p) ? sincronizarCobroProcesado(p) : comprobarCobro(p, sesion);
     },
     async esperarSubidas(topeMs = 15000) {
       return await conTope(waitForPendingWrites(db), topeMs) !== demora;
@@ -658,7 +678,7 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
       await esperarCaja();
       if (sesion?.uid !== uid) return NO('sesion');
       if (!miCaja) return NO('sin-caja');
-      if (ventasAtomicas) return solicitarVenta(venta, miCaja.id, sesion);
+      if (ventasAtomicas) return solicitarCobroProcesado({ que: 'venta', id: venta.id }, venta, miCaja.id, sesion);
       const docu = { ...venta, numero: null, offline: !navigator.onLine, uid: sesion.uid, usuario: sesion.usuario, cajaId: miCaja.id, estado: 'ok', creada: ahora() };
       return guardarConExistencia({ que: 'venta', col: 'ventas', docu, lineas: venta.lineas, motivo: 'venta', ev: describir('guardarVenta', [venta]) });
     },
@@ -695,6 +715,11 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
       await esperarCaja();
       if (sesion?.uid !== uid) return NO('sesion');
       if (!miCaja) return NO('sin-caja');
+      if (apartadosAtomicos) {
+        const { abonos, ...datos } = ap;
+        return solicitarCobroProcesado({ que: 'apartado', id: ap.id, apartadoId: ap.id },
+          { ...datos, pagos: abonos || [] }, miCaja.id, sesion);
+      }
       const abonos = (ap.abonos || []).map(a => ({ ...a, cajaId: miCaja.id, usuario: sesion.usuario, fecha: ap.fecha }));
       const abonado = abonos.reduce((s, a) => s + (a.equivalenteCop || 0), 0);
       const docu = { ...ap, abonos, saldo: Math.max(0, ap.total - abonado), uid, usuario: sesion.usuario, estado: 'pendiente', creada: ahora() };
@@ -706,6 +731,11 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
       await esperarCaja();
       if (sesion?.uid !== uid) return NO('sesion');
       if (!miCaja) return NO('sin-caja');
+      if (Array.isArray(pago.pagos)) {
+        if (!pago.id || !pago.pagos.length) return NO('datos');
+        return solicitarCobroProcesado({ que: 'abono', id: pago.id, apartadoId: id },
+          pago, miCaja.id, sesion);
+      }
       const snap = await getDocFromCache(ref('apartados', id)).catch(() => null);
       const consulta = snap?.exists() ? snap : await conTope(getDoc(ref('apartados', id)), 4000).catch(() => null);
       if (sesion?.uid !== uid) return NO('sesion');
@@ -728,6 +758,11 @@ export function crearFirebase(config, { ventasAtomicas = false } = {}) {
       await esperarCaja();
       if (sesion?.uid !== uid) return NO('sesion');
       if (!miCaja) return NO('sin-caja');
+      if (apartadosAtomicos) {
+        const { id: refId, fecha, total, abonosPrevios, pagos, vuelto, tasas } = venta;
+        return solicitarCobroProcesado({ que: 'completar', id: refId, apartadoId: id },
+          { id: refId, fecha, total, abonosPrevios, pagos, vuelto, tasas }, miCaja.id, sesion);
+      }
       const snap = await getDocFromCache(ref('apartados', id)).catch(() => null);
       const consulta = snap?.exists() ? snap : await conTope(getDoc(ref('apartados', id)), 4000).catch(() => null);
       if (sesion?.uid !== uid) return NO('sesion');
